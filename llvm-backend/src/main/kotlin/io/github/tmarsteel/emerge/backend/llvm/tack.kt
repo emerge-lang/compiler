@@ -60,7 +60,7 @@ class LateInitStateTackDelegate<T : Any?> {
 
     operator fun getValue(thisRef: Any, prop: KProperty<*>): T {
         return data[thisRef]
-            ?: throw UninitializedPropertyAccessException("tacked lateinit ${thisRef::class.simpleName}::${prop.name}")
+            ?: throw UninitializedPropertyAccessException("tacked lateinit ${thisRef::class.simpleName}::${prop.name} on $thisRef")
     }
 
     operator fun setValue(thisRef: Any, prop: KProperty<*>, value: T) {

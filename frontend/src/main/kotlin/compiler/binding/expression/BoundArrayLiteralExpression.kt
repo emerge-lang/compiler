@@ -18,7 +18,6 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -64,8 +63,8 @@ class BoundArrayLiteralExpression(
             elementType = expectedElementType!!
             elements.forEach { element ->
                 element.type?.let {
-                    val unification = elementType.unify(it, element.declaration.span, TypeUnification.EMPTY)
-                    unification.diagnostics.forEach(diagnosis::add)
+                    it.evaluateAssignabilityTo(elementType, element.declaration.span)
+                        ?.let(diagnosis::add)
                 }
             }
         } else {

@@ -17,7 +17,7 @@ class NullableTypeReference private constructor(
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true
-    override val isNothing = false
+    override val isNonNullableNothing = false
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))
@@ -48,7 +48,7 @@ class NullableTypeReference private constructor(
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
-        return rewrap(nested.closestCommonSupertypeWith(other))
+        return rewrap(nested.closestCommonSupertypeWith(if (other is NullableTypeReference) other.nested else other))
     }
 
     override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
@@ -59,7 +59,7 @@ class NullableTypeReference private constructor(
         return nested.findMemberFunction(name)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return rewrap(nested.withTypeVariables(variables))
     }
 

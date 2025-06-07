@@ -30,10 +30,17 @@ internal var IrMemberFunction.rootSignatureHash: ULong by tackLateInitState()
 internal fun IrSoftwareContext.assignVirtualFunctionHashes() {
     val interfacePooler = Pooler<IrInterface>()
     this.modules
+        .asSequence()
         .flatMap { it.packages }
         .flatMap { it.classes }
         .map { it.allDistinctSupertypesExceptAny }
         .forEach(interfacePooler::mustBeInSamePool)
+
+    this.modules
+        .asSequence()
+        .flatMap { it.packages }
+        .flatMap { it.interfaces }
+        .forEach(interfacePooler::assureInSomePool)
 
     interfacePooler.pools.forEach { interfacePool ->
         interfacePool

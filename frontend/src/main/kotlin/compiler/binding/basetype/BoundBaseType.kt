@@ -167,7 +167,7 @@ class BoundBaseType(
                         KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
                         AstCodeChunk(emptyList())
                     )
-                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters, _memberVariables) { this }
                     constructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     constructor = declaredConstructors.first()
@@ -433,6 +433,7 @@ class BoundBaseType(
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(other: BoundBaseType): Boolean {
         if (other === this) return true
+        if (other === other.context.swCtx.any) return true
         if (other === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
 
@@ -559,6 +560,8 @@ private class IrInterfaceImpl(
     override fun hashCode(): Int {
         return canonicalName.hashCode()
     }
+
+    override fun toString() = "IrInterface[$canonicalName]"
 }
 
 private class IrClassImpl(

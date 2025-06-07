@@ -26,7 +26,7 @@ data class MissingVariableTypeDiagnostic(
     val kind: BoundVariable.Kind,
 ) : Diagnostic(
     Severity.ERROR,
-    "The type of $kind ${parameter.name.value} must be explicitly declared.",
+    "The type of ${kind.readableKindName} ${parameter.name.value} must be explicitly declared.",
     parameter.span
 ) {
     override fun toString() = super.toString()

@@ -1,12 +1,14 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -187,6 +189,27 @@ class TypeErrors : FreeSpec({
         }
 
         "generic validation involving multiple values of different types" {
+            /*
+            ideally, the compiler should argue this way:
+            1. expected return type of invoking the A-constructor is A<S32>,
+               hence T = S32 (unnegotiable)
+            2. the numeric literal 2 conforms to S32 -> all good
+            3. the boolean literal false doesn't conform to S32 -> report an error
+
+            But it currently doesn't. This is tricky to integrate into the type unification process,
+            and I've given up last time I tried. So, the compiler currently reasons like so:
+
+            1. expected return type of invoking the A-constructor is A<S32>,
+               hence T = S32 (negotiable)
+            2. the numeric literal 2 conforms to S32 -> all good
+            3. the boolean literal false doesn't conform to S32
+               but the type of the literal conforms to the bound of T (which is read Any?),
+               so rebind T to the closest common supertype of Bool and S32, which is Any;
+               hence now T = Any
+            4. The return type of the constructor invocation is (correctly!!) determined to be A<Any>
+            5. the return value of the constructor doesn't conform to the expected A<S32> -> report an error ("Any is not a subtype of S32")
+             */
+
             validateModule("""
                 class A<T> {
                     propOne: T = init
@@ -195,7 +218,7 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Bool"
+                    it.sourceType.toString() shouldBe "const Any"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }
@@ -242,6 +265,71 @@ class TypeErrors : FreeSpec({
                 fn test(p: C<S32, S32>) {}
             """.trimIndent())
                 .shouldFind<SuperfluousTypeArgumentsDiagnostic>()
+        }
+
+        "unsatisfiable compound constraints" - {
+            "failing on supertype constraint" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T> {}
+                    
+                    fn foo<E, F : X<E>>(p1: F, p2: F) {}
+                    
+                    fn trigger<P1 : X<A>, P2: X<B>>(p1: P1, p2: P2) {
+                        foo(p1, p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on subtype constraint, lower bound not satisfiable" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T> {}                    
+                   
+                    fn foo<E>(p1: X<in E>, p2: X<in E>) {}
+                    
+                    fn trigger(p1: X<A>, p2: X<B>) {
+                        foo(p1, p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on subtype constraint, upper bounds incompatible with lower bound" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    
+                    interface X<T> {}
+                    
+                    fn foo<E>(p0: X<out E>, p1: X<in E>) {}
+                    
+                    fn trigger(p0: X<A>, p1: X<B>) {
+                        foo(p0, p1)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on exact constraint, not compatible with default upper bound" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T : A> {}
+                    
+                    fn trigger(p: X<B>) {}
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
         }
     }
 
@@ -303,7 +391,7 @@ class TypeErrors : FreeSpec({
         }
     }
 
-    "union types" - {
+    "intersection types" - {
         "superfluous components" {
             validateModule("""
                 interface I {}
@@ -341,6 +429,15 @@ class TypeErrors : FreeSpec({
                     it.complicatedType.toString() shouldBe "read I & mut Any"
                     it.simplerVersion.toString() shouldBe "mut testmodule.I"
                 }
+        }
+
+        "conflicting components - same base type twice with different params" {
+            validateModule("""
+                interface X<T> {}
+                
+                fn trigger(p: X<Any> & X<S32>) {}
+            """.trimIndent())
+                .shouldFind<IllegalIntersectionTypeDiagnostic>()
         }
     }
 

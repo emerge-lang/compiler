@@ -137,7 +137,7 @@ class BoundReturnExpression(
             bound
         }
 
-        if (actualExpression.type!!.isNothing) {
+        if (actualExpression.type!!.isNonNullableNothing) {
             return actualExpression.toBackendIrStatement()
         }
 

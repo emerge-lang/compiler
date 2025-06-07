@@ -8,6 +8,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -29,7 +30,7 @@ class BoundTypeArgument(
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
-    override val isNothing get() = type.isNothing
+    override val isNonNullableNothing get() = type.isNonNullableNothing
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
@@ -49,17 +50,17 @@ class BoundTypeArgument(
         type.validate(forUsage.deriveIrrelevant(), diagnosis)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeArgument {
         return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
-            return carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
-        }
+            if (assigneeType.isNonNullableNothing) {
+                return carry
+            }
 
-        if (this.type is TypeVariable) {
-            return this.type.unify(assigneeType, assignmentLocation, carry)
+            return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
 
         when (assigneeType) {
@@ -68,26 +69,16 @@ class BoundTypeArgument(
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                if (type is TypeVariable || assigneeType.type is TypeVariable) {
-                    return type.unify(assigneeType.type, assignmentLocation, carry)
-                }
-
                 if (this.variance == TypeVariance.UNSPECIFIED) {
                     val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
 
-                    val assigneeActualTypeNotNullable = assigneeType.type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+                    if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
+                        return carry2.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                    }
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(this.type)) {
-                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
-                    }
-
-                    if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
-                    }
-
-                    // checks for mutability and nullability
-                    return this.type.unify(assigneeType.type, assignmentLocation, carry2)
+                    val carry3 = this.type.unify(assigneeType.type, assignmentLocation, carry2)
+                    return assigneeType.type.unify(this.type, assignmentLocation, carry3)
                 }
 
                 if (this.variance == TypeVariance.OUT) {
@@ -96,7 +87,7 @@ class BoundTypeArgument(
                     }
 
                     check(assigneeType.variance == TypeVariance.IN)
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
                     )
                 }
@@ -107,7 +98,7 @@ class BoundTypeArgument(
                     return assigneeType.type.unify(this.type, assignmentLocation, carry)
                 }
 
-                return carry.plusReporting(
+                return carry.plusDiagnostic(
                     ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
                 )
             }
@@ -216,25 +207,30 @@ class BoundTypeArgument(
      * Like [closestCommonSupertypeWith], but also respects semantics specific to [BoundTypeArgument]. To be
      * used in [BoundTypeReference.closestCommonSupertypeWith] for parametric types.
      */
-    fun intersect(other: BoundTypeArgument, bound: BoundTypeReference): BoundTypeArgument {
-        if (this.variance == other.variance) {
-            val commonType = this.closestCommonSupertypeWith(other)
-            return BoundTypeArgument(
-                this.context,
-                TypeArgument(this.variance, commonType.asAstReference()),
-                this.variance,
-                commonType,
-            )
+    fun intersect(other: BoundTypeArgument): BoundTypeArgument {
+        if (this == other) {
+            return this
         }
 
-        val resultType = bound
-            .withCombinedNullability(TypeReference.Nullability.of(this))
-            .withCombinedNullability(TypeReference.Nullability.of(other))
+        val resultVariance = when {
+            this.variance == TypeVariance.OUT || other.variance == TypeVariance.OUT -> TypeVariance.OUT
+            this.variance == TypeVariance.IN || other.variance == TypeVariance.IN -> TypeVariance.IN
+            else -> {
+                check(this.variance == other.variance && this.variance == TypeVariance.UNSPECIFIED)
+                TypeVariance.OUT
+            }
+        }
+
+        val resultType = when (resultVariance) {
+            TypeVariance.IN -> this.type.intersect(other.type)
+            TypeVariance.OUT -> this.type.closestCommonSupertypeWith(other.type)
+            TypeVariance.UNSPECIFIED -> error("should never happen, intellij realizes this but not kotlinc")
+        }
 
         return BoundTypeArgument(
             this.context,
-            TypeArgument(TypeVariance.OUT, resultType.asAstReference()),
-            TypeVariance.OUT,
+            TypeArgument(resultVariance, resultType.asAstReference()),
+            resultVariance,
             resultType,
         )
     }

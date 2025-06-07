@@ -22,6 +22,7 @@ import compiler.diagnostic.overrideRestrictsVisibility
 import compiler.diagnostic.overridingParameterExtendsOwnership
 import compiler.diagnostic.overridingParameterNarrowsType
 import compiler.diagnostic.staticFunctionDeclaredOverride
+import compiler.diagnostic.typeTupleToString
 import compiler.diagnostic.undeclaredOverride
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -244,4 +245,6 @@ private class IrMemberFunctionImpl(
     override val supportsDynamicDispatch = boundFn.isVirtual
     override val ownerBaseType by lazy { boundFn.declaredOnType.toBackendIr() }
     override val declaredAt = boundFn.declaredAt
+
+    override fun toString() = "IrMemberFunction[$canonicalName${boundFn.parameterTypes.typeTupleToString()}]"
 }

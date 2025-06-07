@@ -17,7 +17,7 @@ export interface Throwable : Printable {
     // @return the stack trace collected on the first call to [fillStackTrace], or `null` if
     // it was never called or didn't succeed
     // TODO: return type Iterable<...>
-    export nothrow get fn stackTrace(self) -> const ArrayList<StackTraceElement>?
+    export nothrow get fn stackTrace(self) -> const ArrayList<const StackTraceElement>?
 }
 export interface Error : Throwable {}
 
@@ -27,13 +27,13 @@ export interface Error : Throwable {}
 export class ThrowableTrait : Error & Printable {
 	private _message: String? = init
 
-    private var _stackTrace: const ArrayList<StackTraceElement>? = null
+    private var _stackTrace: const ArrayList<const StackTraceElement>? = null
 
     export override read fn fillStackTrace(self: mut _) {
         set self._stackTrace = self._stackTrace ?: collectStackTrace(2 as U32, false)
     }
 
-    export override nothrow get fn stackTrace(self) -> const ArrayList<StackTraceElement>? {
+    export override nothrow get fn stackTrace(self) -> const ArrayList<const StackTraceElement>? {
         return self._stackTrace
     }
 

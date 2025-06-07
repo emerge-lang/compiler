@@ -12,6 +12,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.illegalIntersectionType
 import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
@@ -39,8 +40,8 @@ class BoundIntersectionTypeReference private constructor(
     override val isNullable get()= false
     override val mutability get()= mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
-    override val isNothing by lazy {
-        components.any { it.isNothing } || simplifyIsEffectivelyBottomType(components)
+    override val isNonNullableNothing by lazy {
+        components.any { it.isNonNullableNothing } || simplifyIsEffectivelyBottomType(components)
     }
 
     override val baseTypeOfLowerBound by lazy {
@@ -49,10 +50,12 @@ class BoundIntersectionTypeReference private constructor(
 
     override val inherentTypeBindings: TypeUnification by lazy {
         components.asSequence()
-            .fold(TypeUnification.EMPTY) { carry, component ->
-                val carry1 = carry.plusDiagnostics(component.inherentTypeBindings.diagnostics)
-                component.inherentTypeBindings.bindings.entries.fold(carry1) { innerCarry, nextBinding ->
-                    innerCarry.plus(nextBinding.key, nextBinding.value, component.span ?: Span.UNKNOWN)
+            .map { it.inherentTypeBindings }
+            .fold(TypeUnification.EMPTY) { carry, bindings ->
+                carry.mergedWith(bindings) { param, firstCome, _, diagnosis ->
+                    val sourceType = components.first { c -> c.inherentTypeBindings.bindings.any { (cParam, _) -> param == cParam} }
+                    diagnosis.illegalIntersectionType(this, "A single base type can only occur once in an intersection type, ${sourceType.baseTypeOfLowerBound} is mentioned more than once.")
+                    firstCome
                 }
             }
     }
@@ -83,6 +86,7 @@ class BoundIntersectionTypeReference private constructor(
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         components.forEach { it.validate(forUsage, diagnosis) }
+        inherentTypeBindings.diagnostics.forEach(diagnosis::add)
         if (astNode != null) {
             val simplified = simplify()
             if (simplified !== this) {
@@ -95,7 +99,7 @@ class BoundIntersectionTypeReference private constructor(
         return mapComponents(simplify = true) { it.closestCommonSupertypeWith(other) }
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return mapComponents { it.withTypeVariables(variables) }
     }
 
@@ -107,7 +111,7 @@ class BoundIntersectionTypeReference private constructor(
         when (assigneeType) {
             is NullableTypeReference -> {
                 if (!this.isNullable) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
                     )
                 }
@@ -116,8 +120,40 @@ class BoundIntersectionTypeReference private constructor(
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
             else -> {
-                return components.fold(carry) { innerCarry, component ->
+                /*
+                one would think that this is just a case of unifying each component with the assignee. But there's more
+                to it:
+                Say this is an intersection of some type T and an unbound type variable _V, and assigneeType is also a variant
+                of T. In that case, the naive approach would also unify _V with T. That's not necessarily incorrect,
+                but it forces the binding for _V into a needlessly narrow corner, possibly preventing the unification
+                from succeeding.
+                Hence: this code sees types not as a set of possible values, but a set of promises a value makes to
+                its users (effectively the inverse of the traditional concept of a type). And then, before unifying with
+                the variable parts of the compound type, the promises already covered by the non-variable parts of the
+                intersection are subtracted from the assigneeType. In a way, this improves the S/N ratio of the assigneeType
+                before it is unified with the type variables.
+                 */
+                val (varComponents, nonVarComponents) = components.partition { it is TypeVariable }
+                val carry2 = nonVarComponents.fold(carry) { innerCarry, component ->
                     component.unify(assigneeType, assignmentLocation, innerCarry)
+                }
+                var fullyCoveringComponent: BoundTypeReference? = null
+                var carry3: TypeUnification = carry2
+                for (nonVarComponent in nonVarComponents) {
+                    val carry3candidate = nonVarComponent.unify(assigneeType, assignmentLocation, carry2)
+                    if (carry3candidate.getErrorsNotIn(carry2).none()) {
+                        fullyCoveringComponent = nonVarComponent
+                        carry3 = carry3candidate
+                        break
+                    }
+                }
+                val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
+                    context.swCtx.any.baseReference
+                        .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
+                        .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
+                }
+                return varComponents.fold(carry3) { innerCarry, component ->
+                    component.unify(newAssignee, assignmentLocation, innerCarry)
                 }
             }
         }
@@ -130,10 +166,10 @@ class BoundIntersectionTypeReference private constructor(
         reason: () -> String,
     ): TypeUnification {
         return components.asSequence()
-            .map { it.unify(targetType, assignmentLocation, carry) }
+            .map { targetType.unify(it, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
             .firstOrNull()
-            ?: carry.plusReporting(ValueNotAssignableDiagnostic(
+            ?: carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                 targetType,
                 this,
                 reason(),
@@ -142,11 +178,11 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        return mapComponents { it.instantiateAllParameters(context) }
+        return mapComponents(simplify = true) { it.instantiateAllParameters(context) }
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return mapComponents { it.instantiateFreeVariables(context) }
+        return mapComponents(simplify = true) { it.instantiateFreeVariables(context) }
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -188,7 +224,7 @@ class BoundIntersectionTypeReference private constructor(
         for (component in components) {
             val newComponent = componentTransform(component)
             mappedComponents.add(newComponent)
-            if (newComponent === component || newComponent == component) {
+            if (newComponent !== component && newComponent != component) {
                 anyChanged = true
             }
         }

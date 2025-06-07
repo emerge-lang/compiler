@@ -19,13 +19,11 @@
 package compiler.binding
 
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.TypeMutability
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.isAssignableTo
 import compiler.lexer.Keyword
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -76,8 +74,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val throwBehavior: SideEffectPrediction?
         get() = when {
             attributes.isDeclaredNothrow -> SideEffectPrediction.NEVER
-            returnType != null && returnType!!.isAssignableTo(context.swCtx.nothing.baseReference.withMutability(
-                TypeMutability.READONLY)) -> SideEffectPrediction.GUARANTEED
+            returnType != null && returnType!!.isNonNullableNothing -> SideEffectPrediction.GUARANTEED
             else -> SideEffectPrediction.POSSIBLY
         }
 

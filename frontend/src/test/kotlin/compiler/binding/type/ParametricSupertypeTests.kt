@@ -6,7 +6,7 @@ import compiler.util.twoElementPermutationsUnordered
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
-class ParametricSupertypes : FreeSpec({
+class ParametricSupertypeTests : FreeSpec({
     "closest common supertype" - {
         "same basetype in param" - {
             val swCtx = validateModule("""
@@ -21,9 +21,9 @@ class ParametricSupertypes : FreeSpec({
                 val aArgMut = typeA.arguments!!.single().mutability
                 val bArgMut = typeB.arguments!!.single().mutability
                 val expectedArgMutability = aArgMut.union(bArgMut)
-                val expectedType = swCtx.parseType("exclusive Array<${expectedArgMutability.keyword.text} SomeT>")
+                val expectedType = swCtx.parseType("exclusive Array<out ${expectedArgMutability.keyword.text} SomeT>")
 
-                "${aArgMut.keyword.text} x ${bArgMut.keyword.text} -> ${expectedArgMutability.keyword.text}" {
+                "${aArgMut.keyword.text} x ${bArgMut.keyword.text} -> out ${expectedArgMutability.keyword.text}" {
                     typeA.closestCommonSupertypeWith(typeB) shouldBe expectedType
                     typeB.closestCommonSupertypeWith(typeA) shouldBe expectedType
                 }

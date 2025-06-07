@@ -46,6 +46,8 @@ sealed interface TypeReference {
 
     fun withNullability(nullability: Nullability): TypeReference
 
+    fun intersect(other: TypeReference, span: Span = (this.span ?: Span.UNKNOWN) .. (other.span ?: Span.UNKNOWN)): AstIntersectionType
+
     enum class Nullability {
         UNSPECIFIED,
         NULLABLE,
@@ -91,6 +93,11 @@ data class NamedTypeReference(
 
     override fun withNullability(nullability: TypeReference.Nullability): NamedTypeReference {
         return copy(nullability = nullability)
+    }
+
+    override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
+        is NamedTypeReference -> AstIntersectionType(listOf(this, other), span)
+        is AstIntersectionType -> AstIntersectionType(listOf(this) + other.components, span)
     }
 
     private lateinit var _string: String
@@ -214,6 +221,11 @@ class AstIntersectionType(
             components.map { it.withNullability(nullability) },
             span,
         )
+    }
+
+    override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
+        is NamedTypeReference -> AstIntersectionType(components + listOf(other), span)
+        is AstIntersectionType -> AstIntersectionType(components + other.components, span)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -34,7 +34,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.span
     override val inherentTypeBindings = TypeUnification.EMPTY
-    override val isNothing get() = effectiveBound.isNothing
+    override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withMutability(mutability) }
@@ -83,15 +83,17 @@ sealed class GenericTypeReference : BoundTypeReference {
                 // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
                 // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
                 // that can determine success/failure of a sub-unification
-                carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
+                carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
-            is RootResolvedTypeReference -> carry.plusReporting(ValueNotAssignableDiagnostic(
-                this,
-                assigneeType,
-                "$assigneeType cannot be proven to be a subtype of $this",
-                assignmentLocation,
-            ))
+            is RootResolvedTypeReference -> {
+                if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                    this,
+                    assigneeType,
+                    "$assigneeType cannot be proven to be a subtype of $this",
+                    assignmentLocation,
+                ))
+            }
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
@@ -104,7 +106,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                 if (assigneeType.isSubtypeOf(this)) {
                     return carry
                 } else {
-                    return carry.plusReporting(ValueNotAssignableDiagnostic(
+                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
                         "$assigneeType cannot be proven to be a subtype of $this",
@@ -170,17 +172,14 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
-        val binding = context.bindings.entries.find { it.key == this.parameter }
-            ?: return this
-
-        var instantiated = binding.value
+        var instantiated = context.getFinalValueFor(this.parameter)
         if (original.mutability != null) {
             instantiated = instantiated.withMutabilityIntersectedWith(this.mutability)
         }
         return instantiated.withCombinedNullability(original.nullability)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         val withTypeVariableBound = mapEffectiveBound { it.withTypeVariables(variables) }
 
         if (this.parameter !in variables) {

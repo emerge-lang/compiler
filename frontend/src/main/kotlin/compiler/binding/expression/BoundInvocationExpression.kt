@@ -365,7 +365,13 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
-                val unificationBeforeParameters = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
+                val unificationBeforeParameters = TypeUnification.fromExplicit(
+                    candidateFn.allTypeParameters,
+                    candidateFn.declaredTypeParameters,
+                    typeArguments,
+                    returnTypeArgsLocation,
+                    allowMissingTypeArguments = true
+                )
                 val unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
                     .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
@@ -495,7 +501,7 @@ class BoundInvocationExpression(
         val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
-        val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
+        val irResolvedTypeArgs = chosenOverload!!.unification.bindings
             .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??

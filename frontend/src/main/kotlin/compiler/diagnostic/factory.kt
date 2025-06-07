@@ -50,11 +50,13 @@ import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
 import compiler.binding.impurity.Impurity
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -70,6 +72,10 @@ fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
     add(SimplifiableIntersectionTypeDiagnostic(verbose, simpler))
+}
+
+fun Diagnosis.illegalIntersectionType(ref: BoundIntersectionTypeReference, reason: String) {
+    add(IllegalIntersectionTypeDiagnostic(reason, ref.span ?: compiler.lexer.Span.UNKNOWN))
 }
 
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
@@ -203,6 +209,25 @@ fun Diagnosis.inefficientAttributes(message: String, attributes: Collection<AstF
 
 fun Diagnosis.conflictingAttributes(attributes: Collection<AstFunctionAttribute>) {
     add(ConflictingFunctionAttributesDiagnostic(attributes))
+}
+
+fun Diagnosis.invalidMemberVariableAttribute(attribute: KeywordToken, reason: String) {
+    add(InvalidBaseTypeMemberVariableAttributeDiagnostic(reason, attribute.span))
+}
+
+fun Diagnosis.duplicateMemberVariableAttributes(firstMention: KeywordToken, duplicates: List<KeywordToken>) {
+    add(DuplicateMemberVariableAttributeDiagnostic(duplicates))
+}
+
+fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar: BoundBaseTypeMemberVariable) {
+    add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.declaration, memberVar.attributes.firstDecoratesAttribute!!))
+}
+
+fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
+    add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
+        memberVar.declaration,
+        actualMutability,
+    ))
 }
 
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {

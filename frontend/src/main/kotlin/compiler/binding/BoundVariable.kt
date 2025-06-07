@@ -361,6 +361,7 @@ class BoundVariable(
     }
 
     enum class Kind(
+        val readableKindName: String,
         val implicitMutabilityWhenNotReAssignable: TypeMutability,
         val allowsExplicitBaseTypeInfer: Boolean,
         val allowsExplicitOwnership: Boolean,
@@ -371,6 +372,7 @@ class BoundVariable(
         val allowsShadowingGlobals: Boolean = false,
     ) {
         LOCAL_VARIABLE(
+            "local variable",
             implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
             allowsExplicitBaseTypeInfer = true,
             allowsExplicitOwnership = false,
@@ -380,6 +382,7 @@ class BoundVariable(
             runInitializerInSubScope = false,
         ),
         MEMBER_VARIABLE(
+            "member variable",
             TypeMutability.IMMUTABLE,
             allowsExplicitBaseTypeInfer = true,
             allowsExplicitOwnership = false,
@@ -392,7 +395,19 @@ class BoundVariable(
              */
             allowsShadowingGlobals = true,
         ),
+        DECORATED_MEMBER_VARIABLE(
+            readableKindName = "member variable",
+            TypeMutability.READONLY,
+            allowsExplicitBaseTypeInfer = MEMBER_VARIABLE.allowsExplicitBaseTypeInfer,
+            allowsExplicitOwnership = MEMBER_VARIABLE.allowsExplicitOwnership,
+            requiresExplicitType = MEMBER_VARIABLE.requiresExplicitType,
+            isInitializedByDefault = MEMBER_VARIABLE.isInitializedByDefault,
+            allowsVisibility = MEMBER_VARIABLE.allowsVisibility,
+            runInitializerInSubScope = MEMBER_VARIABLE.runInitializerInSubScope,
+            allowsShadowingGlobals = MEMBER_VARIABLE.allowsShadowingGlobals,
+        ),
         GLOBAL_VARIABLE(
+            readableKindName = "global variable",
             TypeMutability.IMMUTABLE,
             allowsExplicitBaseTypeInfer = true,
             allowsExplicitOwnership = false,
@@ -402,6 +417,7 @@ class BoundVariable(
             runInitializerInSubScope = true,
         ),
         PARAMETER(
+            readableKindName = "parameter",
             TypeMutability.READONLY,
             allowsExplicitBaseTypeInfer = false,
             allowsExplicitOwnership = true,
@@ -415,6 +431,7 @@ class BoundVariable(
          * ([getTypeUseSite] returns an [TypeUseSite.Irrelevant])
          */
         CONSTRUCTOR_PARAMETER(
+            readableKindName = "constructor parameter",
             PARAMETER.implicitMutabilityWhenNotReAssignable,
             PARAMETER.allowsExplicitBaseTypeInfer,
             PARAMETER.allowsExplicitOwnership,
@@ -422,7 +439,7 @@ class BoundVariable(
             PARAMETER.isInitializedByDefault,
             PARAMETER.allowsVisibility,
             PARAMETER.runInitializerInSubScope,
-            /* see the reasoning for allowShadowingGloblas on member variables;
+            /* see the reasoning for allowShadowingGlobals on member variables;
                this is because constructor parameters are named like the class members they take init values for.
              */
             allowsShadowingGlobals = true,
@@ -441,6 +458,7 @@ class BoundVariable(
             return when (this) {
                 LOCAL_VARIABLE,
                 MEMBER_VARIABLE,
+                DECORATED_MEMBER_VARIABLE,
                 GLOBAL_VARIABLE,
                 CONSTRUCTOR_PARAMETER -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)

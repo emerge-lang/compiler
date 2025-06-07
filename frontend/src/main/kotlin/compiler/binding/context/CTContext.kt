@@ -108,6 +108,21 @@ interface CTContext {
         return name
     }
 
+    /**
+     * @return a type parameter name that is guaranteed to not be occupied ([resolveTypeParameter] and [resolveBaseType] will return `null`),
+     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
+     */
+    fun findInternalTypeParameterName(namePayload: String): String {
+        var i = 0
+        var name: String
+        do {
+            name = "__${namePayload}$i"
+            i++
+        } while (resolveTypeParameter(name) != null || resolveBaseType(name) != null)
+
+        return name
+    }
+
     fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         return stateClass.getInitialState(subject)
     }

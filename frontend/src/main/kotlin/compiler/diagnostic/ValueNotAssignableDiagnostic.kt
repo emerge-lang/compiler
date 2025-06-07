@@ -21,6 +21,7 @@ package compiler.diagnostic
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.TypeVariableNotUnderInferenceException
 import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
 import compiler.lexer.Span
@@ -46,8 +47,14 @@ open class ValueNotAssignableDiagnostic(
 ) {
     override val message: String get() {
         val mutabilityUnconflictedSourceType = sourceType.withMutability(targetType.mutability)
-        if (!(mutabilityUnconflictedSourceType isAssignableTo targetType)) {
-            // error due to more than mutability => standard message is fine
+        try {
+            if (!(mutabilityUnconflictedSourceType isAssignableTo targetType)) {
+                // error due to more than mutability => standard message is fine
+                return super.message
+            }
+        }
+        catch (ex: TypeVariableNotUnderInferenceException) {
+            // the necessary context to reason about the types is gone
             return super.message
         }
 

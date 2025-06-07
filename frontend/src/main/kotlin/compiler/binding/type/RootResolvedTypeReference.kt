@@ -36,10 +36,11 @@ class RootResolvedTypeReference private constructor(
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: original?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
-    override val isNothing get()= baseType == context.swCtx.nothing
+    override val isNonNullableNothing get()= baseType == context.swCtx.nothing
 
     override val inherentTypeBindings by lazy {
-        TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
+        val params = baseType.typeParameters ?: emptyList()
+        TypeUnification.fromExplicit(params, params, arguments, span ?: Span.UNKNOWN)
     }
 
     constructor(context: CTContext, original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
@@ -152,7 +153,7 @@ class RootResolvedTypeReference private constructor(
                     commonSuperBaseType.typeParameters.mapIndexed { typeParameterIndex, typeParameter ->
                         val lhs = this.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(this.context)
                         val rhs = other.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(other.context)
-                        lhs.intersect(rhs, typeParameter.bound)
+                        lhs.intersect(rhs)
                     }
                 }
                 RootResolvedTypeReference(
@@ -179,7 +180,7 @@ class RootResolvedTypeReference private constructor(
         return baseType.resolveMemberFunction(name)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             context,
             original,
@@ -194,14 +195,14 @@ class RootResolvedTypeReference private constructor(
             is RootResolvedTypeReference -> {
                 // this must be a subtype of other
                 if (!(assigneeType.baseType isSubtypeOf this.baseType)) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is not a subtype of ${this.baseType.simpleName}", assignmentLocation)
                     )
                 }
 
                 // the modifiers must be compatible
                 if (!(assigneeType.mutability isAssignableTo this.mutability)) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
                 }
@@ -232,7 +233,7 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is NullableTypeReference -> return carry.plusReporting(
+            is NullableTypeReference -> return carry.plusDiagnostic(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
             is BoundIntersectionTypeReference -> {
