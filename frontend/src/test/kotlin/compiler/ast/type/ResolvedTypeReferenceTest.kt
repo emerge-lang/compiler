@@ -19,10 +19,17 @@
 package compiler.compiler.ast.type
 
 import compiler.ast.type.TypeMutability
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.compiler.binding.type.parseType
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeSingleton
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ResolvedTypeReferenceTest : FreeSpec() { init {
     "Given a type hierarchy A; B : A; C : A" - {
@@ -172,6 +179,101 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "exclusive A and read Nothing is read A" {
                 exclusiveA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
                 readonlyNothing.closestCommonSupertypeWith(exclusiveA) shouldBe readonlyA
+            }
+        }
+    }
+
+    "parametric supertypes" - {
+        "determining type parameters for parametric supertypes" - {
+            "single level of inheritance" - {
+                "derived type has no parameters" {
+                    val swCtx = validateModule("""
+                        interface S<T> {}
+                        class D : S<U32> {}
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                        .first
+
+                    val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
+                    val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
+                    baseTypeD.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
+                }
+
+                "derived type has an unrelated parameter" {
+                    val swCtx = validateModule("""
+                        interface S<T> {}
+                        class D<E> : S<U32> {}
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                        .first
+
+                    val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
+                    val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
+                    baseTypeD.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
+                }
+
+                "derived type forwards parameter plainly" {
+                    val swCtx = validateModule("""
+                        interface S<T> {}
+                        class D<T> : S<T> {}
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                        .first
+
+                    val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
+                    val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
+                    val translated = baseTypeD.getParameterizedSupertype(baseTypeS)
+                    translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
+                        param shouldBe baseTypeS.typeParameters!!.single()
+                        binding.shouldBeInstanceOf<BoundTypeArgument>()
+                            .type.shouldBeInstanceOf<GenericTypeReference>()
+                            .parameter shouldBe baseTypeD.typeParameters!!.single()
+                    }
+                }
+
+                "derived type forwards parameter transformed" {
+                    val swCtx = validateModule("""
+                        interface S<T> {}
+                        class D<T> : S<Array<T>> {}
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                        .first
+
+                    val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
+                    val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
+                    val translated = baseTypeD.getParameterizedSupertype(baseTypeS)
+                    translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
+                        param shouldBe baseTypeS.typeParameters!!.single()
+                        binding.shouldBeInstanceOf<BoundTypeArgument>()
+                            .type.shouldBeInstanceOf<RootResolvedTypeReference>()
+                            .also { it.baseType shouldBe swCtx.array }
+                            .arguments.shouldNotBeNull().shouldBeSingleton().single()
+                            .type.shouldBeInstanceOf<GenericTypeReference>()
+                            .parameter shouldBe baseTypeD.typeParameters!!.single()
+                    }
+                }
+            }
+
+            "deeper inheritance" - {
+                "derived type forwards parameter plainly" {
+                    val swCtx = validateModule("""
+                        interface A<X> {}
+                        interface B<Y> : A<Y> {}
+                        class D<Z> : B<Z> {}
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                        .first
+
+                    val baseTypeA = swCtx.parseType("A").baseTypeOfLowerBound
+                    val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
+                    val translated = baseTypeD.getParameterizedSupertype(baseTypeA)
+                    translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
+                        param shouldBe baseTypeA.typeParameters!!.single()
+                        binding.shouldBeInstanceOf<BoundTypeArgument>()
+                            .type.shouldBeInstanceOf<GenericTypeReference>()
+                            .parameter shouldBe baseTypeD.typeParameters!!.single()
+                    }
+                }
             }
         }
     }

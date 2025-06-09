@@ -36,7 +36,6 @@ class BoundSupertypeDeclaration(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-
             unfilteredResolved = subtypeContext.resolveType(astNode)
             if (unfilteredResolved is RootResolvedTypeReference) {
                 resolvedReference = unfilteredResolved as RootResolvedTypeReference
@@ -55,10 +54,6 @@ class BoundSupertypeDeclaration(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            if (!astNode.arguments.isNullOrEmpty()) {
-                diagnosis.illegalSupertype(astNode, "inheriting from generic types is currently not supported")
-            }
-
             val localResolvedReference = resolvedReference ?: return@phase3
             if (localResolvedReference.baseType === subtypeContext.swCtx.unit) {
                 return@phase3

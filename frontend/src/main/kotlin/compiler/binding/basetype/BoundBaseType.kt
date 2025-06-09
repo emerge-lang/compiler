@@ -35,6 +35,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeUnification
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
@@ -440,6 +441,56 @@ class BoundBaseType(
         return superTypes.baseTypes
             .map { it.isSubtypeOf(other) }
             .fold(false, Boolean::or)
+    }
+
+    private fun getInheritanceChains(toSupertype: BoundBaseType): Sequence<List<BoundSupertypeDeclaration>> {
+        if (this === toSupertype) return sequenceOf(emptyList())
+        return superTypes.clauses.asSequence()
+            .mapNotNull {
+                val ref = it.resolvedReference ?: return@mapNotNull null
+                it to ref
+            }
+            .flatMap { (clause, ref) ->
+                ref.baseType.getInheritanceChains(toSupertype).map { partialChain ->
+                    listOf(clause) + partialChain
+                }
+            }
+    }
+
+    /**
+     * For example, given:
+     *
+     *    interface A<T> {}
+     *    interface B<E> : A<Array<E>> {}
+     *    interface C<K> : B<K> {}
+     *
+     * when you call `C.getTypeArgumentTranslation(A)`, it will return `A<Array<K>>`.
+     *
+     * Combine this with [BoundTypeReference.instantiateAllParameters] and [RootResolvedTypeReference.inherentTypeBindings]
+     * to determine e.g. that `C<S32>` is a subtype of `A<Array<S32>>`.
+     *
+     * @param superBaseType must be a supertype of `this` and must not be equal to `this`
+     * @return a [TypeUnification] that maps type parameters in the namespace of [superBaseType] to the bindings it has
+     * as a supertype of `this`.
+     */
+    fun getParameterizedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
+        // todo: cache the results? could well be worthwhile!
+        return getInheritanceChains(superBaseType)
+            .map { inheritanceChain ->
+                if (inheritanceChain.isEmpty()) {
+                    throw InternalCompilerError("contract of ${this::getParameterizedSupertype.name} violated: $superBaseType is not a supertype or it is identical to $this")
+                }
+
+                inheritanceChain
+                    .map { it.resolvedReference!! }
+                    .reduce { carry, next ->
+                        next.instantiateAllParameters(carry.inherentTypeBindings)
+                    }
+            }
+            // TODO: handle cases where there are multiple translations; that is a compile-time error,
+            // but probably has to be tolerated here
+            .distinct()
+            .single()
     }
 
     enum class Kind(

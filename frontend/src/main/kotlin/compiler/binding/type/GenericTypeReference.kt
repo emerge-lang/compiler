@@ -171,7 +171,6 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        // TODO: this linear search is super inefficient, optimize
         var instantiated = context.getFinalValueFor(this.parameter)
         if (original.mutability != null) {
             instantiated = instantiated.withMutabilityIntersectedWith(this.mutability)
