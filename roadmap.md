@@ -27,10 +27,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          test the implementation.
    5. algebraic data types
       1. union type: `TypeA | TypeB | TypeC`
-      2. conjunction type: `TypeA & TypeB & TypeC`
-   6. solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
+      2. ~~intersection type: `TypeA & TypeB & TypeC`~~
+   6. ~~solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
       already carry a mutability, wrapper mutability can likely piggy-back onto that. It needs union types or multiple
-      type parameter bounds.
+      type parameter bounds.~~
 4. general iterable types
    * implement generic supertypes - yey, another logic monstrosity
    * Like Java Iterable<T>, D ranges, ... ?
