@@ -276,5 +276,31 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 }
             }
         }
+
+        "closestCommonSupertypeWith" - {
+            val swCtx = validateModule("""
+                interface S<T> {}
+                interface A<X> : S<X> {}
+                interface B<Y> : S<Y> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+                .first
+
+            "A<S32> closestCommonSupertypeWith B<S32> is S<S32>" {
+                swCtx.parseType("A<S32>").closestCommonSupertypeWith(swCtx.parseType("B<S32>")) shouldBe swCtx.parseType("S<S32>")
+            }
+
+            "A<Any> closestCommonSupertypeWith B<S32> is S<out Any>" {
+                swCtx.parseType("A<Any>").closestCommonSupertypeWith(swCtx.parseType("B<S32>")) shouldBe swCtx.parseType("S<out Any>")
+            }
+
+            "A<S32> closestCommonSupertypeWith B<U32> is S<out const Printable>" {
+                swCtx.parseType("A<S32>").closestCommonSupertypeWith(swCtx.parseType("B<U32>")) shouldBe swCtx.parseType("S<out const Printable>")
+            }
+
+            "A<in Any> closestCommonSupertypeWith B<in S32> is S<in S32>" {
+                swCtx.parseType("A<in Any>").closestCommonSupertypeWith(swCtx.parseType("B<in S32>")) shouldBe swCtx.parseType("S<in S32>")
+            }
+        }
     }
 }}

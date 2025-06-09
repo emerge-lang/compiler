@@ -129,6 +129,14 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
+    private fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
+        if (this.baseType == superBaseType) {
+            return this
+        }
+
+        return baseType.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
+    }
+
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
@@ -145,14 +153,12 @@ class RootResolvedTypeReference private constructor(
                 if (this.equalsExceptMutability(other)) {
                     return withMutability(this.mutability.union(other.mutability))
                 }
-                // end of special cases until generic supertypes are implemented
                 val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
-                    check(commonSuperBaseType == this.baseType && commonSuperBaseType == other.baseType) { "Generic supertypes are not implemented, yet." }
-                    commonSuperBaseType.typeParameters.mapIndexed { typeParameterIndex, typeParameter ->
-                        val lhs = this.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(this.context)
-                        val rhs = other.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(other.context)
-                        lhs.intersect(rhs)
+                    val commonSupertypeFromThis = this.getInstantiatedSupertype(commonSuperBaseType)
+                    val commonSupertypeFromOther = other.getInstantiatedSupertype(commonSuperBaseType)
+                    commonSupertypeFromThis.arguments?.zip(commonSupertypeFromOther.arguments ?: emptyList()) { lhsArg, rhsArg ->
+                        lhsArg.intersect(rhsArg)
                     }
                 }
                 RootResolvedTypeReference(

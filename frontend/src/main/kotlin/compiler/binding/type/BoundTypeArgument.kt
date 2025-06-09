@@ -129,21 +129,32 @@ class BoundTypeArgument(
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
         var nestedInstantiated = type.instantiateAllParameters(context)
-        val isNullable: Boolean
+        var isNullable: Boolean
         if (nestedInstantiated is NullableTypeReference) {
             isNullable = true
             nestedInstantiated = nestedInstantiated.nested
         } else {
             isNullable = false
         }
+        val resultVariance: TypeVariance
         if (nestedInstantiated is BoundTypeArgument) {
-            nestedInstantiated = nestedInstantiated.type
+            if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED) {
+                resultVariance = nestedInstantiated.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: variance
+                nestedInstantiated = nestedInstantiated.type
+            } else {
+                resultVariance = TypeVariance.OUT
+                nestedInstantiated = this.context.swCtx.topTypeRef.withMutability(this.mutability.intersect(nestedInstantiated.mutability))
+                isNullable = this.isNullable || isNullable
+            }
+        } else {
+            resultVariance = variance
         }
+
         if (isNullable) {
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, astNode, variance, nestedInstantiated)
+        return BoundTypeArgument(this.context, astNode, resultVariance, nestedInstantiated)
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
