@@ -19,6 +19,7 @@
 package compiler.compiler.ast.type
 
 import compiler.ast.type.TypeMutability
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -29,7 +30,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             interface A {}
             interface B : A {}
             interface C : A {}
-        """.trimIndent()).first
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+            .first
+
         val typeA = swCtx.getTestType("A")
         val typeB = swCtx.getTestType("B")
         val typeC = swCtx.getTestType("C")
@@ -37,6 +41,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val mutableA = typeA.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
         val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
+        val exclusiveA = readonlyA.withMutability(TypeMutability.EXCLUSIVE)
 
         val mutableB = typeB.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
@@ -45,6 +50,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val mutableC = typeC.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyC = mutableC.withMutability(TypeMutability.READONLY)
         val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
+
+        val readonlyNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.READONLY)
+        val mutableNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.MUTABLE)
+        val immutableNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.IMMUTABLE)
 
         "the closest common ancestor of" - {
             "mut B and mut A is mut A" {
@@ -137,6 +146,32 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "const B and const C is const A" {
                 immutableC.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableC) shouldBe immutableA
+            }
+            
+            // ----
+            "mut A and read Nothing is read A" {
+                mutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
+                readonlyNothing.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
+            }
+
+            "mut A and mut Nothing is mut A" {
+                mutableA.closestCommonSupertypeWith(mutableNothing) shouldBe mutableA
+                mutableNothing.closestCommonSupertypeWith(mutableA) shouldBe mutableA
+            }
+
+            "const A and read Nothing is read A" {
+                immutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
+                readonlyNothing.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
+            }
+
+            "const A and const Nothing is const A" {
+                immutableA.closestCommonSupertypeWith(immutableNothing) shouldBe immutableA
+                immutableNothing.closestCommonSupertypeWith(immutableA) shouldBe immutableA
+            }
+
+            "exclusive A and read Nothing is read A" {
+                exclusiveA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
+                readonlyNothing.closestCommonSupertypeWith(exclusiveA) shouldBe readonlyA
             }
         }
     }

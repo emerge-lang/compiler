@@ -133,12 +133,11 @@ class RootResolvedTypeReference private constructor(
         return when (other) {
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
-                // TODO: these three special cases can be removed once generic supertypes are implemented
                 if (this.baseType == this.baseType.context.swCtx.nothing) {
-                    return other
+                    return other.withMutability(this.mutability.union(other.mutability))
                 }
                 if (other.baseType == other.baseType.context.swCtx.nothing) {
-                    return this
+                    return this.withMutability(this.mutability.union(other.mutability))
                 }
                 if (this == other) {
                     return this
