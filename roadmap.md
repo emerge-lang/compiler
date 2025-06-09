@@ -25,9 +25,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          sequence from the hashes can be chosen, not just prefixes.
        * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
          test the implementation.
-   5. algebraic data types
-      1. union type: `TypeA | TypeB | TypeC`
-      2. ~~intersection type: `TypeA & TypeB & TypeC`~~
+   5. ~~intersection type: `TypeA & TypeB & TypeC`~~
    6. ~~solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
       already carry a mutability, wrapper mutability can likely piggy-back onto that. It needs union types or multiple
       type parameter bounds.~~
@@ -56,7 +54,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
      require a builtin that asserts a certain stack-variable is exclusive, but that doesn't seem impossible to provide.
    * anything else to take care of?
-7. Stdlib basics
+7. additional language constructs
+   1. switch/when statement
+   2. union types: `TypeA | TypeB | TypeC`
+      * support exhaustiveness check on switch/when statements
+8. Stdlib basics
    * some good standard collections
    * ArrayList, LinkedList, (De)Queue, Stack, ...
      * hashCodes: Java-style is overkill, have an explicit Hashable interface
@@ -69,14 +71,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
      or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
      to the emerge code.
-8. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
+9. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
    Todo: actually try and solve some!
-9. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
-   The unit tests in the frontend test the negative cases; these should test the positive ones. E.g. that 2+3=5,
-   refcounting, control flow + exceptions, ...
-   * ideally, valgrind can be used as a library in the testing framework to check every single test-case
-     for memory leaks.
-10. documentation and presentation
+10. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
+    The unit tests in the frontend test the negative cases; these should test the positive ones. E.g. that 2+3=5,
+    refcounting, control flow + exceptions, ...
+    * ideally, valgrind can be used as a library in the testing framework to check every single test-case
+      for memory leaks.
+11. documentation and presentation
     * from a user perspective. Github pages?
       * language syntax and semantics, maybe a good tutorial
       * design decisions, philosophy and reasoning
@@ -85,7 +87,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * llvm patterns
       * debugging techniques
     * add fix suggestions to diagnostics; this should also make them much more comprehensible
-11. user tooling
+12. user tooling
     * language server and VSCode plugin
     * think about an assistant, e.g. taking care of these tasks
       * manage installed toolchain versions, at least on linux
@@ -93,7 +95,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * setting up a new project including bazel build
         * adding modules or dependencies to existing projects
         * if emerge ecosystem/libraries are already a thing: manage dependencies
-12. runtime checks for generic parameters
+13. runtime checks for generic parameters
     * does that need to be enabled by the programmer? Could be e.g. `class Array<reflect T>` if necessary
     * how to represent at runtime?
     * implement checked casts
@@ -105,7 +107,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * how to keep these in sync?? Tests, tests, tests!
       4. implement that isSubtypeOf check into the `is` and `as` operators. Afterwards, an `Array<String>`
          must not possibly be referenced as an `Array<S8>`
-13. Function types
+14. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
@@ -128,35 +130,35 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
     6. implement last-argument lambdas like in Kotlin?
        * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
-14. functional-style collection operations (possible because the higher-order function purity problem is solved)
+15. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-15. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-16. optimize reference counting; see [](refcounting optimizations.md)
+16. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+17. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-17. typealiases
-18. smart casts
-19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+18. typealiases
+19. smart casts
+20. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
-20. optional parameters
+21. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-21. named arguments
+22. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-22. threading
+23. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
@@ -185,7 +187,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
-23. various optimizations collected over time
+24. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
 
