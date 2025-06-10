@@ -475,6 +475,12 @@ class BoundBaseType(
      */
     fun getParameterizedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
         // todo: cache the results? could well be worthwhile!
+
+        // getInheritanceChains breaks on Any because the implicit subtyping from Any isn't mentioned in superTypes.clauses
+        if (superBaseType == context.swCtx.any) {
+            return context.swCtx.any.baseReference
+        }
+
         return getInheritanceChains(superBaseType)
             .map { inheritanceChain ->
                 if (inheritanceChain.isEmpty()) {

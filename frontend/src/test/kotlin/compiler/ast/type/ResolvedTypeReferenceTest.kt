@@ -22,24 +22,24 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.compiler.binding.type.beAssignableTo
 import compiler.compiler.binding.type.parseType
-import compiler.compiler.negative.shouldHaveNoDiagnostics
-import compiler.compiler.negative.validateModule
+import compiler.compiler.negative.useValidModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNot
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ResolvedTypeReferenceTest : FreeSpec() { init {
     "Given a type hierarchy A; B : A; C : A" - {
-        val swCtx = validateModule("""
+        val swCtx = useValidModule("""
             interface A {}
             interface B : A {}
             interface C : A {}
         """.trimIndent())
-            .shouldHaveNoDiagnostics()
-            .first
 
         val typeA = swCtx.getTestType("A")
         val typeB = swCtx.getTestType("B")
@@ -187,12 +187,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         "determining type parameters for parametric supertypes" - {
             "single level of inheritance" - {
                 "derived type has no parameters" {
-                    val swCtx = validateModule("""
+                    val swCtx = useValidModule("""
                         interface S<T> {}
                         class D : S<U32> {}
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                        .first
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
@@ -200,12 +198,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 }
 
                 "derived type has an unrelated parameter" {
-                    val swCtx = validateModule("""
+                    val swCtx = useValidModule("""
                         interface S<T> {}
                         class D<E> : S<U32> {}
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                        .first
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
@@ -213,12 +209,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 }
 
                 "derived type forwards parameter plainly" {
-                    val swCtx = validateModule("""
+                    val swCtx = useValidModule("""
                         interface S<T> {}
                         class D<T> : S<T> {}
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                        .first
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
@@ -232,12 +226,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 }
 
                 "derived type forwards parameter transformed" {
-                    val swCtx = validateModule("""
+                    val swCtx = useValidModule("""
                         interface S<T> {}
                         class D<T> : S<Array<T>> {}
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                        .first
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
@@ -256,13 +248,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
             "deeper inheritance" - {
                 "derived type forwards parameter plainly" {
-                    val swCtx = validateModule("""
+                    val swCtx = useValidModule("""
                         interface A<X> {}
                         interface B<Y> : A<Y> {}
                         class D<Z> : B<Z> {}
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                        .first
 
                     val baseTypeA = swCtx.parseType("A").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
@@ -278,13 +268,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         }
 
         "closestCommonSupertypeWith" - {
-            val swCtx = validateModule("""
+            val swCtx = useValidModule("""
                 interface S<T> {}
                 interface A<X> : S<X> {}
                 interface B<Y> : S<Y> {}
             """.trimIndent())
-                .shouldHaveNoDiagnostics()
-                .first
 
             "A<S32> closestCommonSupertypeWith B<S32> is S<S32>" {
                 swCtx.parseType("A<S32>").closestCommonSupertypeWith(swCtx.parseType("B<S32>")) shouldBe swCtx.parseType("S<S32>")
@@ -301,6 +289,20 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "A<in Any> closestCommonSupertypeWith B<in S32> is S<in S32>" {
                 swCtx.parseType("A<in Any>").closestCommonSupertypeWith(swCtx.parseType("B<in S32>")) shouldBe swCtx.parseType("S<in S32>")
             }
+        }
+
+        "unify / subtype checking" {
+            val swCtx = useValidModule("""
+                interface S<T> {}
+                interface D<T> : S<T> {}
+            """.trimIndent())
+
+            swCtx.parseType("D<S32>") should beAssignableTo(swCtx.parseType("S<S32>"))
+            swCtx.parseType("D<S32>") should beAssignableTo(swCtx.parseType("S<out Any>"))
+            swCtx.parseType("D<S32>") shouldNot beAssignableTo(swCtx.parseType("S<U32>"))
+
+            swCtx.parseType("D<S32>") should beAssignableTo(swCtx.parseType("Any"))
+            swCtx.parseType("Nothing") should beAssignableTo(swCtx.parseType("D<S32>"))
         }
     }
 }}

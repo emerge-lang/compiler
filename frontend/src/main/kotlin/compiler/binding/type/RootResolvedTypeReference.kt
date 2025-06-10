@@ -130,11 +130,11 @@ class RootResolvedTypeReference private constructor(
     }
 
     private fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
-        if (this.baseType == superBaseType) {
-            return this
+        return when (this.baseType) {
+            superBaseType -> this
+            context.swCtx.nothing -> if (superBaseType.typeParameters.isNullOrEmpty()) superBaseType.baseReference else TODO("use wildcard for all type args")
+            else -> baseType.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
         }
-
-        return baseType.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
@@ -157,9 +157,7 @@ class RootResolvedTypeReference private constructor(
                 val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
                     val commonSupertypeFromThis = this.getInstantiatedSupertype(commonSuperBaseType)
                     val commonSupertypeFromOther = other.getInstantiatedSupertype(commonSuperBaseType)
-                    commonSupertypeFromThis.arguments?.zip(commonSupertypeFromOther.arguments ?: emptyList()) { lhsArg, rhsArg ->
-                        lhsArg.intersect(rhsArg)
-                    }
+                    commonSupertypeFromThis.arguments?.zip(commonSupertypeFromOther.arguments ?: emptyList(), BoundTypeArgument::intersect)
                 }
                 RootResolvedTypeReference(
                     context = context,
@@ -212,17 +210,16 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                // TODO: this special case can be removed once generic supertypes are implemented
+                // TODO: this special case can be removed as soon as wildcard type args are implemented:
+                // then, BoundBaseType.baseReference can use the wildcard as a type argument
+                // and that allows Nothing.getInstantiatedSupertype to handle a supertype with type arguments
                 if (assigneeType.baseType == assigneeType.baseType.context.swCtx.nothing) {
                     return carry
                 }
 
-                check(this.baseType.typeParameters.isNullOrEmpty() || this.baseType == assigneeType.baseType) {
-                    "generic inheritance not implemented yet"
-                }
-
+                val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
                 val selfArgs = this.arguments ?: emptyList()
-                val assigneeArgs = assigneeType.arguments ?: emptyList()
+                val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
                 return selfArgs
                     .zip(assigneeArgs)
                     .fold(carry) { innerCarry, (targetArg, sourceArg) ->

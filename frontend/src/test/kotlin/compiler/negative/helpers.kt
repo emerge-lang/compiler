@@ -168,6 +168,14 @@ fun validateModule(
     return validateModules(module, noStd = noStd)
 }
 
+fun useValidModule(
+    code: String,
+    noStd: Boolean = false,
+    invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
+) : SoftwareContext {
+    return validateModule(code, noStd, invokedFrom).shouldHaveNoDiagnostics().first
+}
+
 // TODO: most test cases expect EXACTLY one diagnostic, extra diagnostics are out-of-spec. This one lets extra reportings pass :(
 // the trick is finding the test that actually want more than one diagnostic and adapting that test code
 inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldFind(allowMultiple: Boolean = false, additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
