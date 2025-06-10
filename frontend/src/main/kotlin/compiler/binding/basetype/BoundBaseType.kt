@@ -464,7 +464,7 @@ class BoundBaseType(
      *    interface B<E> : A<Array<E>> {}
      *    interface C<K> : B<K> {}
      *
-     * when you call `C.getTypeArgumentTranslation(A)`, it will return `A<Array<K>>`.
+     * when you call `C.getParameterizedSupertype(A)`, it will return `A<Array<K>>`.
      *
      * Combine this with [BoundTypeReference.instantiateAllParameters] and [RootResolvedTypeReference.inherentTypeBindings]
      * to determine e.g. that `C<S32>` is a subtype of `A<Array<S32>>`.
