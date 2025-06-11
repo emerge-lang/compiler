@@ -40,8 +40,8 @@ sealed class GenericTypeReference : BoundTypeReference {
         return mapEffectiveBound { it.withMutability(mutability) }
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withMutabilityIntersectedWith(mutability) }
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.withMutabilityUnionedWith(mutability) }
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): GenericTypeReference {
@@ -173,7 +173,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         var instantiated = context.getFinalValueFor(this.parameter)
         if (original.mutability != null) {
-            instantiated = instantiated.withMutabilityIntersectedWith(this.mutability)
+            instantiated = instantiated.withMutabilityUnionedWith(this.mutability)
         }
         return instantiated.withCombinedNullability(original.nullability)
     }
@@ -211,6 +211,24 @@ sealed class GenericTypeReference : BoundTypeReference {
         parameter.toBackendIr(),
         effectiveBound.toBackendIr(),
     )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is GenericTypeReference) return false
+
+        if (other.mutability != this.mutability) return false
+        if (other.parameter != this.parameter) return false
+        if (other.effectiveBound != this.effectiveBound) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = mutability.hashCode()
+        result = 31 * result + parameter.hashCode()
+        result = 31 * result + effectiveBound.hashCode()
+        return result
+    }
 
     override fun toString(): String {
         var str = ""
@@ -253,6 +271,8 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
     override val effectiveBound by lazy {
         mapper(delegate.effectiveBound)
     }
+
+
 
     companion object {
         operator fun invoke(delegate: GenericTypeReference, mapper: (BoundTypeReference) -> BoundTypeReference): MappedEffectiveBoundGenericTypeReference {

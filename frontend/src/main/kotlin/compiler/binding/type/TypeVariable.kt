@@ -59,8 +59,8 @@ class TypeVariable private constructor(
         return rewrap(asGeneric.withMutability(mutability))
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        return rewrap(asGeneric.withMutabilityIntersectedWith(mutability))
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
+        return rewrap(asGeneric.withMutabilityUnionedWith(mutability))
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {

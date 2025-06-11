@@ -212,7 +212,7 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityIntersectedWith(implicitMutability)
+                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
                 } else {
                     val finalNullability = declaration.type.nullability
                     val finalMutability = declaration.type.mutability

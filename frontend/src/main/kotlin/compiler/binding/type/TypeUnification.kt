@@ -164,7 +164,7 @@ class TypeUnification private constructor(
     override fun toString(): String {
         val bindingsStr = variableStates.entries.asSequence()
             .flatMap { (param, state) ->
-                if (state.isExact) return@flatMap sequenceOf("${param.name} = ${state.lowerBound}")
+                if (state.isExact || state.lowerBound == state.upperBound) return@flatMap sequenceOf("${param.name} = ${state.lowerBound}")
                 sequenceOf("${param.name} : ${state.upperBound}") + (
                     sequenceOf(state.lowerBound)
                         .filterNot { it.isNonNullableNothing }

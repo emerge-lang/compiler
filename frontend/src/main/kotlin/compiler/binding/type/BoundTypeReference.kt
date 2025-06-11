@@ -74,7 +74,7 @@ sealed interface BoundTypeReference {
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */
-    fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference
+    fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [limitToMutability] is the result of [TypeMutability.limitedTo] of the

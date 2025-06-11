@@ -68,8 +68,8 @@ class BoundIntersectionTypeReference private constructor(
         return mapComponents { it.withMutability(mutability) }
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        return mapComponents { it.withMutabilityIntersectedWith(mutability) }
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
+        return mapComponents { it.withMutabilityUnionedWith(mutability) }
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {

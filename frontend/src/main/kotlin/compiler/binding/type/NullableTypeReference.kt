@@ -27,8 +27,8 @@ class NullableTypeReference private constructor(
         return rewrap(nested.withMutability(mutability))
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        return rewrap(nested.withMutabilityIntersectedWith(mutability))
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
+        return rewrap(nested.withMutabilityUnionedWith(mutability))
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {

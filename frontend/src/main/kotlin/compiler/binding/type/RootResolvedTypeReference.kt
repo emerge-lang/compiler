@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
 class RootResolvedTypeReference private constructor(
     override val context: CTContext,
     val original: NamedTypeReference?,
+    val modifiedSinceOriginal: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -43,10 +44,20 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(params, params, arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(context: CTContext, original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, original: NamedTypeReference, modifiedSinceOriginal: Boolean, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
         context,
         original,
+        modifiedSinceOriginal,
         original.mutability,
+        baseType,
+        parameters,
+    )
+
+    constructor(context: CTContext, explicitMutability: TypeMutability, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+        context,
+        null,
+        false,
+        explicitMutability,
         baseType,
         parameters,
     )
@@ -60,17 +71,23 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             newMutability,
             baseType,
             arguments,
         )
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): RootResolvedTypeReference {
         val combinedMutability = mutability?.let { this.mutability.union(it) } ?: this.mutability
+        if (combinedMutability == this.mutability) {
+            return this
+        }
+
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             combinedMutability,
             baseType,
             arguments,
@@ -79,9 +96,14 @@ class RootResolvedTypeReference private constructor(
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         val limitedMutability = mutability.limitedTo(limitToMutability)
+        if (limitedMutability == this.mutability) {
+            return this
+        }
+
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             limitedMutability,
             baseType,
             arguments,
@@ -103,6 +125,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             mutability,
             baseType,
             arguments,
@@ -129,7 +152,10 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    private fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
+    /**
+     * TODO: docstring!!
+     */
+    fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
         return when (this.baseType) {
             superBaseType -> this
             context.swCtx.nothing -> if (superBaseType.typeParameters.isNullOrEmpty()) superBaseType.baseReference else TODO("use wildcard for all type args")
@@ -160,11 +186,10 @@ class RootResolvedTypeReference private constructor(
                     commonSupertypeFromThis.arguments?.zip(commonSupertypeFromOther.arguments ?: emptyList(), BoundTypeArgument::intersect)
                 }
                 RootResolvedTypeReference(
-                    context = context,
-                    original = null,
-                    explicitMutability = this.mutability.union(other.mutability),
-                    baseType = commonSuperBaseType,
-                    arguments = transformedArguments,
+                    context,
+                    this.mutability.union(other.mutability),
+                    commonSuperBaseType,
+                    transformedArguments,
                 )
             }
             is GenericTypeReference,
@@ -187,6 +212,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.withTypeVariables(variables) },
@@ -253,6 +279,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             this.context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateFreeVariables(context) },
@@ -263,6 +290,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             this.context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateAllParameters(context) },
@@ -270,7 +298,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return original ?: NamedTypeReference(
+        return original.takeUnless { modifiedSinceOriginal } ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),
             mutability,

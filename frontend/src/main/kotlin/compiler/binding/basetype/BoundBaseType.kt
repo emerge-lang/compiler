@@ -84,6 +84,7 @@ class BoundBaseType(
         return RootResolvedTypeReference(
             context,
             NamedTypeReference(this.simpleName),
+            false,
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )
