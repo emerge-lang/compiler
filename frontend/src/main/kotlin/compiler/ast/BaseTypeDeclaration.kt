@@ -103,7 +103,7 @@ class BaseTypeDeclaration(
                     is BaseTypeMemberFunctionDeclaration -> {
                         entry.bindTo(
                             typeRootContext,
-                            buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.declaredAt ?: entry.span),
+                            buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.name?.span ?: entry.span),
                             typeDefAccessor
                         )
                     }
