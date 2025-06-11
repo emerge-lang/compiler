@@ -68,10 +68,13 @@ class BoundSupertypeList(
 
             inheritedMemberFunctions = distinctSupertypes
                 .asSequence()
-                .flatMap { it.memberFunctions }
-                .filter { it.declaresReceiver }
-                .flatMap { it.overloads }
-                .map { InheritedBoundMemberFunction(it, typeDef) }
+                .flatMap { supertype ->
+                    supertype.memberFunctions
+                        .asSequence()
+                        .filter { it.declaresReceiver }
+                        .flatMap { it.overloads }
+                        .map { InheritedBoundMemberFunction(it, typeDef, supertype) }
+                }
                 .toList()
 
             inheritedMemberFunctions.forEach {

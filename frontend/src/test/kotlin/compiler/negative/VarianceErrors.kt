@@ -37,6 +37,7 @@ class VarianceErrors : FreeSpec({
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         ctCtx,
         NamedTypeReference(swCtx.array.simpleName),
+        false,
         swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.resolveBaseType("Array")!!,
         listOf(element),
     )
