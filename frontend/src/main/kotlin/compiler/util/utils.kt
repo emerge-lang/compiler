@@ -36,7 +36,8 @@ fun <T : Any> Iterable<T>.mapNullableBoolReduceOr(onEmpty: Boolean?, map: (T) ->
 /**
  * Arranges the given elements such that for any element `e` its index `i` in the output is greater than the index
  * of all of its dependencies according to `dependsOn`.
- * @param dependsOn returns `true` when `dependency` is a dependency of `element`, false otherwise.
+ * @param dependsOn first argument is `element`, the second is `dependency`. Returns `true` when `dependency` is a dependency of `element`, false otherwise.
+ * @throws CircularDependencyException
  */
 fun <T : Any> Iterable<T>.sortedTopologically(dependsOn: (element: T, dependency: T) -> Boolean): List<T> {
     val elementsToSort: MutableMap<T, List<T>> = this.associateWithTo(IdentityHashMap()) { element ->
@@ -58,7 +59,7 @@ fun <T : Any> Iterable<T>.sortedTopologically(dependsOn: (element: T, dependency
         }
 
         if (!anyRemoved) {
-            throw RuntimeException("Cyclic dependency involving ${elementsToSort.firstNotNullOf { it.key }}")
+            throw CircularDependencyException(elementsToSort.firstNotNullOf { it.key })
         }
     }
 

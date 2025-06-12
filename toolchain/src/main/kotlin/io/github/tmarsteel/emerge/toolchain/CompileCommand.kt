@@ -11,19 +11,22 @@ import com.github.ajalt.clikt.parameters.types.choice
 import compiler.InternalCompilerError
 import compiler.binding.context.SoftwareContext
 import compiler.diagnostic.CompilerGeneratedInvalidCodeDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ModuleWithoutSourcesDiagnostic
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.ModuleWithoutSourcesDiagnostic
+import compiler.util.CircularDependencyException
+import compiler.util.sortedTopologically
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
 import io.github.tmarsteel.emerge.toolchain.config.ProjectConfig
 import io.github.tmarsteel.emerge.toolchain.config.ToolchainConfig
+import java.io.Closeable
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -54,10 +57,17 @@ object CompileCommand : CliktCommand() {
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
 
-        val modulesToLoad = listOf(
-            ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, toolchainConfig.frontend.stdModuleSources),
-            ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, toolchainConfig.frontend.coreModuleSources),
-        ) + projectConfig.modules + typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
+        val coreModuleDef = ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, toolchainConfig.frontend.coreModuleSources)
+        val stdModuleDef = ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, toolchainConfig.frontend.stdModuleSources, uses = setOf(coreModuleDef.name))
+        val targetModuleDefs = typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
+        val modulesToLoad = try {
+            (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs)
+                .sortedTopologically { m, dep -> dep.name in m.uses }
+        }
+        catch (ex: CircularDependencyException) {
+            throw CliktError("There is a circular dependency between some modules; involved module: ${ex.involvedElement}")
+        }
+
         var anyParseErrors = false
         for (moduleRef in modulesToLoad) {
             val moduleContext = swCtx.registerModule(moduleRef.name, moduleRef.uses)
@@ -150,7 +160,7 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(".000", "")
 }
 
-private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, AutoCloseable {
+private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, Closeable {
     private val seen = HashSet<Diagnostic>()
     private val errorsInGeneratedCode = HashSet<Diagnostic>()
     override var nErrors: ULong = 0uL
