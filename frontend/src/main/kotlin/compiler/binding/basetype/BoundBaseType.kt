@@ -31,6 +31,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
+import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -84,7 +85,6 @@ class BoundBaseType(
         return RootResolvedTypeReference(
             context,
             NamedTypeReference(this.simpleName),
-            false,
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )

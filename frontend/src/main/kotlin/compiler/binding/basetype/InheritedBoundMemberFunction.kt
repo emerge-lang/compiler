@@ -166,7 +166,6 @@ class InheritedBoundMemberFunction(
                 supertypeMemberFn.parameters.declaredReceiver!!.declaration.type?.span
                     ?: supertypeMemberFn.parameters.declaredReceiver!!.declaration.name.span
             ),
-            false,
             ownerBaseType,
             arguments,
         ))

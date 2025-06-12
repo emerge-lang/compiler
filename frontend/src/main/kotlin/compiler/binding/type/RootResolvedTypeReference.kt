@@ -27,7 +27,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
 class RootResolvedTypeReference private constructor(
     override val context: CTContext,
     val original: NamedTypeReference?,
-    val modifiedSinceOriginal: Boolean,
+    private val modifiedSinceOriginal: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -44,10 +44,15 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(params, params, arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(context: CTContext, original: NamedTypeReference, modifiedSinceOriginal: Boolean, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(
+        context: CTContext,
+        original: NamedTypeReference,
+        baseType: BoundBaseType,
+        parameters: List<BoundTypeArgument>?
+    ) : this(
         context,
         original,
-        modifiedSinceOriginal,
+        false,
         original.mutability,
         baseType,
         parameters,

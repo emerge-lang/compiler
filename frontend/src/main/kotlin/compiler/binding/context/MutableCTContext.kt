@@ -127,7 +127,7 @@ open class MutableCTContext(
 
         val resolvedArguments = ref.arguments?.map(::resolveType)
         return resolveBaseType(ref.simpleName)
-            ?.let { RootResolvedTypeReference(this, ref, false, it, resolvedArguments) }
+            ?.let { RootResolvedTypeReference(this, ref, it, resolvedArguments) }
             ?: UnresolvedType(this, ref, resolvedArguments)
     }
 
