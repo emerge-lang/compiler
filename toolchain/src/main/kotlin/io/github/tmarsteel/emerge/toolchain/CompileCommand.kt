@@ -61,8 +61,7 @@ object CompileCommand : CliktCommand() {
         val stdModuleDef = ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, toolchainConfig.frontend.stdModuleSources, uses = setOf(coreModuleDef.name))
         val targetModuleDefs = typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
         val modulesToLoad = try {
-            (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs)
-                .sortedTopologically { m, dep -> dep.name in m.uses }
+            (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs).sortedByDependency()
         }
         catch (ex: CircularDependencyException) {
             throw CliktError("There is a circular dependency between some modules; involved module: ${ex.involvedElement}")
@@ -80,7 +79,12 @@ object CompileCommand : CliktCommand() {
                 .map { SourceFileRule.match(lex(it), it) }
                 .forEach { fileResult ->
                     when (fileResult) {
-                        is MatchingResult.Success -> moduleContext.addSourceFile(fileResult.item)
+                        is MatchingResult.Success -> try {
+                            moduleContext.addSourceFile(fileResult.item)
+                        } catch (ex: Exception) {
+                            echo("Error while binding ${fileResult.item.lexerFile}")
+                            throw ex
+                        }
                         is MatchingResult.Error -> {
                             echo(fileResult.diagnostic)
                             anyParseErrors = true
@@ -158,6 +162,10 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
     return duration.toString()
         .replace(Regex("(?<=\\.\\d{3})\\d+"), "")
         .replace(".000", "")
+}
+
+private fun Iterable<ConfigModuleDefinition>.sortedByDependency(): List<ConfigModuleDefinition> {
+    return sortedTopologically { m, dep -> dep.name in m.uses || dep.name in m.implicitlyUses }
 }
 
 private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, Closeable {
