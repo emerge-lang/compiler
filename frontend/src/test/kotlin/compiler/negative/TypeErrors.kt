@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.binding.type.GenericTypeReference
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
@@ -438,6 +439,64 @@ class TypeErrors : FreeSpec({
                 fn trigger(p: X<Any> & X<S32>) {}
             """.trimIndent())
                 .shouldFind<IllegalIntersectionTypeDiagnostic>()
+        }
+
+        "diamond inheritance with with parametric root type, given different type arguments" - {
+            "in supertype list" - {
+                "one is a subtype of the other" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<Any, UWord> {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "disjoint types" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<S64, UWord> {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+            }
+
+            "in intersection type" - {
+                "one is a subtype of the other" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<Any, UWord>) {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "disjoint types" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<S64, UWord>) {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+            }
         }
     }
 

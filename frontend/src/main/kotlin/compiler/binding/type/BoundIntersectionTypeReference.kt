@@ -13,6 +13,7 @@ import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.illegalIntersectionType
+import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
 import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
@@ -20,6 +21,8 @@ import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.common.zip
+import java.util.IdentityHashMap
 
 class BoundIntersectionTypeReference private constructor(
     override val context: CTContext,
@@ -87,12 +90,15 @@ class BoundIntersectionTypeReference private constructor(
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         components.forEach { it.validate(forUsage, diagnosis) }
         inherentTypeBindings.diagnostics.forEach(diagnosis::add)
+
         if (astNode != null) {
             val simplified = simplify()
             if (simplified !== this) {
                 diagnosis.simplifiableIntersectionType(astNode, simplified)
             }
         }
+
+        preprocessInheritanceTree(components.mapNotNull { it.asRootResolved() }, span ?: Span.UNKNOWN, diagnosis)
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
@@ -291,6 +297,56 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     companion object {
+        /**
+         * precomputes the results for [BoundBaseType.getParameterizedSupertype] for all supertypes except `Any`. While doing do,
+         * also verifies that type arguments for each supertype are consistent if that supertype appears twice in the inheritance
+         * tree (diamond-shaped inheritance)
+         *
+         * TODO: what happens on cyclic inheritance?
+         *
+         * @see compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
+         */
+        fun preprocessInheritanceTree(
+            supertypes: Iterable<RootResolvedTypeReference>,
+            treeRootDeclaredAt: Span,
+            diagnosis: Diagnosis
+        ): Map<BoundBaseType, RootResolvedTypeReference> {
+            val parameterizedSupertypes = IdentityHashMap<BoundBaseType, RootResolvedTypeReference>()
+            val inconsistentBindings = mutableMapOf<Pair<BoundBaseType, BoundTypeParameter>, MutableSet<BoundTypeArgument>>()
+
+            fun walk(supertype: RootResolvedTypeReference) {
+                val ref = supertype
+                val existingParameterizedSupertype = parameterizedSupertypes[ref.baseType]
+                if (existingParameterizedSupertype != null) {
+                    assert(existingParameterizedSupertype.baseType == ref.baseType)
+                    assert(existingParameterizedSupertype.arguments?.size == ref.arguments?.size)
+                    if (existingParameterizedSupertype.arguments != null) {
+                        zip(existingParameterizedSupertype.arguments, ref.arguments!!, existingParameterizedSupertype.baseType.typeParameters!!)
+                            .filter { (existingArg, refArg, _) -> existingArg != refArg }
+                            .forEach { (existingArg, refArg, param) ->
+                                val inconsistentArgs = inconsistentBindings.computeIfAbsent(Pair(existingParameterizedSupertype.baseType, param)) { mutableSetOf() }
+                                inconsistentArgs.add(refArg)
+                                inconsistentArgs.add(existingArg)
+                            }
+                    }
+                } else {
+                    parameterizedSupertypes[ref.baseType] = ref
+                    ref.baseType.superTypes.clauses.asSequence()
+                        .mapNotNull { it.resolvedReference }
+                        .map { it.instantiateAllParameters(ref.inherentTypeBindings) }
+                        .forEach(::walk)
+                }
+            }
+
+            supertypes.forEach(::walk)
+
+            inconsistentBindings.forEach { (baseTypeAndParam, inconsistentArgs) ->
+                diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(baseTypeAndParam.first, baseTypeAndParam.second, inconsistentArgs, treeRootDeclaredAt)
+            }
+
+            return parameterizedSupertypes
+        }
+
         fun ofComponents(
             context: CTContext,
             ref: AstIntersectionType?,
@@ -481,6 +537,16 @@ class BoundIntersectionTypeReference private constructor(
             return newComponents
         }
     }
+}
+
+private fun BoundTypeReference.asRootResolved(): RootResolvedTypeReference? = when (this) {
+    is RootResolvedTypeReference -> this
+    is NullableTypeReference -> this.nested.asRootResolved()
+    is BoundTypeArgument -> this.type.asRootResolved()
+    is GenericTypeReference -> this.asRootResolved()
+    is UnresolvedType -> null
+    is TypeVariable -> error("cannot validate during type inference")
+    is BoundIntersectionTypeReference -> error("this should have been prevented in ${BoundIntersectionTypeReference.Companion::ofComponents.name}")
 }
 
 private class IrIntersectionTypeImpl(
