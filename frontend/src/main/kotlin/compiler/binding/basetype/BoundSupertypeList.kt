@@ -12,6 +12,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.cyclicInheritance
 import compiler.diagnostic.duplicateSupertype
 import compiler.handleCyclicInvocation
+import compiler.lexer.Span
 
 class BoundSupertypeList(
     val context: CTContext,
@@ -30,6 +31,8 @@ class BoundSupertypeList(
      * becomes meaningful after [semanticAnalysisPhase1]
      */
     var hasCyclicInheritance: Boolean = false
+
+    val span: Span = clauses.mapNotNull { it.astNode.span }.reduceOrNull(Span::rangeTo) ?: Span.UNKNOWN
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {

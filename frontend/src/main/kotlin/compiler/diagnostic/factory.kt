@@ -258,6 +258,15 @@ fun Diagnosis.duplicateBaseTypes(packageName: CanonicalElementName.Package, dupl
     add(DuplicateBaseTypesDiagnostic(packageName, duplicates.map { it.declaration }))
 }
 
+fun Diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(diamondRoot: BoundBaseType, parameter: BoundTypeParameter, inconsistentArgs: Set<BoundTypeArgument>, span: Span) {
+    add(ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic(
+        diamondRoot,
+        parameter.astNode,
+        inconsistentArgs,
+        span,
+    ))
+}
+
 fun Diagnosis.functionDoesNotOverride(function: BoundDeclaredFunction) {
     add(SuperFunctionForOverrideNotFoundDiagnostic(function.declaration))
 }

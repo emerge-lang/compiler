@@ -239,19 +239,22 @@ object FailOnErrorDiagnosis : Diagnosis {
     }
 }
 
-fun Pair<SoftwareContext, Collection<Diagnostic>>.shouldHaveNoDiagnostics(): Pair<SoftwareContext, Collection<Diagnostic>> {
-    second.shouldBeEmpty()
+fun Pair<SoftwareContext, Collection<Diagnostic>>.shouldHaveNoDiagnostics(
+    allowedSeverities: Set<Diagnostic.Severity> = setOf(Diagnostic.Severity.CONSECUTIVE),
+): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.filter { it.severity !in allowedSeverities }.shouldBeEmpty()
     return this
 }
 
-fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> = object : Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> {
+fun haveNoDiagnostics(allowedSeverities: Set<Diagnostic.Severity> = setOf(Diagnostic.Severity.CONSECUTIVE)): Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> = object : Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> {
     override fun test(value: Pair<SoftwareContext, Collection<Diagnostic>>): MatcherResult {
         return object : MatcherResult {
             override fun failureMessage() = run {
                 val byLevel = value.second
-                    .groupBy { it.severity.name.lowercase() }
+                    .groupBy { it.severity }
                     .entries
-                    .joinToString { (severities, diagnostics) -> "${diagnostics.size} ${severities}s" }
+                    .filter { (sev, _) -> sev !in allowedSeverities }
+                    .joinToString { (severity, diagnostics) -> "${diagnostics.size} ${severity.name.lowercase()}s" }
                 "there should not be any diagnostics, but found $byLevel"
             }
             override fun negatedFailureMessage() = "there should be diagnostics, but found none."

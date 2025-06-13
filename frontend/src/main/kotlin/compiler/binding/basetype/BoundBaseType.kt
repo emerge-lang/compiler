@@ -33,6 +33,7 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -43,6 +44,7 @@ import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
 import compiler.diagnostic.getterAndSetterWithDifferentType
+import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
 import compiler.diagnostic.memberFunctionImplementedOnInterface
 import compiler.diagnostic.multipleAccessorsOnBaseType
 import compiler.diagnostic.multipleClassConstructors
@@ -59,6 +61,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.zip
 import kotlinext.duplicatesBy
 import kotlinext.get
 import java.util.Collections
@@ -133,9 +136,9 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-
             typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
             superTypes.semanticAnalysisPhase1(diagnosis)
+            _parameterizedSupertypes = preprocessInheritanceTree(superTypes.clauses.mapNotNull { it.resolvedReference }, superTypes.span, diagnosis)
 
             entries.forEach {
                 it.semanticAnalysisPhase1(diagnosis)
@@ -444,19 +447,7 @@ class BoundBaseType(
             .fold(false, Boolean::or)
     }
 
-    private fun getInheritanceChains(toSupertype: BoundBaseType): Sequence<List<BoundSupertypeDeclaration>> {
-        if (this === toSupertype) return sequenceOf(emptyList())
-        return superTypes.clauses.asSequence()
-            .mapNotNull {
-                val ref = it.resolvedReference ?: return@mapNotNull null
-                it to ref
-            }
-            .flatMap { (clause, ref) ->
-                ref.baseType.getInheritanceChains(toSupertype).map { partialChain ->
-                    listOf(clause) + partialChain
-                }
-            }
-    }
+    private lateinit var _parameterizedSupertypes: Map<BoundBaseType, RootResolvedTypeReference>
 
     /**
      * For example, given:
@@ -482,22 +473,8 @@ class BoundBaseType(
             return context.swCtx.any.baseReference
         }
 
-        return getInheritanceChains(superBaseType)
-            .map { inheritanceChain ->
-                if (inheritanceChain.isEmpty()) {
-                    throw InternalCompilerError("contract of ${this::getParameterizedSupertype.name} violated: $superBaseType is not a supertype or it is identical to $this")
-                }
-
-                inheritanceChain
-                    .map { it.resolvedReference!! }
-                    .reduce { carry, next ->
-                        next.instantiateAllParameters(carry.inherentTypeBindings)
-                    }
-            }
-            // TODO: handle cases where there are multiple translations; that is a compile-time error,
-            // but probably has to be tolerated here
-            .distinct()
-            .single()
+        return _parameterizedSupertypes[superBaseType]
+            ?: throw InternalCompilerError("$superBaseType is not a supertype of $this")
     }
 
     enum class Kind(
@@ -596,6 +573,56 @@ class BoundBaseType(
             return closestCommonSupertypeOf(types.asList())
         }
     }
+}
+
+/**
+ * precomputes the results for [BoundBaseType.getParameterizedSupertype] for all supertypes except `Any`. While doing do,
+ * also verifies that type arguments for each supertype are consistent if that supertype appears twice in the inheritance
+ * tree (diamond-shaped inheritance)
+ *
+ * TODO: what happens on cyclic inheritance?
+ *
+ * @see compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
+ */
+private fun preprocessInheritanceTree(
+    supertypes: Iterable<RootResolvedTypeReference>,
+    treeRootDeclaredAt: Span,
+    diagnosis: Diagnosis
+): Map<BoundBaseType, RootResolvedTypeReference> {
+    val parameterizedSupertypes = IdentityHashMap<BoundBaseType, RootResolvedTypeReference>()
+    val inconsistentBindings = mutableMapOf<Pair<BoundBaseType, BoundTypeParameter>, MutableSet<BoundTypeArgument>>()
+
+    fun walk(supertype: RootResolvedTypeReference) {
+        val ref = supertype
+        val existingParameterizedSupertype = parameterizedSupertypes[ref.baseType]
+        if (existingParameterizedSupertype != null) {
+            assert(existingParameterizedSupertype.baseType == ref.baseType)
+            assert(existingParameterizedSupertype.arguments?.size == ref.arguments?.size)
+            if (existingParameterizedSupertype.arguments != null) {
+                zip(existingParameterizedSupertype.arguments, ref.arguments!!, existingParameterizedSupertype.baseType.typeParameters!!)
+                    .filter { (existingArg, refArg, _) -> existingArg != refArg }
+                    .forEach { (existingArg, refArg, param) ->
+                        val inconsistentArgs = inconsistentBindings.computeIfAbsent(Pair(existingParameterizedSupertype.baseType, param)) { mutableSetOf() }
+                        inconsistentArgs.add(refArg)
+                        inconsistentArgs.add(existingArg)
+                    }
+            }
+        } else {
+            parameterizedSupertypes[ref.baseType] = ref
+            ref.baseType.superTypes.clauses.asSequence()
+                .mapNotNull { it.resolvedReference }
+                .map { it.instantiateAllParameters(ref.inherentTypeBindings) }
+                .forEach(::walk)
+        }
+    }
+
+    supertypes.forEach(::walk)
+
+    inconsistentBindings.forEach { (baseTypeAndParam, inconsistentArgs) ->
+        diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(baseTypeAndParam.first, baseTypeAndParam.second, inconsistentArgs, treeRootDeclaredAt)
+    }
+
+    return parameterizedSupertypes
 }
 
 private class IrInterfaceImpl(
