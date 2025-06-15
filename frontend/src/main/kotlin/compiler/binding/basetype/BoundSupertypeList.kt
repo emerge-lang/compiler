@@ -1,5 +1,6 @@
 package compiler.binding.basetype
 
+import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
@@ -7,12 +8,16 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.PartialPreprocessedInheritanceTree
+import compiler.binding.type.PreprocessedInheritanceTree
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.cyclicInheritance
 import compiler.diagnostic.duplicateSupertype
-import compiler.handleCyclicInvocation
+import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
 import compiler.lexer.Span
+import kotlinext.duplicatesBy
 
 class BoundSupertypeList(
     val context: CTContext,
@@ -23,54 +28,72 @@ class BoundSupertypeList(
 
     private val seanHelper = SeanHelper()
 
-    /** the base types that are being extended from, initialized in [semanticAnalysisPhase1] */
-    lateinit var baseTypes: List<BoundBaseType>
-        private set
-
     /**
      * becomes meaningful after [semanticAnalysisPhase1]
+     * TODO: currently stale / not determined; even needed?
      */
     var hasCyclicInheritance: Boolean = false
 
     val span: Span = clauses.mapNotNull { it.astNode.span }.reduceOrNull(Span::rangeTo) ?: Span.UNKNOWN
 
+    /** the base types that are being directly extended from **except `emerge.core.Any`!** */
+    val directSuperBaseTypes: Set<BoundBaseType> by lazy {
+        clauses
+            .mapNotNull { it.resolvedReference?.baseType }
+            .filter { it != context.swCtx.any }
+            .toSet()
+    }
+
+    /**
+     * initialized in [semanticAnalysisPhase1]
+     */
+    lateinit var preprocessedInheritanceTree: PreprocessedInheritanceTree
+        private set
+
+    /**
+     * For example, given:
+     *
+     *    interface A<T> {}
+     *    interface B<E> : A<Array<E>> {}
+     *    interface C<K> : B<K> {}
+     *
+     * when you call `C.getParameterizedSupertype(A)`, it will return `A<Array<K>>`.
+     *
+     * Combine this with [BoundTypeReference.instantiateAllParameters] and [RootResolvedTypeReference.inherentTypeBindings]
+     * to determine e.g. that `C<S32>` is a subtype of `A<Array<S32>>`.
+     *
+     * @param superBaseType must be a supertype of `this` and must not be equal to `this`
+     * @return a [TypeUnification] that maps type parameters in the namespace of [superBaseType] to the bindings it has
+     * as a supertype of `this`.
+     */
+    fun getParameterizedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
+        seanHelper.requirePhase1Done()
+
+        // getInheritanceChains breaks on Any because the implicit subtyping from Any isn't mentioned in superTypes.clauses
+        if (superBaseType == context.swCtx.any) {
+            return context.swCtx.any.baseReference
+        }
+
+        return preprocessedInheritanceTree.parameterizedSupertypes[superBaseType]
+            ?: throw InternalCompilerError("$superBaseType is not a supertype of $typeDef")
+    }
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-            clauses.forEach { it.semanticAnalysisPhase1(diagnosis) }
-            baseTypes = clauses.mapNotNull { it.resolvedReference?.baseType }
+            sean1PrepProcessInheritanceTree(diagnosis)
 
-            // all types that don't declare supertype, except Any itself, inherit from Any implicitly
-            if (clauses.isEmpty() && typeDef !== context.swCtx.any) {
-                baseTypes = listOf(context.swCtx.any)
-            }
-
-            val distinctSuperBaseTypes = mutableSetOf<BoundBaseType>()
-            val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
-            for (clause in clauses) {
-                val resolvedReference = clause.resolvedReference ?: continue
-                handleCyclicInvocation(
-                    context = this,
-                    action = {
-                        resolvedReference.baseType.semanticAnalysisPhase1(diagnosis)
-                    },
-                    onCycle = {
-                        diagnosis.cyclicInheritance(typeDef, clause)
-                        hasCyclicInheritance = true
-                    }
-                )
-                if (hasCyclicInheritance) {
-                    continue
+            clauses
+                .mapNotNull { it.resolvedReference }
+                .duplicatesBy { it.baseType }
+                .values
+                .forEach { duped ->
+                    diagnosis.duplicateSupertype(duped.first().asAstReference())
                 }
 
-                if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    diagnosis.duplicateSupertype(clause.astNode)
-                } else {
-                    distinctSupertypes.add(resolvedReference)
-                }
-            }
-
-            inheritedMemberFunctions = distinctSupertypes
+            inheritedMemberFunctions = clauses
                 .asSequence()
+                .filter { it !in preprocessedInheritanceTree.cycles }
+                .mapNotNull { it.resolvedReference }
                 .flatMap { supertype ->
                     supertype.memberFunctions
                         .asSequence()
@@ -84,6 +107,29 @@ class BoundSupertypeList(
                 it.semanticAnalysisPhase1(diagnosis)
             }
         }
+    }
+
+    private fun sean1PrepProcessInheritanceTree(diagnosis: Diagnosis) {
+        val partialTrees = ArrayList<PartialPreprocessedInheritanceTree>(clauses.size)
+        val cycles = HashSet<BoundSupertypeDeclaration>()
+        for (clause in clauses) {
+            clause.semanticAnalysisPhase1(diagnosis)
+            val supertypeRef = clause.resolvedReference ?: continue
+            if (clause.isCyclic) {
+                cycles.add(clause)
+            } else {
+                partialTrees.add(supertypeRef.baseType.superTypes.preprocessedInheritanceTree.translateForSubtype(supertypeRef))
+            }
+            partialTrees.add(PartialPreprocessedInheritanceTree.ofDirectSupertype(supertypeRef))
+        }
+
+        val tree = PartialPreprocessedInheritanceTree.merge(partialTrees, cycles)
+        tree.inconsistentBindings.forEach { (baseTypeAndParam, inconsistentArgs) ->
+            diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(baseTypeAndParam.first, baseTypeAndParam.second, inconsistentArgs, span)
+        }
+
+        require(!this::preprocessedInheritanceTree.isInitialized)
+        preprocessedInheritanceTree = tree
     }
 
     /**

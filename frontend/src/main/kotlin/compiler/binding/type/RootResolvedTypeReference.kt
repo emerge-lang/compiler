@@ -164,7 +164,7 @@ class RootResolvedTypeReference private constructor(
         return when (this.baseType) {
             superBaseType -> this
             context.swCtx.nothing -> if (superBaseType.typeParameters.isNullOrEmpty()) superBaseType.baseReference else TODO("use wildcard for all type args")
-            else -> baseType.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
+            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
         }
     }
 
@@ -302,7 +302,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun asAstReference(): TypeReference {
+    override fun asAstReference(): NamedTypeReference {
         return original.takeUnless { modifiedSinceOriginal } ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),

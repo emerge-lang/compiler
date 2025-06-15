@@ -194,7 +194,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
-                    baseTypeD.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
+                    baseTypeD.superTypes.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
                 }
 
                 "derived type has an unrelated parameter" {
@@ -205,7 +205,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
-                    baseTypeD.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
+                    baseTypeD.superTypes.getParameterizedSupertype(baseTypeS) shouldBe swCtx.parseType("S<U32>")
                 }
 
                 "derived type forwards parameter plainly" {
@@ -216,7 +216,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
-                    val translated = baseTypeD.getParameterizedSupertype(baseTypeS)
+                    val translated = baseTypeD.superTypes.getParameterizedSupertype(baseTypeS)
                     translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
                         param shouldBe baseTypeS.typeParameters!!.single()
                         binding.shouldBeInstanceOf<BoundTypeArgument>()
@@ -233,7 +233,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
                     val baseTypeS = swCtx.parseType("S").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
-                    val translated = baseTypeD.getParameterizedSupertype(baseTypeS)
+                    val translated = baseTypeD.superTypes.getParameterizedSupertype(baseTypeS)
                     translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
                         param shouldBe baseTypeS.typeParameters!!.single()
                         binding.shouldBeInstanceOf<BoundTypeArgument>()
@@ -256,7 +256,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
                     val baseTypeA = swCtx.parseType("A").baseTypeOfLowerBound
                     val baseTypeD = swCtx.parseType("D").baseTypeOfLowerBound
-                    val translated = baseTypeD.getParameterizedSupertype(baseTypeA)
+                    val translated = baseTypeD.superTypes.getParameterizedSupertype(baseTypeA)
                     translated.inherentTypeBindings.bindings.shouldBeSingleton().single().let { (param, binding) ->
                         param shouldBe baseTypeA.typeParameters!!.single()
                         binding.shouldBeInstanceOf<BoundTypeArgument>()

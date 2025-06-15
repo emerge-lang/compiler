@@ -206,6 +206,11 @@ class BoundMemberVariableReadExpression(
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        seanHelper.requirePhase2Done()
+        if (seanHelper.phase2HadErrors) {
+            return
+        }
+
         valueExpression.visitReadsBeyond(boundary, visitor)
         if (physicalMember == null) {
             getterInvocation.visitReadsBeyond(boundary, visitor)
@@ -213,6 +218,11 @@ class BoundMemberVariableReadExpression(
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        seanHelper.requirePhase2Done()
+        if (seanHelper.phase2HadErrors) {
+            return
+        }
+
         valueExpression.visitWritesBeyond(boundary, visitor)
         if (physicalMember == null) {
             getterInvocation.visitWritesBeyond(boundary, visitor)

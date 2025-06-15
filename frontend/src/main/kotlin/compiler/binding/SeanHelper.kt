@@ -9,11 +9,16 @@ import compiler.diagnostic.Diagnosis
 class SeanHelper {
     // TODO: avoid double-checking on a best-effort basis without allocating new objects per invocation of the phases
     private var phase1DoneOn: Diagnosis? = null
-    private var phase1HadErrors = false
+    var phase1HadErrors = false
+        private set
+
     private var phase2DoneOn: Diagnosis? = null
-    private var phase2HadErrors = false
+    var phase2HadErrors = false
+        private set
+
     private var phase3DoneOn: Diagnosis? = null
-    private var phase3HadErrors = false
+    var phase3HadErrors = false
+        private set
 
     fun phase1(diagnosis: Diagnosis, impl: () -> Unit) {
         phase1DoneOn?.let { phase1Diag ->

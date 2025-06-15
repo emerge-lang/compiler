@@ -33,11 +33,9 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
-import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.TypeUnification
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
@@ -61,7 +59,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
-import kotlinext.get
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -136,7 +133,6 @@ class BoundBaseType(
         return seanHelper.phase1(diagnosis) {
             typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
             superTypes.semanticAnalysisPhase1(diagnosis)
-            _parameterizedSupertypes = BoundIntersectionTypeReference.preprocessInheritanceTree(superTypes.clauses.mapNotNull { it.resolvedReference }, superTypes.span, diagnosis)
 
             entries.forEach {
                 it.semanticAnalysisPhase1(diagnosis)
@@ -434,45 +430,13 @@ class BoundBaseType(
         )
 
     /** @return Whether this type is the same as or a subtype of the given type. */
-    infix fun isSubtypeOf(other: BoundBaseType): Boolean {
-        if (other === this) return true
-        if (other === other.context.swCtx.any) return true
-        if (other === context.swCtx.nothing) return false
+    infix fun isSubtypeOf(supertype: BoundBaseType): Boolean {
+        if (supertype === this) return true
+        if (supertype === context.swCtx.any) return true
+        if (supertype === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
 
-        return superTypes.baseTypes
-            .map { it.isSubtypeOf(other) }
-            .fold(false, Boolean::or)
-    }
-
-    private lateinit var _parameterizedSupertypes: Map<BoundBaseType, RootResolvedTypeReference>
-
-    /**
-     * For example, given:
-     *
-     *    interface A<T> {}
-     *    interface B<E> : A<Array<E>> {}
-     *    interface C<K> : B<K> {}
-     *
-     * when you call `C.getParameterizedSupertype(A)`, it will return `A<Array<K>>`.
-     *
-     * Combine this with [BoundTypeReference.instantiateAllParameters] and [RootResolvedTypeReference.inherentTypeBindings]
-     * to determine e.g. that `C<S32>` is a subtype of `A<Array<S32>>`.
-     *
-     * @param superBaseType must be a supertype of `this` and must not be equal to `this`
-     * @return a [TypeUnification] that maps type parameters in the namespace of [superBaseType] to the bindings it has
-     * as a supertype of `this`.
-     */
-    fun getParameterizedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
-        // todo: cache the results? could well be worthwhile!
-
-        // getInheritanceChains breaks on Any because the implicit subtyping from Any isn't mentioned in superTypes.clauses
-        if (superBaseType == context.swCtx.any) {
-            return context.swCtx.any.baseReference
-        }
-
-        return _parameterizedSupertypes[superBaseType]
-            ?: throw InternalCompilerError("$superBaseType is not a supertype of $this")
+        return supertype in this.superTypes.preprocessedInheritanceTree.parameterizedSupertypes.keys
     }
 
     enum class Kind(
@@ -540,13 +504,13 @@ class BoundBaseType(
                 return typesExcludingNothing[0]
             }
 
-            var pivot = typesExcludingNothing[0]
-            for (_type in typesExcludingNothing[1..<typesExcludingNothing.size]) {
+            var pivot = typesExcludingNothing.first()
+            for (_type in typesExcludingNothing.drop(1)) {
                 var type = _type
                 var swapped = false
                 while (!(type isSubtypeOf pivot)) {
-                    if (pivot.superTypes.baseTypes.isEmpty()) return pivot.context.swCtx.any
-                    if (pivot.superTypes.baseTypes.size > 1) {
+                    if (pivot.superTypes.directSuperBaseTypes.isEmpty()) return pivot.context.swCtx.any
+                    if (pivot.superTypes.directSuperBaseTypes.size > 1) {
                         if (swapped) {
                             return pivot.context.swCtx.any
                         }
@@ -556,7 +520,7 @@ class BoundBaseType(
                         swapped = true
                     }
                     else {
-                        pivot = pivot.superTypes.baseTypes.first()
+                        pivot = pivot.superTypes.directSuperBaseTypes.first()
                     }
                 }
             }
@@ -577,7 +541,7 @@ private class IrInterfaceImpl(
     val typeDef: BoundBaseType,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -601,7 +565,7 @@ private class IrClassImpl(
     val typeDef: BoundBaseType,
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
