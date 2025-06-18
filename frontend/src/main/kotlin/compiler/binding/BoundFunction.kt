@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.FunctionDeclaration
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
@@ -133,6 +134,14 @@ interface BoundMemberFunction : BoundFunction {
      * Becomes meaningful during [semanticAnalysisPhase3].
      */
     val overrides: Set<InheritedBoundMemberFunction>?
+
+    /**
+     * A root is the function found by repeatedly following [overrides] until you hit a function that doesn't override
+     * anything (= is original).
+     *
+     * **becomes available at the same time as [overrides].**
+     */
+    val roots: Set<BoundDeclaredBaseTypeMemberFunction>
 
     override fun toBackendIr(): IrMemberFunction
 }

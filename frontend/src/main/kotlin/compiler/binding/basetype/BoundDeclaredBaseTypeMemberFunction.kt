@@ -9,6 +9,7 @@ import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.externalMemberFunction
@@ -71,6 +72,15 @@ class BoundDeclaredBaseTypeMemberFunction(
             return field
         }
         private set
+
+    override val roots: Set<BoundDeclaredBaseTypeMemberFunction>
+        get() {
+            return overrides
+                ?.takeUnless { it.isEmpty() }
+                ?.flatMap { it.roots }
+                ?.toSet()
+                ?: setOf(this)
+        }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {

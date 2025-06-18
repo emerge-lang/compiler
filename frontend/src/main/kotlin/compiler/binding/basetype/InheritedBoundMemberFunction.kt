@@ -50,6 +50,8 @@ class InheritedBoundMemberFunction(
         }
     }
 
+    override val roots get()= supertypeMemberFn.roots
+
     override val canonicalName = CanonicalElementName.Function(
         ownerBaseType.canonicalName,
         supertypeMemberFn.name,
@@ -90,7 +92,7 @@ class InheritedBoundMemberFunction(
     private val narrowedReceiverParameter: VariableDeclaration = run {
         val inheritedReceiverParameter = supertypeMemberFn.parameters.declaredReceiver!!
         // it is important that this location comes from the subtype
-        // this is necessary so the access checks pass on module-private or less visible subtypes
+        // this is necessary, so the access checks pass on module-private or less visible subtypes
         val sourceLocation = ownerBaseType.declaration.declaredAt.deriveGenerated()
         VariableDeclaration(
             sourceLocation,
@@ -182,6 +184,44 @@ class InheritedBoundMemberFunction(
 
     override fun toString(): String {
         return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform = { it.typeAtDeclarationTime.toString() })}) -> $returnType"
+    }
+
+    companion object {
+        /**
+         * @return the (in-)direct common override (see [compiler.binding.basetype.InheritedBoundMemberFunction.overrides])
+         * across all of [inheritedFns] as declared on the most concrete receiver type possible, or `null` if no such
+         * function exists.
+         */
+        fun closestCommonOverriddenFunction(inheritedFns: Iterable<InheritedBoundMemberFunction>): BoundMemberFunction? {
+            val closestCommonReceiverBaseType = inheritedFns
+                .map { it.declaredOnType }
+                .let(BoundBaseType::closestCommonSupertypeOf)
+
+            val candidates = mutableSetOf<BoundMemberFunction>()
+            for (fn in inheritedFns) {
+                var hadCandidate = false
+                for (candidate in fn.allOverrides) {
+                    if (candidate.ownerBaseType == closestCommonReceiverBaseType) {
+                        candidates.add(candidate)
+                        hadCandidate = true
+                    }
+                }
+
+                if (!hadCandidate) {
+                    return null
+                }
+            }
+
+            return candidates.singleOrNull()
+        }
+    }
+}
+
+private val BoundMemberFunction.allOverrides: Sequence<BoundMemberFunction> get() = sequence {
+    val overriddenOrParent = if (this@allOverrides is InheritedBoundMemberFunction) setOf(supertypeMemberFn) else overrides!!
+    for (overridden in overriddenOrParent) {
+        yield(overridden)
+        yieldAll(overridden.allOverrides)
     }
 }
 

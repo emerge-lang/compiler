@@ -32,6 +32,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
+import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -44,7 +45,12 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.type.*
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.TypeUnification
+import compiler.binding.type.TypeUseSite
+import compiler.binding.type.UnresolvedType
+import compiler.binding.type.nonDisjointPairs
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.InvocationCandidateNotApplicableDiagnostic
@@ -244,11 +250,11 @@ class BoundInvocationExpression(
             return null
         }
 
-        val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(
+        val evaluations = allCandidates.evaluateInvocationCandidates(
             // for static member fns, receiverExpression helps discover them. But for the actual invocation,
             // the receiver stops to matter
             receiverExceptReferringType,
-        )
+        ).toSet()
 
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
@@ -309,6 +315,15 @@ class BoundInvocationExpression(
             }
             1 -> return legalMatches.single()
             else -> {
+                if (legalMatches.all { it.candidate is InheritedBoundMemberFunction }) {
+                    legalMatches
+                        .map { it.candidate as InheritedBoundMemberFunction }
+                        .let(InheritedBoundMemberFunction::closestCommonOverriddenFunction)
+                        ?.let { commonOverriddenFn ->
+                            sequenceOf(commonOverriddenFn).evaluateInvocationCandidates(receiverExceptReferringType).firstOrNull()
+                        }
+                        ?.let { return it }
+                }
                 diagnosis.ambiguousInvocation(
                     this,
                     evaluations
@@ -320,29 +335,20 @@ class BoundInvocationExpression(
         }
     }
 
-    /**
-     * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
-     * returns the functions matching the types sorted by matching quality to the given
-     * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
-     *
-     * In essence, this function is the overload resolution algorithm of Emerge.
-     *
-     * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
-     * returned function to determine the return type if that function were invoked.
-     * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
-     * it has to be treated as an error because the invocation is ambiguous.
-     */
-    private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
+    private fun Iterable<BoundOverloadSet<*>>.evaluateInvocationCandidates(receiver: BoundExpression<*>?): Sequence<OverloadCandidateEvaluation> {
+        return this.asSequence()
+            .flatMap { it.overloads }
+            .evaluateInvocationCandidates(receiver)
+    }
+
+    private fun Sequence<BoundFunction>.evaluateInvocationCandidates(
         receiver: BoundExpression<*>?,
-    ): List<OverloadCandidateEvaluation> {
+    ): Sequence<OverloadCandidateEvaluation> {
         check((receiver != null) xor (receiver?.type == null))
         val receiverType = receiver?.type
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
 
         return this
-            .asSequence()
-            .filter { it.parameterCount == argumentsIncludingReceiver.size }
-            .flatMap { it.overloads }
             // filter by (declared receiver)
             .filter { candidateFn -> (receiverType != null) == candidateFn.declaresReceiver }
             // filter by incompatible number of parameters
@@ -407,7 +413,6 @@ class BoundInvocationExpression(
                         && allDisambiguatingArgumentsAreErrorFree
                 )
             }
-            .toList()
     }
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
