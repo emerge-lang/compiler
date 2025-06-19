@@ -416,6 +416,10 @@ fun Diagnosis.externalMemberFunction(function: BoundDeclaredFunction) {
     add(ExternalMemberFunctionDiagnostic(function.declaration, function.attributes.externalAttribute!!.attributeName))
 }
 
+fun Diagnosis.nonVirtualMemberFunctionWithReceiver(function: BoundDeclaredBaseTypeMemberFunction, reason: String) {
+    add(NonVirtualMemberFunctionWithReceiverDiagnostic(function.declaration, reason))
+}
+
 fun Diagnosis.notAllMemberVariablesInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span) {
     add(NotAllMemberVariablesInitializedDiagnostic(
         uninitializedMembers.map { it.declaration },

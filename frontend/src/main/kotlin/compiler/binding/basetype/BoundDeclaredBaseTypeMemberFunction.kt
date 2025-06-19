@@ -9,13 +9,16 @@ import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.isAssignableTo
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.externalMemberFunction
 import compiler.diagnostic.functionDoesNotOverride
 import compiler.diagnostic.illegalFunctionBody
 import compiler.diagnostic.missingFunctionBody
+import compiler.diagnostic.nonVirtualMemberFunctionWithReceiver
 import compiler.diagnostic.overrideAccessorDeclarationMismatch
 import compiler.diagnostic.overrideAddsSideEffects
 import compiler.diagnostic.overrideDropsNothrow
@@ -30,8 +33,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.zip
-import java.util.Collections
-import java.util.IdentityHashMap
 
 class BoundDeclaredBaseTypeMemberFunction(
     functionRootContext: MutableExecutionScopedCTContext,
@@ -59,18 +60,15 @@ class BoundDeclaredBaseTypeMemberFunction(
             name,
         )
     }
-    override val isVirtual get() = declaresReceiver
+    override var isVirtual: Boolean? by seanHelper.resultOfPhase1()
+        private set
     override val isAbstract = !attributes.impliesNoBody && body == null
 
     override val visibility by lazy {
         attributes.visibility.coerceAtMost(declaredOnType.visibility)
     }
 
-    override var overrides: Set<InheritedBoundMemberFunction>? = null
-        get() {
-            seanHelper.requirePhase1Done()
-            return field
-        }
+    override var overrides: Set<InheritedBoundMemberFunction>? by seanHelper.resultOfPhase1()
         private set
 
     override val roots: Set<BoundDeclaredBaseTypeMemberFunction>
@@ -85,8 +83,32 @@ class BoundDeclaredBaseTypeMemberFunction(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             super.semanticAnalysisPhase1(diagnosis)
+            determineVirtuality(diagnosis)
             determineOverride(diagnosis)
         }
+    }
+
+    private fun determineVirtuality(diagnosis: Diagnosis) {
+        val receiverParam = parameters.declaredReceiver ?: run {
+            isVirtual = false
+            return
+        }
+        val receiverType = receiverParam.typeAtDeclarationTime ?: run {
+            isVirtual = null
+            return
+        }
+
+        if (receiverType.baseTypeOfLowerBound != declaredOnType) {
+            val reason = when (receiverType) {
+                is GenericTypeReference -> "the bound of the receiver type parameter `${receiverType.parameter.name}` must be `${ownerBaseType.simpleName}`"
+                else -> "the receiver type must be `${ownerBaseType.simpleName}`"
+            }
+            diagnosis.nonVirtualMemberFunctionWithReceiver(this, reason)
+            isVirtual = false
+            return
+        }
+
+        isVirtual = true
     }
 
     private fun determineOverride(diagnosis: Diagnosis) {
@@ -96,40 +118,26 @@ class BoundDeclaredBaseTypeMemberFunction(
             return
         }
 
-        val superFns = findOverriddenFunction(diagnosis)
+        val superFns = findOverriddenFunctions(diagnosis)
         if (isDeclaredOverride) {
-            if (superFns.isEmpty()) {
+            if (superFns.none()) {
                 diagnosis.functionDoesNotOverride(this)
             }
         } else {
-            if (superFns.isNotEmpty()) {
+            if (superFns.any()) {
                 val supertype = superFns.first().declaredOnType
                 diagnosis.undeclaredOverride(this, supertype)
             }
         }
 
-        overrides = superFns
-
-        returnType?.let { overriddenReturnType ->
-            for (superFn in superFns) {
-                superFn.returnType?.let { superReturnType ->
-                    overriddenReturnType.evaluateAssignabilityTo(
-                        superReturnType,
-                        overriddenReturnType.span ?: Span.UNKNOWN
-                    )
-                        ?.let { typeError ->
-                            diagnosis.add(IncompatibleReturnTypeOnOverrideDiagnostic(declaration, superFn, typeError))
-                        }
-                }
-            }
-        }
+        overrides = superFns.filter { it.isVirtual ?: true }.toSet()
     }
 
-    private fun findOverriddenFunction(diagnosis: Diagnosis): Set<InheritedBoundMemberFunction> {
+    private fun findOverriddenFunctions(diagnosis: Diagnosis): Sequence<InheritedBoundMemberFunction> {
         val selfParameterTypes = parameterTypes
             .drop(1) // ignore receiver
             .asElementNotNullable()
-            ?: return emptySet()
+            ?: return emptySequence()
 
         declaredOnType.superTypes.semanticAnalysisPhase1(diagnosis)
         return declaredOnType.superTypes.inheritedMemberFunctions
@@ -145,7 +153,6 @@ class BoundDeclaredBaseTypeMemberFunction(
                 selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())
                     .all { (selfParamType, superParamType) -> superParamType == selfParamType }
             }
-            .toCollection(Collections.newSetFromMap(IdentityHashMap()))
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -252,7 +259,7 @@ private class IrMemberFunctionImpl(
     override val isNothrow = boundFn.attributes.isDeclaredNothrow
     override val body: IrCodeChunk? by lazy { boundFn.getFullBodyBackendIr() }
     override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }
-    override val supportsDynamicDispatch = boundFn.isVirtual
+    override val supportsDynamicDispatch = boundFn.isVirtual!!
     override val ownerBaseType by lazy { boundFn.declaredOnType.toBackendIr() }
     override val declaredAt = boundFn.declaredAt
 

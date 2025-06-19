@@ -22,6 +22,7 @@ import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
 import compiler.diagnostic.MultipleClassDestructorsDiagnostic
 import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
+import compiler.diagnostic.NonVirtualMemberFunctionWithReceiverDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
 import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
@@ -329,6 +330,33 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<OverrideDropsNothrowDiagnostic>()
             }
+        }
+
+        "if receiver declared, owner type must be assignable" {
+            validateModule("""
+                class Test {
+                    fn foo(self: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+
+            validateModule("""
+                class Test {
+                    fn foo<S>(self: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+
+            validateModule("""
+                interface Foo {
+                    fn erroneous<S>(self: S)
+                }
+                class Sub : Foo {
+                
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+                .shouldNotFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
         }
     }
 

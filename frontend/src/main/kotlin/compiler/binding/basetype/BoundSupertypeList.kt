@@ -99,6 +99,7 @@ class BoundSupertypeList(
                         .asSequence()
                         .filter { it.declaresReceiver }
                         .flatMap { it.overloads }
+                        .filter { it.isVirtual ?: false }
                         .map { InheritedBoundMemberFunction(it, typeDef, supertype) }
                 }
                 .toList()

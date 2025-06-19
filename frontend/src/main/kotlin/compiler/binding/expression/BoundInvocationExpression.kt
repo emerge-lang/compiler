@@ -510,7 +510,7 @@ class BoundInvocationExpression(
             .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??
-        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnAbstractType) {
+        if (fn is BoundMemberFunction && fn.isVirtual!! && isCallOnAbstractType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),

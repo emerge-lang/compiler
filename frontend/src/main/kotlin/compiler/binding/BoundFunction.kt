@@ -126,7 +126,12 @@ interface BoundMemberFunction : BoundFunction {
      */
     val ownerBaseType: BoundBaseType
 
-    val isVirtual: Boolean
+    /**
+     * Whether this member function supports dynamic dispatch and whether it can be inherited from subtypes.
+     * `null` if that cannot be determined (e.g. type error in the declared receiver).
+     * Available after [semanticAnalysisPhase1].
+     */
+    val isVirtual: Boolean?
 
     val isAbstract: Boolean
 

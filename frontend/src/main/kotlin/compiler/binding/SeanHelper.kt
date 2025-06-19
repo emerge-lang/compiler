@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.InternalCompilerError
 import compiler.diagnostic.Diagnosis
+import kotlin.reflect.KProperty
 
 /**
  * Sean is short for SEmantic ANalysis
@@ -154,5 +155,41 @@ class SeanHelper {
          * can be invoked within [phase2] to interact with the `runIfErrorsPreviously` parameter of [phase3].
          */
         fun markErroneous()
+    }
+
+    interface SeanLateinitDelegate<T> {
+        operator fun getValue(thisRef: Any?, prop: KProperty<*>): T
+        operator fun setValue(thisRef: Any?, prop: KProperty<*>, value: T)
+    }
+
+    fun <T> resultOfPhase1(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(1, SeanHelper::phase1Done)
+    fun <T> resultOfPhase2(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(2, SeanHelper::phase2Done)
+    fun <T> resultOfPhase3(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(3, SeanHelper::phase3Done)
+
+    private inner class SeanLateinitDelegateImpl<T>(
+        val phaseN: Int,
+        val phaseComplete: (SeanHelper) -> Boolean,
+    ) : SeanLateinitDelegate<T> {
+        private var value: T? = null
+        private var initialized = false
+
+        override fun getValue(thisRef: Any?, prop: KProperty<*>): T {
+            if (!phaseComplete(this@SeanHelper)) {
+                throw InternalCompilerError("Property ${prop.name} on $thisRef accessed before semantic analysis phase $phaseN is complete")
+            }
+            if (!initialized) {
+                throw InternalCompilerError("Property ${prop.name} was not initialized during semantic analysis phase $phaseN")
+            }
+            @Suppress("UNCHECKED_CAST")
+            return value as T
+        }
+
+        override fun setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
+            if (phaseComplete(this@SeanHelper)) {
+                throw InternalCompilerError("Property ${prop.name} is initialized or modified after semantic analysis phase $phaseN was completed")
+            }
+            this.value = value
+            this.initialized = true
+        }
     }
 }
