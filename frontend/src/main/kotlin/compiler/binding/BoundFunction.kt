@@ -38,6 +38,8 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [declaresReceiver] to resolve the ambiguity.
+     *
+     * Available after [semanticAnalysisPhase1].
      */
     val receiverType: BoundTypeReference?
 

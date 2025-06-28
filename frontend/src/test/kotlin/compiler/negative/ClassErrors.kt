@@ -915,6 +915,32 @@ class ClassErrors : FreeSpec({
             }
         }
 
+        "preclusion" - {
+            "member functions precluded from inheritance need not be implemented" {
+                validateModule("""
+                    interface I<T> {
+                        fn foo(self: I<S32>)
+                    }
+                    class C : I<U64> {
+                        
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "member functions precluded from inheritance cannot be overridden" {
+                validateModule("""
+                    interface I<T> {
+                        fn foo(self: I<S32>)
+                    }
+                    class C : I<U64> {
+                        override fn foo(self) {}                        
+                    }
+                """)
+                    .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
+            }
+        }
+
         "return type not compatible" {
             validateModule("""
                 interface I {

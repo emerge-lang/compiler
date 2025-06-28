@@ -10,7 +10,6 @@ import compiler.binding.SeanHelper
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.GenericTypeReference
-import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -179,7 +178,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
-            overrides?.forEach { inheritedFn ->
+            for (inheritedFn in overrides ?: emptyList()) {
                 if (!inheritedFn.purity.contains(this.purity)) {
                     diagnosis.overrideAddsSideEffects(this, inheritedFn)
                 }
@@ -197,12 +196,18 @@ class BoundDeclaredBaseTypeMemberFunction(
                     if (!overrideFnParam.ownershipAtDeclarationTime.canOverride(inheritedFnParam.ownershipAtDeclarationTime)) {
                         diagnosis.overridingParameterExtendsOwnership(overrideFnParam, paramOnSupertypeFn)
                     }
+                }
 
-                    val superType = inheritedFnParam.typeAtDeclarationTime ?: continue
-                    val overrideType = overrideFnParam.typeAtDeclarationTime ?: continue
-                    superType.evaluateAssignabilityTo(overrideType, overrideFnParam.declaration.span)?.let { narrowingError ->
-                        diagnosis.overridingParameterNarrowsType(overrideFnParam, paramOnSupertypeFn, narrowingError)
-                    }
+                val declaredReceiverType = this.receiverType ?: continue
+                val superReceiverType = inheritedFn.receiverType ?: continue
+                val narrowReceiverError = declaredReceiverType.evaluateAssignabilityTo(superReceiverType, declaredReceiverType.span ?: Span.UNKNOWN)
+                if (narrowReceiverError != null) {
+                    diagnosis.overridingParameterNarrowsType(
+                        this.parameters.declaredReceiver!!,
+                        inheritedFn.supertypeMemberFn.parameters.declaredReceiver!!,
+                        narrowReceiverError
+                    )
+                    continue
                 }
             }
         }

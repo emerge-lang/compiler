@@ -101,12 +101,10 @@ class BoundSupertypeList(
                         .flatMap { it.overloads }
                         .filter { it.isVirtual ?: false }
                         .map { InheritedBoundMemberFunction(it, typeDef, supertype) }
+                        .onEach { it.semanticAnalysisPhase1(diagnosis) }
+                        .filter { it.inheritancePreclusionReason == null }
                 }
                 .toList()
-
-            inheritedMemberFunctions.forEach {
-                it.semanticAnalysisPhase1(diagnosis)
-            }
         }
     }
 

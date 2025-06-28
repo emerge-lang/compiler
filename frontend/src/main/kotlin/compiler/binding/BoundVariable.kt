@@ -80,6 +80,8 @@ class BoundVariable(
      * the correct type.
      *
      * null if not determined yet or if it cannot be determined due to semantic errors.
+     * Available after [semanticAnalysisPhase2]; iff a type is declared and no inference is needed,
+     * already available after [semanticAnalysisPhase1].
      */
     var typeAtDeclarationTime: BoundTypeReference? = null
         private set
