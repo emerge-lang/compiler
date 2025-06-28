@@ -162,24 +162,27 @@ class SeanHelper {
         operator fun setValue(thisRef: Any?, prop: KProperty<*>, value: T)
     }
 
-    fun <T> resultOfPhase1(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(1, SeanHelper::phase1Done)
-    fun <T> resultOfPhase2(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(2, SeanHelper::phase2Done)
-    fun <T> resultOfPhase3(): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(3, SeanHelper::phase3Done)
+    fun <T> resultOfPhase1(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(1, SeanHelper::phase1Done, allowReassignment)
+    fun <T> resultOfPhase2(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(2, SeanHelper::phase2Done, allowReassignment)
+    fun <T> resultOfPhase3(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(3, SeanHelper::phase3Done, allowReassignment)
 
     private inner class SeanLateinitDelegateImpl<T>(
         val phaseN: Int,
         val phaseComplete: (SeanHelper) -> Boolean,
+        val allowReassignment: Boolean,
     ) : SeanLateinitDelegate<T> {
         private var value: T? = null
         private var initialized = false
 
         override fun getValue(thisRef: Any?, prop: KProperty<*>): T {
-            if (!phaseComplete(this@SeanHelper)) {
-                throw InternalCompilerError("Property ${prop.name} on $thisRef accessed before semantic analysis phase $phaseN is complete")
-            }
             if (!initialized) {
-                throw InternalCompilerError("Property ${prop.name} was not initialized during semantic analysis phase $phaseN")
+                throw InternalCompilerError(if (phaseComplete(this@SeanHelper)) {
+                    "Property ${prop.name} was not initialized during semantic analysis phase $phaseN"
+                } else {
+                    "Property ${prop.name} on $thisRef accessed before semantic analysis phase $phaseN is complete"
+                })
             }
+
             @Suppress("UNCHECKED_CAST")
             return value as T
         }
@@ -188,6 +191,10 @@ class SeanHelper {
             if (phaseComplete(this@SeanHelper)) {
                 throw InternalCompilerError("Property ${prop.name} is initialized or modified after semantic analysis phase $phaseN was completed")
             }
+            if (this.initialized && allowReassignment) {
+                throw InternalCompilerError("Property ${prop.name} was already initialized, cannot re-assign")
+            }
+
             this.value = value
             this.initialized = true
         }

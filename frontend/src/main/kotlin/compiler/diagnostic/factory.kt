@@ -516,6 +516,10 @@ fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superPara
     add(NarrowingParameterTypeOverrideDiagnostic(override, superParameter, assignabilityDiagnostic))
 }
 
+fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: ValueNotAssignableDiagnostic) {
+    add(IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, error))
+}
+
 fun Diagnosis.nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
     add(NothrowViolationDiagnostic.ThrowingInvocation(invocation, boundary))
 }

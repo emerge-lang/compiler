@@ -47,7 +47,7 @@ class BoundSupertypeList(
     /**
      * initialized in [semanticAnalysisPhase1]
      */
-    lateinit var preprocessedInheritanceTree: PreprocessedInheritanceTree
+    var preprocessedInheritanceTree: PreprocessedInheritanceTree by seanHelper.resultOfPhase1(allowReassignment = false)
         private set
 
     /**
@@ -80,7 +80,7 @@ class BoundSupertypeList(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-            sean1PrepProcessInheritanceTree(diagnosis)
+            sean1BuildPreprocessedInheritanceTree(diagnosis)
 
             clauses
                 .mapNotNull { it.resolvedReference }
@@ -108,7 +108,7 @@ class BoundSupertypeList(
         }
     }
 
-    private fun sean1PrepProcessInheritanceTree(diagnosis: Diagnosis) {
+    private fun sean1BuildPreprocessedInheritanceTree(diagnosis: Diagnosis) {
         val partialTrees = ArrayList<PartialPreprocessedInheritanceTree>(clauses.size)
         val cycles = HashSet<BoundSupertypeDeclaration>()
         for (clause in clauses) {
@@ -127,7 +127,6 @@ class BoundSupertypeList(
             diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(baseTypeAndParam.first, baseTypeAndParam.second, inconsistentArgs, span)
         }
 
-        require(!this::preprocessedInheritanceTree.isInitialized)
         preprocessedInheritanceTree = tree
     }
 

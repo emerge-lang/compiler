@@ -863,11 +863,9 @@ class ClassErrors : FreeSpec({
                     interface I {
                         fn foo(self)
                     }
-                    interface Sub : I {
-                        override fn foo(self: C)
-                    }
-                    class C : Sub {
-                        override fn foo(self) {}
+                    interface Extra {}
+                    class C : I {
+                        override fn foo(self: C & Extra) {}
                     }
                 """.trimIndent())
                     .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()

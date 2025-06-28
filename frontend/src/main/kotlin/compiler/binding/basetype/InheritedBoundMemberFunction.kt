@@ -72,7 +72,7 @@ class InheritedBoundMemberFunction(
         ).bindTo(functionContext)
     }
 
-    override val receiverType = parameters.declaredReceiver!!.typeAtDeclarationTime
+    override val receiverType get()= parameters.declaredReceiver!!.typeAtDeclarationTime
     override val returnType get()= supertypeMemberFn.returnType?.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings)
 
     // semantic analysis is not really needed here; the super function will have its sean functions invoked, too

@@ -82,6 +82,7 @@ data class FunctionDeclaration(
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),
             getTypeDef,
+            impliedReceiverType,
         )
         return boundFn
     }
