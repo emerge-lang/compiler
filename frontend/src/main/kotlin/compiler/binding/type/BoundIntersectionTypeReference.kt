@@ -129,7 +129,7 @@ class BoundIntersectionTypeReference private constructor(
                 return unify(assigneeType.nested, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
+            is UnresolvedType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             else -> {
                 /*
                 one would think that this is just a case of unifying each component with the assignee. But there's more

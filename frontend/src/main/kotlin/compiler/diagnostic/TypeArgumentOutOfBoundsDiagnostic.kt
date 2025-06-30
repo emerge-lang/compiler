@@ -19,17 +19,12 @@ class TypeArgumentOutOfBoundsDiagnostic(
 
         other as TypeArgumentOutOfBoundsDiagnostic
 
-        if (parameter != other.parameter) return false
-        if (argument != other.argument) return false
-        if (argument.span != other.argument.span) return false
-
-        return true
+        return this.span == other.span
     }
 
     override fun hashCode(): Int {
-        var result = parameter.hashCode()
-        result = 31 * result + argument.hashCode()
-        result = 31 * result + argument.span.hashCode()
+        var result = javaClass.hashCode()
+        result = 31 * result + span.hashCode()
         return result
     }
 }

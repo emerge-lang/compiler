@@ -10,23 +10,18 @@ import compiler.diagnostic.unknownType
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class UnresolvedType private constructor(
-    val standInType: BoundTypeReference,
+/**
+ * Acts like both `Any` and `Nothing` at the same time.
+ */
+class UnresolvedType constructor(
+    override val context: CTContext,
     private val reference: NamedTypeReference,
     val parameters: List<BoundTypeArgument>?,
-    override val context: CTContext = standInType.context,
 ) : BoundTypeReference {
-    constructor(context: CTContext, reference: NamedTypeReference, parameters: List<BoundTypeArgument>?) : this(
-        context.swCtx.unresolvableReplacementType,
-        reference,
-        parameters,
-        context,
-    )
-
     override val simpleName = "<ERROR>"
-    override val isNullable get() = standInType.isNullable
-    override val mutability get() = standInType.mutability
-    override val baseTypeOfLowerBound get() = standInType.baseTypeOfLowerBound
+    override val isNullable get() = false
+    override val mutability = reference.mutability ?: TypeMutability.READONLY
+    override val baseTypeOfLowerBound get() = context.swCtx.nothing
     override val span = reference.span
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
@@ -39,7 +34,7 @@ class UnresolvedType private constructor(
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutability(mutability),
+            context,
             reference,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
@@ -47,7 +42,7 @@ class UnresolvedType private constructor(
 
     override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutabilityUnionedWith(mutability),
+            context,
             reference,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
@@ -55,7 +50,7 @@ class UnresolvedType private constructor(
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutabilityLimitedTo(limitToMutability),
+            context,
             reference,
             parameters?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
@@ -63,7 +58,7 @@ class UnresolvedType private constructor(
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return UnresolvedType(
-            standInType.withCombinedNullability(nullability),
+            context,
             reference,
             parameters,
         )
@@ -71,27 +66,33 @@ class UnresolvedType private constructor(
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return UnresolvedType(
-            standInType.withTypeVariables(variables),
+            context,
             reference,
             parameters?.map { it.withTypeVariables(variables) }
         )
     }
 
+    val asAny: RootResolvedTypeReference by lazy {
+        context.swCtx.any.baseReference.withMutability(this.mutability)
+    }
+
+    val asNothing: RootResolvedTypeReference by lazy {
+        context.swCtx.nothing.baseReference.withMutability(this.mutability)
+    }
+
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         return when(assigneeType) {
-            is RootResolvedTypeReference,
-            is GenericTypeReference,
-            is BoundIntersectionTypeReference,
-            is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
-            is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
-            is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
-            is NullableTypeReference -> standInType.unify(assigneeType, assignmentLocation, carry)
+            is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
+            else -> {
+                /* act like any */
+                asAny.unify(assigneeType, assignmentLocation, carry)
+            }
         }
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.defaultMutabilityTo(mutability),
+            context,
             reference,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
@@ -99,7 +100,7 @@ class UnresolvedType private constructor(
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return UnresolvedType(
-            standInType.closestCommonSupertypeWith(other),
+            context,
             reference,
             emptyList(),
         )
@@ -107,26 +108,27 @@ class UnresolvedType private constructor(
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.instantiateFreeVariables(context),
+            this.context,
             reference,
-            emptyList(),
+            parameters?.map { it.instantiateFreeVariables(context) },
         )
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.instantiateAllParameters(context),
+            this.context,
             reference,
-            emptyList(),
+            parameters?.map { it.instantiateAllParameters(context) },
         )
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
-        return standInType.hasSameBaseTypeAs(other)
+        // act like any AND nothing
+        return true
     }
 
     override fun asAstReference(): TypeReference {
-        return standInType.asAstReference()
+        return reference
     }
 
     override fun toString() = simpleName

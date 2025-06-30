@@ -85,7 +85,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                 // that can determine success/failure of a sub-unification
                 carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
-            is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
+            is UnresolvedType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
                 if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,

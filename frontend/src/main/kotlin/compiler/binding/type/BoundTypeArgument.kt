@@ -109,7 +109,7 @@ class BoundTypeArgument(
                 "$assigneeType is not a subtype of $this"
             }
             is UnresolvedType -> {
-                return unify(assigneeType.standInType, assignmentLocation, carry)
+                return unify(assigneeType.asNothing, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
