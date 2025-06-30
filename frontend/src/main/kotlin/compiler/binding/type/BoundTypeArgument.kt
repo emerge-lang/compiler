@@ -154,7 +154,7 @@ class BoundTypeArgument(
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, astNode, resultVariance, nestedInstantiated)
+        return BoundTypeArgument(this.context, TypeArgument(resultVariance, nestedInstantiated.asAstReference()), resultVariance, nestedInstantiated)
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {

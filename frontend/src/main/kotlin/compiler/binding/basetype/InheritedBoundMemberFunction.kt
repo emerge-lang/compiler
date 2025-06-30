@@ -1,7 +1,5 @@
 package compiler.binding.basetype
 
-import compiler.ast.ParameterList
-import compiler.ast.VariableDeclaration
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.context.ExecutionScopedCTContext
@@ -42,15 +40,6 @@ class InheritedBoundMemberFunction(
     // this is intentional - as long as not overridden, this info is truthful & accurate
     override val declaredOnType get()= supertypeMemberFn.declaredOnType
 
-    private val relocatedReceiverParameter: VariableDeclaration = run {
-        val inheritedReceiverParameter = supertypeMemberFn.parameters.declaredReceiver!!
-        // it is important that this location comes from the subtype
-        // this is necessary, so the access checks pass on module-private or less visible subtypes
-        inheritedReceiverParameter.declaration.copy(
-            declaredAt = ownerBaseType.declaration.declaredAt.deriveGenerated()
-        )
-    }
-
     /**
      * If the [supertypeAsDeclared] does not conform to the [BoundMemberFunction.receiverType], this function is not
      * actually inherited ("inheritances is precluded"). [inheritancePreclusionReason] holds the result of this
@@ -58,18 +47,19 @@ class InheritedBoundMemberFunction(
      */
     var inheritancePreclusionReason: Diagnostic? = null
 
-    override val parameters: BoundParameterList = run {
-        val translatedParams = supertypeMemberFn.parameters.parameters
-            .drop(1)
-            .map { boundSuperParam ->
-                val translatedtype = boundSuperParam.typeAtDeclarationTime?.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings)
-                    ?: return@map boundSuperParam.declaration
+    override val parameters: BoundParameterList = supertypeMemberFn.parameters.map(functionContext) { superParam, isReceiver, contextCarry ->
+        val inheritedParamLocation = if (isReceiver) {
+            // it is important that this location comes from the subtype
+            // this is necessary, so the access checks pass on module-private or less visible subtypes
+            ownerBaseType.declaration.declaredAt.deriveGenerated()
+        } else {
+            superParam.declaration.declaredAt.deriveGenerated()
+        }
 
-                boundSuperParam.declaration.copy(type = translatedtype.asAstReference())
-            }
-        ParameterList(
-            listOf(relocatedReceiverParameter) + translatedParams
-        ).bindTo(functionContext)
+        val translatedType = superParam.typeAtDeclarationTime?.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings)?.asAstReference()
+            ?: superParam.declaration.type
+
+        superParam.declaration.copy(declaredAt = inheritedParamLocation, type = translatedType).bindToAsParameter(contextCarry)
     }
 
     override val receiverType get()= parameters.declaredReceiver!!.typeAtDeclarationTime
@@ -83,7 +73,7 @@ class InheritedBoundMemberFunction(
         val superReceiverType = supertypeMemberFn.parameters.declaredReceiver!!.typeAtDeclarationTime ?: return
         inheritancePreclusionReason = supertypeAsDeclared
             .defaultMutabilityTo(superReceiverType.mutability)
-            .evaluateAssignabilityTo(superReceiverType, supertypeAsDeclared.span ?: ownerBaseType.declaration.declaredAt)
+            .evaluateAssignabilityTo(superReceiverType.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings), supertypeAsDeclared.span ?: ownerBaseType.declaration.declaredAt)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

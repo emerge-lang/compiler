@@ -316,26 +316,30 @@ class ClassErrors : FreeSpec({
                     .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
             }
 
-            "two degrees of inheritance" {
-                validateModule("""
-                    interface Animal {
-                        fn makeSound(self)
-                    }
-                    interface QuadraPede : Animal {}
-                    class Dog : QuadraPede {}
-                """.trimIndent())
-                    .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+            "two degrees of inheritance" - {
+                "no type parameters" {
+                    validateModule("""
+                        interface Animal {
+                            fn makeSound(self)
+                        }
+                        interface QuadraPede : Animal {}
+                        class Dog : QuadraPede {}
+                    """.trimIndent())
+                        .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                }
 
-                validateModule("""
-                    interface A<T> {
-                        fn foo(self, p: T)
-                    }
-                    interface B : A<S32> {}
-                    class C : B {
-                        
-                    }
-                """.trimIndent())
-                    .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                "with type parameters" {
+                    validateModule("""
+                        interface A<T> {
+                            fn foo(self, p: T)
+                        }
+                        interface B : A<S32> {}
+                        class C : B {
+                            
+                        }
+                    """.trimIndent())
+                        .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                }
             }
         }
 
