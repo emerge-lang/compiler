@@ -23,6 +23,7 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundFunction
 import compiler.binding.IrCodeChunkImpl
@@ -79,18 +80,23 @@ class BoundMemberVariableReadExpression(
      * type could not be determined
      */
     override val type: BoundTypeReference? get() {
-        if (physicalMember == null) {
-            return getterInvocation.type
-        }
         val valueType = valueExpression.type ?: return null
-        val rawMemberType = physicalMember!!.type ?: return null
-        val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
-        return if (physicalMember!!.isDecorated) {
-            instantiatedType.withMutability(valueExpression.type?.mutability?.limitedTo(TypeMutability.MUTABLE))
+        val nonNullableType = if (physicalMember == null) {
+            getterInvocation.type
         } else {
-            instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)
+            val rawMemberType = physicalMember!!.type ?: return null
+            val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
+
+            if (physicalMember!!.isDecorated) {
+                instantiatedType.withMutability(valueExpression.type?.mutability?.limitedTo(TypeMutability.MUTABLE))
+            } else {
+                instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)
+            }
         }
+
+        return nonNullableType
+            ?.withCombinedNullability(if (valueType.isNullable && isNullSafeAccess) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
     }
 
     override val throwBehavior get() = if (physicalMember != null) valueExpression.throwBehavior else getterInvocation.throwBehavior
