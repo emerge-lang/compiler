@@ -249,7 +249,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                  */
 
                 val selfReturnType = returnType
-                val superReturnType = inheritedFn.returnType
+                val superReturnType = inheritedFn.returnType?.instantiateAllParameters(inheritedFn.supertypeAsDeclared.inherentTypeBindings)
                 if (selfReturnType != null && superReturnType != null) {
                     selfReturnType
                         .evaluateAssignabilityTo(superReturnType, declaration.parsedReturnType?.span ?: declaredAt)

@@ -65,7 +65,7 @@ class InheritedBoundMemberFunction(
     }
 
     override val receiverType get()= parameters.declaredReceiver!!.typeAtDeclarationTime
-    override val returnType get()= supertypeMemberFn.returnType?.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings)
+    override val returnType get()= supertypeMemberFn.returnType
 
     // semantic analysis is not really needed here; the super function will have its sean functions invoked, too
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
