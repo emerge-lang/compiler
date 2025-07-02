@@ -37,6 +37,7 @@ import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
@@ -54,6 +55,8 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -249,16 +252,42 @@ class BoundMemberVariableReadExpression(
             return getterInvocation.toBackendIrExpression()
         }
 
+        val code = ArrayList<IrExecutable>(3)
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
+        code.add(baseTemporary)
+
         val memberTemporary = IrCreateTemporaryValueImpl(IrClassFieldAccessExpressionImpl(
             IrTemporaryValueReferenceImpl(baseTemporary),
             physicalMember!!.field.toBackendIr(),
             type!!.toBackendIr(),
         ))
 
+        val finalTemporary: IrCreateTemporaryValue = if (!valueExpression.type!!.isNullable || !isNullSafeAccess) {
+            code.add(memberTemporary)
+            memberTemporary
+        } else {
+            val isBaseNullTemporary = IrCreateTemporaryValueImpl(IrIsNullExpressionImpl(IrTemporaryValueReferenceImpl(baseTemporary), context.swCtx))
+            code.add(isBaseNullTemporary)
+            val nullableResultType = memberTemporary.type.asNullable()
+            val nullLiteral = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(nullableResultType))
+            IrCreateTemporaryValueImpl(IrIfExpressionImpl(
+                IrTemporaryValueReferenceImpl(isBaseNullTemporary),
+                IrImplicitEvaluationExpressionImpl(
+                    IrCodeChunkImpl(listOf(nullLiteral)),
+                    IrTemporaryValueReferenceImpl(nullLiteral),
+                ),
+                IrImplicitEvaluationExpressionImpl(
+                    IrCodeChunkImpl(listOf(memberTemporary)),
+                    IrTemporaryValueReferenceImpl(memberTemporary),
+                ),
+                nullableResultType,
+            ))
+        }
+        code.add(finalTemporary)
+
         return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
-            IrTemporaryValueReferenceImpl(memberTemporary),
+            IrCodeChunkImpl(code),
+            IrTemporaryValueReferenceImpl(finalTemporary),
         )
     }
 
