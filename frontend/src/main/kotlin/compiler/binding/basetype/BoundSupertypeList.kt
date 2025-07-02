@@ -67,8 +67,6 @@ class BoundSupertypeList(
      * as a supertype of `this`.
      */
     fun getParameterizedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
-        seanHelper.requirePhase1Done()
-
         // getInheritanceChains breaks on Any because the implicit subtyping from Any isn't mentioned in superTypes.clauses
         if (superBaseType == context.swCtx.any) {
             return context.swCtx.any.baseReference

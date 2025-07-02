@@ -37,7 +37,7 @@ class InheritedBoundMemberFunction(
     /**
      * If the [supertypeAsDeclared] does not conform to the [BoundMemberFunction.receiverType], this function is not
      * actually inherited ("inheritances is precluded"). [inheritancePreclusionReason] holds the result of this
-     * conformity check ([BoundTypeReference.evaluateAssignabilityTo]), available after [semanticAnalysisPhase2].
+     * conformity check ([BoundTypeReference.evaluateAssignabilityTo]), available after [semanticAnalysisPhase1].
      */
     var inheritancePreclusionReason: Diagnostic? = null
 
@@ -73,10 +73,12 @@ class InheritedBoundMemberFunction(
         parameters.semanticAnalysisPhase1(diagnosis)
         parameters.parameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
-        val superReceiverType = supertypeMemberFn.parameters.declaredReceiver!!.typeAtDeclarationTime ?: return
+        val superReceiverType = supertypeMemberFn.parameters.declaredReceiver!!.typeAtDeclarationTime
+            ?.instantiateAllParameters(ownerBaseType.superTypes.getParameterizedSupertype(declaredOnType).inherentTypeBindings)
+            ?: return
         inheritancePreclusionReason = supertypeAsDeclared
             .defaultMutabilityTo(superReceiverType.mutability)
-            .evaluateAssignabilityTo(superReceiverType.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings), supertypeAsDeclared.span ?: ownerBaseType.declaration.declaredAt)
+            .evaluateAssignabilityTo(superReceiverType, supertypeAsDeclared.span ?: ownerBaseType.declaration.declaredAt)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
