@@ -38,7 +38,7 @@ export class ArrayList<X : Any> : Iterable<X> {
         return self.storage.getOrPanic(index) ?: panic("null value shouldn't be present!")
     }
 
-    export override fn asRange(capture self) -> mut SizedRange<X> & RandomAccessRange<X> & BidirectionalRange<X> = ArrayListRange::<X>(self)
+    export override fn asRange(capture self) -> exclusive SizedRange<X> & RandomAccessRange<X> & BidirectionalRange<X> = ArrayListRange::<X>(self)
 
     private fn enlarge(self: mut _) {
         newStorage: exclusive _ = Array.new::<X?>(self.storage.size * 2, null)
