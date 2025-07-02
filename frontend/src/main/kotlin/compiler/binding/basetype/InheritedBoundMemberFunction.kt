@@ -2,8 +2,6 @@ package compiler.binding.basetype
 
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
-import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
@@ -26,10 +24,6 @@ class InheritedBoundMemberFunction(
         }
     }
 
-    private val functionContext = supertypeMemberFn.context as? ExecutionScopedCTContext
-        ?: MutableExecutionScopedCTContext.functionRootIn(supertypeMemberFn.context)
-    override val context = ownerBaseType.context
-
     override val roots get()= supertypeMemberFn.roots
 
     override val canonicalName = CanonicalElementName.Function(
@@ -47,7 +41,7 @@ class InheritedBoundMemberFunction(
      */
     var inheritancePreclusionReason: Diagnostic? = null
 
-    override val parameters: BoundParameterList = supertypeMemberFn.parameters.map(functionContext) { superParam, isReceiver, contextCarry ->
+    override val parameters: BoundParameterList = supertypeMemberFn.parameters.map(functionRootContext) { superParam, isReceiver, contextCarry ->
         val inheritedParamLocation = if (isReceiver) {
             // it is important that this location comes from the subtype
             // this is necessary, so the access checks pass on module-private or less visible subtypes
@@ -55,9 +49,17 @@ class InheritedBoundMemberFunction(
         } else {
             superParam.declaration.declaredAt.deriveGenerated()
         }
+        val inheritedParamTypeLocation = if (isReceiver) {
+            inheritedParamLocation
+        } else {
+            superParam.declaration.type?.span?.deriveGenerated() ?: inheritedParamLocation
+        }
 
-        val translatedType = superParam.typeAtDeclarationTime?.instantiateAllParameters(supertypeAsDeclared.inherentTypeBindings)?.asAstReference()
-            ?: superParam.declaration.type
+        val translatedType = (
+            superParam.typeAtDeclarationTime?.asAstReference()
+                ?: superParam.declaration.type
+            )
+            ?.withSpan(inheritedParamTypeLocation)
 
         superParam.declaration.copy(declaredAt = inheritedParamLocation, type = translatedType).bindToAsParameter(contextCarry)
     }
@@ -67,6 +69,7 @@ class InheritedBoundMemberFunction(
 
     // semantic analysis is not really needed here; the super function will have its sean functions invoked, too
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
         parameters.semanticAnalysisPhase1(diagnosis)
         parameters.parameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
@@ -77,10 +80,12 @@ class InheritedBoundMemberFunction(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        declaredTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
         parameters.parameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        declaredTypeParameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
         parameters.parameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 

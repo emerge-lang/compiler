@@ -98,7 +98,7 @@ class BaseTypeDeclaration(
                         val boundMemberVars = boundEntriesByAstNode.values.asSequence()
                             .filterIsInstance<BoundBaseTypeMemberVariable>()
                             .toList()
-                        entry.bindTo(fileContextWithTypeParams, boundTypeParameters, boundMemberVars, typeDefAccessor)
+                        entry.bindTo(fileContext, fileContextWithTypeParams, boundTypeParameters, boundMemberVars, typeDefAccessor)
                     }
                     is BaseTypeMemberFunctionDeclaration -> {
                         entry.bindTo(
@@ -108,7 +108,7 @@ class BaseTypeDeclaration(
                         )
                     }
                     is BaseTypeDestructorDeclaration -> {
-                        entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
+                        entry.bindTo(fileContext, fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                     }
                     is BaseTypeMemberVariableDeclaration -> error("unreachable, member vars are done above")
                 }
@@ -161,12 +161,13 @@ class BaseTypeConstructorDeclaration(
     override val span = constructorKeyword.span
 
     fun bindTo(
-        fileContextWithTypeParameters: CTContext,
+        parentContext: CTContext,
+        parentContextWithTypeParameters: CTContext,
         typeParameters: List<BoundTypeParameter>?,
         boundMemberVariables: List<BoundBaseTypeMemberVariable>,
         getClassDef: () -> BoundBaseType
     ) : BoundClassConstructor {
-        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), boundMemberVariables, getClassDef, this)
+        return BoundClassConstructor(parentContext, parentContextWithTypeParameters, typeParameters ?: emptyList(), boundMemberVariables, getClassDef, this)
     }
 }
 
@@ -177,13 +178,19 @@ class BaseTypeDestructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val span = destructorKeyword.span
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType): BoundClassDestructor {
+    fun bindTo(
+        parentContext: CTContext,
+        parentContextWithTypeParameters: CTContext,
+        typeParameters: List<BoundTypeParameter>?,
+        getClassDef: () -> BoundBaseType
+    ): BoundClassDestructor {
         lateinit var dtor: BoundClassDestructor
         dtor = BoundClassDestructor(
-            fileContextWithTypeParameters,
+            parentContext,
+            parentContextWithTypeParameters,
             typeParameters ?: emptyList(),
             getClassDef,
-            BoundFunctionAttributeList(fileContextWithTypeParameters, { dtor }, attributes),
+            BoundFunctionAttributeList(parentContextWithTypeParameters, { dtor }, attributes),
             this
         )
         return dtor

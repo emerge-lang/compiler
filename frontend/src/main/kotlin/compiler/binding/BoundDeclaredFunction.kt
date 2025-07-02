@@ -1,11 +1,11 @@
 package compiler.binding
 
-import compiler.*
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
+import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
@@ -26,6 +26,7 @@ import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
+import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -37,7 +38,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
 abstract class BoundDeclaredFunction(
-    final override val context: MutableExecutionScopedCTContext,
+    final override val parentContext: CTContext,
+    final override val functionRootContext: MutableExecutionScopedCTContext,
     val declaration: FunctionDeclaration,
     final override val attributes: BoundFunctionAttributeList,
     final override val declaredTypeParameters: List<BoundTypeParameter>,
@@ -47,7 +49,7 @@ abstract class BoundDeclaredFunction(
     final override val declaredAt = declaration.declaredAt
     final override val name: String = declaration.name.value
 
-    final override val allTypeParameters get()= context.allTypeParameters.toList()
+    final override val allTypeParameters get()= functionRootContext.allTypeParameters.toList()
 
     final override val receiverType: BoundTypeReference?
         get() = parameters.declaredReceiver?.typeAtDeclarationTime
@@ -67,7 +69,7 @@ abstract class BoundDeclaredFunction(
             parameters.semanticAnalysisPhase1(diagnosis)
 
             if (declaration.parsedReturnType != null) {
-                returnType = context.resolveType(declaration.parsedReturnType)
+                returnType = functionRootContext.resolveType(declaration.parsedReturnType)
                 if (body !is Body.SingleExpression) {
                     returnType = returnType?.defaultMutabilityTo(TypeMutability.READONLY)
                 }
@@ -98,7 +100,7 @@ abstract class BoundDeclaredFunction(
                 if (this.body is Body.SingleExpression) {
                     this.returnType = this.body.expression.type
                 } else {
-                    this.returnType = context.swCtx.unit.baseReference
+                    this.returnType = functionRootContext.swCtx.unit.baseReference
                         .withMutability(TypeMutability.READONLY)
                 }
             }
@@ -143,14 +145,14 @@ abstract class BoundDeclaredFunction(
                     val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                     handleCyclicInvocation(
                         context = this,
-                        action = { body.visitWritesBeyond(context, diagnosingVisitor) },
+                        action = { body.visitWritesBeyond(functionRootContext, diagnosingVisitor) },
                         onCycle = {},
                     )
 
                     if (BoundFunction.Purity.PURE.contains(this.purity)) {
                         handleCyclicInvocation(
                             context = this,
-                            action = { body.visitReadsBeyond(context, diagnosingVisitor) },
+                            action = { body.visitReadsBeyond(functionRootContext, diagnosingVisitor) },
                             onCycle = {},
                         )
                     }
@@ -164,7 +166,7 @@ abstract class BoundDeclaredFunction(
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
                     if (localReturnType == null || this.body !is Body.SingleExpression) {
-                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unit
+                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == functionRootContext.swCtx.unit
                         if (!isImplicitUnitReturn) {
                             diagnosis.uncertainTermination(this)
                         }
@@ -184,7 +186,7 @@ abstract class BoundDeclaredFunction(
             parameters.parameters.asSequence()
                 .filter { it.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { param ->
-                    context.addDeferredCode(DropLocalVariableStatement(param))
+                    functionRootContext.addDeferredCode(DropLocalVariableStatement(param))
                 }
         }
     }

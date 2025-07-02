@@ -18,6 +18,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
@@ -44,6 +45,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatem
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundClassDestructor(
+    override val parentContext: CTContext,
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseType,
@@ -57,12 +59,11 @@ class BoundClassDestructor(
         CanonicalElementName.Function(classDef.canonicalName, "\$destructor")
     }
 
-    override val context = fileContextWithTypeParameters
-    private val destructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
+    override val functionRootContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
 
     override val declaresReceiver = true
     override val receiverType by lazy {
-        destructorFunctionRootContext.resolveType(
+        functionRootContext.resolveType(
             NamedTypeReference(
                 classDef.simpleName,
                 TypeReference.Nullability.NOT_NULLABLE,
@@ -96,7 +97,7 @@ class BoundClassDestructor(
                 null,
             )
         ))
-        astParameterList.bindTo(destructorFunctionRootContext)
+        astParameterList.bindTo(functionRootContext)
     }
 
     val userDefinedCode: BoundCodeChunk by lazy {
@@ -147,7 +148,7 @@ class BoundClassDestructor(
         val selfTemporary = IrCreateTemporaryValueImpl(
             IrVariableAccessExpressionImpl(parameters.parameters.single().backendIrDeclaration)
         )
-        if (classDef === context.swCtx.weak) {
+        if (classDef === functionRootContext.swCtx.weak) {
             return@lazy IrDestructorImpl(this, IrCodeChunkImpl(listOf(
                 userDefinedCode.toBackendIrStatement(),
                 selfTemporary,

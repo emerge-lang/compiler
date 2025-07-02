@@ -23,6 +23,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Keyword
@@ -32,7 +33,22 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
-    val context: CTContext
+    /**
+     * The context to which the function is bound; e.g. the source-file context for top-level functions
+     * and the interface/class context for member functions.
+     */
+    val parentContext: CTContext
+
+    /**
+     * The root context of the function; these constraints hold:
+     * * [parentContext] is a parent of [functionRootContext]
+     * * [ExecutionScopedCTContext.isFunctionRoot] is `true`
+     * * [ExecutionScopedCTContext.isScopeBoundary] is `true`
+     * * [CTContext.resolveTypeParameter] can resolve all type parameters of the function
+     *   (explicit ones declared on the function and ones inherited from the parent context, e.g. class type parameters)
+     */
+    val functionRootContext: ExecutionScopedCTContext
+
     val declaredAt: Span
 
     /**

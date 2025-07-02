@@ -48,12 +48,13 @@ data class FunctionDeclaration(
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         lateinit var boundFn: BoundTopLevelFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
-        val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
-        val boundParameterList = parameters.bindTo(functionContext)
+        val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
+        val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
+        val boundParameterList = parameters.bindTo(functionRootContext)
 
         boundFn = BoundTopLevelFunction(
-            functionContext,
+            context,
+            functionRootContext,
             this,
             attributes,
             boundTypeParams,
@@ -70,12 +71,13 @@ data class FunctionDeclaration(
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
-        val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
-        val boundParameterList = parameters.bindTo(functionContext, impliedReceiverType)
+        val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
+        val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
+        val boundParameterList = parameters.bindTo(functionRootContext, impliedReceiverType)
 
         boundFn = BoundDeclaredBaseTypeMemberFunction(
-            functionContext,
+            context,
+            functionRootContext,
             this,
             attributes,
             boundTypeParams,

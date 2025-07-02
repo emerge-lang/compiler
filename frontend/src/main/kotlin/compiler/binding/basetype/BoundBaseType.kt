@@ -166,7 +166,7 @@ class BoundBaseType(
                         KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
                         AstCodeChunk(emptyList())
                     )
-                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters, _memberVariables) { this }
+                    constructor = defaultCtorAst.bindTo(context, typeRootContext, typeParameters, _memberVariables) { this }
                     constructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     constructor = declaredConstructors.first()
@@ -177,7 +177,7 @@ class BoundBaseType(
                         emptyList(),
                         AstCodeChunk(emptyList())
                     )
-                    destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    destructor = defaultDtorAst.bindTo(context, typeRootContext, typeParameters) { this }
                     destructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     destructor = declaredDestructors.first()

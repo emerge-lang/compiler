@@ -114,6 +114,8 @@ class SourceFileRootContext(
                 diagnosis.mixinNotAllowed(mixinStatement)
                 return null
             }
+
+            override fun toString() = "SourceFileRootContext[${sourceFile.lexerFile}]"
         }
     }
 

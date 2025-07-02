@@ -77,6 +77,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
  * 4. execute user-defined code additionally defined in a `constructor { ... }` block in the class definition
  */
 class BoundClassConstructor(
+    override val parentContext: CTContext,
     fileContextWithTypeParametersDeclaredOnBaseType: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     val boundMemberVariables: List<BoundBaseTypeMemberVariable>,
@@ -128,8 +129,7 @@ class BoundClassConstructor(
         - contextWithSelfVar
             - contextWithParameters
      */
-    private val constructorFunctionRootContext = ConstructorFunctionRootContext(fileContextWithAllTypeParameters)
-    override val context = fileContextWithAllTypeParameters
+    override val functionRootContext: ExecutionScopedCTContext = ConstructorFunctionRootContext(fileContextWithAllTypeParameters)
 
     override val declaredAt get() = declaration.span
     override val receiverType = null
@@ -161,7 +161,7 @@ class BoundClassConstructor(
         )
     }
     override val returnType by lazy {
-        constructorFunctionRootContext.resolveType(if (typeParameterForDecoratorMutability != null) {
+        functionRootContext.resolveType(if (typeParameterForDecoratorMutability != null) {
             AstIntersectionType(
                 listOf(
                     exclusiveSelfBaseTypeRef.withMutability(TypeMutability.READONLY),
@@ -183,7 +183,7 @@ class BoundClassConstructor(
         - contextAfterInitFromCtorParams
      */
 
-    private val contextWithSelfVar = MutableExecutionScopedCTContext.deriveFrom(constructorFunctionRootContext)
+    private val contextWithSelfVar = MutableExecutionScopedCTContext.deriveFrom(functionRootContext)
     private val selfVariableForInitCode: BoundVariable by lazy {
         val varAst = VariableDeclaration(
             generatedSourceLocation,
@@ -346,10 +346,10 @@ class BoundClassConstructor(
                     context = this,
                     action = {
                         boundMemberVariableInitCodeFromExpression.visitWritesBeyond(
-                            constructorFunctionRootContext,
+                            functionRootContext,
                             diagnosingVisitor
                         )
-                        additionalInitCode.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor)
+                        additionalInitCode.visitWritesBeyond(functionRootContext, diagnosingVisitor)
                     },
                     onCycle = {},
                 )
@@ -359,10 +359,10 @@ class BoundClassConstructor(
                         context = this,
                         action = {
                             boundMemberVariableInitCodeFromExpression.visitReadsBeyond(
-                                constructorFunctionRootContext,
+                                functionRootContext,
                                 diagnosingVisitor
                             )
-                            additionalInitCode.visitReadsBeyond(constructorFunctionRootContext, diagnosingVisitor)
+                            additionalInitCode.visitReadsBeyond(functionRootContext, diagnosingVisitor)
                         },
                         onCycle = {},
                     )
@@ -391,7 +391,7 @@ class BoundClassConstructor(
         val initIr = ArrayList<IrExecutable>()
         initIr.add(IrUpdateSourceLocationStatementImpl(declaredAt))
         initIr.add(selfTemporary)
-        if (classDef === context.swCtx.weak) {
+        if (classDef === functionRootContext.swCtx.weak) {
             check(additionalInitCode.statements.isEmpty()) {
                 "Additional init code in ${classDef.canonicalName} is not supported"
             }

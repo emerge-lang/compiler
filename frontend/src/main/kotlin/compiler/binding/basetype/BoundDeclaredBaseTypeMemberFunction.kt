@@ -8,6 +8,7 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
+import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
@@ -38,6 +39,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.zip
 
 class BoundDeclaredBaseTypeMemberFunction(
+    parentContext: CTContext,
     functionRootContext: MutableExecutionScopedCTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
@@ -47,6 +49,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     getTypeDef: () -> BoundBaseType,
     private val impliedReceiverType: NamedTypeReference,
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
+    parentContext,
     functionRootContext,
     declaration,
     attributes,
@@ -227,9 +230,9 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
 
                 val declaredReceiverType = this.receiverType
-                val superReceiverType = inheritedFn.receiverType
+                val superReceiverType = inheritedFn.receiverType?.instantiateAllParameters(inheritedFn.supertypeAsDeclared.inherentTypeBindings)
                 if (declaredReceiverType != null && superReceiverType != null) {
-                    val expectedReceiverType = superReceiverType.intersect(context.resolveType(this.impliedReceiverType))
+                    val expectedReceiverType = superReceiverType.intersect(functionRootContext.resolveType(this.impliedReceiverType))
                     expectedReceiverType
                         .evaluateAssignabilityTo(declaredReceiverType, declaredReceiverType.span ?: Span.UNKNOWN)
                         ?.let { narrowReceiverError ->
