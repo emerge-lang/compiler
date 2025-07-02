@@ -30,7 +30,7 @@ export class ThrowableTrait : Error & Printable {
     private var _stackTrace: const ArrayList<const StackTraceElement>? = null
 
     export override read fn fillStackTrace(self: mut _) {
-        set self._stackTrace = self._stackTrace ?: collectStackTrace(2 as U32, false)
+        set self._stackTrace = self._stackTrace ?: collectStackTrace(3 as U32, false)
     }
 
     export override nothrow get fn stackTrace(self) -> const ArrayList<const StackTraceElement>? {
