@@ -110,6 +110,19 @@ class NullableTypeReference private constructor(
         else -> "$nested?"
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is NullableTypeReference) return false
+
+        return this.nested == other.nested
+    }
+
+    override fun hashCode(): Int {
+        var hashCode = javaClass.hashCode()
+        hashCode = hashCode * 31 + nested.hashCode()
+        return hashCode
+    }
+
     private fun rewrap(newNested: BoundTypeReference): BoundTypeReference {
         if (newNested === nested) {
             return this
