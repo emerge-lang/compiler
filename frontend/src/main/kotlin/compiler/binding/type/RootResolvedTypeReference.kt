@@ -274,7 +274,7 @@ class RootResolvedTypeReference private constructor(
                     this,
                     assignmentLocation,
                     carry,
-                    reason = { "none of $assigneeType is a subtype of $this" },
+                    reason = { "no component of ($assigneeType) is a subtype of $this" },
                 )
             }
         }

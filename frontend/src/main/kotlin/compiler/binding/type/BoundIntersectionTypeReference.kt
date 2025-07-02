@@ -284,7 +284,15 @@ class BoundIntersectionTypeReference private constructor(
 
     fun toString(nullableComponents: Boolean): String {
         return components.joinToString(
-            transform = { it: BoundTypeReference -> NullableTypeReference(it).toString() }.takeIf { nullableComponents },
+            prefix = when (mutability) {
+                TypeMutability.READONLY -> ""
+                else -> "$mutability "
+            },
+            transform = { component ->
+                val componentForToString = if (nullableComponents) NullableTypeReference(component) else component
+                val asStringWithMutability = componentForToString.toString()
+                asStringWithMutability.removePrefix(component.mutability.toString()).trim()
+            },
             separator = " ${Operator.INTERSECTION.text} ",
         )
     }
