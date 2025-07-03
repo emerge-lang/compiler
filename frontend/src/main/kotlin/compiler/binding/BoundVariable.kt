@@ -278,7 +278,7 @@ class BoundVariable(
         newCtx.addVariable(this)
         if (initializerExpression != null) {
             newCtx.trackSideEffect(VariableInitialization.WriteToVariableEffect(this))
-            newCtx.addDeferredCode(DropLocalVariableStatement(this))
+            newCtx.addDeferredCode(DeferredLocalVariableGCRelease(this))
         }
         newCtx
     }

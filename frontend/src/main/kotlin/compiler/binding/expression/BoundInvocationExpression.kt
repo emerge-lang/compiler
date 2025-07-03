@@ -64,6 +64,7 @@ import compiler.diagnostic.varianceOnInvocationTypeArgument
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -708,7 +709,7 @@ internal fun buildGenericInvocationLikeIr(
         boundArgumentExprs,
         { args, argsCleanupCode ->
             val landingpad = if (assumeNothrow) null else {
-                val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().map { it.toBackendIrStatement() }.toList()
+                val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().mapToBackendIrWithDebugLocations()
                 val landingpadContext = MutableExecutionScopedCTContext.deriveFrom(context)
                 val throwableVar = VariableDeclaration(
                     invocationLocation,
@@ -731,9 +732,7 @@ internal fun buildGenericInvocationLikeIr(
                     IrVariableAccessExpressionImpl(throwableVar.backendIrDeclaration)
                 )
                 val rethrowStmt = IrCodeChunkImpl(
-                    context.getDeferredCodeForThrow()
-                        .map { it.toBackendIrStatement() }
-                        .toList()
+                    context.getDeferredCodeForThrow().mapToBackendIrWithDebugLocations()
                     +
                     listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)))
                 )

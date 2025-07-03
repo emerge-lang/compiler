@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.expression.AstCatchBlockExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundVariable
-import compiler.binding.DropLocalVariableStatement
+import compiler.binding.DeferredLocalVariableGCRelease
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -32,7 +32,7 @@ class BoundCatchBlockExpression(
 
     override val modifiedContext = context
     init {
-        contextOfCatchCode.addDeferredCode(DropLocalVariableStatement(throwableVariable))
+        contextOfCatchCode.addDeferredCode(DeferredLocalVariableGCRelease(throwableVariable))
     }
 
     override val throwBehavior get() = catchCode.throwBehavior

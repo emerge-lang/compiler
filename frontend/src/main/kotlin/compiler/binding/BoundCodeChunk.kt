@@ -36,6 +36,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.implicitlyEvaluatingAStatement
 import compiler.handleCyclicInvocation
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -93,8 +94,6 @@ class BoundCodeChunk(
         }
     }
 
-    private lateinit var deferredCode: List<BoundExecutable<*>>
-
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
             statements.forEach { it.semanticAnalysisPhase2(diagnosis) }
@@ -133,14 +132,6 @@ class BoundCodeChunk(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             statements.forEach { it.semanticAnalysisPhase3(diagnosis) }
-
-            deferredCode = modifiedContext.getScopeLocalDeferredCode().toList()
-            deferredCode.forEach { it.semanticAnalysisPhase1(diagnosis) }
-            deferredCode.forEach { it.semanticAnalysisPhase2(diagnosis) }
-            nothrowBoundary?.let { nothrowBoundary ->
-                deferredCode.forEach { it.setNothrow(nothrowBoundary) }
-            }
-            deferredCode.forEach { it.semanticAnalysisPhase3(diagnosis) }
         }
     }
 
@@ -167,7 +158,9 @@ class BoundCodeChunk(
     }
 
     private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
-        return deferredCode.mapToBackendIrWithDebugLocations()
+        return modifiedContext
+            .getScopeLocalDeferredCode()
+            .mapToBackendIrWithDebugLocations()
     }
 
     override fun toBackendIrStatement(): IrCodeChunk {
@@ -234,28 +227,4 @@ class BoundCodeChunk(
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),
         )
     }
-}
-
-private fun Collection<BoundExecutable<*>>.mapToBackendIrWithDebugLocations(): List<IrExecutable> {
-    val iterator = iterator()
-    if (!iterator.hasNext()) {
-        return emptyList()
-    }
-
-    val firstStmt = iterator.next()
-    var locationState = firstStmt.declaration.span
-    val irList = ArrayList<IrExecutable>(size * 3 / 2)
-    irList.add(IrUpdateSourceLocationStatementImpl(locationState))
-    irList.add(firstStmt.toBackendIrStatement())
-
-    while (iterator.hasNext()) {
-        val stmt = iterator.next()
-        if (stmt.declaration.span.lineNumber != locationState.lineNumber || stmt.declaration.span.columnNumber != locationState.columnNumber) {
-            locationState = stmt.declaration.span
-            irList.add(IrUpdateSourceLocationStatementImpl(locationState))
-        }
-        irList.add(stmt.toBackendIrStatement())
-    }
-
-    return irList
 }

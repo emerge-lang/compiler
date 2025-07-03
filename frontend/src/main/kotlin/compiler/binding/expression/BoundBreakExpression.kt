@@ -2,6 +2,7 @@ package compiler.binding.expression
 
 import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -9,6 +10,7 @@ import compiler.binding.impurity.ImpurityVisitor
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.breakOutsideOfLoop
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -22,7 +24,7 @@ class BoundBreakExpression(
     private var parentLoop: BoundLoop<*>? = null
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        parentLoop = context.getParentLoop()
+        parentLoop = context.parentLoop
         if (parentLoop == null) {
             diagnosis.breakOutsideOfLoop(this)
         }
@@ -48,7 +50,11 @@ class BoundBreakExpression(
     private inner class IrBreakStatementImpl : IrBreakStatement {
         override val fromLoop get() = parentLoop!!.toBackendIrStatement()
     }
-    private val backendIr = IrBreakStatementImpl()
+    private val backendIr by lazy {
+        IrCodeChunkImpl(
+            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() + IrBreakStatementImpl()
+        )
+    }
     override fun toBackendIrStatement(): IrExecutable {
         return backendIr
     }

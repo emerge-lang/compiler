@@ -1,13 +1,12 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
-import compiler.ast.Statement
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundImportDeclaration
+import compiler.binding.BoundLoop
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
@@ -34,19 +33,19 @@ class SourceFileRootContext(
     val functions: Collection<BoundDeclaredFunction> = _functions
     val types: Collection<BoundBaseType> = _types
 
-    override fun addDeferredCode(code: Statement) {
+    override fun addDeferredCode(code: DeferrableExecutable) {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
-    override fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getContextLocalDeferredCode(): Sequence<DeferrableExecutable> {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
-    override fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getScopeLocalDeferredCode(): Sequence<DeferrableExecutable> {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
-    override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
@@ -86,25 +85,33 @@ class SourceFileRootContext(
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 
-            override fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+            override fun getContextLocalDeferredCode(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
-            override fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+            override fun getScopeLocalDeferredCode(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
-            override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+            override fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
-            override fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>> {
+            override fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
-            override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
+            override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
+
+            override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
+
+            override fun addDeferredCode(code: DeferrableExecutable) {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
 
             override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
 
-            override fun getParentLoop() = null
+            override val parentLoop = null
 
             override fun registerMixin(
                 mixinStatement: BoundMixinStatement,

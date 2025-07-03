@@ -79,13 +79,6 @@ open class MutableCTContext(
         this._imports.add(decl.bindTo(this))
     }
 
-    /**
-     * Adds the given [BoundBaseType] to this context, possibly overriding
-     */
-    open fun addBaseType(type: BoundBaseType) {
-        _types.add(type)
-    }
-
     open fun addBaseType(definition: BaseTypeDeclaration): BoundBaseType {
         val bound = definition.bindTo(this)
         _types.add(bound)

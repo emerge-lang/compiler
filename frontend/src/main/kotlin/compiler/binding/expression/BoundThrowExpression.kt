@@ -16,6 +16,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.throwStatementInNothrowContext
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -138,13 +139,13 @@ internal fun buildIrThrow(
     ))
 
     val cleanupCode = (context.getExceptionHandlingLocalDeferredCode() + context.getDeferredCodeForThrow())
-        .map { it.toBackendIrStatement() }
-        .toList()
+        .mapToBackendIrWithDebugLocations()
 
     return IrCodeChunkImpl(listOfNotNull(
         throwableInstance,
         IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableInstanceIsReferenceCounted },
     ) + cleanupCode + listOf(
+        // TODO: use correct source location for the throw
         fillStackTraceCall,
         IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
     ))

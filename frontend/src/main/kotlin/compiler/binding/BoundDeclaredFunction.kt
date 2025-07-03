@@ -186,7 +186,7 @@ abstract class BoundDeclaredFunction(
             parameters.parameters.asSequence()
                 .filter { it.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { param ->
-                    functionRootContext.addDeferredCode(DropLocalVariableStatement(param))
+                    functionRootContext.addDeferredCode(DeferredLocalVariableGCRelease(param))
                 }
         }
     }
