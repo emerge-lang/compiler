@@ -20,13 +20,13 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.AstBreakExpression
-import compiler.ast.AstCodeChunk
 import compiler.ast.AstContinueExpression
 import compiler.ast.AstSemanticOperator
 import compiler.ast.AstThrowExpression
 import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.ReturnExpression
+import compiler.ast.Statement
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.expression.AstCatchBlockExpression
@@ -53,7 +53,6 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.lexer.Span
 import compiler.lexer.StringLiteralContentToken
 import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.CastExpressionPostfix
@@ -266,31 +265,11 @@ val ContinueStatement = sequence("continue statement") {
     }
 
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
-    sequence {
-        operator(Operator.CBRACE_OPEN)
-        ref(CodeChunk)
-        operator(Operator.CBRACE_CLOSE)
-    }
+    ref(CurlyBracedCodeChunk)
     ref(Expression)
 }
     .astTransformation { tokens ->
-        val firstToken = tokens.next()
-
-        if (firstToken is Executable) {
-            return@astTransformation firstToken
-        }
-
-        val cBraceOpenToken = firstToken as OperatorToken
-        check(cBraceOpenToken.operator == Operator.CBRACE_OPEN)
-        val chunk = tokens.next() as AstCodeChunk
-        val cBraceCloseToken = tokens.next() as OperatorToken
-        check(cBraceCloseToken.operator == Operator.CBRACE_CLOSE)
-
-        if (chunk.span == Span.UNKNOWN) {
-            return@astTransformation AstCodeChunk(chunk.statements, cBraceOpenToken.span .. cBraceCloseToken.span)
-        }
-
-        return@astTransformation chunk
+        tokens.next() as Statement
     }
 
 val IfExpression = sequence("if-expression") {

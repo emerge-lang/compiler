@@ -18,14 +18,31 @@
 
 package compiler.parser.grammar
 
-import compiler.ast.*
+import compiler.ast.AstCodeChunk
+import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
+import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.ast.BaseTypeDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeEntryDeclaration
+import compiler.ast.BaseTypeMemberFunctionDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
+import compiler.ast.FunctionDeclaration
+import compiler.ast.TypeParameterBundle
+import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.*
+import compiler.lexer.Keyword.CLASS_DEFINITION
+import compiler.lexer.Keyword.CONSTRUCTOR
+import compiler.lexer.Keyword.DECORATES
+import compiler.lexer.Keyword.DESTRUCTOR
+import compiler.lexer.Keyword.INTERFACE_DEFINITION
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator.*
-import compiler.lexer.OperatorToken
+import compiler.lexer.Operator.CBRACE_CLOSE
+import compiler.lexer.Operator.CBRACE_OPEN
+import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.NEWLINE
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
@@ -58,15 +75,12 @@ val BaseTypeMemberFunctionDeclaration = sequence("member function declaration") 
 val BaseTypeConstructor = sequence("constructor declaration") {
     ref(FunctionAttributes)
     keyword(CONSTRUCTOR)
-    operator(CBRACE_OPEN)
-    ref(CodeChunk)
-    operator(CBRACE_CLOSE)
+    ref(CurlyBracedCodeChunk)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val ctorKeyword = tokens.next() as KeywordToken
-        tokens.next() as OperatorToken // skip CBRACE_OPEN
         val code = tokens.next() as AstCodeChunk
 
         BaseTypeConstructorDeclaration(
@@ -79,15 +93,12 @@ val BaseTypeConstructor = sequence("constructor declaration") {
 val BaseTypeDestructor = sequence("destructor declaration") {
     ref(FunctionAttributes)
     keyword(DESTRUCTOR)
-    operator(CBRACE_OPEN)
-    ref(CodeChunk)
-    operator(CBRACE_CLOSE)
+    ref(CurlyBracedCodeChunk)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val dtorKeyword = tokens.next() as KeywordToken
-        tokens.next() as OperatorToken // skip CBRACE_OPEN
         val code = tokens.next() as AstCodeChunk
 
         BaseTypeDestructorDeclaration(dtorKeyword, attributes, code)

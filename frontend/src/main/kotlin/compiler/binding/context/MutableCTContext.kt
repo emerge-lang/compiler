@@ -21,7 +21,9 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -113,21 +115,30 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
-    private fun resolveNamedTypeExceptNullability(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
-        resolveTypeParameter(ref.simpleName)?.let { parameter ->
-            return GenericTypeReference(ref, parameter)
+    private fun resolveNamedTypeExceptNullability(ref: AstSimpleTypeReference): BoundTypeReference {
+        if (ref is NamedTypeReference) {
+            resolveTypeParameter(ref.simpleName)?.let { parameter ->
+                return GenericTypeReference(ref, parameter)
+            }
         }
 
         val resolvedArguments = ref.arguments?.map(::resolveType)
-        return resolveBaseType(ref.simpleName)
+        val baseType = when (ref) {
+            is AstAbsoluteTypeReference -> {
+                swCtx.getPackage(ref.canonicalTypeName.packageName)
+                    ?.resolveBaseType(ref.canonicalTypeName.simpleName)
+            }
+            is NamedTypeReference -> resolveBaseType(ref.simpleName)
+        }
+        return baseType
             ?.let { RootResolvedTypeReference(this, ref, it, resolvedArguments) }
             ?: UnresolvedType(this, ref, resolvedArguments)
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    override fun resolveType(ref: TypeReference): BoundTypeReference {
         return when (ref) {
-            is AstIntersectionType -> BoundIntersectionTypeReference.ofComponents(this, ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
-            is NamedTypeReference -> resolveNamedTypeExceptNullability(ref, fromOwnFileOnly).withCombinedNullability(ref.nullability)
+            is AstIntersectionType -> BoundIntersectionTypeReference.ofComponents(this, ref, ref.components.map(this::resolveType))
+            is AstSimpleTypeReference -> resolveNamedTypeExceptNullability(ref).withCombinedNullability(ref.nullability)
         }
     }
 

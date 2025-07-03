@@ -1,9 +1,6 @@
 package emerge.core.range
 
 export interface InputRange<T> {
-    // returns true iff the range is known to be empty
-    export get fn isEmpty(self) -> Bool
-
     // returns the current element in the range. If really necessary, does work to obtain that item
     // though this work should be done in [popFront] whenever possible.
     // throws EmptyRangeException if the range is empty.

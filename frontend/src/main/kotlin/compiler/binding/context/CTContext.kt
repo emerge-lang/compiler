@@ -86,7 +86,7 @@ interface CTContext {
         return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
-    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+    fun resolveType(ref: TypeReference): BoundTypeReference
 
     /**
      * @return first: the variable accessible under the given name

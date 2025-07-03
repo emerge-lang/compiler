@@ -52,7 +52,8 @@ class BoundBreakExpression(
     }
     private val backendIr by lazy {
         IrCodeChunkImpl(
-            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() + IrBreakStatementImpl()
+            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() +
+            IrBreakStatementImpl()
         )
     }
     override fun toBackendIrStatement(): IrExecutable {

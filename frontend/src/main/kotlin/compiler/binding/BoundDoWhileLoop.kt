@@ -100,4 +100,6 @@ class BoundDoWhileLoop(
     override fun toBackendIrStatement(): IrExecutable {
         return irLoopNode
     }
+
+    override val irBeforeContinue: IrExecutable? = null
 }

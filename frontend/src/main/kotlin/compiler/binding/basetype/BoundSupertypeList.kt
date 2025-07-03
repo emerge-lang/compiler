@@ -2,7 +2,7 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
-import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
@@ -170,7 +170,7 @@ class BoundSupertypeList(
             typeDefAccessor: () -> BoundBaseType,
         ): BoundSupertypeList {
             val astSupertypes = when (supertype) {
-                is NamedTypeReference -> listOf(supertype)
+                is AstSimpleTypeReference -> listOf(supertype)
                 is AstIntersectionType -> supertype.components
                 null -> emptyList()
             }

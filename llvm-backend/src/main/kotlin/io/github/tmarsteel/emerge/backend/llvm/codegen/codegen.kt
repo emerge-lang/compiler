@@ -258,7 +258,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             val type = context.getReferenceSiteType(code.type)
             if (code.isSSA) {
                 code.emitRead = {
-                    throw CodeGenerationException("invalid IR - accessing an SSA variable before its assignment")
+                    throw CodeGenerationException("invalid IR - accessing SSA variable `${code.name}` before its assignment at ${currentDebugLocation()}")
                 }
                 code.emitWrite = { value ->
                     check(value.isLlvmAssignableTo(type)) {

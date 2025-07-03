@@ -84,7 +84,7 @@ val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
 val Variance: Rule<TypeVariance> = sequence("variance") {
     optional {
         eitherOf {
-            keyword(Keyword.VARIANCE_IN)
+            keyword(Keyword.IN)
             keyword(Keyword.VARIANCE_OUT)
         }
     }
@@ -92,7 +92,7 @@ val Variance: Rule<TypeVariance> = sequence("variance") {
     .astTransformation { tokens ->
         when (val keyword = (tokens.next() as KeywordToken?)?.keyword) {
             null -> TypeVariance.UNSPECIFIED
-            Keyword.VARIANCE_IN -> TypeVariance.IN
+            Keyword.IN -> TypeVariance.IN
             Keyword.VARIANCE_OUT -> TypeVariance.OUT
             else -> throw InternalCompilerError("$keyword is not a type variance")
         }

@@ -1,7 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
@@ -15,7 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class UnresolvedType constructor(
     override val context: CTContext,
-    private val reference: NamedTypeReference,
+    private val reference: AstSimpleTypeReference,
     val parameters: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val simpleName = "<ERROR>"

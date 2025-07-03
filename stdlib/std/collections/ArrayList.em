@@ -58,7 +58,7 @@ private class ArrayListRange<T : Any> : SizedRange<T> & RandomAccessRange<T> & B
 
     override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 
-    override get fn isEmpty(self) = self.frontIndex >= self.backIndexPlus1 or self.frontIndex >= self.list.size
+    private get fn isEmpty(self) = self.frontIndex >= self.backIndexPlus1 or self.frontIndex >= self.list.size
 
     override get fn front(self) -> T {
         if self.isEmpty {

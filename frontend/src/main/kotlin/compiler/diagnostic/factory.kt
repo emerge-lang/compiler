@@ -11,6 +11,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -66,7 +67,7 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
+fun Diagnosis.unknownType(erroneousRef: AstSimpleTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
 }
 
@@ -246,7 +247,7 @@ fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
 }
 
-fun Diagnosis.duplicateSupertype(ref: NamedTypeReference) {
+fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 

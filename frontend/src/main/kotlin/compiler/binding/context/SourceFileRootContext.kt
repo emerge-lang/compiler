@@ -2,6 +2,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -75,10 +76,10 @@ class SourceFileRootContext(
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
-            override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
+            override fun resolveType(ref: TypeReference): BoundTypeReference = UnresolvedType(
                 this,
                 when (ref) {
-                    is NamedTypeReference -> ref
+                    is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
                 (ref as? NamedTypeReference)?.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },

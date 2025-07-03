@@ -52,7 +52,9 @@ class BoundContinueExpression(
     }
     private val backendIr by lazy {
         IrCodeChunkImpl(
-            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() + IrContinueStatementImpl()
+            listOfNotNull(parentLoop!!.irBeforeContinue) +
+            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() +
+            IrContinueStatementImpl()
         )
     }
     override fun toBackendIrStatement(): IrExecutable {

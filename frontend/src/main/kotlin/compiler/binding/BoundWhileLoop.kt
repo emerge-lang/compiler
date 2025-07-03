@@ -14,6 +14,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
 class BoundWhileLoop(
@@ -92,7 +93,10 @@ class BoundWhileLoop(
 
         irLoop
     }
+
     override fun toBackendIrStatement(): IrLoop {
         return irLoopNode
     }
+
+    override val irBeforeContinue: IrExecutable? = null
 }

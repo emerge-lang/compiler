@@ -18,10 +18,10 @@
 
 package compiler.parser.grammar
 
-import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstCodeChunk
 import compiler.ast.AstDoWhileLoop
+import compiler.ast.AstForEachLoop
 import compiler.ast.AstMixinStatement
 import compiler.ast.AstWhileLoop
 import compiler.ast.Statement
@@ -76,14 +76,11 @@ val AssignmentStatement = sequence("assignment statement") {
 val WhileLoop = sequence("while loop") {
     keyword(Keyword.WHILE)
     ref(Expression)
-    operator(Operator.CBRACE_OPEN)
-    ref(CodeChunk)
-    operator(Operator.CBRACE_CLOSE)
+    ref(CurlyBracedCodeChunk)
 }
     .astTransformation { tokens ->
         val whileKeyword = tokens.next()!! as KeywordToken
         val condition = tokens.next()!! as AstExpression
-        tokens.next()!! // skip cbrace open
         val body = tokens.next()!! as AstCodeChunk
         AstWhileLoop(
             whileKeyword.span .. condition.span,
@@ -94,23 +91,42 @@ val WhileLoop = sequence("while loop") {
 
 val DoWhileLoop = sequence("do-while loop") {
     keyword(Keyword.DO)
-    operator(Operator.CBRACE_OPEN)
-    ref(CodeChunk)
-    operator(Operator.CBRACE_CLOSE)
+    ref(CurlyBracedCodeChunk)
     keyword(Keyword.WHILE)
     ref(Expression)
 }
     .astTransformation { tokens ->
         val doKeyword = tokens.next() as KeywordToken
-        tokens.next()!! // skip cbrace open
         val body = tokens.next() as AstCodeChunk
-        tokens.next()!! // skip cbrace close
         tokens.next()!! // skip while keyword
         val condition = tokens.next() as AstExpression
 
         AstDoWhileLoop(
             doKeyword.span .. condition.span,
             condition,
+            body,
+        )
+    }
+
+val ForEachLoop = sequence("foreach loop") {
+    keyword(Keyword.FOREACH)
+    ref(Identifier)
+    keyword(Keyword.IN)
+    ref(Expression)
+    ref(CurlyBracedCodeChunk)
+}
+    .astTransformation { tokens ->
+        val foreachKeyword = tokens.next() as KeywordToken
+        val cursorVariableName = tokens.next() as IdentifierToken
+        val inKeyword = tokens.next() as KeywordToken
+        val iterableExpression = tokens.next() as AstExpression
+        val body = tokens.next() as AstCodeChunk
+
+        AstForEachLoop(
+            foreachKeyword,
+            cursorVariableName,
+            inKeyword,
+            iterableExpression,
             body,
         )
     }
@@ -134,6 +150,7 @@ val LineOfCode = sequence {
         ref(Expression)
         ref(WhileLoop)
         ref(DoWhileLoop)
+        ref(ForEachLoop)
         ref(MixinStatement)
     }
 
@@ -141,13 +158,17 @@ val LineOfCode = sequence {
 }
     .astTransformation { tokens -> tokens.next() as Statement }
 
-val CodeChunk: Rule<AstCodeChunk> = sequence("a chunk of code") {
+val CurlyBracedCodeChunk: Rule<AstCodeChunk> = sequence("a chunk of code wrapped by curly braces") {
+    operator(Operator.CBRACE_OPEN)
     repeating {
         ref(LineOfCode)
     }
+    operator(Operator.CBRACE_CLOSE)
 }
     .astTransformation { tokens ->
-        tokens.remainingToList()
-            .map { it as? Statement ?: throw InternalCompilerError("How did this thing get into here?!") }
-            .let(::AstCodeChunk)
+        val cbraceOpen = tokens.next() as OperatorToken
+        val statements = tokens.takeWhileIsInstanceOf<Statement>()
+        val cbraceClose = tokens.next() as OperatorToken
+
+        AstCodeChunk(statements, cbraceOpen.span .. cbraceClose.span)
     }

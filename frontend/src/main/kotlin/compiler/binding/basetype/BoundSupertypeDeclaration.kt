@@ -1,6 +1,6 @@
 package compiler.binding.basetype
 
-import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -21,7 +21,7 @@ class BoundSupertypeDeclaration(
     val subtypeContext: CTContext,
     /** @return the subtype */
     private val getTypeDef: () -> BoundBaseType,
-    val astNode: NamedTypeReference,
+    val astNode: AstSimpleTypeReference,
 ) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()
     private val unfilteredResolved: BoundTypeReference by lazy {

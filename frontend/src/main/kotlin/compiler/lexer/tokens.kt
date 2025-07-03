@@ -52,7 +52,8 @@ enum class Keyword(val text: String)
     IF("if"),
     ELSE("else"),
     WHILE("while"),
-    DO("DO"),
+    DO("do"),
+    FOREACH("foreach"),
     BREAK("break"),
     CONTINUE("continue"),
 
@@ -62,7 +63,7 @@ enum class Keyword(val text: String)
     CLASS_DEFINITION("class"),
     INTERFACE_DEFINITION("interface"),
 
-    VARIANCE_IN("in"),
+    IN("in"),
     VARIANCE_OUT("out"),
 
     PRIVATE("private"),

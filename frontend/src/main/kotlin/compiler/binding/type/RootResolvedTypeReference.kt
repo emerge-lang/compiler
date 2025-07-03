@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -26,7 +27,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  */
 class RootResolvedTypeReference private constructor(
     override val context: CTContext,
-    val original: NamedTypeReference?,
+    val original: AstSimpleTypeReference?,
     private val modifiedSinceOriginal: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
@@ -35,7 +36,7 @@ class RootResolvedTypeReference private constructor(
     override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val span = original?.span ?: original?.declaringNameToken?.span
+    override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
 
@@ -46,7 +47,7 @@ class RootResolvedTypeReference private constructor(
 
     constructor(
         context: CTContext,
-        original: NamedTypeReference,
+        original: AstSimpleTypeReference,
         baseType: BoundBaseType,
         parameters: List<BoundTypeArgument>?
     ) : this(
@@ -302,7 +303,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun asAstReference(): NamedTypeReference {
+    override fun asAstReference(): AstSimpleTypeReference {
         return original.takeUnless { modifiedSinceOriginal } ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),
