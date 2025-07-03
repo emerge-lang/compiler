@@ -73,7 +73,7 @@ class BoundWhileLoop(
         body.visitWritesBeyond(boundary, visitor)
     }
 
-    private val backendIr by lazy {
+    override val irLoopNode: IrLoop by lazy {
         val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
         lateinit var irLoop: IrLoop
         val breakStmt = object : IrBreakStatement {
@@ -93,6 +93,6 @@ class BoundWhileLoop(
         irLoop
     }
     override fun toBackendIrStatement(): IrLoop {
-        return backendIr
+        return irLoopNode
     }
 }

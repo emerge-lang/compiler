@@ -15,6 +15,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
 class BoundDoWhileLoop(
@@ -74,7 +75,7 @@ class BoundDoWhileLoop(
         body.visitWritesBeyond(boundary, visitor)
     }
 
-    private val backendIr by lazy {
+    override val irLoopNode: IrLoop by lazy {
         lateinit var loopHolder: IrLoop
         val continueStmt = object : IrContinueStatement {
             override val loop get()= loopHolder
@@ -95,7 +96,8 @@ class BoundDoWhileLoop(
 
         loopHolder
     }
-    override fun toBackendIrStatement(): IrLoop {
-        return backendIr
+
+    override fun toBackendIrStatement(): IrExecutable {
+        return irLoopNode
     }
 }

@@ -48,7 +48,7 @@ class BoundBreakExpression(
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     private inner class IrBreakStatementImpl : IrBreakStatement {
-        override val fromLoop get() = parentLoop!!.toBackendIrStatement()
+        override val fromLoop get() = parentLoop!!.irLoopNode
     }
     private val backendIr by lazy {
         IrCodeChunkImpl(
