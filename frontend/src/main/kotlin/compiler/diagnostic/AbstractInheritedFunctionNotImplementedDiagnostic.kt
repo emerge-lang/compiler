@@ -13,11 +13,16 @@ class AbstractInheritedFunctionNotImplementedDiagnostic(
 ) : Diagnostic(
     Severity.ERROR,
     """
-        Class ${implementingType.simpleName} must implement abstract function ${functionToImplement.name} inherited from ${functionToImplement.declaredOnType.canonicalName}. Implement this member function:
+        Class `${implementingType.simpleName}` must implement abstract function `${functionToImplement.name}` inherited from `${functionToImplement.declaredOnType.canonicalName}`. Implement this member function:
         ${functionToImplement.synopsis}
     """.trimIndent(),
     implementingType.declaration.declaredAt,
 ) {
+    override fun toString() = "$levelAndMessage\n${illustrateHints(
+        SourceHint(span, "this class is missing the implementation", relativeOrderMatters = true),
+        SourceHint(functionToImplement.declaredAt, "this is the abstract function you need to implement", relativeOrderMatters = true)
+    )}"
+
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
         if (other === this) return true

@@ -32,13 +32,12 @@ data class SourceHint(
 
 fun illustrateSourceLocations(locations: Collection<Span>): String = illustrateHints(locations.map { SourceHint(it, null) })
 fun illustrateHints(vararg hints: SourceHint): String = illustrateHints(hints.toList())
-fun illustrateHints(hints: Collection<SourceHint>): String {
+fun illustrateHints(hints: List<SourceHint>): String {
     if (hints.isEmpty()) {
         throw IllegalArgumentException("No locations given to highlight")
     }
     hints.find { it.span.fromLineNumber != it.span.toLineNumber }?.let {
         throw NotImplementedError("Cannot highlight source locations that span multiple lines: ${it.span.fileLineColumnText}")
-        //
     }
 
     val hintGroups = hints
