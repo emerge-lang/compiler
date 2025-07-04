@@ -45,6 +45,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUnreachableStatementImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUnification
@@ -110,6 +111,9 @@ class BoundInvocationExpression(
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
     override val throwBehavior: SideEffectPrediction? get() {
+        if (functionToInvoke?.returnType?.isNonNullableNothing == true) {
+            return SideEffectPrediction.GUARANTEED
+        }
         val behaviors = valueArguments.map { it.throwBehavior } + listOf(functionToInvoke?.throwBehavior)
         return behaviors.reduceSequentialExecution()
     }
@@ -503,7 +507,7 @@ class BoundInvocationExpression(
     private fun buildBackendIrInvocation(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
-    ): IrExpression {
+    ): IrInvocationExpression {
         val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
@@ -532,24 +536,35 @@ class BoundInvocationExpression(
         )
     }
 
-    override fun toBackendIrExpression(): IrExpression {
+    override fun toBackendIrExpression(): IrExpression = toBackendIrExpression { emptyList() }
+    fun toBackendIrExpression(buildAdditionalResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>): IrImplicitEvaluationExpression {
         return buildGenericInvocationLikeIr(
             context,
             declaration.span,
             listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
+            buildResultCleanup = { resultTemporary ->
+                val unreachable = when {
+                    functionToInvoke!!.throwBehavior == SideEffectPrediction.GUARANTEED -> {
+                        listOf(IrUnreachableStatementImpl("function $functionToInvoke reports that it is guaranteed to throw", true))
+                    }
+                    functionToInvoke!!.returnType!!.isNonNullableNothing -> {
+                        listOf(IrUnreachableStatementImpl("function $functionToInvoke returns emerge.core.Nothing!", true))
+                    }
+                    else -> emptyList()
+                }
+
+                unreachable + buildAdditionalResultCleanup(resultTemporary)
+            },
             assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        return buildGenericInvocationLikeIr(
-            context,
-            declaration.span,
-            listOfNotNull(receiverExceptReferringType) + valueArguments,
-            ::buildBackendIrInvocation,
-            { listOf(IrDropStrongReferenceStatementImpl(it)) },
-            assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
+        return toBackendIrExpression(
+            buildAdditionalResultCleanup = {
+                listOf(IrDropStrongReferenceStatementImpl(it))
+            }
         ).code
     }
 
