@@ -11,6 +11,8 @@ data object EmergeConstants {
     val STD_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "std"))
     val PLATFORM_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "platform"))
 
+    val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Throwable")
+
     /**
      * the identifier to use in the initialization expression for member variables to indicate that the
      * initial value for the member variable is obtained through the constructor invocation

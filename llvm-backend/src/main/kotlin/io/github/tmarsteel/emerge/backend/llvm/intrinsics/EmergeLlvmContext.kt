@@ -73,6 +73,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -668,7 +669,7 @@ class EmergeLlvmContext(
                 if (paramType.canonicalName.simpleName == "String") {
                     intrinsic = registerIntrinsic(panicOnString)
                 }
-                if (paramType.canonicalName.simpleName == "Throwable") {
+                if (paramType.canonicalName.simpleName == EmergeConstants.THROWABLE_TYPE_NAME.simpleName) {
                     intrinsic = registerIntrinsic(panicOnThrowable)
                 }
             }
