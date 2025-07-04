@@ -198,6 +198,19 @@ class BorrowAndLifetimeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<LifetimeEndingCaptureInLoopDiagnostic>()
         }
+
+        "capturing exclusive in foreach loop" {
+            validateModule("""
+                class C {}
+                fn test(p: exclusive C, l: Array<S32>) {
+                    foreach e in l {
+                        captureValue(p)
+                    }
+                }
+                intrinsic fn captureValue(p: const Any)
+            """.trimIndent())
+                .shouldFind<LifetimeEndingCaptureInLoopDiagnostic>()
+        }
     }
 
     "borrowed variable cannot be captured" - {

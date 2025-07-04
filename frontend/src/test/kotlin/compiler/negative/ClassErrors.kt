@@ -548,6 +548,54 @@ class ClassErrors : FreeSpec({
                         .shouldHaveNoDiagnostics()
                 }
             }
+
+            "interaction with foreach loops" - {
+                "cannot initialize single-assignment variable in loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S33>
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    y = 3
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S33>
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+                }
+
+                "execution uncertainty of loops doesn't persist to code after the loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    unrelated = 3
+                                }
+                                set self.x = 5
+                                y = self.x
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S32>
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
         }
 
         "member variable has been initialized in two different ways" - {
