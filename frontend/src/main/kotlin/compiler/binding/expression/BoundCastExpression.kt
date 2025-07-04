@@ -194,6 +194,7 @@ class BoundCastExpression(
                         context,
                         exceptionInstanceExpr,
                         throwableInstanceIsReferenceCounted = true, // ctor invocation, is always counted
+                        declaration.span,
                     ),
                 ),
             )),

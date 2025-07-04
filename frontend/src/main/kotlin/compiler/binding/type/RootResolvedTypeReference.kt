@@ -160,7 +160,30 @@ class RootResolvedTypeReference private constructor(
     }
 
     /**
-     * TODO: docstring!!
+     * For example, given:
+     *
+     *     class Box<X> {
+     *         nested: X = init
+     *     }
+     *
+     *     interface A<T> {
+     *     }
+     *     interface B<U> : A<U> {
+     *     }
+     *     interface C<W> : B<Box<W>> {
+     *     }
+     *
+     * then these are the return values of [getInstantiatedSupertype]:
+     *
+     * |`this`|`superBaseType`|return value|
+     * |------|---------------|------------|
+     * | `B<S32>` | `A`       | `A<S32>`   |
+     * | `C<S32>` | `B`       | `B<Box<S32>>`   |
+     * | `C<S32>` | `A`       | `A<Box<S32>>`   |
+     * | `C<Box<E>>`   | `A`  | `A<Box<Box<E>>>` |
+     *
+     * @param superBaseType **must** be a supertype of [baseType] according to [BoundBaseType.isSubtypeOf]
+     * @return a parameterized reference to that [superBaseType] where the arguments are in the namespace of [baseType].
      */
     fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
         return when (this.baseType) {

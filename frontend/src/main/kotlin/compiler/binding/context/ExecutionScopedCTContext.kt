@@ -211,7 +211,7 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     private val parentLoopContext: LoopExecutionScopedCTContext<*>? by lazy {
-        hierarchy // TODO: .drop(1) ???
+        hierarchy.drop(1)
             .filterIsInstance<LoopExecutionScopedCTContext<*>>()
             .firstOrNull()
     }

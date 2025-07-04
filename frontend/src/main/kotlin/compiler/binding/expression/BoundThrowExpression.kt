@@ -13,9 +13,11 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.throwStatementInNothrowContext
+import compiler.lexer.Span
 import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -90,6 +92,7 @@ class BoundThrowExpression(
             context,
             throwableExpression.toBackendIrExpression(),
             throwableExpression.isEvaluationResultReferenceCounted,
+            declaration.span,
         )
     }
 
@@ -102,7 +105,9 @@ internal fun buildIrThrow(
     context: ExecutionScopedCTContext,
     throwableExpression: IrExpression,
     throwableInstanceIsReferenceCounted: Boolean,
+    throwLocation: Span,
 ): IrExecutable {
+    val throwLocationStatement = IrUpdateSourceLocationStatementImpl(throwLocation)
     val throwableInstance = IrCreateTemporaryValueImpl(throwableExpression)
 
     // calling fillStackTrace can throw an exception; that should be ignored. But it needs to be properly dropped/refcounted,
@@ -145,8 +150,9 @@ internal fun buildIrThrow(
         throwableInstance,
         IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableInstanceIsReferenceCounted },
     ) + cleanupCode + listOf(
-        // TODO: use correct source location for the throw
+        throwLocationStatement,
         fillStackTraceCall,
+        throwLocationStatement,
         IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
     ))
 }
