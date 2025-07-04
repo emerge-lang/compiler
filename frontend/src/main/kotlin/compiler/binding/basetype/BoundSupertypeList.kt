@@ -140,13 +140,6 @@ class BoundSupertypeList(
             inheritedMemberFunctions.forEach {
                 it.semanticAnalysisPhase2(diagnosis)
             }
-
-            /*
-            if this derived type inherits form the same indirect supertype (I) through multiple intermediate supertypes,
-            and if I is parametric, then the parameters for I could differ on when following the different inheritance chains
-            if so, that constitutes a compile-time error;
-            TODO: diagnose this situation
-             */
         }
     }
 

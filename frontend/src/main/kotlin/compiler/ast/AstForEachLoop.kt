@@ -61,8 +61,6 @@ class AstForEachLoop(
         and any continue statements in BODY get amended with __range0.popFront()
          */
 
-        // TODO: how to make sure that EmptyRangeException is imported??
-
         val generatedSpan = foreachKeyword.span.deriveGenerated()
         val rangeHolderDeclaration = VariableDeclaration(
             generatedSpan,
