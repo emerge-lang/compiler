@@ -39,6 +39,7 @@ class RootResolvedTypeReference private constructor(
     override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
+    override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
 
     override val inherentTypeBindings by lazy {
         val params = baseType.typeParameters ?: emptyList()

@@ -58,6 +58,12 @@ sealed interface BoundTypeReference {
     val baseTypeOfLowerBound: BoundBaseType
 
     /**
+     * True if `this` is an [UnresolvedType] or whether any subcomponents of this type
+     * are [isPartiallyUnresolved].
+     */
+    val isPartiallyUnresolved: Boolean
+
+    /**
      * @return this type, with the given mutability if it doesn't explicitly have one. Also applied to type arguments,
      * though type arguments will never get [TypeMutability.EXCLUSIVE] and instead will get [TypeMutability.READONLY].
      */

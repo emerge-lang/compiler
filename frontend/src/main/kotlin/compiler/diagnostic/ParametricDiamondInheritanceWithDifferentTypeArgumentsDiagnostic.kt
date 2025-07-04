@@ -11,7 +11,7 @@ class ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic(
     inconsistentArguments: Set<BoundTypeArgument>,
     span: Span,
 ) : Diagnostic(
-    Severity.ERROR,
+    if (inconsistentArguments.any { it.isPartiallyUnresolved }) Severity.CONSECUTIVE else Severity.ERROR,
     "Inconsistent arguments for parameter `${parameter.name.value}` of type `${diamondRoot.canonicalName}`: ${inconsistentArguments.joinToString(", ")}",
     span,
 ) {

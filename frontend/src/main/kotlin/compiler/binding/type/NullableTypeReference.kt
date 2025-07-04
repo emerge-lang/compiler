@@ -18,6 +18,7 @@ class NullableTypeReference private constructor(
     override val span get() = nested.span
     override val isNullable = true
     override val isNonNullableNothing = false
+    override val isPartiallyUnresolved get()= nested.isPartiallyUnresolved
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))

@@ -31,6 +31,7 @@ class BoundTypeArgument(
     override val simpleName get() = toString()
     override val span get() = astNode.span
     override val isNonNullableNothing get() = type.isNonNullableNothing
+    override val isPartiallyUnresolved get()= type.isPartiallyUnresolved
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY

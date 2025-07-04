@@ -25,6 +25,7 @@ class UnresolvedType constructor(
     override val span = reference.span
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
+    override val isPartiallyUnresolved = true
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         diagnosis.unknownType(reference)

@@ -49,6 +49,8 @@ class BoundIntersectionTypeReference private constructor(
         BoundBaseType.closestCommonSupertypeOf(components.map { it.baseTypeOfLowerBound })
     }
 
+    override val isPartiallyUnresolved get()= components.any { it.isPartiallyUnresolved }
+
     override val inherentTypeBindings: TypeUnification by lazy {
         components.asSequence()
             .map { it.inherentTypeBindings }

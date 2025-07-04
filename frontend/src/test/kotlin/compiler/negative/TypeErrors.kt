@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
@@ -9,6 +10,7 @@ import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -451,6 +453,7 @@ class TypeErrors : FreeSpec({
                         interface D : B<S32, UWord> & C<Any, UWord> {}
                     """.trimIndent())
                         .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
                             it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
                             it.parameter.name.value shouldBe "TA"
                         }
@@ -464,8 +467,24 @@ class TypeErrors : FreeSpec({
                         interface D : B<S32, UWord> & C<S64, UWord> {}
                     """.trimIndent())
                         .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
                             it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
                             it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "one is unresolved" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<S32, ThisTypeDoesntExist> {}
+                    """.trimIndent())
+                        .shouldFind<UnknownTypeDiagnostic> {
+                            it.erroneousReference.simpleName shouldBe "ThisTypeDoesntExist"
+                        }
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.CONSECUTIVE
                         }
                 }
             }
@@ -479,6 +498,7 @@ class TypeErrors : FreeSpec({
                         fn trigger(p: B<S32, UWord> & C<Any, UWord>) {}
                     """.trimIndent())
                         .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
                             it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
                             it.parameter.name.value shouldBe "TA"
                         }
@@ -492,8 +512,24 @@ class TypeErrors : FreeSpec({
                         fn trigger(p: B<S32, UWord> & C<S64, UWord>) {}
                     """.trimIndent())
                         .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
                             it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
                             it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "one is unresolved" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<S32, ThisTypeDoesntExist>) {}
+                    """.trimIndent())
+                        .shouldFind< UnknownTypeDiagnostic> {
+                            it.erroneousReference.simpleName shouldBe "ThisTypeDoesntExist"
+                        }
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.CONSECUTIVE
                         }
                 }
             }
