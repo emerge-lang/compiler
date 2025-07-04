@@ -50,6 +50,12 @@ interface Diagnosis {
 
             transformingDiagnosis.closeAndObtain().forEach(this::add)
         }
+
+        fun Diagnosis.doWithIgnoringFindings(
+            action: (Diagnosis) -> Unit,
+        ) {
+            return doWithTransformedFindings(action, { emptySequence() })
+        }
     }
 }
 

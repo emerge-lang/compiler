@@ -19,12 +19,18 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstAbsoluteTypeReference
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -81,6 +87,10 @@ class SoftwareContext {
 
         packages[name] = emptyPackage
         return emptyPackage
+    }
+
+    fun resolveBaseType(canonicalName: CanonicalElementName.BaseType): BoundBaseType? {
+        return getPackage(canonicalName.packageName)?.resolveBaseType(canonicalName.simpleName)
     }
 
     fun doSemanticAnalysis(diagnosis: Diagnosis) {
@@ -158,6 +168,22 @@ class SoftwareContext {
             .filter { it.simpleName == "ReflectionBaseType" }
             .singleOrNull()
             ?: throw InternalCompilerError("Could not find typeinfo type in emerge source")
+    }
+    val iterableOutAnyType: RootResolvedTypeReference by lazy {
+        val iterableBaseType = resolveBaseType(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
+            ?: throw InternalCompilerError("Did not find core type ${EmergeConstants.IterableContract.ITERABLE_TYPE_NAME}")
+
+        RootResolvedTypeReference(
+            iterableBaseType.context,
+            TypeMutability.READONLY,
+            iterableBaseType,
+            listOf(BoundTypeArgument(
+                iterableBaseType.context,
+                TypeArgument(TypeVariance.OUT, AstAbsoluteTypeReference(any.canonicalName, span = Span.UNKNOWN)),
+                TypeVariance.OUT,
+                any.baseReference,
+            ))
+        )
     }
 
     /**

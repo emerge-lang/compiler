@@ -46,8 +46,17 @@ data object EmergeConstants {
          * range is empty.
          */
         val EMPTY_RANGE_EXCEPTION_NAME = CanonicalElementName.BaseType(
-            CanonicalElementName.Package(listOf("emerge", "core", "range")),
+            CORE_MODULE_NAME.plus("range"),
             "EmptyRangeException",
+        )
+
+        /**
+         * The canonical name of the type that resembles something that is iterable. As per contract has
+         * one type parameter: `T : Any?` which denotes the type of the elements that can be iterated over.
+         */
+        val ITERABLE_TYPE_NAME = CanonicalElementName.BaseType(
+            CORE_MODULE_NAME.plus("range"),
+            "Iterable",
         )
     }
 }

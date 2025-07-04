@@ -13,6 +13,7 @@ import compiler.binding.BoundForEachLoop
 import compiler.binding.BoundStatement
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -142,9 +143,15 @@ class AstForEachLoop(
         ).bindTo(cursorInBodyDeclaration.modifiedContext)
 
         val boundBody = body.bindTo(cursorInBodyDeclaration.modifiedContext)
+
+        val iterableExpression = rangeHolderDeclaration
+            .let { it.initializerExpression as BoundInvocationExpression }
+            .receiverExpression!!
+
         boundForEachLoop = BoundForEachLoop(
             context,
             this,
+            iterableExpression,
             rangeHolderDeclaration,
             cursorInBodyDeclaration,
             advanceRange,
