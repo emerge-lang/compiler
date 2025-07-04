@@ -18,9 +18,11 @@
 
 package compiler.diagnostic
 
+import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.util.groupRunsBy
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlin.math.min
 
 data class SourceHint(
@@ -186,3 +188,7 @@ private fun buildIllustrationForSingleFile(
     sb.appendUnnumberedLinePrefix()
     sb.append('\n')
 }
+
+fun String.quote(): String = "`$this`"
+fun IdentifierToken.quote(): String = "`${this.value}`"
+fun CanonicalElementName.quote(): String = "`$this`"

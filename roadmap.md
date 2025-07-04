@@ -201,6 +201,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 ## Future features
 
+### Refactoring bucketlist
+
+* denote all identifiers quoted from input source that appear in diagnostics. Is already done
+  sporadically -> do systematically
+* give every diagnostic type a code (like typescript does)
+
 ### Stateless Singletons
 
 Emerge can't have Kotlins `object` singletons because that suggest a single identity per program execution,

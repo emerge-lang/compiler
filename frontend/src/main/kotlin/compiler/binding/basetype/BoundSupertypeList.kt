@@ -28,12 +28,6 @@ class BoundSupertypeList(
 
     private val seanHelper = SeanHelper()
 
-    /**
-     * becomes meaningful after [semanticAnalysisPhase1]
-     * TODO: currently stale / not determined; even needed?
-     */
-    var hasCyclicInheritance: Boolean = false
-
     val span: Span = clauses.mapNotNull { it.astNode.span }.reduceOrNull(Span::rangeTo) ?: Span.UNKNOWN
 
     /** the base types that are being directly extended from **except `emerge.core.Any`!** */

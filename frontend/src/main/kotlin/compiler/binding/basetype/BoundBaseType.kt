@@ -204,10 +204,6 @@ class BoundBaseType(
 
             lintSean1(diagnosis)
 
-            if (superTypes.hasCyclicInheritance) {
-                return@phase1
-            }
-
             val overriddenInheritedFunctions: MutableSet<BoundMemberFunction> = Collections.newSetFromMap(IdentityHashMap())
             val allMemberFunctions = mutableListOf<BoundMemberFunction>()
             entries.asSequence().filterIsInstance<BoundMemberFunction>().forEach {
@@ -261,10 +257,6 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-            if (superTypes.hasCyclicInheritance) {
-                return@phase2
-            }
-
             entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             typeParameters?.forEach { it.semanticAnalysisPhase2(diagnosis) }
@@ -309,10 +301,6 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis, runIfErrorsPreviously = false) {
-            if (superTypes.hasCyclicInheritance) {
-                return@phase3
-            }
-
             if (!kind.memberFunctionsAbstractByDefault) {
                 val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
                     .flatten()
