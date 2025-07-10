@@ -115,6 +115,14 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
+    override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
+        if (_imports.any { (it.isImportAll || it.simpleName == simpleName) && it.isErroneous }) {
+            return true
+        }
+
+        return parentContext.hasErroneousImportForSimpleName(simpleName)
+    }
+
     private fun resolveNamedTypeExceptNullability(ref: AstSimpleTypeReference): BoundTypeReference {
         if (ref is NamedTypeReference) {
             resolveTypeParameter(ref.simpleName)?.let { parameter ->

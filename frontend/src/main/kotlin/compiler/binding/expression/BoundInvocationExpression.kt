@@ -255,7 +255,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
+            diagnosis.noMatchingFunctionOverload(context, functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
             return null
         }
 
@@ -275,6 +275,7 @@ class BoundInvocationExpression(
                 )
             } else {
                 diagnosis.noMatchingFunctionOverload(
+                    context,
                     functionNameToken,
                     receiverExpression?.type,
                     valueArguments,
@@ -313,6 +314,7 @@ class BoundInvocationExpression(
                     return singleEval
                 } else {
                     diagnosis.noMatchingFunctionOverload(
+                        context,
                         functionNameToken,
                         receiverExpression?.type,
                         valueArguments,

@@ -81,6 +81,12 @@ interface CTContext {
 
     fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseType?
 
+    /**
+     * @return whether this context has a [BoundImportDeclaration] that refers to [simpleName] (or is a import-all)
+     * and that is erroneous (no symbol for [simpleName] found or package not found).
+     */
+    fun hasErroneousImportForSimpleName(simpleName: String): Boolean
+
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
     val allTypeParameters: Sequence<BoundTypeParameter>

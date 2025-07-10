@@ -75,6 +75,10 @@ class SourceFileRootContext(
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
+            override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
+                return false
+            }
+
             override fun resolveType(ref: TypeReference): BoundTypeReference = UnresolvedType(
                 this,
                 when (ref) {

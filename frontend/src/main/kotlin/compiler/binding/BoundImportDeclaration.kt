@@ -70,6 +70,8 @@ class BoundImportDeclaration(
         is ResolutionResult.Erroneous -> null
     }
 
+    val isErroneous: Boolean get()= resolutionResult is ResolutionResult.Erroneous
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         (resolutionResult as? ResolutionResult.Erroneous)?.errors?.forEach(diagnosis::add)
     }

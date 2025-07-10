@@ -22,8 +22,11 @@ import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
-class UnknownTypeDiagnostic(val erroneousReference: AstSimpleTypeReference) : Diagnostic(
-    Severity.ERROR,
+class UnknownTypeDiagnostic(
+    val erroneousReference: AstSimpleTypeReference,
+    val fileHasErroneousImportForSimpleName: Boolean,
+) : Diagnostic(
+    if (fileHasErroneousImportForSimpleName) Severity.CONSECUTIVE else Severity.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
     when (erroneousReference) {
         is NamedTypeReference -> if (erroneousReference.declaringNameToken == null) Span.UNKNOWN else erroneousReference.declaringNameToken.span

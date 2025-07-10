@@ -40,6 +40,7 @@ import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundBreakExpression
@@ -58,6 +59,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -69,8 +71,8 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(erroneousRef: AstSimpleTypeReference) {
-    add(UnknownTypeDiagnostic(erroneousRef))
+fun Diagnosis.unknownType(unresolvedType: UnresolvedType) {
+    add(UnknownTypeDiagnostic(unresolvedType.astNode, unresolvedType.context.hasErroneousImportForSimpleName(unresolvedType.astNode.simpleName)))
 }
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
@@ -303,6 +305,7 @@ fun Diagnosis.abstractInheritedFunctionNotImplemented(implementingType: BoundBas
 }
 
 fun Diagnosis.noMatchingFunctionOverload(
+    context: CTContext,
     functionNameReference: IdentifierToken,
     receiverType: BoundTypeReference?,
     valueArguments: List<BoundExpression<*>>,
@@ -314,7 +317,14 @@ fun Diagnosis.noMatchingFunctionOverload(
         return
     }
 
-    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll, inapplicableCandidates))
+    add(UnresolvableFunctionOverloadDiagnostic(
+        functionNameReference,
+        receiverType,
+        valueArguments.map { it.type },
+        functionDeclaredAtAll,
+        inapplicableCandidates,
+        context.hasErroneousImportForSimpleName(functionNameReference.value),
+    ))
 }
 
 fun Diagnosis.overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>) {

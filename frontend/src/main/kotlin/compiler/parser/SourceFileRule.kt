@@ -7,14 +7,13 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.diagnostic.ParsingErrorDiagnostic
+import compiler.diagnostic.UnsupportedFeatureDiagnostic
 import compiler.lexer.Span
 import compiler.lexer.Token
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.ParsingErrorDiagnostic
-import compiler.diagnostic.UnsupportedFeatureDiagnostic
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {

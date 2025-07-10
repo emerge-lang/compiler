@@ -13,22 +13,22 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 /**
  * Acts like both `Any` and `Nothing` at the same time.
  */
-class UnresolvedType constructor(
+class UnresolvedType(
     override val context: CTContext,
-    private val reference: AstSimpleTypeReference,
+    val astNode: AstSimpleTypeReference,
     val parameters: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val simpleName = "<ERROR>"
     override val isNullable get() = false
-    override val mutability = reference.mutability ?: TypeMutability.READONLY
+    override val mutability = astNode.mutability ?: TypeMutability.READONLY
     override val baseTypeOfLowerBound get() = context.swCtx.nothing
-    override val span = reference.span
+    override val span = astNode.span
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
     override val isPartiallyUnresolved = true
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        diagnosis.unknownType(reference)
+        diagnosis.unknownType(this)
 
         parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }
@@ -36,7 +36,7 @@ class UnresolvedType constructor(
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
@@ -44,7 +44,7 @@ class UnresolvedType constructor(
     override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
@@ -52,7 +52,7 @@ class UnresolvedType constructor(
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
     }
@@ -60,7 +60,7 @@ class UnresolvedType constructor(
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters,
         )
     }
@@ -68,7 +68,7 @@ class UnresolvedType constructor(
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters?.map { it.withTypeVariables(variables) }
         )
     }
@@ -94,7 +94,7 @@ class UnresolvedType constructor(
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
@@ -102,7 +102,7 @@ class UnresolvedType constructor(
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return UnresolvedType(
             context,
-            reference,
+            astNode,
             emptyList(),
         )
     }
@@ -110,7 +110,7 @@ class UnresolvedType constructor(
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
             this.context,
-            reference,
+            astNode,
             parameters?.map { it.instantiateFreeVariables(context) },
         )
     }
@@ -118,7 +118,7 @@ class UnresolvedType constructor(
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
             this.context,
-            reference,
+            astNode,
             parameters?.map { it.instantiateAllParameters(context) },
         )
     }
@@ -129,7 +129,7 @@ class UnresolvedType constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return reference
+        return astNode
     }
 
     override fun toString() = simpleName
