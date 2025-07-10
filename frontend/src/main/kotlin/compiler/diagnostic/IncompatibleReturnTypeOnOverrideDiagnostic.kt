@@ -9,8 +9,8 @@ class IncompatibleReturnTypeOnOverrideDiagnostic(
     private val base: ValueNotAssignableDiagnostic,
 ) : Diagnostic(
     Severity.ERROR,
-    "The return type of this override is not a subtype the overridden functions return type: ${base.reason}",
+    "The return type of this override is not a subtype the overridden functions return type: ${base.simplifiedMessage ?: base.reason}",
     base.span,
 ) {
-    override fun toString() = "$levelAndMessage  overridden function: ${superFunction.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $span"
+    override fun toString() = "$levelAndMessage  overridden function:         ${superFunction.supertypeMemberFn.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $span"
 }

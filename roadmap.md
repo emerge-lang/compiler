@@ -29,10 +29,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    6. ~~solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
       already carry a mutability, wrapper mutability can likely piggy-back onto that. It needs union types or multiple
       type parameter bounds.~~
-4. general iterable types
-   * implement generic supertypes - yey, another logic monstrosity
-   * Like Java Iterable<T>, D ranges, ... ?
-   * for each over iterable
+4. ~~general iterable types~~
+   * ~~implement generic supertypes - yey, another logic monstrosity~~
+   * ~~for each over iterable~~
 5. arrays slices; goal/target situation
    * there are array-base-objects, identical to what an Array<T> is before
    * emerge source can never reference these base objects directly, only ever slices of that
@@ -58,6 +57,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    1. switch/when statement
    2. union types: `TypeA | TypeB | TypeC`
       * support exhaustiveness check on switch/when statements
+   3. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
+      type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
+   4. bug: the following code does not count as definitely terminating:
+      ```
+      try { return fallibleCall() } catch e { throw rewrap(e) }
+      ```
 8. Stdlib basics
    * some good standard collections
    * ArrayList, LinkedList, (De)Queue, Stack, ...
@@ -194,6 +199,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 -----
 
 ## Future features
+
+### Refactoring bucketlist
+
+* denote all identifiers quoted from input source that appear in diagnostics. Is already done
+  sporadically -> do systematically
+* give every diagnostic type a code (like typescript does)
+* make CTContext.findInternalVariableName and .findInternalTypeName work before binding is complete
+  If they are called before, they will settle imports. And some imports might decide they are erroneous
+  because the symbol they import will only be bound later.
 
 ### Stateless Singletons
 

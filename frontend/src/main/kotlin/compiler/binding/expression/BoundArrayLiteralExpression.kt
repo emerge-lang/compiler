@@ -2,8 +2,8 @@ package compiler.binding.expression
 
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeVariance
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
@@ -80,7 +80,7 @@ class BoundArrayLiteralExpression(
             arrayType,
             listOf(BoundTypeArgument(
                 context,
-                TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE)),
+                AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE)),
                 TypeVariance.UNSPECIFIED,
                 elementType,
             ))

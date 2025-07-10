@@ -22,8 +22,10 @@ import compiler.InternalCompilerError
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstTypeArgument
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -48,12 +50,19 @@ val TypeMutability = eitherOf("type mutability") {
 
 private val TypeArgument = sequence {
     ref(Variance)
-    ref(Type)
+    eitherOf {
+        ref(Type)
+        operator(Operator.TIMES)
+    }
 }
     .astTransformation { tokens ->
         val variance = tokens.next() as TypeVariance
-        val type = tokens.next() as TypeReference
-        TypeArgument(variance, type)
+        val next = tokens.next()
+        if (next is TypeReference) {
+            AstSpecificTypeArgument(variance, next)
+        } else {
+            AstWildcardTypeArgument(variance, (next as OperatorToken).span)
+        }
     }
 
 val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
@@ -71,9 +80,9 @@ val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
         // skip <
         tokens.next()
 
-        val arguments = ArrayList<TypeArgument>()
+        val arguments = ArrayList<AstTypeArgument>()
         while (tokens.hasNext()) {
-            arguments.add(tokens.next() as TypeArgument)
+            arguments.add(tokens.next() as AstTypeArgument)
             // skip , or >
             tokens.next()
         }
@@ -84,7 +93,7 @@ val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
 val Variance: Rule<TypeVariance> = sequence("variance") {
     optional {
         eitherOf {
-            keyword(Keyword.VARIANCE_IN)
+            keyword(Keyword.IN)
             keyword(Keyword.VARIANCE_OUT)
         }
     }
@@ -92,7 +101,7 @@ val Variance: Rule<TypeVariance> = sequence("variance") {
     .astTransformation { tokens ->
         when (val keyword = (tokens.next() as KeywordToken?)?.keyword) {
             null -> TypeVariance.UNSPECIFIED
-            Keyword.VARIANCE_IN -> TypeVariance.IN
+            Keyword.IN -> TypeVariance.IN
             Keyword.VARIANCE_OUT -> TypeVariance.OUT
             else -> throw InternalCompilerError("$keyword is not a type variance")
         }
@@ -175,7 +184,7 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
         }
 
         var next = tokens.next()
-        val arguments: List<TypeArgument>?
+        val arguments: List<AstTypeArgument>?
         if (next is TypeArgumentBundle) {
             arguments = next.arguments
             next = tokens.next()

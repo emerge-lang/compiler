@@ -14,6 +14,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
 class BoundWhileLoop(
@@ -73,7 +74,7 @@ class BoundWhileLoop(
         body.visitWritesBeyond(boundary, visitor)
     }
 
-    private val backendIr by lazy {
+    override val irLoopNode: IrLoop by lazy {
         val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
         lateinit var irLoop: IrLoop
         val breakStmt = object : IrBreakStatement {
@@ -92,7 +93,10 @@ class BoundWhileLoop(
 
         irLoop
     }
+
     override fun toBackendIrStatement(): IrLoop {
-        return backendIr
+        return irLoopNode
     }
+
+    override val irBeforeContinue: IrExecutable? = null
 }

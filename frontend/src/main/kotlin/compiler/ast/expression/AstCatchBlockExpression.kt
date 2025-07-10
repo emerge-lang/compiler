@@ -3,13 +3,14 @@ package compiler.ast.expression
 import compiler.ast.AstCodeChunk
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundCatchBlockExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.ast.Executable as AstExecutable
 import compiler.ast.Expression as AstExpression
 
@@ -25,10 +26,10 @@ class AstCatchBlockExpression(
             varToken = null,
             ownership = null,
             name = throwableVariableNameToken,
-            type = NamedTypeReference(
-                context.swCtx.throwable.simpleName, // this is okay; Throwable is in emerge.core, which is a default import, and thus cannot be overridden
+            type = AstAbsoluteTypeReference(
+                EmergeConstants.THROWABLE_TYPE_NAME,
                 mutability = TypeMutability.MUTABLE,
-                declaringNameToken = throwableVariableNameToken,
+                span = throwableVariableNameToken.span,
             ),
             initializerExpression = null,
         )

@@ -100,10 +100,10 @@ sealed interface AccessorKind {
                     }
                 }
 
-                if (returnType?.equals(context.swCtx.unit.baseReference) == false) {
+                if (returnType?.equals(functionRootContext.swCtx.unit.baseReference) == false) {
                     diagnosis.accessorContractViolation(
                         declaration,
-                        "Setters must return `${context.swCtx.unit.canonicalName}`",
+                        "Setters must return `${functionRootContext.swCtx.unit.canonicalName}`",
                         declaration.parsedReturnType?.span ?: declaredAt,
                     )
                 }

@@ -1,10 +1,10 @@
 package compiler.binding
 
 import compiler.ast.FunctionDeclaration
+import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.illegalFunctionBody
 import compiler.diagnostic.missingFunctionBody
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -12,14 +12,16 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundTopLevelFunction(
-    context: MutableExecutionScopedCTContext,
+    parentContext: CTContext,
+    functionRootContext: MutableExecutionScopedCTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
     declaredTypeParameters: List<BoundTypeParameter>,
     parameters: BoundParameterList,
     body: Body?,
 ) : BoundDeclaredFunction(
-    context,
+    parentContext,
+    functionRootContext,
     declaration,
     attributes,
     declaredTypeParameters,
@@ -28,7 +30,7 @@ class BoundTopLevelFunction(
 ) {
     override val canonicalName by lazy {
         CanonicalElementName.Function(
-            context.sourceFile.packageName,
+            parentContext.sourceFile.packageName,
             name,
         )
     }

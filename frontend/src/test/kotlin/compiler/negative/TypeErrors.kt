@@ -1,16 +1,20 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -331,6 +335,24 @@ class TypeErrors : FreeSpec({
                     .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
             }
         }
+
+        "wildcard type argument with variance" - {
+            "in" {
+                validateModule("""
+                    interface I<T> {}
+                    fn trigger(p: I<in *>) {}
+                """.trimIndent())
+                    .shouldFind<WildcardTypeArgumentWithVarianceDiagnostic>()
+            }
+
+            "out" {
+                validateModule("""
+                    interface I<T> {}
+                    fn trigger(p: I<out *>) {}
+                """.trimIndent())
+                    .shouldFind<WildcardTypeArgumentWithVarianceDiagnostic>()
+            }
+        }
     }
 
     "array literal" - {
@@ -438,6 +460,98 @@ class TypeErrors : FreeSpec({
                 fn trigger(p: X<Any> & X<S32>) {}
             """.trimIndent())
                 .shouldFind<IllegalIntersectionTypeDiagnostic>()
+        }
+
+        "diamond inheritance with with parametric root type, given different type arguments" - {
+            "in supertype list" - {
+                "one is a subtype of the other" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<Any, UWord> {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "disjoint types" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<S64, UWord> {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "one is unresolved" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        interface D : B<S32, UWord> & C<S32, ThisTypeDoesntExist> {}
+                    """.trimIndent())
+                        .shouldFind<UnknownTypeDiagnostic> {
+                            it.erroneousReference.simpleName shouldBe "ThisTypeDoesntExist"
+                        }
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.CONSECUTIVE
+                        }
+                }
+            }
+
+            "in intersection type" - {
+                "one is a subtype of the other" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<Any, UWord>) {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "disjoint types" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<S64, UWord>) {}
+                    """.trimIndent())
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.ERROR
+                            it.diamondRoot.canonicalName.toString() shouldBe "testmodule.A"
+                            it.parameter.name.value shouldBe "TA"
+                        }
+                }
+
+                "one is unresolved" {
+                    validateModule("""
+                        interface A<TA, XA> {}
+                        interface B<TB, XB> : A<TB, XB> {}
+                        interface C<TC, XC> : A<TC, XC> {}
+                        fn trigger(p: B<S32, UWord> & C<S32, ThisTypeDoesntExist>) {}
+                    """.trimIndent())
+                        .shouldFind< UnknownTypeDiagnostic> {
+                            it.erroneousReference.simpleName shouldBe "ThisTypeDoesntExist"
+                        }
+                        .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {
+                            it.severity shouldBe Diagnostic.Severity.CONSECUTIVE
+                        }
+                }
+            }
         }
     }
 

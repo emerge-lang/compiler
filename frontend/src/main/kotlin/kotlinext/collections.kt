@@ -27,7 +27,7 @@ operator fun <T> Collection<T>.get(range: IntRange): List<T> {
         throw ArrayIndexOutOfBoundsException()
     }
 
-    var list = ArrayList<T>(range.last - range.first + 1)
+    val list = ArrayList<T>(range.last - range.first + 1)
     val iterator = iterator()
 
     for (i in 0 .. range.first - 1) iterator.next()
@@ -47,16 +47,11 @@ fun <T, E> Iterable<T>.duplicatesBy(selector: (T) -> E): Map<E, Set<T>> {
 
     for (t in this) {
         val e = selector(t)
-        if (uniques.containsKey(e)) {
-            if (duplicates.containsKey(e)) {
-                duplicates[e]!!.add(uniques[e]!!)
-                duplicates[e]!!.add(t)
-            } else {
-                duplicates[e] = mutableSetOf(uniques[e]!!, t)
-            }
-
-        } else {
-            uniques[e] = t
+        val existing = uniques.putIfAbsent(e, t) ?: continue
+        duplicates.compute(e) { e, duplicatesOfE ->
+            val resultValue: MutableSet<T> = duplicatesOfE ?: mutableSetOf(existing)
+            resultValue.add(t)
+            resultValue
         }
     }
 

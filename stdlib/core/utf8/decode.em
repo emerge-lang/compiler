@@ -1,7 +1,6 @@
 package emerge.core.utf8
 
 import emerge.std.collections.ArrayList
-import emerge.platform.collectStackTrace
 
 // decodes the codepoint in [data] at [index].
 // @return first: the codepoint, second: the index of the next codepoint, or null if the end of data has been reached

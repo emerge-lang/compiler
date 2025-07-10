@@ -11,8 +11,11 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSimpleTypeReference
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
@@ -37,6 +40,7 @@ import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundBreakExpression
@@ -55,6 +59,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -66,8 +71,8 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
-    add(UnknownTypeDiagnostic(erroneousRef))
+fun Diagnosis.unknownType(unresolvedType: UnresolvedType) {
+    add(UnknownTypeDiagnostic(unresolvedType.astNode, unresolvedType.context.hasErroneousImportForSimpleName(unresolvedType.astNode.simpleName)))
 }
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
@@ -110,12 +115,20 @@ fun Diagnosis.variableTypeNotDeclared(variable: BoundVariable) {
     add(MissingVariableTypeDiagnostic(variable.declaration, variable.kind))
 }
 
+fun Diagnosis.wildcardTypeArgumentWithVariance(argument: BoundTypeArgument) {
+    add(WildcardTypeArgumentWithVarianceDiagnostic(argument.astNode))
+}
+
 fun Diagnosis.varianceOnFunctionTypeParameter(parameter: BoundTypeParameter) {
     add(VarianceOnFunctionTypeParameterDiagnostic(parameter.astNode))
 }
 
 fun Diagnosis.varianceOnInvocationTypeArgument(argument: BoundTypeArgument) {
     add(VarianceOnInvocationTypeArgumentDiagnostic(argument.astNode))
+}
+
+fun Diagnosis.wildcardTypeArgumentOnInvocation(argument: BoundTypeArgument) {
+    add(WildcardTypeArgumentOnInvocationDiagnostic(argument.astNode))
 }
 
 fun Diagnosis.unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVariance: TypeVariance) {
@@ -246,7 +259,11 @@ fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
 }
 
-fun Diagnosis.duplicateSupertype(ref: NamedTypeReference) {
+fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: AstTypeArgument, parameter: TypeParameter?) {
+    add(ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(argument, parameter))
+}
+
+fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 
@@ -258,8 +275,17 @@ fun Diagnosis.duplicateBaseTypes(packageName: CanonicalElementName.Package, dupl
     add(DuplicateBaseTypesDiagnostic(packageName, duplicates.map { it.declaration }))
 }
 
-fun Diagnosis.functionDoesNotOverride(function: BoundDeclaredFunction) {
-    add(SuperFunctionForOverrideNotFoundDiagnostic(function.declaration))
+fun Diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(diamondRoot: BoundBaseType, parameter: BoundTypeParameter, inconsistentArgs: Set<BoundTypeArgument>, span: Span) {
+    add(ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic(
+        diamondRoot,
+        parameter.astNode,
+        inconsistentArgs,
+        span,
+    ))
+}
+
+fun Diagnosis.functionDoesNotOverride(function: BoundDeclaredBaseTypeMemberFunction) {
+    add(SuperFunctionForOverrideNotFoundDiagnostic(function.declaration, function.ownerBaseType.superTypes.hasUnresolvedSupertypes))
 }
 
 fun Diagnosis.undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BoundBaseType) {
@@ -279,6 +305,7 @@ fun Diagnosis.abstractInheritedFunctionNotImplemented(implementingType: BoundBas
 }
 
 fun Diagnosis.noMatchingFunctionOverload(
+    context: CTContext,
     functionNameReference: IdentifierToken,
     receiverType: BoundTypeReference?,
     valueArguments: List<BoundExpression<*>>,
@@ -290,7 +317,14 @@ fun Diagnosis.noMatchingFunctionOverload(
         return
     }
 
-    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll, inapplicableCandidates))
+    add(UnresolvableFunctionOverloadDiagnostic(
+        functionNameReference,
+        receiverType,
+        valueArguments.map { it.type },
+        functionDeclaredAtAll,
+        inapplicableCandidates,
+        context.hasErroneousImportForSimpleName(functionNameReference.value),
+    ))
 }
 
 fun Diagnosis.overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>) {
@@ -407,6 +441,10 @@ fun Diagnosis.externalMemberFunction(function: BoundDeclaredFunction) {
     add(ExternalMemberFunctionDiagnostic(function.declaration, function.attributes.externalAttribute!!.attributeName))
 }
 
+fun Diagnosis.nonVirtualMemberFunctionWithReceiver(function: BoundDeclaredBaseTypeMemberFunction, reason: String) {
+    add(NonVirtualMemberFunctionWithReceiverDiagnostic(function.declaration, reason))
+}
+
 fun Diagnosis.notAllMemberVariablesInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span) {
     add(NotAllMemberVariablesInitializedDiagnostic(
         uninitializedMembers.map { it.declaration },
@@ -501,6 +539,10 @@ fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, supe
 
 fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: ValueNotAssignableDiagnostic) {
     add(NarrowingParameterTypeOverrideDiagnostic(override, superParameter, assignabilityDiagnostic))
+}
+
+fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: ValueNotAssignableDiagnostic) {
+    add(IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, error))
 }
 
 fun Diagnosis.nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

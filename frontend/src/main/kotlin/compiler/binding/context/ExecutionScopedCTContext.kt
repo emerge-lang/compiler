@@ -1,8 +1,6 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
-import compiler.ast.Statement
-import compiler.ast.Statement.Companion.chain
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
@@ -68,46 +66,52 @@ interface ExecutionScopedCTContext : CTContext {
      */
     fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): Repetition
 
+
     /**
-     * @return [LoopExecutionScopedCTContext.loopNode] from the [LoopExecutionScopedCTContext] that is the closest
+     * the [LoopExecutionScopedCTContext.loopNode] from the [LoopExecutionScopedCTContext] that is the closest
      * parent to `this` loop, or `null` if there is no enclosing loop context.
      */
-    fun getParentLoop(): BoundLoop<*>?
+    val parentLoop: BoundLoop<*>?
 
     /**
      * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
      * of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
-    fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getContextLocalDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
      * @return all code that has been deferred in this [ExecutionScopedCTContext]s scope, in the
-     * **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
+     * **reverse** order of how it was added to [addDeferredCode].
      */
-    fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getScopeLocalDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
      * If there is a parent context that has [isExceptionHandler] = `true`, returns all deferred code up to and including
-     * that context, in the **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
+     * that context, in the **reverse** order of how it was added to [addDeferredCode].
      * If there is no parent context marked with [isExceptionHandler], returns an empty sequence.
      */
-    fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
      * If there is a parent context that has [isExceptionHandler] = `true`, returns an empty sequence. This range must
      * be covered by using the return value of [getExceptionHandlingLocalDeferredCode].
      * Otherwise, returns all deferred code starting with the parent context of the one that has [isExceptionHandler] = `true`
      * up to the next parent with [isFunctionRoot] = `true`, in the **reverse** order of how it was added
-     * to [MutableExecutionScopedCTContext.addDeferredCode].
+     * via [addDeferredCode].
      */
-    fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>>
+    fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable>
+
+    /**
+     * @param parentLoop the loop which is exited or continued; currently must be [parentLoop]
+     */
+    fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable>
 
     /**
      * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s up until
      * the [isFunctionRoot] context, in the **reverse** order of how it was added to
-     * [MutableExecutionScopedCTContext.addDeferredCode].
+     * [addDeferredCode].
      */
-    fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getFunctionDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
      * Intended to be called solely by [BoundMixinStatement] during [SemanticallyAnalyzable.semanticAnalysisPhase2].
@@ -118,6 +122,11 @@ interface ExecutionScopedCTContext : CTContext {
      * by [registerMixin].
      */
     fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): MixinRegistration?
+
+    /**
+     * Adds code to be returned from [getScopeLocalDeferredCode] and [getFunctionDeferredCode]
+     */
+    fun addDeferredCode(code: DeferrableExecutable)
 
     /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
@@ -201,35 +210,38 @@ open class MutableExecutionScopedCTContext protected constructor(
             .firstOrNull { it.isExceptionHandler }
     }
 
+    private val parentLoopContext: LoopExecutionScopedCTContext<*>? by lazy {
+        hierarchy.drop(1)
+            .filterIsInstance<LoopExecutionScopedCTContext<*>>()
+            .firstOrNull()
+    }
+    override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
+
     override val isExceptionHandler = false
     override val hasExceptionHandler get() = parentExceptionHandlerContext != null
 
-    private var localDeferredCode: ArrayList<Statement>? = null
+    private var localDeferredCode: ArrayList<DeferrableExecutable>? = null
 
-    /**
-     * Adds code to be returned from [getScopeLocalDeferredCode] and [getFunctionDeferredCode]
-     */
-    open fun addDeferredCode(code: Statement) {
+    override fun addDeferredCode(code: DeferrableExecutable) {
         if (localDeferredCode == null) {
             localDeferredCode = ArrayList()
         }
         localDeferredCode!!.add(code)
     }
 
-    private fun getDeferredCodeUpToIncluding(boundary: CTContext): Sequence<BoundExecutable<*>> {
+    private fun getDeferredCodeUpToIncluding(boundary: CTContext): Sequence<DeferrableExecutable> {
         return hierarchy
             .takeWhileAndNext { it !== boundary }
             .flatMap {
                 (it as? MutableExecutionScopedCTContext)?.localDeferredCode?.asReversed() ?: emptyList()
             }
-            .chain(this)
     }
 
-    override fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>> {
-        return (localDeferredCode ?: emptyList()).asReversed().chain(this)
+    override fun getContextLocalDeferredCode(): Sequence<DeferrableExecutable> {
+        return (localDeferredCode ?: emptyList()).asReversed().asSequence()
     }
 
-    override fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getScopeLocalDeferredCode(): Sequence<DeferrableExecutable> {
         if (isScopeBoundary) {
             return getContextLocalDeferredCode()
         }
@@ -237,14 +249,14 @@ open class MutableExecutionScopedCTContext protected constructor(
         return getDeferredCodeUpToIncluding(parentScopeContext ?: this)
     }
 
-    override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable> {
         parentExceptionHandlerContext
             ?.let { return getDeferredCodeUpToIncluding(it) }
 
         return emptySequence()
     }
 
-    override fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>> {
+    override fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable> {
         val parentEHContext = parentExceptionHandlerContext
         if (parentEHContext != null) {
             return emptySequence()
@@ -253,7 +265,15 @@ open class MutableExecutionScopedCTContext protected constructor(
         return getFunctionDeferredCode()
     }
 
-    override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
+    override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {
+        val parentLoopContext = parentLoopContext
+        check(parentLoopContext != null)
+        check(parentLoopContext.loopNode === parentLoop)
+
+        return getDeferredCodeUpToIncluding(parentLoopContext)
+    }
+
+    override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
         return getDeferredCodeUpToIncluding(parentFunctionContext ?: this)
     }
 
@@ -336,13 +356,6 @@ open class MutableExecutionScopedCTContext protected constructor(
                     }
                 }
             }
-    }
-
-    override fun getParentLoop(): BoundLoop<*>? {
-        return hierarchy
-            .filterIsInstance<LoopExecutionScopedCTContext<*>>()
-            .firstOrNull()
-            ?.loopNode
     }
 
     override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {

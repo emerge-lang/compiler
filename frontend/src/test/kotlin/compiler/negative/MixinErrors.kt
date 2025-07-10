@@ -258,6 +258,24 @@ class MixinErrors : FreeSpec({
                 .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
+        "in foreach" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn getSomeArray() -> Array<S32>
+                class Bar : I {
+                    constructor {
+                        foreach i in getSomeArray() {
+                            mixin provideSomeI()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
+        }
+
         "in try" {
             validateModule("""
                 interface I {

@@ -17,11 +17,13 @@ import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.IllegalFunctionBodyDiagnostic
 import compiler.diagnostic.IllegalSupertypeDiagnostic
+import compiler.diagnostic.ImmediateWildcardTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
 import compiler.diagnostic.MultipleClassDestructorsDiagnostic
 import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
+import compiler.diagnostic.NonVirtualMemberFunctionWithReceiverDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
 import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
@@ -303,17 +305,42 @@ class ClassErrors : FreeSpec({
                     class Dog : Animal {}
                 """.trimIndent())
                     .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
-            }
 
-            "two degrees of inheritance" {
                 validateModule("""
-                    interface Animal {
-                        fn makeSound(self)
+                    interface A<T> {
+                        fn foo(self, p: T)
                     }
-                    interface QuadraPede : Animal {}
-                    class Dog : QuadraPede {}
+                    class C : A<S32> {
+                        
+                    }
                 """.trimIndent())
                     .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+            }
+
+            "two degrees of inheritance" - {
+                "no type parameters" {
+                    validateModule("""
+                        interface Animal {
+                            fn makeSound(self)
+                        }
+                        interface QuadraPede : Animal {}
+                        class Dog : QuadraPede {}
+                    """.trimIndent())
+                        .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                }
+
+                "with type parameters" {
+                    validateModule("""
+                        interface A<T> {
+                            fn foo(self, p: T)
+                        }
+                        interface B : A<S32> {}
+                        class C : B {
+                            
+                        }
+                    """.trimIndent())
+                        .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                }
             }
         }
 
@@ -329,6 +356,33 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<OverrideDropsNothrowDiagnostic>()
             }
+        }
+
+        "if receiver declared, owner type must be assignable" {
+            validateModule("""
+                class Test {
+                    fn foo(self: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+
+            validateModule("""
+                class Test {
+                    fn foo<S>(self: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+
+            validateModule("""
+                interface Foo {
+                    fn erroneous<S>(self: S)
+                }
+                class Sub : Foo {
+                
+                }
+            """.trimIndent())
+                .shouldFind<NonVirtualMemberFunctionWithReceiverDiagnostic>()
+                .shouldNotFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
         }
     }
 
@@ -491,6 +545,54 @@ class ClassErrors : FreeSpec({
                             }
                         }
                         read intrinsic fn random() -> Bool
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
+
+            "interaction with foreach loops" - {
+                "cannot initialize single-assignment variable in loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S33>
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    y = 3
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S33>
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+                }
+
+                "execution uncertainty of loops doesn't persist to code after the loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                foreach i in getSomeArray() {
+                                    unrelated = 3
+                                }
+                                set self.x = 5
+                                y = self.x
+                            }
+                        }
+                        intrinsic fn getSomeArray() -> Array<S32>
                     """.trimIndent())
                         .shouldHaveNoDiagnostics()
                 }
@@ -731,6 +833,21 @@ class ClassErrors : FreeSpec({
                 }
         }
 
+        "wildcard as immediate argument to supertype declaration" {
+            validateModule("""
+                interface I<T> {}
+                class C : I<*> {}
+            """.trimIndent())
+                .shouldFind<ImmediateWildcardTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface I<T> {}
+                interface J<T> {}
+                class C : I<J<*>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
         "duplicate inheritance from same base type" {
             validateModule("""
                 interface A {}
@@ -835,11 +952,9 @@ class ClassErrors : FreeSpec({
                     interface I {
                         fn foo(self)
                     }
-                    interface Sub : I {
-                        override fn foo(self: C)
-                    }
-                    class C : Sub {
-                        override fn foo(self) {}
+                    interface Extra {}
+                    class C : I {
+                        override fn foo(self: C & Extra) {}
                     }
                 """.trimIndent())
                     .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
@@ -884,6 +999,32 @@ class ClassErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
+            }
+        }
+
+        "preclusion" - {
+            "member functions precluded from inheritance need not be implemented" {
+                validateModule("""
+                    interface I<T> {
+                        fn foo(self: I<S32>)
+                    }
+                    class C : I<U64> {
+                        
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "member functions precluded from inheritance cannot be overridden" {
+                validateModule("""
+                    interface I<T> {
+                        fn foo(self: I<S32>)
+                    }
+                    class C : I<U64> {
+                        override fn foo(self) {}                        
+                    }
+                """)
+                    .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
             }
         }
 

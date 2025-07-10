@@ -22,6 +22,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -45,6 +46,8 @@ sealed interface TypeReference {
     fun withMutability(mutability: TypeMutability): TypeReference
 
     fun withNullability(nullability: Nullability): TypeReference
+
+    fun withSpan(span: Span): TypeReference
 
     fun intersect(other: TypeReference, span: Span = (this.span ?: Span.UNKNOWN) .. (other.span ?: Span.UNKNOWN)): AstIntersectionType
 
@@ -75,16 +78,26 @@ sealed interface TypeReference {
 }
 
 /**
+ * Refers to a single [compiler.binding.basetype.BoundBaseType] / is not a compound type.
+ */
+sealed interface AstSimpleTypeReference : TypeReference {
+    val simpleName: String
+    val arguments: List<AstTypeArgument>?
+    override fun withMutability(mutability: TypeMutability): AstSimpleTypeReference
+    override fun withNullability(nullability: TypeReference.Nullability): AstSimpleTypeReference
+}
+
+/**
  * todo: rename to AstNamedType
  */
 data class NamedTypeReference(
-    val simpleName: String,
+    override val simpleName: String,
     override val nullability: TypeReference.Nullability = TypeReference.Nullability.UNSPECIFIED,
     override val mutability: TypeMutability? = null,
     val declaringNameToken: IdentifierToken? = null,
-    val arguments: List<TypeArgument>? = null,
+    override val arguments: List<AstTypeArgument>? = null,
     override val span: Span? = declaringNameToken?.span,
-) : TypeReference {
+) : AstSimpleTypeReference {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
     override fun withMutability(mutability: TypeMutability): NamedTypeReference {
@@ -96,8 +109,12 @@ data class NamedTypeReference(
     }
 
     override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
-        is NamedTypeReference -> AstIntersectionType(listOf(this, other), span)
+        is AstSimpleTypeReference -> AstIntersectionType(listOf(this, other), span)
         is AstIntersectionType -> AstIntersectionType(listOf(this) + other.components, span)
+    }
+
+    override fun withSpan(span: Span): TypeReference {
+        return copy(span = span)
     }
 
     private lateinit var _string: String
@@ -184,7 +201,7 @@ data class NamedTypeReference(
 }
 
 class AstIntersectionType(
-    val components: List<NamedTypeReference>,
+    val components: List<AstSimpleTypeReference>,
     override val span: Span,
 ) : TypeReference {
     init {
@@ -224,9 +241,11 @@ class AstIntersectionType(
     }
 
     override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
-        is NamedTypeReference -> AstIntersectionType(components + listOf(other), span)
+        is AstSimpleTypeReference -> AstIntersectionType(components + listOf(other), span)
         is AstIntersectionType -> AstIntersectionType(components + other.components, span)
     }
+
+    override fun withSpan(span: Span) = AstIntersectionType(components, span)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -237,7 +256,7 @@ class AstIntersectionType(
 
     override fun hashCode(): Int {
         var result = javaClass.hashCode()
-        result = 31 * components.hashCode()
+        result = 31 * result + components.hashCode()
 
         return result
     }
@@ -245,4 +264,41 @@ class AstIntersectionType(
     override fun toString() = components.joinToString(
         separator = " ${Operator.INTERSECTION.text} ",
     )
+}
+
+data class AstAbsoluteTypeReference(
+    val canonicalTypeName: CanonicalElementName.BaseType,
+    override val arguments: List<AstTypeArgument>? = null,
+    override val nullability: TypeReference.Nullability = TypeReference.Nullability.UNSPECIFIED,
+    override val mutability: TypeMutability? = null,
+    override val span: Span,
+) : AstSimpleTypeReference {
+    override val simpleName = canonicalTypeName.simpleName
+
+    override fun withMutability(mutability: TypeMutability): AstAbsoluteTypeReference {
+        if (mutability == this.mutability) {
+            return this
+        }
+
+        return copy(mutability = mutability)
+    }
+
+    override fun withNullability(nullability: TypeReference.Nullability): AstAbsoluteTypeReference {
+        if (nullability == this.nullability) {
+            return this
+        }
+
+        return copy(nullability = nullability)
+    }
+
+    override fun withSpan(span: Span): AstAbsoluteTypeReference {
+        return copy(span = span)
+    }
+
+    override fun intersect(other: TypeReference, span: Span): AstIntersectionType {
+        return when (other) {
+            is AstIntersectionType -> AstIntersectionType(listOf(this) + other.components, span)
+            is AstSimpleTypeReference -> return AstIntersectionType(listOf(this, other), span)
+        }
+    }
 }

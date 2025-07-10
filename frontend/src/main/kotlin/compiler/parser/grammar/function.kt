@@ -228,9 +228,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
     eitherOf {
         sequence {
-            operator(Operator.CBRACE_OPEN)
-            ref(CodeChunk)
-            operator(Operator.CBRACE_CLOSE)
+            ref(CurlyBracedCodeChunk)
         }
         sequence {
             operator(Operator.ASSIGNMENT)
@@ -265,21 +263,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             next = tokens.next()
         }
 
-        if (next == OperatorToken(Operator.CBRACE_OPEN)) {
-            val code = tokens.next()!! as AstCodeChunk
-            // ignore trailing CBRACE_CLOSE
-
-            return@astTransformation FunctionDeclaration(
-                declarationKeyword,
-                attributes,
-                name,
-                typeParameters,
-                parameterList,
-                type ?: NamedTypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
-                FunctionDeclaration.Body.Full(code),
-            )
-        }
-
         if (next == OperatorToken(Operator.ASSIGNMENT)) {
             val assignmentOpToken = next as OperatorToken
             val singleExpression = tokens.next()!! as AstExpression
@@ -308,5 +291,15 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             )
         }
 
-        throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")
+        val code = next as AstCodeChunk
+
+        return@astTransformation FunctionDeclaration(
+            declarationKeyword,
+            attributes,
+            name,
+            typeParameters,
+            parameterList,
+            type ?: NamedTypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
+            FunctionDeclaration.Body.Full(code),
+        )
     }

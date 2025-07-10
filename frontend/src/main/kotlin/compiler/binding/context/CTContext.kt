@@ -18,8 +18,11 @@
 
 package compiler.binding.context
 
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstTypeArgument
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -78,15 +81,36 @@ interface CTContext {
 
     fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseType?
 
+    /**
+     * @return whether this context has a [BoundImportDeclaration] that refers to [simpleName] (or is a import-all)
+     * and that is erroneous (no symbol for [simpleName] found or package not found).
+     */
+    fun hasErroneousImportForSimpleName(simpleName: String): Boolean
+
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
     val allTypeParameters: Sequence<BoundTypeParameter>
 
-    fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+    fun resolveTypeArgument(ref: AstTypeArgument, parameter: BoundTypeParameter?): BoundTypeArgument {
+        return when (ref) {
+            is AstSpecificTypeArgument -> BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+            is AstWildcardTypeArgument -> if (parameter == null) {
+                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.topTypeRef)
+            } else {
+                BoundTypeArgument(
+                    this,
+                    ref,
+                    when (parameter.variance) {
+                        TypeVariance.UNSPECIFIED -> TypeVariance.OUT
+                        else -> TypeVariance.UNSPECIFIED
+                    },
+                    parameter.bound,
+                )
+            }
+        }
     }
 
-    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+    fun resolveType(ref: TypeReference): BoundTypeReference
 
     /**
      * @return first: the variable accessible under the given name

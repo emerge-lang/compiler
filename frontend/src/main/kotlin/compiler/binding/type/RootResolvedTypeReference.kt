@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -26,7 +27,8 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  */
 class RootResolvedTypeReference private constructor(
     override val context: CTContext,
-    val original: NamedTypeReference?,
+    val original: AstSimpleTypeReference?,
+    private val modifiedSinceOriginal: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -34,19 +36,35 @@ class RootResolvedTypeReference private constructor(
     override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val span = original?.span ?: original?.declaringNameToken?.span
+    override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
+    override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
 
     override val inherentTypeBindings by lazy {
         val params = baseType.typeParameters ?: emptyList()
         TypeUnification.fromExplicit(params, params, arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(context: CTContext, original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(
+        context: CTContext,
+        original: AstSimpleTypeReference,
+        baseType: BoundBaseType,
+        parameters: List<BoundTypeArgument>?
+    ) : this(
         context,
         original,
+        false,
         original.mutability,
+        baseType,
+        parameters,
+    )
+
+    constructor(context: CTContext, explicitMutability: TypeMutability, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+        context,
+        null,
+        false,
+        explicitMutability,
         baseType,
         parameters,
     )
@@ -60,17 +78,23 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             newMutability,
             baseType,
             arguments,
         )
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): RootResolvedTypeReference {
         val combinedMutability = mutability?.let { this.mutability.union(it) } ?: this.mutability
+        if (combinedMutability == this.mutability) {
+            return this
+        }
+
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             combinedMutability,
             baseType,
             arguments,
@@ -79,9 +103,14 @@ class RootResolvedTypeReference private constructor(
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         val limitedMutability = mutability.limitedTo(limitToMutability)
+        if (limitedMutability == this.mutability) {
+            return this
+        }
+
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             limitedMutability,
             baseType,
             arguments,
@@ -103,6 +132,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             mutability,
             baseType,
             arguments,
@@ -129,16 +159,49 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
+    /**
+     * For example, given:
+     *
+     *     class Box<X> {
+     *         nested: X = init
+     *     }
+     *
+     *     interface A<T> {
+     *     }
+     *     interface B<U> : A<U> {
+     *     }
+     *     interface C<W> : B<Box<W>> {
+     *     }
+     *
+     * then these are the return values of [getInstantiatedSupertype]:
+     *
+     * |`this`|`superBaseType`|return value|
+     * |------|---------------|------------|
+     * | `B<S32>` | `A`       | `A<S32>`   |
+     * | `C<S32>` | `B`       | `B<Box<S32>>`   |
+     * | `C<S32>` | `A`       | `A<Box<S32>>`   |
+     * | `C<Box<E>>`   | `A`  | `A<Box<Box<E>>>` |
+     *
+     * @param superBaseType **must** be a supertype of [baseType] according to [BoundBaseType.isSubtypeOf]
+     * @return a parameterized reference to that [superBaseType] where the arguments are in the namespace of [baseType].
+     */
+    fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
+        return when (this.baseType) {
+            superBaseType -> this
+            context.swCtx.nothing -> superBaseType.baseReference
+            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
+        }
+    }
+
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
-                // TODO: these three special cases can be removed once generic supertypes are implemented
                 if (this.baseType == this.baseType.context.swCtx.nothing) {
-                    return other
+                    return other.withMutability(this.mutability.union(other.mutability))
                 }
                 if (other.baseType == other.baseType.context.swCtx.nothing) {
-                    return this
+                    return this.withMutability(this.mutability.union(other.mutability))
                 }
                 if (this == other) {
                     return this
@@ -146,22 +209,17 @@ class RootResolvedTypeReference private constructor(
                 if (this.equalsExceptMutability(other)) {
                     return withMutability(this.mutability.union(other.mutability))
                 }
-                // end of special cases until generic supertypes are implemented
                 val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
-                    check(commonSuperBaseType == this.baseType && commonSuperBaseType == other.baseType) { "Generic supertypes are not implemented, yet." }
-                    commonSuperBaseType.typeParameters.mapIndexed { typeParameterIndex, typeParameter ->
-                        val lhs = this.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(this.context)
-                        val rhs = other.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(other.context)
-                        lhs.intersect(rhs)
-                    }
+                    val commonSupertypeFromThis = this.getInstantiatedSupertype(commonSuperBaseType)
+                    val commonSupertypeFromOther = other.getInstantiatedSupertype(commonSuperBaseType)
+                    commonSupertypeFromThis.arguments?.zip(commonSupertypeFromOther.arguments ?: emptyList(), BoundTypeArgument::intersect)
                 }
                 RootResolvedTypeReference(
-                    context = context,
-                    original = null,
-                    explicitMutability = this.mutability.union(other.mutability),
-                    baseType = commonSuperBaseType,
-                    arguments = transformedArguments,
+                    context,
+                    this.mutability.union(other.mutability),
+                    commonSuperBaseType,
+                    transformedArguments,
                 )
             }
             is GenericTypeReference,
@@ -184,6 +242,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.withTypeVariables(variables) },
@@ -207,24 +266,24 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                // TODO: this special case can be removed once generic supertypes are implemented
+                /*
+                this special case is necessary. Nothing is a subtype of every other possible type,
+                which is something that cannot actually be denoted in source code (class Foo : Other<*> is not legal)
+                 */
                 if (assigneeType.baseType == assigneeType.baseType.context.swCtx.nothing) {
                     return carry
                 }
 
-                check(this.baseType.typeParameters.isNullOrEmpty() || this.baseType == assigneeType.baseType) {
-                    "generic inheritance not implemented yet"
-                }
-
+                val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
                 val selfArgs = this.arguments ?: emptyList()
-                val assigneeArgs = assigneeType.arguments ?: emptyList()
+                val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
                 return selfArgs
                     .zip(assigneeArgs)
                     .fold(carry) { innerCarry, (targetArg, sourceArg) ->
                         targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                     }
             }
-            is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
+            is UnresolvedType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
             is BoundTypeArgument -> {
                 // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument
@@ -241,7 +300,7 @@ class RootResolvedTypeReference private constructor(
                     this,
                     assignmentLocation,
                     carry,
-                    reason = { "none of $assigneeType is a subtype of $this" },
+                    reason = { "no component of ($assigneeType) is a subtype of $this" },
                 )
             }
         }
@@ -251,6 +310,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             this.context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateFreeVariables(context) },
@@ -261,14 +321,15 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             this.context,
             original,
+            true,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateAllParameters(context) },
         )
     }
 
-    override fun asAstReference(): TypeReference {
-        return original ?: NamedTypeReference(
+    override fun asAstReference(): AstSimpleTypeReference {
+        return original.takeUnless { modifiedSinceOriginal } ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),
             mutability,

@@ -18,11 +18,11 @@
 
 package compiler.binding.basetype
 
-import compiler.InternalCompilerError
 import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
@@ -31,6 +31,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
+import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -58,7 +59,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
-import kotlinext.get
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -84,7 +84,9 @@ class BoundBaseType(
             context,
             NamedTypeReference(this.simpleName),
             this,
-            if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
+            typeParameters?.map { typeParam ->
+                context.resolveTypeArgument(AstWildcardTypeArgument.INSTANCE, typeParam)
+            }
         )
     }
 
@@ -131,7 +133,6 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-
             typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
             superTypes.semanticAnalysisPhase1(diagnosis)
 
@@ -167,7 +168,7 @@ class BoundBaseType(
                         KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
                         AstCodeChunk(emptyList())
                     )
-                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters, _memberVariables) { this }
+                    constructor = defaultCtorAst.bindTo(context, typeRootContext, typeParameters, _memberVariables) { this }
                     constructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     constructor = declaredConstructors.first()
@@ -178,7 +179,7 @@ class BoundBaseType(
                         emptyList(),
                         AstCodeChunk(emptyList())
                     )
-                    destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    destructor = defaultDtorAst.bindTo(context, typeRootContext, typeParameters) { this }
                     destructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     destructor = declaredDestructors.first()
@@ -204,10 +205,6 @@ class BoundBaseType(
             }
 
             lintSean1(diagnosis)
-
-            if (superTypes.hasCyclicInheritance) {
-                return@phase1
-            }
 
             val overriddenInheritedFunctions: MutableSet<BoundMemberFunction> = Collections.newSetFromMap(IdentityHashMap())
             val allMemberFunctions = mutableListOf<BoundMemberFunction>()
@@ -262,10 +259,6 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-            if (superTypes.hasCyclicInheritance) {
-                return@phase2
-            }
-
             entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             typeParameters?.forEach { it.semanticAnalysisPhase2(diagnosis) }
@@ -310,10 +303,6 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis, runIfErrorsPreviously = false) {
-            if (superTypes.hasCyclicInheritance) {
-                return@phase3
-            }
-
             if (!kind.memberFunctionsAbstractByDefault) {
                 val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
                     .flatten()
@@ -431,15 +420,13 @@ class BoundBaseType(
         )
 
     /** @return Whether this type is the same as or a subtype of the given type. */
-    infix fun isSubtypeOf(other: BoundBaseType): Boolean {
-        if (other === this) return true
-        if (other === other.context.swCtx.any) return true
-        if (other === context.swCtx.nothing) return false
+    infix fun isSubtypeOf(supertype: BoundBaseType): Boolean {
+        if (supertype === this) return true
+        if (supertype === context.swCtx.any) return true
+        if (supertype === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
 
-        return superTypes.baseTypes
-            .map { it.isSubtypeOf(other) }
-            .fold(false, Boolean::or)
+        return supertype in this.superTypes.preprocessedInheritanceTree.parameterizedSupertypes.keys
     }
 
     enum class Kind(
@@ -507,13 +494,13 @@ class BoundBaseType(
                 return typesExcludingNothing[0]
             }
 
-            var pivot = typesExcludingNothing[0]
-            for (_type in typesExcludingNothing[1..<typesExcludingNothing.size]) {
+            var pivot = typesExcludingNothing.first()
+            for (_type in typesExcludingNothing.drop(1)) {
                 var type = _type
                 var swapped = false
                 while (!(type isSubtypeOf pivot)) {
-                    if (pivot.superTypes.baseTypes.isEmpty()) return pivot.context.swCtx.any
-                    if (pivot.superTypes.baseTypes.size > 1) {
+                    if (pivot.superTypes.directSuperBaseTypes.isEmpty()) return pivot.context.swCtx.any
+                    if (pivot.superTypes.directSuperBaseTypes.size > 1) {
                         if (swapped) {
                             return pivot.context.swCtx.any
                         }
@@ -523,7 +510,7 @@ class BoundBaseType(
                         swapped = true
                     }
                     else {
-                        pivot = pivot.superTypes.baseTypes.first()
+                        pivot = pivot.superTypes.directSuperBaseTypes.first()
                     }
                 }
             }
@@ -544,7 +531,7 @@ private class IrInterfaceImpl(
     val typeDef: BoundBaseType,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -568,7 +555,7 @@ private class IrClassImpl(
     val typeDef: BoundBaseType,
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }

@@ -196,3 +196,16 @@ interface IrUnregisterWeakReferenceStatement : IrExecutable {
 interface IrExpressionSideEffectsStatement : IrExecutable {
     val expression: IrExpression
 }
+
+/**
+ * Used by the frontend when either the frontend or the input program is sure that this instruction is never reached.
+ * Backends can do whatever they like with this info; most likely optimize or insert code that aids in debugging
+ * when this statement is actually reached.
+ */
+interface IrUnreachableStatement : IrExecutable {
+    /**
+     * `true` iff the frontend can mathematically prove that this instruction is unreachable. This allows the backend
+     * to elide debugging code or turn up optimization aggressiveness.
+     */
+    val isProvablyUnreachable: Boolean
+}

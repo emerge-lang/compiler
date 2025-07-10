@@ -53,4 +53,22 @@ class OtherRegressions : FreeSpec({
                 .shouldBeEmpty()
         }
     }
+
+    "diamond inheritance" - {
+        "does not produce invocation ambiguity" {
+            validateModule("""
+                interface A {
+                    fn foo(self)
+                }
+                interface B : A {}
+                interface C : A {}
+                interface D : B & C {}
+                
+                fn trigger(p: D) {
+                    p.foo()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
 })

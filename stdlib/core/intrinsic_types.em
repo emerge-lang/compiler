@@ -1,10 +1,10 @@
 package emerge.core
 
 import emerge.platform.panic
-import emerge.platform.collectStackTrace
 import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
-import emerge.core.StackTraceElement
+import emerge.core.range.ArrayRange
+import emerge.core.range.Iterable
 
 export class Unit {
     private constructor {}
@@ -414,7 +414,7 @@ export class Bool {
     export intrinsic nothrow operator fn `xor`(self, other: Bool) -> Bool
 }
 
-export class Array<Element> {
+export class Array<Element> : Iterable<Element> {
     export size: UWord = init
 
     private constructor {}
@@ -447,6 +447,8 @@ export class Array<Element> {
             set nCopied = nCopied + 1
         }
     }
+
+    export override fn asRange(capture self) -> exclusive ArrayRange<Element> = ArrayRange(self)
     
     // TODO: equals. Due to lack of a Any::equals (and its good that this isn't present!!)
     // this needs the equals fn as a parameter. The signature would be

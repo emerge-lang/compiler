@@ -18,9 +18,11 @@
 
 package compiler.diagnostic
 
+import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.util.groupRunsBy
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlin.math.min
 
 data class SourceHint(
@@ -32,13 +34,12 @@ data class SourceHint(
 
 fun illustrateSourceLocations(locations: Collection<Span>): String = illustrateHints(locations.map { SourceHint(it, null) })
 fun illustrateHints(vararg hints: SourceHint): String = illustrateHints(hints.toList())
-fun illustrateHints(hints: Collection<SourceHint>): String {
+fun illustrateHints(hints: List<SourceHint>): String {
     if (hints.isEmpty()) {
         throw IllegalArgumentException("No locations given to highlight")
     }
     hints.find { it.span.fromLineNumber != it.span.toLineNumber }?.let {
         throw NotImplementedError("Cannot highlight source locations that span multiple lines: ${it.span.fileLineColumnText}")
-        //
     }
 
     val hintGroups = hints
@@ -187,3 +188,7 @@ private fun buildIllustrationForSingleFile(
     sb.appendUnnumberedLinePrefix()
     sb.append('\n')
 }
+
+fun String.quote(): String = "`$this`"
+fun IdentifierToken.quote(): String = "`${this.value}`"
+fun CanonicalElementName.quote(): String = "`$this`"

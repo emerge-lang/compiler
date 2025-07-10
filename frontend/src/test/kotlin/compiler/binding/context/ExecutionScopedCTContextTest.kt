@@ -2,6 +2,7 @@ package compiler.compiler.binding.context
 
 import compiler.ast.Statement
 import compiler.binding.BoundStatement
+import compiler.binding.context.DeferrableExecutable
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -18,21 +19,21 @@ import kotlin.reflect.KProperty
 class ExecutionScopedCTContextTest : FreeSpec({
     "single lineage" - {
         val functionBoundary = MutableExecutionScopedCTContext.functionRootIn(mockSourceFileContext())
-        val functionDeferredOne by mockDeferrable()
+        val functionDeferredOne = mockk<DeferrableExecutable>()
         functionBoundary.addDeferredCode(functionDeferredOne)
-        val functionDeferredTwo by mockDeferrable()
+        val functionDeferredTwo = mockk<DeferrableExecutable>()
         functionBoundary.addDeferredCode(functionDeferredTwo)
 
         val scopeBoundary = MutableExecutionScopedCTContext.deriveNewScopeFrom(functionBoundary)
-        val scopeBoundaryDeferredOne by mockDeferrable()
+        val scopeBoundaryDeferredOne = mockk<DeferrableExecutable>()
         scopeBoundary.addDeferredCode(scopeBoundaryDeferredOne)
-        val scopeBoundaryDeferredTwo by mockDeferrable()
+        val scopeBoundaryDeferredTwo = mockk<DeferrableExecutable>()
         scopeBoundary.addDeferredCode(scopeBoundaryDeferredTwo)
 
         val leafContext = MutableExecutionScopedCTContext.deriveFrom(scopeBoundary)
-        val leafDeferredOne by mockDeferrable()
+        val leafDeferredOne = mockk<DeferrableExecutable>()
         leafContext.addDeferredCode(leafDeferredOne)
-        val leafDeferredTwo by mockDeferrable()
+        val leafDeferredTwo = mockk<DeferrableExecutable>()
         leafContext.addDeferredCode(leafDeferredTwo)
 
         "defer in single context" {
@@ -67,19 +68,19 @@ class ExecutionScopedCTContextTest : FreeSpec({
     }
     "split lineage" - {
         val functionBoundary = MutableExecutionScopedCTContext.functionRootIn(mockSourceFileContext())
-        val functionDeferred by mockDeferrable()
+        val functionDeferred = mockk<DeferrableExecutable>()
         functionBoundary.addDeferredCode(functionDeferred)
 
         val stepOne = MutableExecutionScopedCTContext.deriveFrom(functionBoundary)
         val branchOne = MutableExecutionScopedCTContext.deriveNewScopeFrom(stepOne)
-        val branchOneDeferred by mockDeferrable()
+        val branchOneDeferred = mockk<DeferrableExecutable>()
         branchOne.addDeferredCode(branchOneDeferred)
         val branchTwo = MutableExecutionScopedCTContext.deriveNewScopeFrom(stepOne)
-        val branchTwoDeferred by mockDeferrable()
+        val branchTwoDeferred = mockk<DeferrableExecutable>()
         branchTwo.addDeferredCode(branchTwoDeferred)
 
         val continueStep = MutableExecutionScopedCTContext.deriveFrom(stepOne)
-        val commonDeferrableLast by mockDeferrable()
+        val commonDeferrableLast = mockk<DeferrableExecutable>()
         continueStep.addDeferredCode(commonDeferrableLast)
 
         "branch one" - {
@@ -143,26 +144,4 @@ class ExecutionScopedCTContextTest : FreeSpec({
 private fun mockSourceFileContext(): SourceFileRootContext {
     val name = CanonicalElementName.Package(listOf("mock"))
     return SourceFileRootContext(PackageContext(ModuleContext(name, emptySet(), mockk()), name))
-}
-
-private fun mockDeferrable() = object {
-    private lateinit var instance: Statement
-    operator fun getValue(thisRef: Any?, prop: KProperty<*>): Statement {
-        if (!this::instance.isInitialized) {
-            this.instance = object : Statement, BoundStatement<Statement> by mockk() {
-                override val span: Span
-                    get() = mockk()
-
-                override lateinit var modifiedContext: ExecutionScopedCTContext
-                    private set
-                override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
-                    modifiedContext = context
-                    return this
-                }
-
-                override fun toString() = "Mock[${prop.name}]"
-            }
-        }
-        return this.instance
-    }
 }

@@ -23,7 +23,6 @@ import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.parameterDeclaredMoreThanOnce
 
 class BoundParameterList(
@@ -52,6 +51,20 @@ class BoundParameterList(
 
             parameter.semanticAnalysisPhase1(diagnosis)
         }
+    }
+
+    fun map(newOriginContext: ExecutionScopedCTContext, mapper: (parameter: BoundParameter, isReceiver: Boolean, contextCarry: ExecutionScopedCTContext) -> BoundParameter): BoundParameterList {
+        val newParameters = ArrayList<BoundParameter>(parameters.size)
+        for (parameter in parameters) {
+            val newParameter = mapper(parameter, parameter === declaredReceiver, newOriginContext)
+            newParameters.add(newParameter)
+        }
+
+        return BoundParameterList(
+            newOriginContext,
+            ParameterList(newParameters.map { it.declaration }),
+            newParameters,
+        )
     }
 
     companion object {

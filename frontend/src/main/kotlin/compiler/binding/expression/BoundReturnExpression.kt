@@ -40,6 +40,7 @@ import compiler.diagnostic.missingReturnValue
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -145,7 +146,7 @@ class BoundReturnExpression(
         val valueTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
         return IrCodeChunkImpl(
             listOfNotNull(valueTemporary, valueTemporaryRefIncrement) +
-            context.getFunctionDeferredCode().map { it.toBackendIrStatement() }.toList() +
+            context.getFunctionDeferredCode().mapToBackendIrWithDebugLocations() +
             listOf(IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary)))
         )
     }

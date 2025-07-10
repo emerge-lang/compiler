@@ -80,6 +80,8 @@ class BoundVariable(
      * the correct type.
      *
      * null if not determined yet or if it cannot be determined due to semantic errors.
+     * Available after [semanticAnalysisPhase2]; iff a type is declared and no inference is needed,
+     * already available after [semanticAnalysisPhase1].
      */
     var typeAtDeclarationTime: BoundTypeReference? = null
         private set
@@ -212,7 +214,7 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityIntersectedWith(implicitMutability)
+                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
                 } else {
                     val finalNullability = declaration.type.nullability
                     val finalMutability = declaration.type.mutability
@@ -276,7 +278,7 @@ class BoundVariable(
         newCtx.addVariable(this)
         if (initializerExpression != null) {
             newCtx.trackSideEffect(VariableInitialization.WriteToVariableEffect(this))
-            newCtx.addDeferredCode(DropLocalVariableStatement(this))
+            newCtx.addDeferredCode(DeferredLocalVariableGCRelease(this))
         }
         newCtx
     }

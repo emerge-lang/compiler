@@ -2,6 +2,7 @@ package compiler.binding.expression
 
 import compiler.ast.AstContinueExpression
 import compiler.binding.BoundLoop
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -9,6 +10,7 @@ import compiler.binding.impurity.ImpurityVisitor
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.continueOutsideOfLoop
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -22,7 +24,7 @@ class BoundContinueExpression(
     private var parentLoop: BoundLoop<*>? = null
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        parentLoop = context.getParentLoop()
+        parentLoop = context.parentLoop
         if (parentLoop == null) {
             diagnosis.continueOutsideOfLoop(this)
         }
@@ -46,9 +48,15 @@ class BoundContinueExpression(
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     private inner class IrContinueStatementImpl : IrContinueStatement {
-        override val loop get() = parentLoop!!.toBackendIrStatement()
+        override val loop get() = parentLoop!!.irLoopNode
     }
-    private val backendIr = IrContinueStatementImpl()
+    private val backendIr by lazy {
+        IrCodeChunkImpl(
+            listOfNotNull(parentLoop!!.irBeforeContinue) +
+            context.getDeferredCodeForBreakOrContinue(parentLoop!!).mapToBackendIrWithDebugLocations() +
+            IrContinueStatementImpl()
+        )
+    }
     override fun toBackendIrStatement(): IrExecutable {
         return backendIr
     }

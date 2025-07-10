@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
@@ -32,6 +33,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
+import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -44,7 +46,13 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.type.*
+import compiler.binding.misc_ir.IrUnreachableStatementImpl
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.TypeUnification
+import compiler.binding.type.TypeUseSite
+import compiler.binding.type.UnresolvedType
+import compiler.binding.type.nonDisjointPairs
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.InvocationCandidateNotApplicableDiagnostic
@@ -55,9 +63,11 @@ import compiler.diagnostic.nothrowViolatingInvocation
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.unresolvableConstructor
 import compiler.diagnostic.varianceOnInvocationTypeArgument
+import compiler.diagnostic.wildcardTypeArgumentOnInvocation
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -103,6 +113,9 @@ class BoundInvocationExpression(
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
     override val throwBehavior: SideEffectPrediction? get() {
+        if (functionToInvoke?.returnType?.isNonNullableNothing == true) {
+            return SideEffectPrediction.GUARANTEED
+        }
         val behaviors = valueArguments.map { it.throwBehavior } + listOf(functionToInvoke?.throwBehavior)
         return behaviors.reduceSequentialExecution()
     }
@@ -120,9 +133,11 @@ class BoundInvocationExpression(
             receiverExpression?.semanticAnalysisPhase1(diagnosis)
             receiverExpression?.markEvaluationResultUsed()
             valueArguments.forEach { it.semanticAnalysisPhase1(diagnosis) }
-            typeArguments = declaration.typeArguments?.map(context::resolveType)
+            typeArguments = declaration.typeArguments?.map { context.resolveTypeArgument(it, null) }
             typeArguments?.forEach {
-                if (it.variance != TypeVariance.UNSPECIFIED) {
+                if (it.astNode is AstWildcardTypeArgument) {
+                    diagnosis.wildcardTypeArgumentOnInvocation(it)
+                } else if (it.variance != TypeVariance.UNSPECIFIED) {
                     diagnosis.varianceOnInvocationTypeArgument(it)
                 }
             }
@@ -240,15 +255,15 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
+            diagnosis.noMatchingFunctionOverload(context, functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
             return null
         }
 
-        val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(
+        val evaluations = allCandidates.evaluateInvocationCandidates(
             // for static member fns, receiverExpression helps discover them. But for the actual invocation,
             // the receiver stops to matter
             receiverExceptReferringType,
-        )
+        ).toSet()
 
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
@@ -260,6 +275,7 @@ class BoundInvocationExpression(
                 )
             } else {
                 diagnosis.noMatchingFunctionOverload(
+                    context,
                     functionNameToken,
                     receiverExpression?.type,
                     valueArguments,
@@ -298,6 +314,7 @@ class BoundInvocationExpression(
                     return singleEval
                 } else {
                     diagnosis.noMatchingFunctionOverload(
+                        context,
                         functionNameToken,
                         receiverExpression?.type,
                         valueArguments,
@@ -309,6 +326,15 @@ class BoundInvocationExpression(
             }
             1 -> return legalMatches.single()
             else -> {
+                if (legalMatches.all { it.candidate is InheritedBoundMemberFunction }) {
+                    legalMatches
+                        .map { it.candidate as InheritedBoundMemberFunction }
+                        .let(InheritedBoundMemberFunction::closestCommonOverriddenFunction)
+                        ?.let { commonOverriddenFn ->
+                            sequenceOf(commonOverriddenFn).evaluateInvocationCandidates(receiverExceptReferringType).firstOrNull()
+                        }
+                        ?.let { return it }
+                }
                 diagnosis.ambiguousInvocation(
                     this,
                     evaluations
@@ -320,29 +346,20 @@ class BoundInvocationExpression(
         }
     }
 
-    /**
-     * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
-     * returns the functions matching the types sorted by matching quality to the given
-     * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
-     *
-     * In essence, this function is the overload resolution algorithm of Emerge.
-     *
-     * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
-     * returned function to determine the return type if that function were invoked.
-     * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
-     * it has to be treated as an error because the invocation is ambiguous.
-     */
-    private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
+    private fun Iterable<BoundOverloadSet<*>>.evaluateInvocationCandidates(receiver: BoundExpression<*>?): Sequence<OverloadCandidateEvaluation> {
+        return this.asSequence()
+            .flatMap { it.overloads }
+            .evaluateInvocationCandidates(receiver)
+    }
+
+    private fun Sequence<BoundFunction>.evaluateInvocationCandidates(
         receiver: BoundExpression<*>?,
-    ): List<OverloadCandidateEvaluation> {
+    ): Sequence<OverloadCandidateEvaluation> {
         check((receiver != null) xor (receiver?.type == null))
         val receiverType = receiver?.type
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
 
         return this
-            .asSequence()
-            .filter { it.parameterCount == argumentsIncludingReceiver.size }
-            .flatMap { it.overloads }
             // filter by (declared receiver)
             .filter { candidateFn -> (receiverType != null) == candidateFn.declaresReceiver }
             // filter by incompatible number of parameters
@@ -407,7 +424,6 @@ class BoundInvocationExpression(
                         && allDisambiguatingArgumentsAreErrorFree
                 )
             }
-            .toList()
     }
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
@@ -497,7 +513,7 @@ class BoundInvocationExpression(
     private fun buildBackendIrInvocation(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
-    ): IrExpression {
+    ): IrInvocationExpression {
         val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
@@ -505,7 +521,7 @@ class BoundInvocationExpression(
             .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??
-        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnAbstractType) {
+        if (fn is BoundMemberFunction && fn.isVirtual!! && isCallOnAbstractType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),
@@ -526,24 +542,35 @@ class BoundInvocationExpression(
         )
     }
 
-    override fun toBackendIrExpression(): IrExpression {
+    override fun toBackendIrExpression(): IrExpression = toBackendIrExpression { emptyList() }
+    fun toBackendIrExpression(buildAdditionalResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>): IrImplicitEvaluationExpression {
         return buildGenericInvocationLikeIr(
             context,
             declaration.span,
             listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
+            buildResultCleanup = { resultTemporary ->
+                val unreachable = when {
+                    functionToInvoke!!.throwBehavior == SideEffectPrediction.GUARANTEED -> {
+                        listOf(IrUnreachableStatementImpl("function $functionToInvoke reports that it is guaranteed to throw", true))
+                    }
+                    functionToInvoke!!.returnType!!.isNonNullableNothing -> {
+                        listOf(IrUnreachableStatementImpl("function $functionToInvoke returns emerge.core.Nothing!", true))
+                    }
+                    else -> emptyList()
+                }
+
+                unreachable + buildAdditionalResultCleanup(resultTemporary)
+            },
             assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        return buildGenericInvocationLikeIr(
-            context,
-            declaration.span,
-            listOfNotNull(receiverExceptReferringType) + valueArguments,
-            ::buildBackendIrInvocation,
-            { listOf(IrDropStrongReferenceStatementImpl(it)) },
-            assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
+        return toBackendIrExpression(
+            buildAdditionalResultCleanup = {
+                listOf(IrDropStrongReferenceStatementImpl(it))
+            }
         ).code
     }
 
@@ -703,7 +730,7 @@ internal fun buildGenericInvocationLikeIr(
         boundArgumentExprs,
         { args, argsCleanupCode ->
             val landingpad = if (assumeNothrow) null else {
-                val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().map { it.toBackendIrStatement() }.toList()
+                val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().mapToBackendIrWithDebugLocations()
                 val landingpadContext = MutableExecutionScopedCTContext.deriveFrom(context)
                 val throwableVar = VariableDeclaration(
                     invocationLocation,
@@ -726,9 +753,7 @@ internal fun buildGenericInvocationLikeIr(
                     IrVariableAccessExpressionImpl(throwableVar.backendIrDeclaration)
                 )
                 val rethrowStmt = IrCodeChunkImpl(
-                    context.getDeferredCodeForThrow()
-                        .map { it.toBackendIrStatement() }
-                        .toList()
+                    context.getDeferredCodeForThrow().mapToBackendIrWithDebugLocations()
                     +
                     listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)))
                 )

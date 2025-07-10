@@ -1,10 +1,10 @@
 package compiler.diagnostic
 
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.lexer.Span
 
 class VarianceOnInvocationTypeArgumentDiagnostic(
-    val argument: TypeArgument,
+    val argument: AstTypeArgument,
 ) : Diagnostic(
     Severity.ERROR,
     "Type parameters on invocations cannot have variance",

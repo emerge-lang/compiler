@@ -1,7 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
@@ -10,123 +10,126 @@ import compiler.diagnostic.unknownType
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class UnresolvedType private constructor(
-    val standInType: BoundTypeReference,
-    private val reference: NamedTypeReference,
+/**
+ * Acts like both `Any` and `Nothing` at the same time.
+ */
+class UnresolvedType(
+    override val context: CTContext,
+    val astNode: AstSimpleTypeReference,
     val parameters: List<BoundTypeArgument>?,
-    override val context: CTContext = standInType.context,
 ) : BoundTypeReference {
-    constructor(context: CTContext, reference: NamedTypeReference, parameters: List<BoundTypeArgument>?) : this(
-        context.swCtx.unresolvableReplacementType,
-        reference,
-        parameters,
-        context,
-    )
-
     override val simpleName = "<ERROR>"
-    override val isNullable get() = standInType.isNullable
-    override val mutability get() = standInType.mutability
-    override val baseTypeOfLowerBound get() = standInType.baseTypeOfLowerBound
-    override val span = reference.span
+    override val isNullable get() = false
+    override val mutability = astNode.mutability ?: TypeMutability.READONLY
+    override val baseTypeOfLowerBound get() = context.swCtx.nothing
+    override val span = astNode.span
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
+    override val isPartiallyUnresolved = true
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        diagnosis.unknownType(reference)
+        diagnosis.unknownType(this)
 
         parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutability(mutability),
-            reference,
+            context,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutabilityIntersectedWith(mutability),
-            reference,
+            context,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutabilityLimitedTo(limitToMutability),
-            reference,
+            context,
+            astNode,
             parameters?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return UnresolvedType(
-            standInType.withCombinedNullability(nullability),
-            reference,
+            context,
+            astNode,
             parameters,
         )
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return UnresolvedType(
-            standInType.withTypeVariables(variables),
-            reference,
+            context,
+            astNode,
             parameters?.map { it.withTypeVariables(variables) }
         )
     }
 
+    val asAny: RootResolvedTypeReference by lazy {
+        context.swCtx.any.baseReference.withMutability(this.mutability)
+    }
+
+    val asNothing: RootResolvedTypeReference by lazy {
+        context.swCtx.nothing.baseReference.withMutability(this.mutability)
+    }
+
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         return when(assigneeType) {
-            is RootResolvedTypeReference,
-            is GenericTypeReference,
-            is BoundIntersectionTypeReference,
-            is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
-            is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
-            is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
-            is NullableTypeReference -> standInType.unify(assigneeType, assignmentLocation, carry)
+            is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
+            else -> {
+                /* act like any */
+                asAny.unify(assigneeType, assignmentLocation, carry)
+            }
         }
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.defaultMutabilityTo(mutability),
-            reference,
+            context,
+            astNode,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return UnresolvedType(
-            standInType.closestCommonSupertypeWith(other),
-            reference,
+            context,
+            astNode,
             emptyList(),
         )
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.instantiateFreeVariables(context),
-            reference,
-            emptyList(),
+            this.context,
+            astNode,
+            parameters?.map { it.instantiateFreeVariables(context) },
         )
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.instantiateAllParameters(context),
-            reference,
-            emptyList(),
+            this.context,
+            astNode,
+            parameters?.map { it.instantiateAllParameters(context) },
         )
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
-        return standInType.hasSameBaseTypeAs(other)
+        // act like any AND nothing
+        return true
     }
 
     override fun asAstReference(): TypeReference {
-        return standInType.asAstReference()
+        return astNode
     }
 
     override fun toString() = simpleName

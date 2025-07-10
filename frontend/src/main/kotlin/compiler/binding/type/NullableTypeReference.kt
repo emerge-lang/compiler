@@ -18,6 +18,7 @@ class NullableTypeReference private constructor(
     override val span get() = nested.span
     override val isNullable = true
     override val isNonNullableNothing = false
+    override val isPartiallyUnresolved get()= nested.isPartiallyUnresolved
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))
@@ -27,8 +28,8 @@ class NullableTypeReference private constructor(
         return rewrap(nested.withMutability(mutability))
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        return rewrap(nested.withMutabilityIntersectedWith(mutability))
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
+        return rewrap(nested.withMutabilityUnionedWith(mutability))
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
@@ -108,6 +109,19 @@ class NullableTypeReference private constructor(
     override fun toString(): String = when (nested) {
         is BoundIntersectionTypeReference -> nested.toString(nullableComponents = true)
         else -> "$nested?"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is NullableTypeReference) return false
+
+        return this.nested == other.nested
+    }
+
+    override fun hashCode(): Int {
+        var hashCode = javaClass.hashCode()
+        hashCode = hashCode * 31 + nested.hashCode()
+        return hashCode
     }
 
     private fun rewrap(newNested: BoundTypeReference): BoundTypeReference {

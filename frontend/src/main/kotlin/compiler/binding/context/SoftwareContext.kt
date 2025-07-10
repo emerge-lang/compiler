@@ -83,6 +83,10 @@ class SoftwareContext {
         return emptyPackage
     }
 
+    fun resolveBaseType(canonicalName: CanonicalElementName.BaseType): BoundBaseType? {
+        return getPackage(canonicalName.packageName)?.resolveBaseType(canonicalName.simpleName)
+    }
+
     fun doSemanticAnalysis(diagnosis: Diagnosis) {
         modules
             .asSequence()
@@ -114,13 +118,24 @@ class SoftwareContext {
             ?: throw InternalCompilerError("Core package ${EmergeConstants.CORE_MODULE_NAME} is not registered")
     }
 
+    private fun lazyBaseTypeFromSource(name: CanonicalElementName.BaseType) = object {
+        private lateinit var value: BoundBaseType
+        operator fun getValue(thisRef: Any, p: KProperty<*>): BoundBaseType {
+            if (!this::value.isInitialized) {
+                value = resolveBaseType(name)
+                    ?: throw InternalCompilerError("Did not find core type $name")
+            }
+            return value
+        }
+    }
+
     private fun coreType(name: String? = null) = object {
         private lateinit var value: BoundBaseType
         operator fun getValue(thisRef: Any, p: KProperty<*>): BoundBaseType {
             if (!this::value.isInitialized) {
                 val simpleTypeName = name ?: p.name.capitalizeFirst()
-                value = emergeCorePackage.types.find { it.simpleName == simpleTypeName }
-                    ?: throw InternalCompilerError("Did not find core type $simpleTypeName")
+                value = emergeCorePackage.resolveBaseType(simpleTypeName)
+                    ?: throw InternalCompilerError("Did not find core type $name")
             }
             return value
         }
@@ -145,7 +160,7 @@ class SoftwareContext {
     val f64: BoundBaseType by coreType()
     val weak: BoundBaseType by coreType()
     val array: BoundBaseType by coreType()
-    val throwable: BoundBaseType by coreType()
+    val throwable: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.THROWABLE_TYPE_NAME)
     val error: BoundBaseType by coreType()
     val reflectionBaseType: BoundBaseType by lazy {
         val reflectPackageName = CanonicalElementName.Package(listOf(
@@ -159,6 +174,8 @@ class SoftwareContext {
             .singleOrNull()
             ?: throw InternalCompilerError("Could not find typeinfo type in emerge source")
     }
+
+    val iterable by lazyBaseTypeFromSource(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
 
     /**
      * the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because

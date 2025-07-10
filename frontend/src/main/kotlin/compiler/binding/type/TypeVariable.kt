@@ -59,8 +59,8 @@ class TypeVariable private constructor(
         return rewrap(asGeneric.withMutability(mutability))
     }
 
-    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        return rewrap(asGeneric.withMutabilityIntersectedWith(mutability))
+    override fun withMutabilityUnionedWith(mutability: TypeMutability?): BoundTypeReference {
+        return rewrap(asGeneric.withMutabilityUnionedWith(mutability))
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
@@ -107,7 +107,7 @@ class TypeVariable private constructor(
             is BoundTypeArgument, -> {
                 return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
             }
-            is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
+            is UnresolvedType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
                 if (isNullable) {

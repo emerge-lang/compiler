@@ -45,17 +45,17 @@ open class ValueNotAssignableDiagnostic(
     "Type mismatch: $reason",
     assignmentLocation
 ) {
-    override val message: String get() {
+    val simplifiedMessage: String? get() {
         val mutabilityUnconflictedSourceType = sourceType.withMutability(targetType.mutability)
         try {
             if (!(mutabilityUnconflictedSourceType isAssignableTo targetType)) {
                 // error due to more than mutability => standard message is fine
-                return super.message
+                return null
             }
         }
         catch (ex: TypeVariableNotUnderInferenceException) {
             // the necessary context to reason about the types is gone
-            return super.message
+            return null
         }
 
         when (sourceType.mutability) {
@@ -80,6 +80,8 @@ open class ValueNotAssignableDiagnostic(
             TypeMutability.EXCLUSIVE -> throw InternalCompilerError("This should not have happened")
         }
     }
+
+    override val message: String get() = simplifiedMessage ?: super.message
 
     override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $span"
 }

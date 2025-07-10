@@ -19,6 +19,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmVerifierFailureAction
@@ -247,6 +249,10 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
                 @Suppress("UNCHECKED_CAST")
                 context.exitFunction = fn as LlvmFunction<LlvmVoidType>
             }
+            COLLECT_STACK_TRACE_FUNCTION_NAME -> {
+                @Suppress("UNCHECKED_CAST")
+                context.collectStackTraceImpl = fn as LlvmFunction<EmergeFallibleCallResult<LlvmPointerType<out EmergeHeapAllocated>>>
+            }
         }
     }
 
@@ -256,6 +262,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "malloc")
         private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "free")
         private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "exit")
+        private val COLLECT_STACK_TRACE_FUNCTION_NAME = CanonicalElementName.Function(EmergeConstants.PLATFORM_MODULE_NAME, "collectStackTrace")
 
         private val FUNCTION_SYMBOL_NAME_OVERRIDES: Map<CanonicalElementName.Function, String> = mapOf(
             // find those by calling the c-pre-processor on libunwind.h

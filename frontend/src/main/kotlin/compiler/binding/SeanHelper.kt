@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.InternalCompilerError
 import compiler.diagnostic.Diagnosis
+import kotlin.reflect.KProperty
 
 /**
  * Sean is short for SEmantic ANalysis
@@ -9,11 +10,16 @@ import compiler.diagnostic.Diagnosis
 class SeanHelper {
     // TODO: avoid double-checking on a best-effort basis without allocating new objects per invocation of the phases
     private var phase1DoneOn: Diagnosis? = null
-    private var phase1HadErrors = false
+    var phase1HadErrors = false
+        private set
+
     private var phase2DoneOn: Diagnosis? = null
-    private var phase2HadErrors = false
+    var phase2HadErrors = false
+        private set
+
     private var phase3DoneOn: Diagnosis? = null
-    private var phase3HadErrors = false
+    var phase3HadErrors = false
+        private set
 
     fun phase1(diagnosis: Diagnosis, impl: () -> Unit) {
         phase1DoneOn?.let { phase1Diag ->
@@ -149,5 +155,48 @@ class SeanHelper {
          * can be invoked within [phase2] to interact with the `runIfErrorsPreviously` parameter of [phase3].
          */
         fun markErroneous()
+    }
+
+    interface SeanLateinitDelegate<T> {
+        operator fun getValue(thisRef: Any?, prop: KProperty<*>): T
+        operator fun setValue(thisRef: Any?, prop: KProperty<*>, value: T)
+    }
+
+    fun <T> resultOfPhase1(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(1, SeanHelper::phase1Done, allowReassignment)
+    fun <T> resultOfPhase2(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(2, SeanHelper::phase2Done, allowReassignment)
+    fun <T> resultOfPhase3(allowReassignment: Boolean = true): SeanLateinitDelegate<T> = SeanLateinitDelegateImpl(3, SeanHelper::phase3Done, allowReassignment)
+
+    private inner class SeanLateinitDelegateImpl<T>(
+        val phaseN: Int,
+        val phaseComplete: (SeanHelper) -> Boolean,
+        val allowReassignment: Boolean,
+    ) : SeanLateinitDelegate<T> {
+        private var value: T? = null
+        private var initialized = false
+
+        override fun getValue(thisRef: Any?, prop: KProperty<*>): T {
+            if (!initialized) {
+                throw InternalCompilerError(if (phaseComplete(this@SeanHelper)) {
+                    "Property ${prop.name} was not initialized during semantic analysis phase $phaseN"
+                } else {
+                    "Property ${prop.name} on $thisRef accessed before semantic analysis phase $phaseN is complete"
+                })
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            return value as T
+        }
+
+        override fun setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
+            if (phaseComplete(this@SeanHelper)) {
+                throw InternalCompilerError("Property ${prop.name} is initialized or modified after semantic analysis phase $phaseN was completed")
+            }
+            if (this.initialized && allowReassignment) {
+                throw InternalCompilerError("Property ${prop.name} was already initialized, cannot re-assign")
+            }
+
+            this.value = value
+            this.initialized = true
+        }
     }
 }

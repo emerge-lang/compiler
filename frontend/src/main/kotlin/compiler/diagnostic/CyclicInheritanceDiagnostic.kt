@@ -9,7 +9,7 @@ class CyclicInheritanceDiagnostic(
     involvingSupertype: BoundSupertypeDeclaration,
 ) : Diagnostic(
     Severity.ERROR,
-    "Type ${onType.name.value} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName} creates a cycle in the type hierarchy. That is not allowed.",
+    "Type ${onType.name.quote()} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName.quote()} creates a cycle in the type hierarchy. That is not allowed.",
     involvingSupertype.astNode.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {

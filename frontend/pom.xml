@@ -32,11 +32,6 @@
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
-        <resources>
-            <resource>
-                <directory>../backend-api/src/main/resources</directory>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>

@@ -361,6 +361,82 @@ class VariableErrors : FreeSpec({
                         .shouldHaveNoDiagnostics()
                 }
             }
+
+            "interaction with foreach loops" - {
+                "cannot access variable that is only maybe initialized" {
+                    validateModule("""
+                        intrinsic fn getSomeArray() -> Array<S32>
+                        fn test() {
+                            var x: S32
+                            while random() {
+                                set x = 5
+                            }
+                            y = x
+                        }
+                    """.trimIndent())
+                        .shouldFind<VariableAccessedBeforeInitializationDiagnostic> {
+                            it.maybeInitialized shouldBe true
+                            it.declaration.name.value shouldBe "x"
+                        }
+                }
+
+                "cannot initialize single-assignment variable in loop" {
+                    validateModule("""
+                        intrinsic fn getSomeArray() -> Array<S32>
+                        fn test() {
+                            x: S32
+                            foreach i in getSomeArray() {
+                                set x = 5
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+
+                    validateModule("""
+                        intrinsic fn getSomeArray() -> Array<S32>
+                        fn test() {
+                            x: S32
+                            foreach i in getSomeArray() {
+                                y = 3
+                                set x = 5
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldFind<IllegalAssignmentDiagnostic>()
+                }
+
+                "execution uncertainty of loops doesn't persist to code after the loop" {
+                    validateModule("""
+                        intrinsic fn getSomeArray() -> Array<S32>
+                        fn test() {
+                            x: S32
+                            foreach i in getSomeArray() {
+                                unrelated = 3
+                            }
+                            set x = 5
+                            y = x
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "execution uncertainty of loops doesn't affect nested loops" {
+                    validateModule("""
+                        intrinsic fn getSomeArray() -> Array<S32>
+                        fn test() {
+                            foreach i in getSomeArray() {
+                                x: S32
+                                set x = 5
+                                foreach j in getSomeArray() {
+                                    y = x
+                                }
+                                z = x
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
         }
     }
 

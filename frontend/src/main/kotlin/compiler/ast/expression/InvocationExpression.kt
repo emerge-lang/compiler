@@ -21,7 +21,7 @@ package compiler.ast.expression
 import compiler.InternalCompilerError
 import compiler.ast.Expression
 import compiler.ast.Expression.Companion.chain
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.Span
@@ -33,7 +33,7 @@ class InvocationExpression(
      * * `obj.doStuff()` => `MemberAccessExpression(obj, doStuff)`
      */
     val targetExpression: Expression,
-    val typeArguments: List<TypeArgument>?,
+    val typeArguments: List<AstTypeArgument>?,
     val argumentExpressions: List<Expression>,
     override val span: Span,
 ) :Expression {

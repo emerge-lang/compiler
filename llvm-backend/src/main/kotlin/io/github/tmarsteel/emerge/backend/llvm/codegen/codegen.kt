@@ -47,6 +47,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnreachableStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
@@ -114,6 +115,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleS
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
@@ -258,7 +260,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             val type = context.getReferenceSiteType(code.type)
             if (code.isSSA) {
                 code.emitRead = {
-                    throw CodeGenerationException("invalid IR - accessing an SSA variable before its assignment")
+                    throw CodeGenerationException("invalid IR - accessing SSA variable `${code.name}` before its assignment at ${currentDebugLocation()}")
                 }
                 code.emitWrite = { value ->
                     check(value.isLlvmAssignableTo(type)) {
@@ -455,6 +457,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrUpdateSourceLocationStatement -> {
             markSourceLocation(code.lineNumber, code.columnNumber)
             return ExecutableResult.ExecutionOngoing
+        }
+        is IrUnreachableStatement -> {
+            return ExpressionResult.Terminated(if (code.isProvablyUnreachable) {
+                unreachable()
+            } else {
+                inlinePanic("unreachable code was reached at ${currentDebugLocation()}")
+            })
         }
     }
 }
