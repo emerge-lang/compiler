@@ -1,13 +1,13 @@
 module(
     name = "rules_emerge",
-    version = "0.5.0",
+    version = "0.6.0",
 )
 
 # these two lines are syntactically sensitive: the .github/workflows/release.yaml workflows will update these two variables
 # with the correct reference to the release artifacts on all new releases
-_WINDOWS_DOWNLOAD_URL = "https://github.com/emerge-lang/compiler/releases/download/v0.5.0/emerge-toolchain-windows-x86_64-0.5.0.zip"
+_WINDOWS_DOWNLOAD_URL = "https://github.com/emerge-lang/compiler/releases/download/v0.6.0/emerge-toolchain-windows-x86_64-0.6.0.zip"
 
-_WINDOWS_SHA256 = "F71310F4A231AE78818938E1024EBE49365180FE3054A85C7CAE55FE7D2F6FB8"
+_WINDOWS_SHA256 = "9F64DEC17D5F6A23602887A10E229110D459B648F228C8F6A67EAAF25F142981"
 
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
