@@ -2,7 +2,6 @@ package compiler.binding.type
 
 import compiler.InternalCompilerError
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
@@ -28,8 +27,9 @@ data class BoundTypeParameter(
      * Available after [semanticAnalysisPhase1]. If the bound references another [compiler.binding.type.BoundTypeParameter]
      * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
-    lateinit var bound: BoundTypeReference
-        private set
+    val bound: BoundTypeReference by lazy {
+        astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
+    }
 
     val modifiedContext: CTContext = MutableCTContext(context).also {
         it.addTypeParameter(this)
@@ -41,7 +41,6 @@ data class BoundTypeParameter(
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }
-        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -57,26 +56,10 @@ data class BoundTypeParameter(
 
     override fun toStringForErrorMessage() = "type parameter $name"
 
-    /**
-     * Creates a [BoundTypeArgument] that is a valid argument for this parameter; to be used in places
-     * where an argument is needed but user code didn't specify one
-     */
-    fun createPlaceholderTypeArgument(context: CTContext): BoundTypeArgument {
-        return BoundTypeArgument(
-            context,
-            TypeArgument(TypeVariance.UNSPECIFIED, bound.asAstReference()),
-            TypeVariance.UNSPECIFIED,
-            bound,
-        )
-    }
-
     private val _backendIr by lazy { IrTypeParameterImpl(name, variance, bound) }
     fun toBackendIr(): IrBaseType.Parameter = _backendIr
 
     override fun toString(): String {
-        if (!this::bound.isInitialized) {
-            return "[not validated; $astNode]"
-        }
         var str = ""
         if (variance != TypeVariance.UNSPECIFIED) {
             str += variance.name.lowercase()

@@ -14,6 +14,7 @@ import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -332,6 +333,24 @@ class TypeErrors : FreeSpec({
                     fn trigger(p: X<B>) {}
                 """.trimIndent())
                     .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+        }
+
+        "wildcard type argument with variance" - {
+            "in" {
+                validateModule("""
+                    interface I<T> {}
+                    fn trigger(p: I<in *>) {}
+                """.trimIndent())
+                    .shouldFind<WildcardTypeArgumentWithVarianceDiagnostic>()
+            }
+
+            "out" {
+                validateModule("""
+                    interface I<T> {}
+                    fn trigger(p: I<out *>) {}
+                """.trimIndent())
+                    .shouldFind<WildcardTypeArgumentWithVarianceDiagnostic>()
             }
         }
     }

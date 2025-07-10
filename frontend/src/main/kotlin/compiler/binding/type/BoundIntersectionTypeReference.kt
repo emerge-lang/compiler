@@ -1,8 +1,8 @@
 package compiler.binding.type
 
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -389,7 +389,7 @@ class BoundIntersectionTypeReference private constructor(
                     }
                     return BoundTypeArgument(
                         context,
-                        TypeArgument(compoundVariance, intersectionType.asAstReference()),
+                        AstSpecificTypeArgument(compoundVariance, intersectionType.asAstReference()),
                         compoundVariance,
                         intersectionType,
                     )

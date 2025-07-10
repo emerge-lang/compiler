@@ -1,5 +1,7 @@
 package compiler.binding.type
 
+import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -11,6 +13,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.wildcardTypeArgumentWithVariance
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -49,6 +52,9 @@ class BoundTypeArgument(
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         forUsage.validateForTypeVariance(variance, diagnosis)
         type.validate(forUsage.deriveIrrelevant(), diagnosis)
+        if (astNode is AstWildcardTypeArgument && astNode.variance != TypeVariance.UNSPECIFIED) {
+            diagnosis.wildcardTypeArgumentWithVariance(this)
+        }
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeArgument {
@@ -155,7 +161,7 @@ class BoundTypeArgument(
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, TypeArgument(resultVariance, nestedInstantiated.asAstReference()), resultVariance, nestedInstantiated)
+        return BoundTypeArgument(this.context, AstSpecificTypeArgument(resultVariance, nestedInstantiated.asAstReference()), resultVariance, nestedInstantiated)
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
@@ -241,7 +247,7 @@ class BoundTypeArgument(
 
         return BoundTypeArgument(
             this.context,
-            TypeArgument(resultVariance, resultType.asAstReference()),
+            AstSpecificTypeArgument(resultVariance, resultType.asAstReference()),
             resultVariance,
             resultType,
         )

@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
@@ -62,6 +63,7 @@ import compiler.diagnostic.nothrowViolatingInvocation
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.unresolvableConstructor
 import compiler.diagnostic.varianceOnInvocationTypeArgument
+import compiler.diagnostic.wildcardTypeArgumentOnInvocation
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
@@ -131,9 +133,11 @@ class BoundInvocationExpression(
             receiverExpression?.semanticAnalysisPhase1(diagnosis)
             receiverExpression?.markEvaluationResultUsed()
             valueArguments.forEach { it.semanticAnalysisPhase1(diagnosis) }
-            typeArguments = declaration.typeArguments?.map(context::resolveType)
+            typeArguments = declaration.typeArguments?.map { context.resolveTypeArgument(it, null) }
             typeArguments?.forEach {
-                if (it.variance != TypeVariance.UNSPECIFIED) {
+                if (it.astNode is AstWildcardTypeArgument) {
+                    diagnosis.wildcardTypeArgumentOnInvocation(it)
+                } else if (it.variance != TypeVariance.UNSPECIFIED) {
                     diagnosis.varianceOnInvocationTypeArgument(it)
                 }
             }

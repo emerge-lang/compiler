@@ -18,8 +18,11 @@
 
 package compiler.binding.context
 
+import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -82,8 +85,23 @@ interface CTContext {
 
     val allTypeParameters: Sequence<BoundTypeParameter>
 
-    fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+    fun resolveTypeArgument(ref: TypeArgument, parameter: BoundTypeParameter?): BoundTypeArgument {
+        return when (ref) {
+            is AstSpecificTypeArgument -> BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+            is AstWildcardTypeArgument -> if (parameter == null) {
+                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.topTypeRef)
+            } else {
+                BoundTypeArgument(
+                    this,
+                    ref,
+                    when (parameter.variance) {
+                        TypeVariance.UNSPECIFIED -> TypeVariance.OUT
+                        else -> TypeVariance.UNSPECIFIED
+                    },
+                    parameter.bound,
+                )
+            }
+        }
     }
 
     fun resolveType(ref: TypeReference): BoundTypeReference

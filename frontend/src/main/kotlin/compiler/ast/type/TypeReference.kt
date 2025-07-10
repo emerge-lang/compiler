@@ -256,7 +256,7 @@ class AstIntersectionType(
 
     override fun hashCode(): Int {
         var result = javaClass.hashCode()
-        result = 31 * components.hashCode()
+        result = 31 * result + components.hashCode()
 
         return result
     }

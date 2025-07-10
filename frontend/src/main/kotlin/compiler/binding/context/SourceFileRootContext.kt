@@ -13,7 +13,6 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundMixinStatement
-import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
@@ -82,7 +81,7 @@ class SourceFileRootContext(
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
-                (ref as? NamedTypeReference)?.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
+                (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it, null) },
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 

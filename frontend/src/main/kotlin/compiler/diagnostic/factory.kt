@@ -13,7 +13,9 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
@@ -111,12 +113,20 @@ fun Diagnosis.variableTypeNotDeclared(variable: BoundVariable) {
     add(MissingVariableTypeDiagnostic(variable.declaration, variable.kind))
 }
 
+fun Diagnosis.wildcardTypeArgumentWithVariance(argument: BoundTypeArgument) {
+    add(WildcardTypeArgumentWithVarianceDiagnostic(argument.astNode))
+}
+
 fun Diagnosis.varianceOnFunctionTypeParameter(parameter: BoundTypeParameter) {
     add(VarianceOnFunctionTypeParameterDiagnostic(parameter.astNode))
 }
 
 fun Diagnosis.varianceOnInvocationTypeArgument(argument: BoundTypeArgument) {
     add(VarianceOnInvocationTypeArgumentDiagnostic(argument.astNode))
+}
+
+fun Diagnosis.wildcardTypeArgumentOnInvocation(argument: BoundTypeArgument) {
+    add(WildcardTypeArgumentOnInvocationDiagnostic(argument.astNode))
 }
 
 fun Diagnosis.unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVariance: TypeVariance) {
@@ -245,6 +255,10 @@ fun Diagnosis.unconventionalTypeName(name: IdentifierToken, convention: Unconven
 
 fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
+}
+
+fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: TypeArgument, parameter: TypeParameter?) {
+    add(ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(argument, parameter))
 }
 
 fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {

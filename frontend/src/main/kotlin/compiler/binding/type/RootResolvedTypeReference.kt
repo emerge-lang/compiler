@@ -188,7 +188,7 @@ class RootResolvedTypeReference private constructor(
     fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
         return when (this.baseType) {
             superBaseType -> this
-            context.swCtx.nothing -> if (superBaseType.typeParameters.isNullOrEmpty()) superBaseType.baseReference else TODO("use wildcard for all type args")
+            context.swCtx.nothing -> superBaseType.baseReference
             else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
         }
     }
@@ -266,9 +266,10 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                // TODO: this special case can be removed as soon as wildcard type args are implemented:
-                // then, BoundBaseType.baseReference can use the wildcard as a type argument
-                // and that allows Nothing.getInstantiatedSupertype to handle a supertype with type arguments
+                /*
+                this special case is necessary. Nothing is a subtype of every other possible type,
+                which is something that cannot actually be denoted in source code (class Foo : Other<*> is not legal)
+                 */
                 if (assigneeType.baseType == assigneeType.baseType.context.swCtx.nothing) {
                     return carry
                 }

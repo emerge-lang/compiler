@@ -17,6 +17,7 @@ import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.IllegalFunctionBodyDiagnostic
 import compiler.diagnostic.IllegalSupertypeDiagnostic
+import compiler.diagnostic.ImmediateWildcardTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
@@ -830,6 +831,21 @@ class ClassErrors : FreeSpec({
                 .shouldFind<IllegalSupertypeDiagnostic> {
                     it.supertype.shouldBeInstanceOf< NamedTypeReference>().simpleName shouldBe "T"
                 }
+        }
+
+        "wildcard as immediate argument to supertype declaration" {
+            validateModule("""
+                interface I<T> {}
+                class C : I<*> {}
+            """.trimIndent())
+                .shouldFind<ImmediateWildcardTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface I<T> {}
+                interface J<T> {}
+                class C : I<J<*>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
 
         "duplicate inheritance from same base type" {

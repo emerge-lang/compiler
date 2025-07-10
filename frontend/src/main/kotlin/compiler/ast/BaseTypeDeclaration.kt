@@ -19,8 +19,8 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -77,7 +77,7 @@ class BaseTypeDeclaration(
             mutability = TypeMutability.READONLY,
             declaringNameToken = IdentifierToken(this.name.value, location),
             typeParameters?.map {
-                TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(it.name))
+                AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(it.name))
             },
         )
 

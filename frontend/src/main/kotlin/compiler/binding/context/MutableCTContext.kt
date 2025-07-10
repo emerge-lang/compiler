@@ -122,13 +122,15 @@ open class MutableCTContext(
             }
         }
 
-        val resolvedArguments = ref.arguments?.map(::resolveType)
         val baseType = when (ref) {
             is AstAbsoluteTypeReference -> {
                 swCtx.getPackage(ref.canonicalTypeName.packageName)
                     ?.resolveBaseType(ref.canonicalTypeName.simpleName)
             }
             is NamedTypeReference -> resolveBaseType(ref.simpleName)
+        }
+        val resolvedArguments = ref.arguments?.mapIndexed { index, typeArgAstNode ->
+            resolveTypeArgument(typeArgAstNode, baseType?.typeParameters?.getOrNull(index))
         }
         return baseType
             ?.let { RootResolvedTypeReference(this, ref, it, resolvedArguments) }

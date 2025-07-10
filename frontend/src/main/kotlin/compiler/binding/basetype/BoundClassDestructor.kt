@@ -5,8 +5,8 @@ import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -70,7 +70,7 @@ class BoundClassDestructor(
                 TypeMutability.EXCLUSIVE,
                 classDef.declaration.name,
                 classDef.typeParameters?.map {
-                    TypeArgument(
+                    AstSpecificTypeArgument(
                         TypeVariance.UNSPECIFIED,
                         NamedTypeReference(it.astNode.name),
                     )

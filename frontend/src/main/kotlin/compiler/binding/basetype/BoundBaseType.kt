@@ -18,11 +18,11 @@
 
 package compiler.binding.basetype
 
-import compiler.InternalCompilerError
 import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
@@ -84,7 +84,9 @@ class BoundBaseType(
             context,
             NamedTypeReference(this.simpleName),
             this,
-            if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
+            typeParameters?.map { typeParam ->
+                context.resolveTypeArgument(AstWildcardTypeArgument.INSTANCE, typeParam)
+            }
         )
     }
 

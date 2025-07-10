@@ -10,6 +10,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.WildcardTypeArgumentOnInvocationDiagnostic
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
@@ -185,5 +186,16 @@ class VarianceErrors : FreeSpec({
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }
+    }
+
+    "wildcard type arguments are not valid in function invocations" {
+        validateModule("""
+            interface B {}
+            fn subject<T : B>(p: T) -> T = p
+            fn trigger() {
+                subject::<*>(3)
+            }
+        """.trimIndent())
+            .shouldFind<WildcardTypeArgumentOnInvocationDiagnostic>()
     }
 })
