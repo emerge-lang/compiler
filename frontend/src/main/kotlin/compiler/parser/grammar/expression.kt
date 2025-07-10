@@ -39,7 +39,7 @@ import compiler.ast.expression.NumericLiteralExpression
 import compiler.ast.expression.ParenthesisedExpression
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.expression.UnaryExpression
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -374,7 +374,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
-        val typeArguments: List<TypeArgument>?
+        val typeArguments: List<AstTypeArgument>?
         val next = tokens.next()!!
         if (next is TypeArgumentBundle) {
             typeArguments = next.arguments

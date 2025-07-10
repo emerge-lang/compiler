@@ -23,6 +23,7 @@ import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
@@ -39,7 +40,6 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
-import compiler.ast.type.TypeArgument as AstTypeArgument
 
 val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.MUTABLE)

@@ -1,12 +1,12 @@
 package compiler.diagnostic
 
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.lexer.Span
 
 class ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(
-    val erroneousArg: TypeArgument,
+    val erroneousArg: AstTypeArgument,
     val parameter: TypeParameter?,
 ) : Diagnostic(
     Severity.ERROR,
@@ -22,7 +22,7 @@ class ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(
                  null -> "out "
             }
             val boundStr = parameter?.bound?.toString() ?: "Any"
-            return "$varianceStr $boundStr"
+            return "$varianceStr$boundStr"
         }
     }
 }

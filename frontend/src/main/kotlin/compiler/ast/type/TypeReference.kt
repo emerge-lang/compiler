@@ -82,7 +82,7 @@ sealed interface TypeReference {
  */
 sealed interface AstSimpleTypeReference : TypeReference {
     val simpleName: String
-    val arguments: List<TypeArgument>?
+    val arguments: List<AstTypeArgument>?
     override fun withMutability(mutability: TypeMutability): AstSimpleTypeReference
     override fun withNullability(nullability: TypeReference.Nullability): AstSimpleTypeReference
 }
@@ -95,7 +95,7 @@ data class NamedTypeReference(
     override val nullability: TypeReference.Nullability = TypeReference.Nullability.UNSPECIFIED,
     override val mutability: TypeMutability? = null,
     val declaringNameToken: IdentifierToken? = null,
-    override val arguments: List<TypeArgument>? = null,
+    override val arguments: List<AstTypeArgument>? = null,
     override val span: Span? = declaringNameToken?.span,
 ) : AstSimpleTypeReference {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
@@ -268,7 +268,7 @@ class AstIntersectionType(
 
 data class AstAbsoluteTypeReference(
     val canonicalTypeName: CanonicalElementName.BaseType,
-    override val arguments: List<TypeArgument>? = null,
+    override val arguments: List<AstTypeArgument>? = null,
     override val nullability: TypeReference.Nullability = TypeReference.Nullability.UNSPECIFIED,
     override val mutability: TypeMutability? = null,
     override val span: Span,

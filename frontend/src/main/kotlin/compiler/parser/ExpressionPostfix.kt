@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.ast.expression.*
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
 import compiler.lexer.*
 
@@ -25,7 +25,7 @@ class NotNullExpressionPostfix(
 }
 
 class InvocationExpressionPostfix(
-    val typeArguments: List<TypeArgument>?,
+    val typeArguments: List<AstTypeArgument>?,
     val valueParameterExpressions: List<Expression>,
     val closingParenthesis: OperatorToken,
 ) : ExpressionPostfix<InvocationExpression> {

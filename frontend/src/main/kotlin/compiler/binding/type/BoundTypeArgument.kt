@@ -1,8 +1,8 @@
 package compiler.binding.type
 
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.AstWildcardTypeArgument
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -21,7 +21,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
     override val context: CTContext,
-    val astNode: TypeArgument,
+    val astNode: AstTypeArgument,
     val variance: TypeVariance,
     val type: BoundTypeReference,
 ) : BoundTypeReference {

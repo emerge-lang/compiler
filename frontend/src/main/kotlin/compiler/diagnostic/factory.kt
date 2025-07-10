@@ -12,8 +12,8 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -257,7 +257,7 @@ fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
 }
 
-fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: TypeArgument, parameter: TypeParameter?) {
+fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: AstTypeArgument, parameter: TypeParameter?) {
     add(ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(argument, parameter))
 }
 

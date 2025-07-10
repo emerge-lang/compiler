@@ -3,7 +3,7 @@ package compiler.ast.type
 import compiler.lexer.Operator
 import compiler.lexer.Span
 
-sealed interface TypeArgument {
+sealed interface AstTypeArgument {
     val variance: TypeVariance
     val span: Span?
 }
@@ -15,7 +15,7 @@ sealed interface TypeArgument {
 data class AstSpecificTypeArgument(
     override val variance: TypeVariance,
     val type: TypeReference,
-) : TypeArgument {
+) : AstTypeArgument {
     override val span: Span? = type.span
 
     override fun toString(): String {
@@ -32,7 +32,7 @@ data class AstSpecificTypeArgument(
 class AstWildcardTypeArgument private constructor(
     override val variance: TypeVariance,
     override val span: Span? = null,
-) : TypeArgument {
+) : AstTypeArgument {
     override fun toString(): String = Operator.TIMES.text
 
     companion object {
