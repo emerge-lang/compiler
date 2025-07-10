@@ -206,6 +206,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 * denote all identifiers quoted from input source that appear in diagnostics. Is already done
   sporadically -> do systematically
 * give every diagnostic type a code (like typescript does)
+* make CTContext.findInternalVariableName and .findInternalTypeName work before binding is complete
+  If they are called before, they will settle imports. And some imports might decide they are erroneous
+  because the symbol they import will only be bound later.
 
 ### Stateless Singletons
 
