@@ -29,10 +29,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    6. ~~solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
       already carry a mutability, wrapper mutability can likely piggy-back onto that. It needs union types or multiple
       type parameter bounds.~~
-4. general iterable types
-   * implement generic supertypes - yey, another logic monstrosity
-   * Like Java Iterable<T>, D ranges, ... ?
-   * for each over iterable
+4. ~~general iterable types~~
+   * ~~implement generic supertypes - yey, another logic monstrosity~~
+   * ~~for each over iterable~~
 5. arrays slices; goal/target situation
    * there are array-base-objects, identical to what an Array<T> is before
    * emerge source can never reference these base objects directly, only ever slices of that
