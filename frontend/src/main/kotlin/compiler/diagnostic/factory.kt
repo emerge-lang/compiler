@@ -282,8 +282,8 @@ fun Diagnosis.inconsistentTypeArgumentsOnDiamondInheritance(diamondRoot: BoundBa
     ))
 }
 
-fun Diagnosis.functionDoesNotOverride(function: BoundDeclaredFunction) {
-    add(SuperFunctionForOverrideNotFoundDiagnostic(function.declaration))
+fun Diagnosis.functionDoesNotOverride(function: BoundDeclaredBaseTypeMemberFunction) {
+    add(SuperFunctionForOverrideNotFoundDiagnostic(function.declaration, function.ownerBaseType.superTypes.hasUnresolvedSupertypes))
 }
 
 fun Diagnosis.undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BoundBaseType) {

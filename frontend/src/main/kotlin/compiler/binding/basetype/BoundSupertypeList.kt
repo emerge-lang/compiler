@@ -45,6 +45,12 @@ class BoundSupertypeList(
         private set
 
     /**
+     * initialized in [semanticAnalysisPhase1]
+     */
+    var hasUnresolvedSupertypes: Boolean by seanHelper.resultOfPhase1()
+        private set
+
+    /**
      * For example, given:
      *
      *    interface A<T> {}
@@ -105,7 +111,12 @@ class BoundSupertypeList(
         val cycles = HashSet<BoundSupertypeDeclaration>()
         for (clause in clauses) {
             clause.semanticAnalysisPhase1(diagnosis)
-            val supertypeRef = clause.resolvedReference ?: continue
+            val supertypeRef = clause.resolvedReference
+            if (supertypeRef == null) {
+                hasUnresolvedSupertypes = true
+                continue
+            }
+
             if (clause.isCyclic) {
                 cycles.add(clause)
             } else {
