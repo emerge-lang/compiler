@@ -1,10 +1,8 @@
 package emerge.core
 
 import emerge.platform.panic
-import emerge.platform.collectStackTrace
 import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
-import emerge.core.StackTraceElement
 import emerge.core.range.ArrayRange
 import emerge.core.range.Iterable
 

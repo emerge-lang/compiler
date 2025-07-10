@@ -3,7 +3,6 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
@@ -183,30 +182,27 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
 
     body {
         val writeToStdErr = buildStdErrPrinter()
-        val printToIrFn = context.throwableClazz.memberFunctions
-            .single { it.canonicalName.simpleName == "printTo" && it.parameterCount == 2 }
-            .overloads
-            .filter { it.declaresReceiver }
-            .single { it.parameters[1].type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.std.io.PrintStream" }
-
         val printToResult = call(
-            call(context.registerIntrinsic(getDynamicCallAddress), listOf(exceptionPtr, context.word(printToIrFn.signatureHashes.first()))),
-            LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue, PointerToAnyEmergeValue)),
+            context.printThrowableFunction,
             listOf(exceptionPtr, context.standardErrorStreamGlobalVar.declaration.emitRead!!(this)),
         )
 
-        printToResult.handle(
-            regularBranch = { concludeBranch() },
-            exceptionBranch = { printToException ->
-                printConstantString(writeToStdErr, "Caught exception while printing the stacktrace of ")
-                printEmergeString(writeToStdErr, exceptionPtr.typeName)
-                printLinefeed(writeToStdErr)
-                printConstantString(writeToStdErr, "This exception was caught while printing the stack trace: ")
-                printEmergeString(writeToStdErr, printToException.typeName)
-                printLinefeed(writeToStdErr)
-                concludeBranch()
-            }
-        )
+        if (printToResult.type is EmergeFallibleCallResult<*>) {
+            (printToResult as LlvmValue<EmergeFallibleCallResult.OfVoid>).handle(
+                regularBranch = { concludeBranch() },
+                exceptionBranch = { printToException ->
+                    printConstantString(writeToStdErr, "Caught exception while printing the stacktrace of ")
+                    printEmergeString(writeToStdErr, exceptionPtr.typeName)
+                    printLinefeed(writeToStdErr)
+                    printConstantString(writeToStdErr, "This exception was caught while printing the stack trace: ")
+                    printEmergeString(writeToStdErr, printToException.typeName)
+                    printLinefeed(writeToStdErr)
+                    concludeBranch()
+                }
+            )
+        } else {
+            // nothrow, yey, nothing to do!
+        }
 
         retVoid()
     }
@@ -222,6 +218,7 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
         val writeToStdErr = buildStdErrPrinter()
 
         printConstantString(writeToStdErr, "PANIC! unhandled exception\n")
+        context.allocateFunction
         call(context.registerIntrinsic(displayThrowableToStdErr), listOf(exceptionPtr))
         printConstantString(writeToStdErr, "\nthis panic was triggered from this call chain:\n")
         printStackTraceToStdErr()

@@ -1,14 +1,13 @@
 package emerge.platform
 
-import emerge.core.StackTraceElement
+import emerge.core.unwind.StackTraceElement
 import emerge.std.collections.ArrayList
+import emerge.core.range.Iterable
 import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-export read fn collectStackTrace() -> exclusive ArrayList<const StackTraceElement> = collectStackTrace(1 as U32, false)
-
-export read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> exclusive ArrayList<const StackTraceElement> {
+read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> exclusive Iterable<const StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
@@ -173,10 +172,9 @@ private read fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
 }
 
 private prealloc_getRegisterBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
-private read fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> UWord {
+private read nothrow fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> UWord {
     errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, prealloc_getRegisterBuffer.addressOfFirst())
-    // TODO: use safe get to enable nothrow
-    return prealloc_getRegisterBuffer[0]
+    return prealloc_getRegisterBuffer.getOrPanic(0)
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at

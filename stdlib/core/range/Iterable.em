@@ -1,5 +1,5 @@
 package emerge.core.range
 
 export interface Iterable<T> {
-    fn asRange(capture self) -> exclusive InputRange<T>
+    export fn asRange(capture self) -> exclusive InputRange<T>
 }

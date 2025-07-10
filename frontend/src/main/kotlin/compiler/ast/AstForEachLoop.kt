@@ -61,13 +61,21 @@ class AstForEachLoop(
         and any continue statements in BODY get amended with __range0.popFront()
          */
 
+        /*
+        TODO: make context.findInternalVariableName work before binding is complete
+        if it is invoked before then, it will try and resolve imports. if it triggers an import that is currently
+        not bound yet (but will be bound later), that import settles to "erroneous" and will trigger incorrect and
+        incomprehensible errors later on
+         */
+        val internalVarSuffix = "${foreachKeyword.span.fromLineNumber}${foreachKeyword.span.fromColumnNumber}"
+
         val generatedSpan = foreachKeyword.span.deriveGenerated()
         val rangeHolderDeclaration = VariableDeclaration(
             generatedSpan,
             null,
             null,
             null,
-            IdentifierToken(context.findInternalVariableName("range"), generatedSpan),
+            IdentifierToken("__range_$internalVarSuffix", generatedSpan),
             NamedTypeReference(
                 BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE,
                 mutability = TypeMutability.MUTABLE,
@@ -87,7 +95,7 @@ class AstForEachLoop(
 
         lateinit var boundForEachLoop: BoundForEachLoop
         val preBodyContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(rangeHolderDeclaration.modifiedContext, true, { boundForEachLoop })
-        val frontExceptionVarName = IdentifierToken(context.findInternalVariableName("rangeFrontE"), generatedSpan)
+        val frontExceptionVarName = IdentifierToken("__rangeFrontE_$internalVarSuffix", generatedSpan)
         val cursorInBodyDeclaration = VariableDeclaration(
             cursorVariableName.span,
             null,

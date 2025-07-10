@@ -11,6 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
@@ -422,6 +423,21 @@ internal val unitInstance = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         // we don't even need to return a pointer to unit here; the code generator inserts that
         // wherever unit gets assigned to any
         retVoid()
+    }
+}
+
+internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.unwind.collectStackTrace",
+    EmergeFallibleCallResult(PointerToAnyEmergeValue),
+) {
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+    functionAttribute(LlvmFunctionAttribute.AlwaysInline)
+
+    val nFrames by param(LlvmI32Type)
+    val includeRuntimeFrames by param(LlvmBooleanType)
+
+    body {
+        ret(call(context.collectStackTraceImpl, listOf(nFrames, includeRuntimeFrames)))
     }
 }
 

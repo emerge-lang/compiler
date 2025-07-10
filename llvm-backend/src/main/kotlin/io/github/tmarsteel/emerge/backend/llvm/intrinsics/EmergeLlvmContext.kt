@@ -112,6 +112,17 @@ class EmergeLlvmContext(
      */
     internal lateinit var printStackTraceToStdErrFunction: LlvmFunction<*>
 
+    /**
+     * `emerge.std.coresupport.printTo(Throwable, PrintStream) -> Unit`, set by [registerFunction]
+     */
+    internal lateinit var printThrowableFunction: LlvmFunction<*>
+
+    /**
+     * the implementation for `emerge.core.unwind.collectStackTrace(U32, Boolean)`.
+     * Must be set by the backend class after [registerIntrinsic]
+     */
+    internal lateinit var collectStackTraceImpl: LlvmFunction<EmergeFallibleCallResult<LlvmPointerType<out EmergeHeapAllocated>>>
+
     /** `emerge.platform.S8Box` */
     internal lateinit var boxTypeS8: EmergeClassType
     /** `emerge.platform.U8Box` */
@@ -337,7 +348,9 @@ class EmergeLlvmContext(
         }
 
         getInstrinsic(fn)?.let { intrinsic ->
-            assert(llvmParameterTypes.size == intrinsic.type.parameterTypes.size)
+            assert(llvmParameterTypes.size == intrinsic.type.parameterTypes.size) {
+                "LLVM Function type doesn't align with backend-IR function type: LLVM has ${llvmParameterTypes.size} parameters, IR has ${intrinsic.type.parameterTypes.size}"
+            }
             intrinsic.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                 val declaredType = llvmParameterTypes[paramIndex]
                 assert(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
@@ -398,6 +411,20 @@ class EmergeLlvmContext(
         if (fn.canonicalName.parent.toString() == "emerge.platform") {
             if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.isEmpty()) {
                 printStackTraceToStdErrFunction = fn.llvmRef!!
+            }
+        }
+        if (fn.canonicalName.parent.toString() == "emerge.std.coresupport") {
+            if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 2) {
+                val firstParamType = fn.parameters[0].type
+                val secondParamType = fn.parameters[1].type
+                if (firstParamType is IrSimpleType && firstParamType.baseType.canonicalName == EmergeConstants.THROWABLE_TYPE_NAME
+                    && secondParamType is IrSimpleType && secondParamType.baseType.canonicalName.toString() == "emerge.std.io.PrintStream") {
+                    val returnType = fn.returnType
+                    if (returnType !is IrSimpleType || returnType.baseType.canonicalName != EmergeConstants.UNIT_TYPE_NAME) {
+                        throw CodeGenerationException("emerge.std.coresupport.prinTo(Throwable, PrintStream) must return Unit")
+                    }
+                    printThrowableFunction = fn.llvmRef!!
+                }
             }
         }
 
@@ -741,6 +768,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             anyReflect,
             reflectionBaseTypeIsSameObjectAs,
             unitInstance,
+            collectStackTrace,
         )
             + intrinsicNumberOperations
     )
