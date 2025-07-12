@@ -397,17 +397,6 @@ class BoundVariable(
              */
             allowsShadowingGlobals = true,
         ),
-        DECORATED_MEMBER_VARIABLE(
-            readableKindName = "member variable",
-            TypeMutability.READONLY,
-            allowsExplicitBaseTypeInfer = MEMBER_VARIABLE.allowsExplicitBaseTypeInfer,
-            allowsExplicitOwnership = MEMBER_VARIABLE.allowsExplicitOwnership,
-            requiresExplicitType = MEMBER_VARIABLE.requiresExplicitType,
-            isInitializedByDefault = MEMBER_VARIABLE.isInitializedByDefault,
-            allowsVisibility = MEMBER_VARIABLE.allowsVisibility,
-            runInitializerInSubScope = MEMBER_VARIABLE.runInitializerInSubScope,
-            allowsShadowingGlobals = MEMBER_VARIABLE.allowsShadowingGlobals,
-        ),
         GLOBAL_VARIABLE(
             readableKindName = "global variable",
             TypeMutability.IMMUTABLE,
@@ -460,7 +449,6 @@ class BoundVariable(
             return when (this) {
                 LOCAL_VARIABLE,
                 MEMBER_VARIABLE,
-                DECORATED_MEMBER_VARIABLE,
                 GLOBAL_VARIABLE,
                 CONSTRUCTOR_PARAMETER -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)

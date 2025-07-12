@@ -94,7 +94,7 @@ class BoundClassConstructor(
     private val typeParameterForDecoratorMutability: BoundTypeParameter?
     private val additionalTypeParametersForDecoratedMembers = mutableMapOf<BoundBaseTypeMemberVariable, BoundTypeParameter>()
     init {
-        val decoratedCtorInitializedMembers = boundMemberVariables.filter { it.isDecorated && it.isConstructorParameterInitialized }
+        val decoratedCtorInitializedMembers = boundMemberVariables.filter { it.isConstructorParameterInitialized }
         if (decoratedCtorInitializedMembers.isNotEmpty()) {
             typeParameterForDecoratorMutability = TypeParameter(
                 TypeVariance.UNSPECIFIED,

@@ -21,15 +21,12 @@ package compiler.binding.basetype
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.decoratingMemberVariableWithNonReadType
-import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -44,7 +41,6 @@ class BoundBaseTypeMemberVariable(
     val name = declaration.name.value
     override val declaredAt = declaration.span
     val isReAssignable = declaration.variableDeclaration.isReAssignable
-    val isDecorated: Boolean = attributes.firstDecoratesAttribute != null
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
         declaration.variableDeclaration.initializerExpression.identifier.value == EmergeConstants.MAGIC_IDENTIFIER_CONSTRUCTOR_INITIALIZED_MEMBER_VARIABLE
@@ -55,7 +51,7 @@ class BoundBaseTypeMemberVariable(
     private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
         declaration.variableDeclaration.copy(initializerExpression = null)
     }
-    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context, isDecorated)
+    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context)
 
     override val visibility = boundEffectiveVariableDeclaration.visibility
 
@@ -79,9 +75,6 @@ class BoundBaseTypeMemberVariable(
         boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
         visibility.validateOnElement(this, diagnosis)
         attributes.validate(diagnosis)
-        if (isDecorated && !isConstructorParameterInitialized) {
-            diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
-        }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -92,13 +85,6 @@ class BoundBaseTypeMemberVariable(
             TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         }
         type?.validate(typeUseSite, diagnosis)
-        if (isDecorated) {
-            type?.mutability?.let { typeMutability ->
-                if (typeMutability != TypeMutability.READONLY) {
-                    diagnosis.decoratingMemberVariableWithNonReadType(this, typeMutability)
-                }
-            }
-        }
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

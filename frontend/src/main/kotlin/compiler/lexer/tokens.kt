@@ -47,8 +47,6 @@ enum class Keyword(val text: String)
     EXTERNAL("external"),
     OVERRIDE("override"),
 
-    DECORATES("decorates"),
-
     IF("if"),
     ELSE("else"),
     WHILE("while"),
