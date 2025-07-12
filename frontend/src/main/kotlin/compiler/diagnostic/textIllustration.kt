@@ -19,7 +19,7 @@
 package compiler.diagnostic
 
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceFile
+import compiler.lexer.LexerSourceFile
 import compiler.lexer.Span
 import compiler.util.groupRunsBy
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -68,7 +68,7 @@ fun illustrateHints(hints: List<SourceHint>): String {
 }
 
 private fun buildIllustrationForSingleFile(
-    file: SourceFile,
+    file: LexerSourceFile,
     hints: Collection<SourceHint>,
     sb: StringBuilder,
 ) {

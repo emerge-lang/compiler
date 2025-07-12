@@ -30,10 +30,10 @@ import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.incorrectPackageDeclaration
 import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.lexer.IdentifierToken
+import compiler.lexer.LexerSourceFile
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
-import compiler.lexer.SourceFile as LexerSourceFile
 
 val DEFAULT_IMPORT_PACKAGES = listOf(
     EmergeConstants.CORE_MODULE_NAME,

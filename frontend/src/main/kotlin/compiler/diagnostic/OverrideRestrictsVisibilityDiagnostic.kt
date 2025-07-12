@@ -2,7 +2,7 @@ package compiler.diagnostic
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
-import compiler.lexer.MemorySourceFile
+import compiler.lexer.MemoryLexerSourceFile
 import compiler.lexer.Span
 
 data class OverrideRestrictsVisibilityDiagnostic(
@@ -24,5 +24,5 @@ data class OverrideRestrictsVisibilityDiagnostic(
 }
 
 private val BoundFunction.visibilityLocation: Span
-    get() = visibility.astNode.sourceLocation.takeUnless { it.sourceFile is MemorySourceFile && it.sourceFile.name == "UNKNOWN" }
+    get() = visibility.astNode.sourceLocation.takeUnless { it.sourceFile is MemoryLexerSourceFile && it.sourceFile.name == "UNKNOWN" }
         ?: declaredAt

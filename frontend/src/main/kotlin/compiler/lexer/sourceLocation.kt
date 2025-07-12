@@ -50,13 +50,13 @@ class SourceSet(
     }
 
     companion object {
-        fun load(sourceSetPath: Path, moduleName: CanonicalElementName.Package): Collection<SourceFile> {
+        fun load(sourceSetPath: Path, moduleName: CanonicalElementName.Package): Collection<LexerSourceFile> {
             val sourceSet = SourceSet(sourceSetPath, moduleName)
 
             return Files.walk(sourceSetPath)
                 .parallel()
                 .filter { it.isRegularFile() }
-                .filter { it.extension == SourceFile.EXTENSION }
+                .filter { it.extension == LexerSourceFile.EXTENSION }
                 .map { sourceFilePath ->
                     val content = BOMInputStream.builder()
                         .setInputStream(sourceFilePath.inputStream())
@@ -66,7 +66,7 @@ class SourceSet(
                             inStream.reader(charset).readText()
                         }
 
-                    DiskSourceFile(
+                    DiskLexerSourceFile(
                         sourceSet,
                         sourceFilePath,
                         content,
@@ -77,7 +77,7 @@ class SourceSet(
     }
 }
 
-interface SourceFile {
+interface LexerSourceFile {
     val content: String
     val packageName: CanonicalElementName.Package
     val name: String
@@ -88,11 +88,11 @@ interface SourceFile {
     }
 }
 
-class ClasspathSourceFile(
+class ClasspathLexerSourceFile(
     val pathOnClasspath: Path,
     override val packageName: CanonicalElementName.Package,
     override val content: String,
-) : SourceFile {
+) : LexerSourceFile {
     override val name: String = pathOnClasspath.name
     override fun toString() = "classpath:/$pathOnClasspath"
     override val asBackendIr = object : IrSourceFile {
@@ -100,11 +100,11 @@ class ClasspathSourceFile(
     }
 }
 
-class DiskSourceFile(
+class DiskLexerSourceFile(
     val sourceSet: SourceSet,
     val sourceFilePath: Path,
     override val content: String,
-) : SourceFile {
+) : LexerSourceFile {
     val pathRelativeToSourceSet: Path = try {
         sourceFilePath.relativeTo(sourceSet.path)
     } catch (ex: IllegalArgumentException) {
@@ -123,11 +123,11 @@ class DiskSourceFile(
 /**
  * This is not actually a source file, its code from in memory.
  */
-class MemorySourceFile(
+class MemoryLexerSourceFile(
     override val name: String,
     override val packageName: CanonicalElementName.Package,
     override val content: String
-) : SourceFile {
+) : LexerSourceFile {
     override fun toString() = "memory:$name"
     override val asBackendIr = object : IrSourceFile {
         override val path = Path.of(toString())
@@ -138,14 +138,14 @@ class MemorySourceFile(
  * Describes a location within a source text (line + column)
  */
 data class Span(
-    val sourceFile: SourceFile,
+    val sourceFile: LexerSourceFile,
     val fromLineNumber: UInt,
     val fromColumnNumber: UInt,
     val toLineNumber: UInt,
     val toColumnNumber: UInt,
     val generated: Boolean = false,
 ) : IrSourceLocation {
-    constructor(sourceFile: SourceFile, start: SourceSpot, end: SourceSpot) : this(
+    constructor(sourceFile: LexerSourceFile, start: SourceSpot, end: SourceSpot) : this(
         sourceFile,
         start.lineNumber,
         start.columnNumber,
@@ -187,7 +187,7 @@ data class Span(
     override val columnNumber = fromColumnNumber
 
     companion object {
-        val UNKNOWN = Span(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+        val UNKNOWN = Span(MemoryLexerSourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
 
         fun range(vararg spans: Span?): Span? {
             if (spans.all { it == null }) {

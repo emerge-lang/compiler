@@ -16,16 +16,16 @@ import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.ajalt.mordant.rendering.Whitespace
 import com.github.ajalt.mordant.terminal.Terminal
-import compiler.lexer.DiskSourceFile
-import compiler.lexer.MemorySourceFile
+import compiler.diagnostic.ReportingException
+import compiler.diagnostic.illustrateSourceLocations
+import compiler.lexer.DiskLexerSourceFile
+import compiler.lexer.MemoryLexerSourceFile
 import compiler.lexer.SourceSet
 import compiler.lexer.Span
 import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.diagnostic.ReportingException
-import compiler.diagnostic.illustrateSourceLocations
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -58,7 +58,7 @@ private object ConfigModule : SimpleModule("EmergeToolchainConfigs") {
             override fun deserialize(p: JsonParser, ctxt: DeserializationContext): CanonicalElementName.Package {
                 val location = p.currentTokenLocation()
                 val asString = StringDeserializer.instance.deserialize(p, ctxt)
-                val sourceFile = MemorySourceFile("json input", CanonicalElementName.Package(listOf("cli")), asString)
+                val sourceFile = MemoryLexerSourceFile("json input", CanonicalElementName.Package(listOf("cli")), asString)
                 val parseResult = matchAgainst(lex(sourceFile), ModuleOrPackageName)
                 when (parseResult) {
                     is MatchingResult.Error -> throw JsonParseException(
@@ -103,7 +103,7 @@ class ConfigParseException(
 ) : RuntimeException(cause) {
     fun illustrate(to: Terminal) {
         val sourceSet = SourceSet(file.parent, CanonicalElementName.Package(listOf("__config")))
-        val sourceFile = DiskSourceFile(sourceSet, file, file.readText())
+        val sourceFile = DiskLexerSourceFile(sourceSet, file, file.readText())
         val span = Span(sourceFile, sourceLineNumber, sourceColumnNumber, sourceLineNumber, sourceColumnNumber, false)
         val pathRef: List<JsonMappingException.Reference>?
         val message: String

@@ -2,7 +2,7 @@ package compiler.util
 
 import compiler.InternalCompilerError
 import compiler.ast.ASTSourceFile
-import compiler.lexer.ClasspathSourceFile
+import compiler.lexer.ClasspathLexerSourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
@@ -14,7 +14,7 @@ fun parseFromClasspath(path: String, packageName: CanonicalElementName.Package):
     parseFromClasspath(Paths.get(path), packageName)
 
 fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): ASTSourceFile {
-    val sourceFile = ClasspathSourceFile(
+    val sourceFile = ClasspathLexerSourceFile(
         path,
         packageName,
         ClassLoader.getSystemResource(path.toString())!!.readText(),
