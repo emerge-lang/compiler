@@ -35,7 +35,6 @@ import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.CLASS_DEFINITION
 import compiler.lexer.Keyword.CONSTRUCTOR
-import compiler.lexer.Keyword.DECORATES
 import compiler.lexer.Keyword.DESTRUCTOR
 import compiler.lexer.Keyword.INTERFACE_DEFINITION
 import compiler.lexer.KeywordToken
@@ -48,11 +47,6 @@ import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
-    repeating {
-        eitherOf {
-            keyword(DECORATES)
-        }
-    }
     ref(VariableDeclaration)
     operator(NEWLINE)
 }

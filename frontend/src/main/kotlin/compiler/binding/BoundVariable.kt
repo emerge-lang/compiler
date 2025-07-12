@@ -383,7 +383,6 @@ class BoundVariable(
             return when (this) {
                 LOCAL_VARIABLE,
                 MEMBER_VARIABLE,
-                DECORATED_MEMBER_VARIABLE,
                 GLOBAL_VARIABLE,
                 CONSTRUCTOR_PARAMETER -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)
