@@ -49,11 +49,14 @@ class SourceQuoteWidget(
         canvas.append(TextSpan("$file:"))
         canvas.appendLineBreak()
 
-        renderQuoteAndInlineHints(canvas)
-        canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.RIGHT) { line ->
+        val quoteCanvas = canvas.createViewAppendingToBlankLine()
+        renderQuoteAndInlineHints(quoteCanvas)
+        quoteCanvas.addColumnToLeftOfAllCurrentLines(TextAlignment.RIGHT) { line ->
             val lnText = line.markers.findInstanceOf<LogicalLineNumberMarker>()?.number?.toString() ?: ""
             TextSpan("$lnText | ")
         }
+
+        renderMultilineHints(quoteCanvas)
     }
 
     private fun renderQuoteAndInlineHints(canvas: MonospaceCanvas) {
@@ -128,6 +131,38 @@ class SourceQuoteWidget(
             canvas.append(TextSpan(hint.description))
         }
         canvas.appendLineBreak()
+    }
+
+    private fun renderMultilineHints(canvas: MonospaceCanvas) {
+        var referenceNumberCounter = 1
+        for (multiLineHint in multiLineHints) {
+            val hasDescription = multiLineHint.description != null
+            val middleLine = multiLineHint.span.fromLineNumber + (multiLineHint.span.toLineNumber - multiLineHint.span.fromLineNumber) / 2u
+            val referenceNumber = referenceNumberCounter
+            if (hasDescription) {
+                referenceNumberCounter++
+            }
+
+            canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.RIGHT) { _ -> TextSpan(" ") }
+            canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.CENTER) { canvasLine ->
+                val ln = canvasLine.markers.findInstanceOf<LogicalLineNumberMarker>()?.number
+
+                when {
+                    ln == null -> TextSpan.EMPTY
+                    ln == multiLineHint.span.fromLineNumber -> TextSpan("/")
+                    ln == middleLine && hasDescription -> TextSpan("[${referenceNumber}]")
+                    ln == multiLineHint.span.toLineNumber -> TextSpan("\\")
+                    ln in multiLineHint.span.fromLineNumber..multiLineHint.span.toLineNumber -> TextSpan("|")
+                    else -> TextSpan.EMPTY
+                }
+            }
+        }
+
+        canvas.assureOnBlankLine()
+        canvas.appendLineBreak()
+        multiLineHints.filter { it.description != null }.forEachIndexed { index, multiLineHint ->
+            canvas.append(TextSpan("[${index + 1}]: ${multiLineHint.description}"))
+        }
     }
 
     companion object {

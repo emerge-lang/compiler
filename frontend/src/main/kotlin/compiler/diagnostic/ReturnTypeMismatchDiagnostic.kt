@@ -18,6 +18,9 @@
 
 package compiler.diagnostic
 
+import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.TextSpan
+
 /**
  * Reported when a value of type [returnedType] is returned from a context where a return type of [expectedReturnType]
  * is expected and the types are not compatible.
@@ -27,7 +30,13 @@ class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnosti
     base.message,
     base.span,
 ) {
-    override fun toString(): String = "$levelAndMessage  declared return type is  ${base.targetType}\n  got a value of type      ${base.sourceType}\n\nin $span"
+    override fun renderLevelAndMessage(canvas: MonospaceCanvas) {
+        super.renderLevelAndMessage(canvas)
+        canvas.assureOnBlankLine()
+        canvas.append(TextSpan("  declared return type is  ${base.targetType}"))
+        canvas.assureOnBlankLine()
+        canvas.append(TextSpan("  got a value of type      ${base.sourceType}"))
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -15,4 +15,8 @@ class TextSpan(val content: String) {
     fun substring(from: Int, toExclusive: Int): TextSpan {
         return TextSpan(content.substring(from, toExclusive))
     }
+
+    companion object {
+        val EMPTY = TextSpan("")
+    }
 }
