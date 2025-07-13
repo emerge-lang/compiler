@@ -5,6 +5,8 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.basetype.BoundBaseType
+import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.SourceQuoteWidget
 import compiler.lexer.Keyword
 
 class AbstractInheritedFunctionNotImplementedDiagnostic(
@@ -18,10 +20,14 @@ class AbstractInheritedFunctionNotImplementedDiagnostic(
     """.trimIndent(),
     implementingType.declaration.declaredAt,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateHints(
-        SourceHint(span, "this class is missing the implementation", relativeOrderMatters = true),
-        SourceHint(functionToImplement.declaredAt, "this is the abstract function you need to implement", relativeOrderMatters = true)
-    )}"
+    override fun render(canvas: MonospaceCanvas) {
+        renderLevelAndMessage(canvas)
+        SourceQuoteWidget.renderHintsFromMultipleFiles(
+            canvas,
+            SourceHint(span, "this class is missing the implementation", relativeOrderMatters = true),
+            SourceHint(functionToImplement.declaredAt, "this is the abstract function you need to implement", relativeOrderMatters = true),
+        )
+    }
 
     override fun equals(other: Any?): Boolean {
         if (other == null) return false

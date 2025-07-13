@@ -24,6 +24,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeVariableNotUnderInferenceException
 import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
+import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.TextSpan
 import compiler.lexer.Span
 
 /**
@@ -83,5 +85,13 @@ open class ValueNotAssignableDiagnostic(
 
     override val message: String get() = simplifiedMessage ?: super.message
 
-    override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $span"
+    override fun renderLevelAndMessage(canvas: MonospaceCanvas) {
+        super.renderLevelAndMessage(canvas)
+
+        canvas.assureOnBlankLine()
+        canvas.append(TextSpan("  Required: $targetType"))
+
+        canvas.assureOnBlankLine()
+        canvas.append(TextSpan("  Found:    $sourceType"))
+    }
 }
