@@ -87,8 +87,6 @@ private class ColumnsBuilderImpl(
     }
 
     fun render(canvas: MonospaceCanvas) {
-        canvas.assureOnBlankLine()
-
         val columnLines = columns.map { column ->
             val subCanvas = CellBuilderImpl(createBufferedMonospaceCanvas(canvas.renderTargetInfo))
             column.renderFn(subCanvas)
@@ -97,6 +95,7 @@ private class ColumnsBuilderImpl(
         val nRows = columnLines.maxOf { it.size }
         val columnWidths = columnLines.map { linesOfColumn -> linesOfColumn.maxOf { lineInColumn -> lineInColumn.spans.sumOf { canvas.renderTargetInfo.computeCellWidth(it) } } }
         for (rowIndex in 0 until nRows) {
+            canvas.assureOnBlankLine()
             for (columnIndex in columns.indices) {
                 val rowOfColumn = columnLines[columnIndex].getOrNull(rowIndex)?.spans?.toMutableList() ?: mutableListOf(TextSpan.EMPTY)
                 canvas.renderTargetInfo.alignInPlace(rowOfColumn, columnWidths[columnIndex], columns[columnIndex].alignment)
@@ -105,7 +104,6 @@ private class ColumnsBuilderImpl(
                     canvas.append(spacing)
                 }
             }
-            canvas.appendLineBreak()
         }
     }
 }

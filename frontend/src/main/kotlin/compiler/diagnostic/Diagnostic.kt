@@ -60,6 +60,9 @@ abstract class Diagnostic internal constructor(
                 renderMessage()
             }
         }
+
+        assureOnBlankLine()
+        appendLineBreak()
         renderBody()
     }
 
