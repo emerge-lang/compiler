@@ -1,5 +1,6 @@
 package compiler.diagnostic.rendering
 
+import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.SourceHint
 import compiler.lexer.LexerSourceFile
 import java.util.Comparator.comparing
@@ -11,7 +12,7 @@ import java.util.Comparator.comparing
 class SourceQuoteWidget(
     val file: LexerSourceFile,
 ) : MonospaceWidget {
-    private val lines = file.content.split('\n').map(::TextSpan)
+    private val lines = file.content.split('\n').map { TextSpan(it, TextSpan.DEFAULT_STYLE) }
 
     private val singleLineHints = mutableMapOf<UInt, LinkedHashSet<SourceHint>>()
     private val multiLineHints = sortedSetOf<SourceHint>(comparing { it.span.fromLineNumber })
@@ -51,7 +52,7 @@ class SourceQuoteWidget(
         renderQuoteAndInlineHints(quoteCanvas)
         quoteCanvas.addColumnToLeftOfAllCurrentLines(TextAlignment.LINE_END) { line ->
             val lnText = line.markers.findInstanceOf<LogicalLineNumberMarker>()?.number?.toString() ?: ""
-            TextSpan("$lnText | ")
+            TextSpan("$lnText | ", canvas.theme.lineNumbers)
         }
 
         renderMultilineHints(quoteCanvas)
@@ -99,6 +100,8 @@ class SourceQuoteWidget(
         canvas: MonospaceCanvas,
         above: Boolean
     ) {
+        val swiggleStyle = swiggleStyle(canvas, hint.severity)
+
         val paddingLeftCellWidth = canvas.renderTargetInfo.computeCellWidth(lineText.substring(0, hint.span.fromColumnNumber.toInt() - 1))
         val markerCellWidth = canvas.renderTargetInfo.computeCellWidth(lineText.substring(hint.span.fromColumnNumber.toInt() - 1, hint.span.toColumnNumber.toInt()))
         val pointer = TextSpan(if (markerCellWidth == 1) {
@@ -117,13 +120,10 @@ class SourceQuoteWidget(
         repeat(paddingLeftCellWidth) {
             canvas.append(spanPadding)
         }
-        repeat(swiggleWidthBefore) {
-            canvas.append(spanSwiggle)
-        }
+        canvas.append(TextSpan(swiggleChar.repeat(swiggleWidthBefore), swiggleStyle))
         canvas.append(pointer)
-        repeat(swiggleWidthAfter) {
-            canvas.append(spanSwiggle)
-        }
+        canvas.append(TextSpan(swiggleChar.repeat(swiggleWidthAfter), swiggleStyle))
+
         if (hint.description != null) {
             canvas.append(spanPadding)
             canvas.append(TextSpan(hint.description))
@@ -141,16 +141,17 @@ class SourceQuoteWidget(
                 referenceNumberCounter++
             }
 
+            val swiggleStyle = swiggleStyle(canvas, multiLineHint.severity)
             canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.LINE_END) { _ -> TextSpan(" ") }
             canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.CENTER) { canvasLine ->
                 val ln = canvasLine.markers.findInstanceOf<LogicalLineNumberMarker>()?.number
 
                 when {
                     ln == null -> TextSpan.EMPTY
-                    ln == multiLineHint.span.fromLineNumber -> TextSpan("/")
-                    ln == middleLine && hasDescription -> TextSpan("[${referenceNumber}]")
-                    ln == multiLineHint.span.toLineNumber -> TextSpan("\\")
-                    ln in multiLineHint.span.fromLineNumber..multiLineHint.span.toLineNumber -> TextSpan("|")
+                    ln == multiLineHint.span.fromLineNumber -> TextSpan("/", swiggleStyle)
+                    ln == middleLine && hasDescription -> TextSpan("[${referenceNumber}]", swiggleStyle)
+                    ln == multiLineHint.span.toLineNumber -> TextSpan("\\", swiggleStyle)
+                    ln in multiLineHint.span.fromLineNumber..multiLineHint.span.toLineNumber -> TextSpan("|", swiggleStyle)
                     else -> TextSpan.EMPTY
                 }
             }
@@ -165,7 +166,13 @@ class SourceQuoteWidget(
 
     companion object {
         private val spanPadding = TextSpan(" ")
-        private val spanSwiggle = TextSpan("~")
+        private val swiggleChar = "~"
+        private fun swiggleStyle(canvas: MonospaceCanvas, severity: Diagnostic.Severity) = when (severity) {
+            Diagnostic.Severity.ERROR -> canvas.theme.sourceLocationPointerError
+            Diagnostic.Severity.WARNING -> canvas.theme.sourceLocationPointerWarning
+            Diagnostic.Severity.INFO -> canvas.theme.sourceLocationPointerInfo
+            else -> TextSpan.DEFAULT_STYLE
+        }
     }
 }
 

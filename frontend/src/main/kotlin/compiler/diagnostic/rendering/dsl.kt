@@ -1,7 +1,7 @@
 package compiler.diagnostic.rendering
 
+import com.github.ajalt.mordant.rendering.TextStyle
 import compiler.diagnostic.SourceHint
-import compiler.lexer.Span
 import compiler.util.groupRunsBy
 
 @DslMarker
@@ -14,18 +14,15 @@ interface CellBuilder : MonospaceCanvas {
         widget.render(this)
     }
 
-    fun text(text: String) {
+    fun text(text: String, style: TextStyle = TextSpan.DEFAULT_STYLE) {
         text.split('\n').forEach {
             assureOnBlankLine()
-            append(TextSpan(it))
+            append(TextSpan(it, style))
         }
     }
 
     fun horizontalLayout(spacing: TextSpan = TextSpan.whitespace(1), columnsBuilder: ColumnsBuilder.() -> Unit)
 
-    fun sourceSpans(vararg spans: Span) {
-        sourceHints(*spans.map { SourceHint(it, null) }.toTypedArray())
-    }
     fun sourceHints(vararg hints: SourceHint) {
         val hintGroups = hints
             .filter { it.relativeOrderMatters }

@@ -30,6 +30,7 @@ data class SourceHint(
     val description: String?,
     val relativeOrderMatters: Boolean = false,
     val nLinesContext: UInt = 1u,
+    val severity: Diagnostic.Severity = Diagnostic.Severity.INFO,
 )
 
 fun illustrateSourceLocations(locations: Collection<Span>): String = illustrateHints(locations.map { SourceHint(it, null) })

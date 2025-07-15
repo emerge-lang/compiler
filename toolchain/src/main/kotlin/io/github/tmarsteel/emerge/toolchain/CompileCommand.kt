@@ -14,6 +14,9 @@ import compiler.diagnostic.CompilerGeneratedInvalidCodeDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ModuleWithoutSourcesDiagnostic
+import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.createBufferedMonospaceCanvas
+import compiler.diagnostic.rendering.toMordantLines
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
@@ -138,8 +141,11 @@ object CompileCommand : CliktCommand() {
         echo("total time: ${elapsedBetween(startedAt, backendDoneAt)}")
     }
 
+    private val diagnosticEchoCanvas = createBufferedMonospaceCanvas(MonospaceCanvas.RenderTargetInfo(8))
     private fun echo(diagnostic: Diagnostic) {
-        echo(diagnostic.toString())
+        diagnostic.render(diagnosticEchoCanvas)
+        echo(diagnosticEchoCanvas.toMordantLines())
+        diagnosticEchoCanvas.clear()
         echo()
         echo()
     }

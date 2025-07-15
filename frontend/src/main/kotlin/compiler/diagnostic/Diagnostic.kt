@@ -22,6 +22,7 @@ import compiler.diagnostic.rendering.CellBuilder
 import compiler.diagnostic.rendering.MonospaceCanvas
 import compiler.diagnostic.rendering.MonospaceWidget
 import compiler.diagnostic.rendering.TextAlignment
+import compiler.diagnostic.rendering.TextSpan
 import compiler.diagnostic.rendering.createBufferedMonospaceCanvas
 import compiler.diagnostic.rendering.widget
 import compiler.lexer.Span
@@ -40,13 +41,18 @@ abstract class Diagnostic internal constructor(
     }
 
     open fun CellBuilder.renderBody() {
-        sourceSpans(span)
+        sourceHints(SourceHint(span, description = null, severity = severity))
     }
 
     private fun CellBuilder.renderLevelAndMessage() {
         horizontalLayout {
             column {
-                text("($severity)")
+                text("($severity)", when (severity) {
+                    Severity.ERROR -> theme.severityTagError
+                    Severity.WARNING -> theme.severityTagWarning
+                    Severity.INFO -> theme.severityTagInfo
+                    else -> TextSpan.DEFAULT_STYLE
+                })
             }
             column(TextAlignment.LINE_START) {
                 renderMessage()

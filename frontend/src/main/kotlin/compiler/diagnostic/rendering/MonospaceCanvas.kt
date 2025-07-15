@@ -2,25 +2,18 @@ package compiler.diagnostic.rendering
 
 interface MonospaceCanvas : AutoCloseable {
     val renderTargetInfo: RenderTargetInfo
+    val theme: Theme
 
     fun append(span: TextSpan)
-
-    fun appendPartialLine(partialLine: Line) {
-        partialLine.spans.forEach(::append)
-    }
-
     fun appendLineBreak()
-
     fun assureOnBlankLine()
-
     fun addMarkerToCurrentLine(marker: Any)
-
     fun addColumnToLeftOfAllCurrentLines(
         alignment: TextAlignment,
         computeContent: (line: Line) -> TextSpan,
     )
-
     fun createViewAppendingToBlankLine(): MonospaceCanvas
+    fun clear()
 
     val lines: Sequence<Line>
 
@@ -52,10 +45,10 @@ interface MonospaceCanvas : AutoCloseable {
 
             when (alignment) {
                 TextAlignment.LINE_START -> {
-                    partialLine.addLast(TextSpan(" ".repeat(toWidth - unpaddedWidth)))
+                    partialLine.addLast(TextSpan.whitespace(toWidth - unpaddedWidth))
                 }
                 TextAlignment.LINE_END -> {
-                    partialLine.addFirst(TextSpan(" ".repeat(toWidth - unpaddedWidth)))
+                    partialLine.addFirst(TextSpan.whitespace(toWidth - unpaddedWidth))
                 }
                 TextAlignment.CENTER -> {
                     val nPadding = toWidth - unpaddedWidth

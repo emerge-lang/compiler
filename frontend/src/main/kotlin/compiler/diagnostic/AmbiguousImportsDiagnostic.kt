@@ -12,6 +12,6 @@ data class AmbiguousImportsDiagnostic(
     imports.first().declaredAt,
 ) {
     override fun CellBuilder.renderBody() {
-        sourceSpans(*imports.map { it.declaredAt }.toTypedArray())
+        sourceHints(*imports.map { SourceHint(it.declaredAt, null, severity = severity) }.toTypedArray())
     }
 }

@@ -48,7 +48,7 @@ fun <T, E> Iterable<T>.duplicatesBy(selector: (T) -> E): Map<E, Set<T>> {
     for (t in this) {
         val e = selector(t)
         val existing = uniques.putIfAbsent(e, t) ?: continue
-        duplicates.compute(e) { e, duplicatesOfE ->
+        duplicates.compute(e) { _, duplicatesOfE ->
             val resultValue: MutableSet<T> = duplicatesOfE ?: mutableSetOf(existing)
             resultValue.add(t)
             resultValue

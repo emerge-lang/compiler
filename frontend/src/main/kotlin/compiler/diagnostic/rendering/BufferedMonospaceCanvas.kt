@@ -3,7 +3,10 @@ package compiler.diagnostic.rendering
 import java.util.Collections
 
 fun createBufferedMonospaceCanvas(
-    renderTargetInfo: MonospaceCanvas.RenderTargetInfo = MonospaceCanvas.RenderTargetInfo(tabWidth = 4),
+    renderTargetInfo: MonospaceCanvas.RenderTargetInfo = MonospaceCanvas.RenderTargetInfo(
+        tabWidth = 8,
+    ),
+    theme: Theme = Theme.DEFAULT,
 ): MonospaceCanvas {
     val beginNode = CanvasBeginNode()
     val endNode = CanvasEndNode()
@@ -11,6 +14,7 @@ fun createBufferedMonospaceCanvas(
     endNode.prev = beginNode
     val canvas = DoublyLinkedCanvas(
         renderTargetInfo,
+        theme,
         beginNode,
         endNode,
     )
@@ -61,6 +65,7 @@ private class LineNode : CanvasNode(), MonospaceCanvas.Line {
 
 private class DoublyLinkedCanvas(
     override val renderTargetInfo: MonospaceCanvas.RenderTargetInfo,
+    override val theme: Theme,
     private val originalStart: CanvasNode,
     private val originalEnd: CanvasNode,
 ) : MonospaceCanvas {
@@ -71,7 +76,7 @@ private class DoublyLinkedCanvas(
         val newEnd = CanvasEndNode()
         newEnd.insertBefore(originalEnd)
         newBegin.insertBefore(newEnd)
-        return DoublyLinkedCanvas(renderTargetInfo, newBegin, newEnd)
+        return DoublyLinkedCanvas(renderTargetInfo, theme, newBegin, newEnd)
     }
 
     private fun assureCurrentLine(): LineNode {
@@ -103,6 +108,13 @@ private class DoublyLinkedCanvas(
 
     override fun addMarkerToCurrentLine(marker: Any) {
         assureCurrentLine().mark(marker)
+    }
+
+    override fun clear() {
+        // restore original state
+        originalStart.next = originalEnd
+        originalEnd.prev = originalStart
+        writeHead = null
     }
 
     private val nodesSequence: Sequence<CanvasNode> = object : Sequence<CanvasNode> {
