@@ -19,7 +19,6 @@
 package compiler.diagnostic
 
 import compiler.diagnostic.rendering.CellBuilder
-import compiler.diagnostic.rendering.TextSpan
 
 /**
  * Reported when a value of type [returnedType] is returned from a context where a return type of [expectedReturnType]
@@ -33,7 +32,7 @@ class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnosti
     context(CellBuilder)
     override fun renderMessage() {
         text(message)
-        horizontalLayout(spacing = TextSpan.whitespace(2)) {
+        horizontalLayout {
             column {
                 text("declared return type is")
                 text("got a value of type")

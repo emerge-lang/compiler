@@ -3,7 +3,6 @@ package compiler.diagnostic
 import compiler.ast.FunctionDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.diagnostic.rendering.CellBuilder
-import compiler.diagnostic.rendering.TextSpan
 
 class IncompatibleReturnTypeOnOverrideDiagnostic(
     val override: FunctionDeclaration,
@@ -16,7 +15,7 @@ class IncompatibleReturnTypeOnOverrideDiagnostic(
 ) {
     context(CellBuilder)
     override fun renderBody() {
-        horizontalLayout(spacing = TextSpan.whitespace(2)) {
+        horizontalLayout {
             column {
                 text("overridden function:")
                 text("overridden function returns:")

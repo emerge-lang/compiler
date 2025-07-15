@@ -47,7 +47,7 @@ abstract class Diagnostic internal constructor(
     }
 
     final override fun render(canvas: MonospaceCanvas) = widget(canvas) {
-        horizontalLayout {
+        horizontalLayout(spacing = TextSpan.whitespace(1)) {
             column {
                 text("($severity)", when (severity) {
                     Severity.ERROR -> theme.severityTagError
