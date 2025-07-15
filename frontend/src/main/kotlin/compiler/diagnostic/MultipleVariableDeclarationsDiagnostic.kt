@@ -19,6 +19,7 @@
 package compiler.diagnostic
 
 import compiler.ast.VariableDeclaration
+import compiler.diagnostic.rendering.CellBuilder
 
 /**
  * Reported when a variable is declared within a context where a variable with the same name
@@ -38,12 +39,10 @@ data class MultipleVariableDeclarationsDiagnostic(
     },
     additionalDeclaration.span
 ) {
-    override fun toString(): String {
-        var str = "$levelAndMessage\n"
-        str += illustrateHints(
-            SourceHint(originalDeclaration.span, "originally declared here", relativeOrderMatters = true),
-            SourceHint(additionalDeclaration.span, "declared again here", relativeOrderMatters = true),
+    context(CellBuilder) override fun renderBody() {
+        sourceHints(
+            SourceHint(originalDeclaration.span, "originally declared here", relativeOrderMatters = true, severity = Severity.INFO),
+            SourceHint(additionalDeclaration.span, "declared again here", relativeOrderMatters = true, severity = severity),
         )
-        return str
     }
 }

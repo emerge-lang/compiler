@@ -84,7 +84,8 @@ open class ValueNotAssignableDiagnostic(
 
     override val message: String get() = simplifiedMessage ?: super.message
 
-    override fun CellBuilder.renderMessage() {
+    context(CellBuilder)
+    override fun renderMessage() {
         text(message)
         horizontalLayout {
             column {

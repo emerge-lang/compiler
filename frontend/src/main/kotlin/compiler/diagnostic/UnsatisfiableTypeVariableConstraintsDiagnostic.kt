@@ -4,6 +4,7 @@ import compiler.ast.type.TypeParameter
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUnification
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
 
 class UnsatisfiableTypeVariableConstraintsDiagnostic private constructor (
@@ -24,10 +25,13 @@ class UnsatisfiableTypeVariableConstraintsDiagnostic private constructor (
     """.trimIndent(),
     inferenceLocation,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateHints(
-        SourceHint(span, "constraints become unsatisfiable here"),
-        SourceHint(parameter.name.span, "this parameter is affected"),
-    )}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(
+            SourceHint(span, "constraints become unsatisfiable here", severity = severity),
+            SourceHint(parameter.name.span, "this parameter is affected", severity = Severity.INFO),
+        )
+    }
 
     override fun equals(other: Any?): Boolean {
         if (other !is UnsatisfiableTypeVariableConstraintsDiagnostic) return false

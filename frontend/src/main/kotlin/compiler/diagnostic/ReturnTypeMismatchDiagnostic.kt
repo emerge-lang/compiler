@@ -30,7 +30,8 @@ class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnosti
     base.message,
     base.span,
 ) {
-    override fun CellBuilder.renderMessage() {
+    context(CellBuilder)
+    override fun renderMessage() {
         text(message)
         horizontalLayout(spacing = TextSpan.whitespace(2)) {
             column {

@@ -1,7 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.basetype.BoundBaseType
-import textutils.assureEndsWith
+import compiler.diagnostic.rendering.CellBuilder
 
 class MultipleInheritanceIssueDiagnostic(
     val base: Diagnostic,
@@ -14,11 +14,14 @@ class MultipleInheritanceIssueDiagnostic(
             transform = { it.canonicalName.simpleName },
             separator = ", "
         )
-        "The multiple inheritance ${conflictOnSubType.simpleName} : $supertypeList creates this problem:"
+        "The multiple inheritance ${conflictOnSubType.simpleName.quoteIdentifier()} : $supertypeList creates this problem:"
     },
     base.span,
 ) {
-    override fun toString() = "${levelAndMessage.assureEndsWith('\n')}${base}"
+    context(CellBuilder)
+    override fun renderBody() {
+        widget(base)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

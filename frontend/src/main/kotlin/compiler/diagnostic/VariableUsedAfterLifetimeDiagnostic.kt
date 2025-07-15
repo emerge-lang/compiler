@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.VariableDeclaration
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
 
 class VariableUsedAfterLifetimeDiagnostic private constructor(
@@ -27,10 +28,12 @@ class VariableUsedAfterLifetimeDiagnostic private constructor(
         lifetimeEndedMaybe,
         if (lifetimeEndedMaybe) "might have ended" else "has ended",
     )
-    override fun toString(): String {
-        return levelAndMessage + "\nin " + illustrateHints(
-            SourceHint(lifetimeEndedAt, "variable ${variable.name.value} is captured here, ending its lifetime", relativeOrderMatters = true),
-            SourceHint(usageAt, "usage after lifetime $endedPhrase", relativeOrderMatters = true),
+
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(
+            SourceHint(lifetimeEndedAt, "variable ${variable.name.value} is captured here, ending its lifetime", relativeOrderMatters = true, severity = Severity.INFO),
+            SourceHint(usageAt, "usage after lifetime $endedPhrase", relativeOrderMatters = true, severity = Severity.ERROR),
         )
     }
 

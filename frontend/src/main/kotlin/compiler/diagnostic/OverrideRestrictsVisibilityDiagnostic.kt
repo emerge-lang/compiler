@@ -2,6 +2,7 @@ package compiler.diagnostic
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.MemoryLexerSourceFile
 import compiler.lexer.Span
 
@@ -13,13 +14,11 @@ data class OverrideRestrictsVisibilityDiagnostic(
     "The visibility of overrides must be the same or broader than that of the overridden function.",
     override.declaredAt,
 ) {
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateHints(
+    context(CellBuilder) override fun renderBody() {
+        sourceHints(
             SourceHint(superFunction.visibilityLocation, "overridden function is ${superFunction.visibility}"),
             SourceHint(override.visibilityLocation, "override is ${override.visibility}"),
         )
-        return str
     }
 }
 

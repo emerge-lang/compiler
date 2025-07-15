@@ -14,6 +14,8 @@ class TextSpan(val content: String, val style: TextStyle = DEFAULT_STYLE) {
         return TextSpan(content.substring(from, toExclusive), style)
     }
 
+    override fun toString() = content
+
     companion object {
         /**
          * Mordant defines this itself, but goes to great lengths to keep it to internal visibility.... wtf

@@ -18,7 +18,9 @@
 
 package compiler.lexer
 
-import compiler.diagnostic.illustrateSourceLocations
+import compiler.diagnostic.SourceHint
+import compiler.diagnostic.rendering.createBufferedMonospaceCanvas
+import compiler.diagnostic.rendering.widget
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -159,7 +161,11 @@ data class Span(
         return if (generated) {
             "code generated from $fileLineColumnText"
         } else {
-            illustrateSourceLocations(setOf(this))
+            val canvas = createBufferedMonospaceCanvas()
+            widget(canvas) {
+                sourceHint(SourceHint(this@Span))
+            }
+            canvas.toString()
         }
     }
 

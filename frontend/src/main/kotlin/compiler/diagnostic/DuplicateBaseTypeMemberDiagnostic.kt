@@ -20,6 +20,7 @@ package compiler.diagnostic
 
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.diagnostic.rendering.CellBuilder
 
 class DuplicateBaseTypeMemberDiagnostic(
     val typeDef: BoundBaseType,
@@ -29,13 +30,10 @@ class DuplicateBaseTypeMemberDiagnostic(
     "Member ${duplicates.iterator().next().name} declared multiple times",
     typeDef.declaration.declaredAt,
 ) {
-    override fun toString(): String {
-        var txt = "$levelAndMessage\nin ${typeDef.declaration.declaredAt}\n"
-
-        txt += illustrateSourceLocations(
-            duplicates.map { it.declaration.span },
-        )
-
-        return txt.trimEnd()
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(duplicates.map {
+            SourceHint(it.declaration.span, severity = severity)
+        })
     }
 }

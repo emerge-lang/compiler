@@ -2,6 +2,8 @@ package compiler.diagnostic
 
 import compiler.ast.type.AstIntersectionType
 import compiler.binding.type.BoundTypeReference
+import compiler.diagnostic.rendering.CellBuilder
+import compiler.diagnostic.rendering.TextSpan
 
 class SimplifiableIntersectionTypeDiagnostic(
     val complicatedType: AstIntersectionType,
@@ -11,9 +13,14 @@ class SimplifiableIntersectionTypeDiagnostic(
     if (simplerVersion.isNonNullableNothing) "It is impossible to construct a value that satisfies this type" else "This intersection-type can be simplified",
     complicatedType.span,
 ) {
-    override fun toString() = if (simplerVersion.isNonNullableNothing) {
-        super.toString()
-    } else {
-        "$levelAndMessage  simpler alternative: $simplerVersion\n\nin $span"
+    context(CellBuilder)
+    override fun renderBody() {
+        if (!simplerVersion.isNonNullableNothing) {
+            append(TextSpan("simpler alternative: "))
+            append(simplerVersion.quote())
+            appendLineBreak()
+        }
+
+        super.renderBody()
     }
 }

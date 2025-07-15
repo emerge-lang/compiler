@@ -17,7 +17,6 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.ajalt.mordant.rendering.Whitespace
 import com.github.ajalt.mordant.terminal.Terminal
 import compiler.diagnostic.ReportingException
-import compiler.diagnostic.illustrateSourceLocations
 import compiler.lexer.DiskLexerSourceFile
 import compiler.lexer.MemoryLexerSourceFile
 import compiler.lexer.SourceSet
@@ -129,7 +128,7 @@ class ConfigParseException(
         if (pathRef != null) {
             fullMessage += "at ${pathRef.pathReferenceInYAMLNotation}\n"
         }
-        fullMessage += "in ${illustrateSourceLocations(listOf(span))}\n"
+        fullMessage += "in $span\n"
 
         to.print(
             message = fullMessage,

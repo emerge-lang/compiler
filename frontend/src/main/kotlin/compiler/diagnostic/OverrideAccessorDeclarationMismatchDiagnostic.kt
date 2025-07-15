@@ -2,6 +2,7 @@ package compiler.diagnostic
 
 import compiler.InternalCompilerError
 import compiler.binding.BoundMemberFunction
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
 
 class OverrideAccessorDeclarationMismatchDiagnostic private constructor(
@@ -13,7 +14,10 @@ class OverrideAccessorDeclarationMismatchDiagnostic private constructor(
     message,
     span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateHints(sourceHints)}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(sourceHints)
+    }
 
     companion object {
         operator fun invoke(override: BoundMemberFunction, superFn: BoundMemberFunction): OverrideAccessorDeclarationMismatchDiagnostic {

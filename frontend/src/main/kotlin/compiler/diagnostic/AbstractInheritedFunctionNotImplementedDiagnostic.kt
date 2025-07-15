@@ -19,7 +19,8 @@ class AbstractInheritedFunctionNotImplementedDiagnostic(
     """.trimIndent(),
     implementingType.declaration.declaredAt,
 ) {
-    override fun CellBuilder.renderBody() {
+    context(CellBuilder)
+    override fun renderBody() {
         sourceHints(
             SourceHint(span, "this class is missing the implementation", relativeOrderMatters = true),
             SourceHint(functionToImplement.declaredAt, "this is the abstract function you need to implement", relativeOrderMatters = true),

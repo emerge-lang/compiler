@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.diagnostic.rendering.CellBuilder
 
 data class MultipleClassDestructorsDiagnostic(
     val additionalDestructors: Collection<BaseTypeDestructorDeclaration>,
@@ -9,5 +10,7 @@ data class MultipleClassDestructorsDiagnostic(
     "Classes can have only one destructor. These must be removed",
     additionalDestructors.first().span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalDestructors.map { it.span })}"
+    context(CellBuilder) override fun renderBody() {
+        sourceHints(additionalDestructors.map { SourceHint(it.span, severity = severity) })
+    }
 }

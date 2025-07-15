@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.BaseTypeDeclaration
+import compiler.diagnostic.rendering.CellBuilder
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class DuplicateBaseTypesDiagnostic(
@@ -13,10 +14,9 @@ class DuplicateBaseTypesDiagnostic(
 ) {
     private val simpleName = duplicates.first().name.value
 
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateSourceLocations(duplicates.map { it.declaredAt })
-        return str
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(duplicates.map { SourceHint(it.declaredAt, severity = severity) })
     }
 
     override fun equals(other: Any?): Boolean {

@@ -2,6 +2,8 @@ package compiler.diagnostic
 
 import compiler.ast.FunctionDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
+import compiler.diagnostic.rendering.CellBuilder
+import compiler.diagnostic.rendering.TextSpan
 
 class IncompatibleReturnTypeOnOverrideDiagnostic(
     val override: FunctionDeclaration,
@@ -12,5 +14,24 @@ class IncompatibleReturnTypeOnOverrideDiagnostic(
     "The return type of this override is not a subtype the overridden functions return type: ${base.simplifiedMessage ?: base.reason}",
     base.span,
 ) {
-    override fun toString() = "$levelAndMessage  overridden function:         ${superFunction.supertypeMemberFn.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $span"
+    context(CellBuilder)
+    override fun renderBody() {
+        horizontalLayout(spacing = TextSpan.whitespace(2)) {
+            column {
+                text("overridden function:")
+                text("overridden function returns:")
+                text("override returns:")
+            }
+            column {
+                append(superFunction.supertypeMemberFn.canonicalName.quote())
+                appendLineBreak()
+
+                append(base.targetType.quote())
+                appendLineBreak()
+
+                append(base.sourceType.quote())
+            }
+        }
+        super.renderBody()
+    }
 }

@@ -12,7 +12,8 @@ class AmbiguousInvocationDiagnostic(
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
     invocation.span,
 ) {
-    override fun CellBuilder.renderBody() {
+    context(CellBuilder)
+    override fun renderBody() {
         val uniqueCandidates = candidates.distinctBy{ it.declaredAt }
         sourceHints(
             SourceHint(invocation.span, "this invocation is ambiguous", true),

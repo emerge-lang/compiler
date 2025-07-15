@@ -11,7 +11,8 @@ data class AmbiguousImportsDiagnostic(
     "These imports are ambiguous, they all import the symbol $commonSimpleName",
     imports.first().declaredAt,
 ) {
-    override fun CellBuilder.renderBody() {
+    context(CellBuilder)
+    override fun renderBody() {
         sourceHints(*imports.map { SourceHint(it.declaredAt, null, severity = severity) }.toTypedArray())
     }
 }

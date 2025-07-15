@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundOverloadSet
+import compiler.diagnostic.rendering.CellBuilder
 
 class InconsistentReceiverPresenceInOverloadSetDiagnostic(
     val overloadSet: BoundOverloadSet<*>,
@@ -9,13 +10,10 @@ class InconsistentReceiverPresenceInOverloadSetDiagnostic(
     "Receiver presence is inconsistent in ${overloadSet.canonicalName}. All functions in an overload-set must either declare a receiver or not declare one.",
     overloadSet.overloads.first().declaredAt,
 ) {
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateHints(overloadSet.overloads.map {
-            SourceHint(it.parameters.declaredReceiver?.declaration?.span ?: it.declaredAt, null, nLinesContext = 0u)
+    context(CellBuilder) override fun renderBody() {
+        sourceHints(overloadSet.overloads.map {
+            SourceHint(it.parameters.declaredReceiver?.declaration?.span ?: it.declaredAt, null, nLinesContext = 0u, severity = severity)
         })
-
-        return str
     }
 
     override fun equals(other: Any?): Boolean {

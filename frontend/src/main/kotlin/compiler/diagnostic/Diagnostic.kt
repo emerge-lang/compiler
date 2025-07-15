@@ -36,15 +36,17 @@ abstract class Diagnostic internal constructor(
         return severity.compareTo(other.severity)
     }
 
-    open fun CellBuilder.renderMessage() {
+    context(CellBuilder)
+    open fun renderMessage() {
         text(message)
     }
 
-    open fun CellBuilder.renderBody() {
-        sourceHints(SourceHint(span, description = null, severity = severity))
+    context(CellBuilder)
+    open fun renderBody() {
+        sourceHints(SourceHint(span, severity = severity))
     }
 
-    private fun CellBuilder.renderLevelAndMessage() {
+    final override fun render(canvas: MonospaceCanvas) = widget(canvas) {
         horizontalLayout {
             column {
                 text("($severity)", when (severity) {
@@ -58,19 +60,7 @@ abstract class Diagnostic internal constructor(
                 renderMessage()
             }
         }
-    }
-
-    final override fun render(canvas: MonospaceCanvas) = widget(canvas) {
-        renderLevelAndMessage()
         renderBody()
-    }
-
-    protected val levelAndMessage: String get() {
-        val canvas = createBufferedMonospaceCanvas()
-        widget(canvas) {
-            renderLevelAndMessage()
-        }
-        return canvas.toString()
     }
 
     /**

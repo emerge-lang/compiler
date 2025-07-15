@@ -23,7 +23,22 @@ interface CellBuilder : MonospaceCanvas {
 
     fun horizontalLayout(spacing: TextSpan = TextSpan.whitespace(1), columnsBuilder: ColumnsBuilder.() -> Unit)
 
+    fun sourceHint(hint: SourceHint) {
+        val quoteWidget = SourceQuoteWidget(hint.span.sourceFile)
+        quoteWidget.addHint(hint)
+        widget(quoteWidget)
+    }
+
     fun sourceHints(vararg hints: SourceHint) {
+        if (hints.size == 1) {
+            sourceHint(hints[0])
+            return
+        }
+
+        sourceHints(hints.asIterable())
+    }
+
+    fun sourceHints(hints: Iterable<SourceHint>) {
         val hintGroups = hints
             .filter { it.relativeOrderMatters }
             .groupRunsBy { it.span.sourceFile }
