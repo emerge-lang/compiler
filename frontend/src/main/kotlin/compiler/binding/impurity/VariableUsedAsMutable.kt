@@ -8,7 +8,7 @@ data class VariableUsedAsMutable(val referral: BoundIdentifierExpression.Referri
     Impurity {
     override val span = referral.span
     override val kind = Impurity.ActionKind.MODIFY
-    override val sourceHints get() = arrayOf(
+    override val sourceHints get() = listOf(
         SourceHint(span = referral.span, "`${referral.variable.name}` is used with a mut type here"),
         SourceHint(span = usage.span, "mut reference is created here"),
     )

@@ -9,6 +9,4 @@ class CompilerGeneratedInvalidCodeDiagnostic : Diagnostic(
         The following errors are from this generated code.
     """.trimIndent(),
     Span.UNKNOWN,
-) {
-    override fun toString() = levelAndMessage
-}
+)

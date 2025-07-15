@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundParameter
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
 
 class ExtendingOwnershipOverrideDiagnostic(
@@ -11,13 +12,12 @@ class ExtendingOwnershipOverrideDiagnostic(
     "Cannot extend ownership of parameter ${override.name}",
     override.declaration.span,
 ) {
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateHints(
-            SourceHint(superParameter.ownershipSpan, "overridden function borrows the parameter"),
-            SourceHint(override.ownershipSpan, "override cannot capture it"),
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(
+            SourceHint(superParameter.ownershipSpan, "overridden function borrows the parameter", severity = Severity.INFO),
+            SourceHint(override.ownershipSpan, "override cannot capture it", severity = severity),
         )
-        return str
     }
 
     override fun equals(other: Any?): Boolean {

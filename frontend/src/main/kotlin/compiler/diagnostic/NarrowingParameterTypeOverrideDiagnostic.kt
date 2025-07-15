@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundParameter
+import compiler.diagnostic.rendering.CellBuilder
 
 class NarrowingParameterTypeOverrideDiagnostic(
     val override: BoundParameter,
@@ -11,13 +12,19 @@ class NarrowingParameterTypeOverrideDiagnostic(
     "Cannot narrow type of overridden parameter ${override.name}; ${assignabilityError.reason}",
     assignabilityError.span,
 ) {
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateHints(
-            SourceHint(superParameter.declaration.type?.span ?: superParameter.declaration.span, "overridden function establishes the type ${assignabilityError.sourceType}"),
-            SourceHint(assignabilityError.targetType.span ?: override.declaration.span, "overriding function requires are more specific type"),
+    context(CellBuilder) override fun renderBody() {
+        sourceHints(
+            SourceHint(
+                superParameter.declaration.type?.span ?: superParameter.declaration.span,
+                "overridden function establishes the type ${assignabilityError.sourceType.quote()}",
+                severity = Severity.INFO
+            ),
+            SourceHint(
+                assignabilityError.targetType.span ?: override.declaration.span,
+                "overriding function requires are more specific type",
+                severity = severity
+            ),
         )
-        return str
     }
 
     override fun equals(other: Any?): Boolean {

@@ -24,8 +24,8 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ambiguousImports
 import compiler.diagnostic.toplevelFunctionWithOverrideAttribute
+import compiler.lexer.LexerSourceFile
 import io.github.tmarsteel.emerge.common.CanonicalElementName
-import compiler.lexer.SourceFile as LexerSourceFile
 
 class SourceFile(
     val lexerFile: LexerSourceFile,

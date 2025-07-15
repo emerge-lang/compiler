@@ -1,5 +1,6 @@
 package compiler.diagnostic
 
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.KeywordToken
 
 class DuplicateMemberVariableAttributeDiagnostic(
@@ -9,5 +10,8 @@ class DuplicateMemberVariableAttributeDiagnostic(
     "Duplicate member variable attribute ${duplicates.first().keyword.text}",
     duplicates.first().span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(duplicates.map { it.span })}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(duplicates.map { SourceHint(it.span, severity = severity) })
+    }
 }

@@ -19,6 +19,7 @@
 package compiler.diagnostic
 
 import compiler.binding.type.BoundTypeReference
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.IdentifierToken
 
 /**
@@ -48,13 +49,14 @@ class UnresolvableFunctionOverloadDiagnostic(
         }
     }
 
-    override fun toString(): String {
-        var str = "$levelAndMessage\n${illustrateSourceLocations(setOf(span))}"
+    context(CellBuilder)
+    override fun renderBody() {
+        super.renderBody()
+
         if (inapplicableCandidates.isNotEmpty()) {
-            str += "\nThese functions could be invoked, but are not applicable:"
-            str += illustrateHints(inapplicableCandidates.map { it.inapplicabilityHint })
+            text("These functions could be invoked, but are not applicable:")
+            sourceHints(inapplicableCandidates.map { it.inapplicabilityHint })
         }
-        return str
     }
 
     override fun equals(other: Any?): Boolean {

@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundOverloadSet
+import compiler.diagnostic.rendering.CellBuilder
 
 class OverloadSetHasNoDisjointParameterDiagnostic(
     val overloadSet: BoundOverloadSet<*>,
@@ -12,10 +13,9 @@ class OverloadSetHasNoDisjointParameterDiagnostic(
     val overloadSetName = overloadSet.overloads.first().canonicalName
     val overloadSetParameterCount = overloadSet.overloads.first().parameters.parameters.size
 
-    override fun toString(): String {
-        var str = "${levelAndMessage}\n"
-        str += illustrateSourceLocations(overloadSet.overloads.map { it.declaredAt })
-        return str
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(overloadSet.overloads.map {  SourceHint(it.declaredAt, severity = severity) })
     }
 
     override fun equals(other: Any?): Boolean {

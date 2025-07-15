@@ -22,7 +22,7 @@ package compiler.lexer
  * @param addTrailingNewline if true, this function will make sure there is a trailing newline token in
  * the result and that the very last token is an [EndOfInputToken].
  */
-fun lex(sourceFile: SourceFile, addTrailingNewline: Boolean = true): Array<Token> {
+fun lex(sourceFile: LexerSourceFile, addTrailingNewline: Boolean = true): Array<Token> {
     val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
     val tokens = ArrayList<Token>()
 
@@ -131,7 +131,7 @@ private fun PositionTrackingCodePointTransactionalSequence.skipRestOfLine() {
     }
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsString(sourceFile: SourceFile, n: Int): Pair<String, Span>? {
+private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsString(sourceFile: LexerSourceFile, n: Int): Pair<String, Span>? {
     check(n > 0)
     if (nCodePointsRemaining < n) {
         return null
@@ -147,7 +147,7 @@ private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsStrin
     return Pair(buf.toString(), Span(sourceFile, start, currentPosition))
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sourceFile: SourceFile, doCommit: Boolean = true): OperatorToken? {
+private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sourceFile: LexerSourceFile, doCommit: Boolean = true): OperatorToken? {
     for (operator in Operator.valuesSortedForLexing) {
         mark()
 
@@ -163,7 +163,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sour
     return null
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorOrWhitespace(sourceFile: SourceFile): Pair<String, Span> {
+private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorOrWhitespace(sourceFile: LexerSourceFile): Pair<String, Span> {
     val buf = StringBuilder()
     var start: SourceSpot? = null
 
@@ -182,7 +182,7 @@ private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorO
     return Pair(buf.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: SourceFile): NumericLiteralToken? {
+private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: LexerSourceFile): NumericLiteralToken? {
     val startLocation = currentPosition
     val firstCodePoint = peek() ?: return null
 
@@ -248,7 +248,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
     )
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: SourceFile): Pair<String, Span> {
+private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: LexerSourceFile): Pair<String, Span> {
     val data = StringBuilder()
     var start: SourceSpot? = null
     while (true) {
@@ -283,7 +283,7 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
     return Pair(data.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.collectDelimitedIdentifierContent(sourceFile: SourceFile): Pair<String, Span> {
+private fun PositionTrackingCodePointTransactionalSequence.collectDelimitedIdentifierContent(sourceFile: LexerSourceFile): Pair<String, Span> {
     val data = StringBuilder()
     var start: SourceSpot? = null
     while (true) {

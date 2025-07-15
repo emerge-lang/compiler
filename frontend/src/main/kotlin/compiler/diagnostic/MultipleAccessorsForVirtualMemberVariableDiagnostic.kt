@@ -2,6 +2,7 @@ package compiler.diagnostic
 
 import compiler.ast.FunctionDeclaration
 import compiler.binding.AccessorKind
+import compiler.diagnostic.rendering.CellBuilder
 
 class MultipleAccessorsForVirtualMemberVariableDiagnostic(
     val memberVarName: String,
@@ -14,7 +15,7 @@ class MultipleAccessorsForVirtualMemberVariableDiagnostic(
             AccessorKind.Read -> "getters"
             AccessorKind.Write -> "setters"
         }
-        "Multiple $kindStr defined for virtual member variable `$memberVarName`"
+        "Multiple $kindStr defined for virtual member variable ${memberVarName.quoteIdentifier()}"
     },
     accessorsOfSameKind.map { it.declaredAt}.minBy { it.fromLineNumber },
 ) {
@@ -37,7 +38,10 @@ class MultipleAccessorsForVirtualMemberVariableDiagnostic(
         return true
     }
 
-    override fun toString() = "$levelAndMessage\n${illustrateHints(accessorsOfSameKind.map {
-        SourceHint(it.declaredAt, null)
-    })}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(accessorsOfSameKind.map {
+            SourceHint(it.declaredAt, severity = severity)
+        })
+    }
 }

@@ -6,7 +6,7 @@ import compiler.binding.context.SoftwareContext
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
-import compiler.lexer.MemorySourceFile
+import compiler.lexer.MemoryLexerSourceFile
 import compiler.lexer.SourceSet
 import compiler.lexer.Token
 import compiler.lexer.lex
@@ -41,7 +41,7 @@ fun lexCode(
         code
     }
 
-    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, CanonicalElementName.Package(listOf("testmodule")), moduleCode)
+    val sourceFile = MemoryLexerSourceFile(invokedFrom.fileName!!, CanonicalElementName.Package(listOf("testmodule")), moduleCode)
     return lex(sourceFile, addTrailingNewline = addPackageDeclaration)
 }
 
@@ -93,7 +93,7 @@ class IntegrationTestModule(
             definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]
         ): IntegrationTestModule {
             val moduleDotName = CanonicalElementName.Package(moduleName.split('.'))
-            val sourceFile = MemorySourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
+            val sourceFile = MemoryLexerSourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
             val tokens = lex(sourceFile)
             return IntegrationTestModule(moduleDotName, uses, tokens)
         }

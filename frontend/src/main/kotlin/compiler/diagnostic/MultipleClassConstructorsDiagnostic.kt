@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.diagnostic.rendering.CellBuilder
 
 data class MultipleClassConstructorsDiagnostic(
     val additionalConstructors: Collection<BaseTypeConstructorDeclaration>,
@@ -9,5 +10,8 @@ data class MultipleClassConstructorsDiagnostic(
     "Classes can have only one constructor. These must be removed",
     additionalConstructors.first().span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalConstructors.map { it.span })}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(additionalConstructors.map { SourceHint(it.span, severity = severity) })
+    }
 }

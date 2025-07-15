@@ -3,16 +3,16 @@ package compiler.binding
 import compiler.ast.AstVisibility
 import compiler.ast.DEFAULT_IMPORT_PACKAGES
 import compiler.binding.context.CTContext
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.SourceFile
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.elementNotAccessible
 import compiler.diagnostic.missingModuleDependency
 import compiler.diagnostic.visibilityShadowed
 import compiler.diagnostic.visibilityTooBroad
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.LexerSourceFile
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
@@ -57,7 +57,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     }
 
     class FileScope(override val context: CTContext, override val astNode: AstVisibility) : BoundVisibility() {
-        val lexerFile: SourceFile get() = context.sourceFile.lexerFile
+        val lexerFile: LexerSourceFile get() = context.sourceFile.lexerFile
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
             if (lexerFile != accessAt.sourceFile) {
                 diagnosis.elementNotAccessible(subject, this, accessAt)

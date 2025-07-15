@@ -21,6 +21,7 @@ package compiler.diagnostic
 import compiler.binding.BoundFunction
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.impurity.Impurity
+import compiler.diagnostic.rendering.CellBuilder
 
 data class PurityViolationDiagnostic(
     val impurity: Impurity,
@@ -30,13 +31,15 @@ data class PurityViolationDiagnostic(
     "${impurity.describe()} violates the purity of $boundary",
     impurity.span,
 ) {
-    override fun toString(): String {
+    context(CellBuilder)
+    override fun renderBody() {
         val impurityHints = impurity.sourceHints
         if (impurityHints.isEmpty()) {
-            return super.toString()
+            super.renderBody()
+            return
         }
 
-        return "$levelAndMessage\n${illustrateHints(*impurityHints)}"
+        sourceHints(impurityHints)
     }
 
     sealed class SideEffectBoundary {

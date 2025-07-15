@@ -2,6 +2,7 @@ package compiler.diagnostic
 
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundFunction
+import compiler.diagnostic.rendering.CellBuilder
 
 class AmbiguousInvocationDiagnostic(
     val invocation: InvocationExpression,
@@ -11,12 +12,13 @@ class AmbiguousInvocationDiagnostic(
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
     invocation.span,
 ) {
-    override fun toString(): String {
+    context(CellBuilder)
+    override fun renderBody() {
         val uniqueCandidates = candidates.distinctBy{ it.declaredAt }
-        return "$levelAndMessage\n${illustrateHints(
+        sourceHints(
             SourceHint(invocation.span, "this invocation is ambiguous", true),
             *uniqueCandidates.map { SourceHint(it.declaredAt, "this is a viable candidate", nLinesContext = 0u) }.toTypedArray(),
-        )}"
+        )
     }
 
     override fun equals(other: Any?): Boolean {

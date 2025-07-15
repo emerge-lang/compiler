@@ -1,6 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.AstFunctionAttribute
+import compiler.diagnostic.rendering.CellBuilder
 
 abstract class MultiFunctionAttributeDiagnostic(
     severity: Severity,
@@ -13,7 +14,10 @@ abstract class MultiFunctionAttributeDiagnostic(
         require(sourceLocations.map { it.sourceFile }.toSet().size == 1)
     }
 
-    override fun toString() = "$levelAndMessage\nin ${illustrateSourceLocations(sourceLocations)}"
+    context(CellBuilder)
+    override fun renderBody() {
+        sourceHints(sourceLocations.map { SourceHint(it, severity = severity) })
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

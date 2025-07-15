@@ -18,67 +18,62 @@
 
 package compiler.diagnostic
 
-import compiler.ast.AstFunctionAttribute
-import compiler.ast.AstPackageName
-import compiler.ast.BaseTypeConstructorDeclaration
-import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.Executable
-import compiler.ast.Expression
-import compiler.ast.FunctionDeclaration
-import compiler.ast.VariableDeclaration
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.binding.BoundAssignmentStatement
-import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
-import compiler.binding.BoundImportDeclaration
-import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundParameter
-import compiler.binding.BoundVariable
-import compiler.binding.BoundVisibility
-import compiler.binding.DefinitionWithVisibility
-import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeEntry
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
-import compiler.binding.basetype.BoundMixinStatement
-import compiler.binding.basetype.BoundSupertypeDeclaration
-import compiler.binding.basetype.InheritedBoundMemberFunction
-import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
-import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.effect.VariableLifetime
-import compiler.binding.expression.*
-import compiler.binding.type.BoundTypeArgument
-import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.TypeUseSite
-import compiler.lexer.IdentifierToken
-import compiler.lexer.OperatorToken
+import compiler.diagnostic.rendering.CellBuilder
+import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.MonospaceWidget
+import compiler.diagnostic.rendering.TextAlignment
+import compiler.diagnostic.rendering.TextSpan
+import compiler.diagnostic.rendering.createBufferedMonospaceCanvas
+import compiler.diagnostic.rendering.widget
 import compiler.lexer.Span
-import compiler.lexer.Token
-import io.github.tmarsteel.emerge.common.CanonicalElementName
-import textutils.indentByFromSecondLine
-import java.math.BigInteger
 
 abstract class Diagnostic internal constructor(
     val severity: Severity,
     open val message: String,
     val span: Span
-) : Comparable<Diagnostic>
-{
+) : Comparable<Diagnostic>, MonospaceWidget {
     override fun compareTo(other: Diagnostic): Int {
         return severity.compareTo(other.severity)
     }
 
-    protected val levelAndMessage: String get() = "($severity) $message".indentByFromSecondLine(2)
+    context(CellBuilder)
+    open fun renderMessage() {
+        text(message)
+    }
+
+    context(CellBuilder)
+    open fun renderBody() {
+        sourceHints(SourceHint(span, severity = severity))
+    }
+
+    final override fun render(canvas: MonospaceCanvas) = widget(canvas) {
+        horizontalLayout(spacing = TextSpan.whitespace(1)) {
+            column {
+                text("($severity)", when (severity) {
+                    Severity.ERROR -> theme.severityTagError
+                    Severity.WARNING -> theme.severityTagWarning
+                    Severity.INFO -> theme.severityTagInfo
+                    else -> TextSpan.DEFAULT_STYLE
+                })
+            }
+            column(TextAlignment.LINE_START) {
+                renderMessage()
+            }
+        }
+
+        assureOnBlankLine()
+        appendLineBreak()
+        renderBody()
+    }
 
     /**
      * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
      */
-    override fun toString() = "$levelAndMessage\nin $span"
+    override fun toString(): String {
+        val canvas = createBufferedMonospaceCanvas()
+        render(canvas)
+        return canvas.toString()
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

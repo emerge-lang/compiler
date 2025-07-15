@@ -24,6 +24,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeVariableNotUnderInferenceException
 import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
 
 /**
@@ -83,5 +84,18 @@ open class ValueNotAssignableDiagnostic(
 
     override val message: String get() = simplifiedMessage ?: super.message
 
-    override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $span"
+    context(CellBuilder)
+    override fun renderMessage() {
+        text(message)
+        horizontalLayout {
+            column {
+                text("Required:")
+                text("Found:")
+            }
+            column {
+                text(targetType.toString())
+                text(sourceType.toString())
+            }
+        }
+    }
 }
