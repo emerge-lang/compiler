@@ -18,5 +18,10 @@ class TextSpan(val content: String) {
 
     companion object {
         val EMPTY = TextSpan("")
+
+        private val whitespaceCache = (0..20).associateWith {
+            TextSpan(" ".repeat(it))
+        }
+        fun whitespace(width: Int): TextSpan = whitespaceCache[width] ?: TextSpan(" ".repeat(width))
     }
 }

@@ -18,46 +18,52 @@
 
 package compiler.diagnostic
 
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.diagnostic.rendering.MonospaceCanvas
-import compiler.diagnostic.rendering.SourceQuoteWidget
-import compiler.diagnostic.rendering.TextSpan
+import compiler.diagnostic.rendering.MonospaceWidget
+import compiler.diagnostic.rendering.TextAlignment
 import compiler.diagnostic.rendering.createBufferedMonospaceCanvas
+import compiler.diagnostic.rendering.widget
 import compiler.lexer.Span
 
 abstract class Diagnostic internal constructor(
     val severity: Severity,
     open val message: String,
     val span: Span
-) : Comparable<Diagnostic>
-{
+) : Comparable<Diagnostic>, MonospaceWidget {
     override fun compareTo(other: Diagnostic): Int {
         return severity.compareTo(other.severity)
     }
 
-    protected open fun renderLevelAndMessage(canvas: MonospaceCanvas) {
-        canvas.assureOnBlankLine()
-        canvas.append(TextSpan("($severity)"))
-        val messageLines = message.split("\n")
-        canvas.append(TextSpan(" ${messageLines.first()}"))
-        messageLines.drop(1).forEach {
-            canvas.assureOnBlankLine()
-            canvas.append(TextSpan("  $it"))
+    open fun CellBuilder.renderMessage() {
+        text(message)
+    }
+
+    open fun CellBuilder.renderBody() {
+        sourceSpans(span)
+    }
+
+    private fun CellBuilder.renderLevelAndMessage() {
+        horizontalLayout {
+            column {
+                text("($severity)")
+            }
+            column(TextAlignment.LINE_START) {
+                renderMessage()
+            }
         }
     }
 
-    protected open fun renderBody(canvas: MonospaceCanvas) {
-        SourceQuoteWidget.renderHintsFromMultipleFiles(canvas, SourceHint(span, null))
-    }
-
-    open fun render(canvas: MonospaceCanvas) {
-        renderLevelAndMessage(canvas.createViewAppendingToBlankLine())
-        canvas.appendLineBreak()
-        renderBody(canvas.createViewAppendingToBlankLine())
+    final override fun render(canvas: MonospaceCanvas) = widget(canvas) {
+        renderLevelAndMessage()
+        renderBody()
     }
 
     protected val levelAndMessage: String get() {
         val canvas = createBufferedMonospaceCanvas()
-        renderLevelAndMessage(canvas)
+        widget(canvas) {
+            renderLevelAndMessage()
+        }
         return canvas.toString()
     }
 

@@ -2,13 +2,15 @@ package compiler.diagnostic.rendering
 
 import java.util.Collections
 
-fun createBufferedMonospaceCanvas(tabWidth: Int = 4): MonospaceCanvas {
+fun createBufferedMonospaceCanvas(
+    renderTargetInfo: MonospaceCanvas.RenderTargetInfo = MonospaceCanvas.RenderTargetInfo(tabWidth = 4),
+): MonospaceCanvas {
     val beginNode = CanvasBeginNode()
     val endNode = CanvasEndNode()
     beginNode.next = endNode
     endNode.prev = beginNode
     val canvas = DoublyLinkedCanvas(
-        MonospaceCanvas.RenderTargetInfo(tabWidth),
+        renderTargetInfo,
         beginNode,
         endNode,
     )
@@ -50,7 +52,7 @@ private class LineNode : CanvasNode(), MonospaceCanvas.Line {
         _markers.add(marker)
     }
 
-    val spans = ArrayList<TextSpan>()
+    override val spans = ArrayList<TextSpan>()
 
     val isBlank: Boolean get()= spans.isEmpty() || spans.all { it.content.isEmpty() }
 
@@ -119,7 +121,8 @@ private class DoublyLinkedCanvas(
             }
         }
     }
-    private val lineSequence: Sequence<LineNode> = nodesSequence
+
+    override val lines: Sequence<LineNode> = nodesSequence
         .mapNotNull { when (it) {
             is LineNode -> it
             else -> null
@@ -129,42 +132,27 @@ private class DoublyLinkedCanvas(
         alignment: TextAlignment,
         computeContent: (line: MonospaceCanvas.Line) -> TextSpan
     ) {
-        val lines = lineSequence.toList()
+        val lines = lines.toList()
         val columnContents = lines.map(computeContent)
         val columnWidth = columnContents.maxOf(renderTargetInfo::computeCellWidth)
         lines.zip(columnContents) { line, columnContent ->
-            line.spans.addFirst(align(columnContent, columnWidth, alignment))
-        }
-    }
-
-    private fun align(span: TextSpan, toWidth: Int, alignment: TextAlignment): TextSpan {
-        val unpaddedCellWidth = renderTargetInfo.computeCellWidth(span)
-        if (unpaddedCellWidth == toWidth) {
-            return span
-        }
-        check(unpaddedCellWidth < toWidth)
-
-        val paddedContent = when (alignment) {
-            TextAlignment.LEFT -> span.content + " ".repeat(toWidth - unpaddedCellWidth)
-            TextAlignment.RIGHT -> " ".repeat(toWidth - unpaddedCellWidth) + span.content
-            TextAlignment.CENTER -> {
-                val nPadding = toWidth - unpaddedCellWidth
-                val nBefore = nPadding / 2
-                val nAfter = nPadding - nBefore
-                " ".repeat(nBefore) + span.content + " ".repeat(nAfter)
+            val newSpans = ArrayList<TextSpan>(2)
+            newSpans.add(columnContent)
+            renderTargetInfo.alignInPlace(newSpans, columnWidth, alignment)
+            // there is no in-place-reverse access for ArrayList... pathetic, but what can ya do?
+            for (i in newSpans.lastIndex downTo 0) {
+                line.spans.addFirst(newSpans[i])
             }
         }
-
-        return TextSpan(paddedContent)
     }
-
+    
     override fun close() {
         // nothing to do, GC will take of everything
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
-        for (line in lineSequence) {
+        for (line in lines) {
             for (span in line.spans) {
                 sb.append(span.content)
             }
@@ -172,14 +160,5 @@ private class DoublyLinkedCanvas(
         }
 
         return sb.toString()
-
-        /*return nodesSequence.joinToString(
-            separator = "\n",
-            prefix = "begin canvas @ ${System.identityHashCode(this).toString(16)}\n",
-            postfix = "\nend canvas",
-            transform = {
-                it.toString().prependIndent("  ")
-            },
-        )*/
     }
 }

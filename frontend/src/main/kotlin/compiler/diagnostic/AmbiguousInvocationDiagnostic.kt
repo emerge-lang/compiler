@@ -2,8 +2,7 @@ package compiler.diagnostic
 
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundFunction
-import compiler.diagnostic.rendering.MonospaceCanvas
-import compiler.diagnostic.rendering.SourceQuoteWidget
+import compiler.diagnostic.rendering.CellBuilder
 
 class AmbiguousInvocationDiagnostic(
     val invocation: InvocationExpression,
@@ -13,12 +12,9 @@ class AmbiguousInvocationDiagnostic(
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
     invocation.span,
 ) {
-    override fun render(canvas: MonospaceCanvas) {
-        renderLevelAndMessage(canvas)
-
+    override fun CellBuilder.renderBody() {
         val uniqueCandidates = candidates.distinctBy{ it.declaredAt }
-        SourceQuoteWidget.renderHintsFromMultipleFiles(
-            canvas,
+        sourceHints(
             SourceHint(invocation.span, "this invocation is ambiguous", true),
             *uniqueCandidates.map { SourceHint(it.declaredAt, "this is a viable candidate", nLinesContext = 0u) }.toTypedArray(),
         )

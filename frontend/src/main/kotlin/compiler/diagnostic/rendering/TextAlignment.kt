@@ -1,8 +1,8 @@
 package compiler.diagnostic.rendering
 
 enum class TextAlignment {
-    LEFT,
-    RIGHT,
+    LINE_START,
+    LINE_END,
     CENTER,
     ;
 }

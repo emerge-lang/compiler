@@ -1,8 +1,7 @@
 package compiler.diagnostic
 
 import compiler.ast.ImportDeclaration
-import compiler.diagnostic.rendering.MonospaceCanvas
-import compiler.diagnostic.rendering.SourceQuoteWidget
+import compiler.diagnostic.rendering.CellBuilder
 
 data class AmbiguousImportsDiagnostic(
     val imports: List<ImportDeclaration>,
@@ -12,8 +11,7 @@ data class AmbiguousImportsDiagnostic(
     "These imports are ambiguous, they all import the symbol $commonSimpleName",
     imports.first().declaredAt,
 ) {
-    override fun render(canvas: MonospaceCanvas) {
-        renderLevelAndMessage(canvas)
-        SourceQuoteWidget.renderHintsFromMultipleFiles(canvas, *imports.map { it.declaredAt }.toTypedArray())
+    override fun CellBuilder.renderBody() {
+        sourceSpans(*imports.map { it.declaredAt }.toTypedArray())
     }
 }

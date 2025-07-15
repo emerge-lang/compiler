@@ -2,8 +2,6 @@ package compiler.diagnostic.rendering
 
 import compiler.diagnostic.SourceHint
 import compiler.lexer.LexerSourceFile
-import compiler.lexer.Span
-import compiler.util.groupRunsBy
 import java.util.Comparator.comparing
 
 /**
@@ -12,7 +10,7 @@ import java.util.Comparator.comparing
  */
 class SourceQuoteWidget(
     val file: LexerSourceFile,
-) {
+) : MonospaceWidget {
     private val lines = file.content.split('\n').map(::TextSpan)
 
     private val singleLineHints = mutableMapOf<UInt, LinkedHashSet<SourceHint>>()
@@ -43,7 +41,7 @@ class SourceQuoteWidget(
         return set.sorted()
     }
 
-    fun render(canvas: MonospaceCanvas) {
+    override fun render(canvas: MonospaceCanvas) {
         canvas.assureOnBlankLine()
 
         canvas.append(TextSpan("$file:"))
@@ -51,7 +49,7 @@ class SourceQuoteWidget(
 
         val quoteCanvas = canvas.createViewAppendingToBlankLine()
         renderQuoteAndInlineHints(quoteCanvas)
-        quoteCanvas.addColumnToLeftOfAllCurrentLines(TextAlignment.RIGHT) { line ->
+        quoteCanvas.addColumnToLeftOfAllCurrentLines(TextAlignment.LINE_END) { line ->
             val lnText = line.markers.findInstanceOf<LogicalLineNumberMarker>()?.number?.toString() ?: ""
             TextSpan("$lnText | ")
         }
@@ -143,7 +141,7 @@ class SourceQuoteWidget(
                 referenceNumberCounter++
             }
 
-            canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.RIGHT) { _ -> TextSpan(" ") }
+            canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.LINE_END) { _ -> TextSpan(" ") }
             canvas.addColumnToLeftOfAllCurrentLines(TextAlignment.CENTER) { canvasLine ->
                 val ln = canvasLine.markers.findInstanceOf<LogicalLineNumberMarker>()?.number
 
@@ -168,35 +166,6 @@ class SourceQuoteWidget(
     companion object {
         private val spanPadding = TextSpan(" ")
         private val spanSwiggle = TextSpan("~")
-
-        fun renderHintsFromMultipleFiles(canvas: MonospaceCanvas, vararg locations: Span) {
-            renderHintsFromMultipleFiles(canvas, *locations.map { SourceHint(it, null) }.toTypedArray())
-        }
-
-        fun renderHintsFromMultipleFiles(canvas: MonospaceCanvas, vararg hints: SourceHint) {
-            val hintGroups = hints
-                .filter { it.relativeOrderMatters }
-                .groupRunsBy { it.span.sourceFile }
-                .map { (file, hints) -> Pair(file, hints.toMutableList()) }
-                .toMutableList()
-
-            hints
-                .filterNot { it.relativeOrderMatters }
-                .forEach { unorderedHint ->
-                    var lastGroupOfFile = hintGroups.lastOrNull { it.first == unorderedHint.span.sourceFile }
-                    if (lastGroupOfFile == null) {
-                        lastGroupOfFile = Pair(unorderedHint.span.sourceFile, ArrayList())
-                        hintGroups.add(lastGroupOfFile)
-                    }
-                    lastGroupOfFile.second.add(unorderedHint)
-                }
-
-            for ((file, hintsInGroup) in hintGroups) {
-                val widget = SourceQuoteWidget(file)
-                hintsInGroup.forEach(widget::addHint)
-                widget.render(canvas)
-            }
-        }
     }
 }
 

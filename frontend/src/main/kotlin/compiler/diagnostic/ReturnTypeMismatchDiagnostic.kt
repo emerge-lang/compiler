@@ -18,7 +18,7 @@
 
 package compiler.diagnostic
 
-import compiler.diagnostic.rendering.MonospaceCanvas
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.diagnostic.rendering.TextSpan
 
 /**
@@ -30,12 +30,18 @@ class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnosti
     base.message,
     base.span,
 ) {
-    override fun renderLevelAndMessage(canvas: MonospaceCanvas) {
-        super.renderLevelAndMessage(canvas)
-        canvas.assureOnBlankLine()
-        canvas.append(TextSpan("  declared return type is  ${base.targetType}"))
-        canvas.assureOnBlankLine()
-        canvas.append(TextSpan("  got a value of type      ${base.sourceType}"))
+    override fun CellBuilder.renderMessage() {
+        text(message)
+        horizontalLayout(spacing = TextSpan.whitespace(2)) {
+            column {
+                text("declared return type is")
+                text("got a value of type")
+            }
+            column {
+                text(base.targetType.toString())
+                text(base.sourceType.toString())
+            }
+        }
     }
 
     override fun equals(other: Any?): Boolean {

@@ -5,6 +5,10 @@ interface MonospaceCanvas : AutoCloseable {
 
     fun append(span: TextSpan)
 
+    fun appendPartialLine(partialLine: Line) {
+        partialLine.spans.forEach(::append)
+    }
+
     fun appendLineBreak()
 
     fun assureOnBlankLine()
@@ -18,10 +22,7 @@ interface MonospaceCanvas : AutoCloseable {
 
     fun createViewAppendingToBlankLine(): MonospaceCanvas
 
-    interface Line {
-        val markers: Set<Any>
-        fun mark(marker: Any)
-    }
+    val lines: Sequence<Line>
 
     data class RenderTargetInfo(
         val tabWidth: Int,
@@ -38,5 +39,38 @@ interface MonospaceCanvas : AutoCloseable {
                 } }
                 .sum()
         }
+
+        fun alignInPlace(partialLine: MutableList<TextSpan>, toWidth: Int, alignment: TextAlignment) {
+            var unpaddedWidth = 0
+            for (span in partialLine) {
+                unpaddedWidth += computeCellWidth(span)
+            }
+            if (unpaddedWidth == toWidth) {
+                return
+            }
+            check(unpaddedWidth < toWidth)
+
+            when (alignment) {
+                TextAlignment.LINE_START -> {
+                    partialLine.addLast(TextSpan(" ".repeat(toWidth - unpaddedWidth)))
+                }
+                TextAlignment.LINE_END -> {
+                    partialLine.addFirst(TextSpan(" ".repeat(toWidth - unpaddedWidth)))
+                }
+                TextAlignment.CENTER -> {
+                    val nPadding = toWidth - unpaddedWidth
+                    val nBefore = nPadding / 2
+                    val nAfter = nPadding - nBefore
+                    partialLine.addFirst(TextSpan.whitespace(nBefore))
+                    partialLine.addLast(TextSpan.whitespace(nAfter))
+                }
+            }
+        }
+    }
+
+    interface Line {
+        val spans: List<TextSpan>
+        val markers: Set<Any>
+        fun mark(marker: Any)
     }
 }
