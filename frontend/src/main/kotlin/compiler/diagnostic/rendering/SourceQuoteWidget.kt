@@ -100,6 +100,14 @@ class SourceQuoteWidget(
         canvas: MonospaceCanvas,
         above: Boolean
     ) {
+        if (lineText.content.isEmpty()) {
+            // cannot highlight, it's very likely that hint.span == Span.UNKNOWN
+            canvas.append(TextSpan("^ "))
+            hint.description?.let(::TextSpan)?.let(canvas::append)
+            canvas.appendLineBreak()
+            return
+        }
+
         val swiggleStyle = swiggleStyle(canvas, hint.severity)
 
         val paddingLeftCellWidth = canvas.renderTargetInfo.computeCellWidth(lineText.substring(0, hint.span.fromColumnNumber.toInt() - 1))
