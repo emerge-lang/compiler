@@ -47,7 +47,7 @@ class BoundSupertypeList(
     /**
      * initialized in [semanticAnalysisPhase1]
      */
-    var hasUnresolvedSupertypes: Boolean by seanHelper.resultOfPhase1()
+    var hasUnresolvedSupertypes: Boolean by seanHelper.resultOfPhase1(allowReassignment = false)
         private set
 
     /**
@@ -109,6 +109,7 @@ class BoundSupertypeList(
     private fun sean1BuildPreprocessedInheritanceTree(diagnosis: Diagnosis) {
         val partialTrees = ArrayList<PartialPreprocessedInheritanceTree>(clauses.size)
         val cycles = HashSet<BoundSupertypeDeclaration>()
+        hasUnresolvedSupertypes = false
         for (clause in clauses) {
             clause.semanticAnalysisPhase1(diagnosis)
             val supertypeRef = clause.resolvedReference
