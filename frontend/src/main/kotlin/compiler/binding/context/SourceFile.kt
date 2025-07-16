@@ -51,13 +51,16 @@ class SourceFile(
         context.functions.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
         context.imports
-            .asSequence()
-            .filter { it.simpleName != null }
-            .groupBy { it.simpleName!! }
-            .values
-            .filter { imports -> imports.size > 1 }
-            .forEach { ambiguousImports ->
-                diagnosis.ambiguousImports(ambiguousImports)
+            .flatMap { import ->
+                import.explicitSimpleNames.map { Pair(it, import) }
+            }
+            .groupBy(
+                keySelector = { (simpleName, _) -> simpleName },
+                valueTransform = { (_, import) -> import }
+            )
+            .filter { (_, imports) -> imports.size > 1 }
+            .forEach { (simpleName, ambiguousImports) ->
+                diagnosis.ambiguousImports(ambiguousImports, simpleName)
             }
     }
 

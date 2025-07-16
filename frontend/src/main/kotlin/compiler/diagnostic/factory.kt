@@ -404,8 +404,8 @@ fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpressio
     add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 
-fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>) {
-    add(AmbiguousImportsDiagnostic(imports.map { it.declaration }, imports.first().simpleName!!))
+fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>, simpleName: String) {
+    add(AmbiguousImportsDiagnostic(imports.map { it.declaration }, simpleName))
 }
 
 fun Diagnosis.implicitlyEvaluatingAStatement(statement: BoundExecutable<*>) {

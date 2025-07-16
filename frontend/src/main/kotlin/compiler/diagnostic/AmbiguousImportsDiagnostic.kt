@@ -1,10 +1,10 @@
 package compiler.diagnostic
 
-import compiler.ast.ImportDeclaration
+import compiler.ast.AstImportDeclaration
 import compiler.diagnostic.rendering.CellBuilder
 
 data class AmbiguousImportsDiagnostic(
-    val imports: List<ImportDeclaration>,
+    val imports: List<AstImportDeclaration>,
     val commonSimpleName: String,
 ) : Diagnostic(
     Severity.ERROR,

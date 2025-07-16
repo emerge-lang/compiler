@@ -19,8 +19,8 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.AstImportDeclaration
 import compiler.ast.BaseTypeDeclaration
-import compiler.ast.ImportDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
@@ -77,7 +77,7 @@ open class MutableCTContext(
     /** Holds all the base types defined in this context */
     protected val _types: MutableSet<BoundBaseType> = HashSet()
 
-    fun addImport(decl: ImportDeclaration) {
+    fun addImport(decl: AstImportDeclaration) {
         this._imports.add(decl.bindTo(this))
     }
 
@@ -116,7 +116,7 @@ open class MutableCTContext(
     }
 
     override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
-        if (_imports.any { (it.isImportAll || it.simpleName == simpleName) && it.isErroneous }) {
+        if (_imports.any { it.isErroneousAndAppliesToSimpleName(simpleName) }) {
             return true
         }
 

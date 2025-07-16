@@ -50,7 +50,7 @@ class ASTSourceFile(
 
     var selfDeclaration: ASTPackageDeclaration? = null
 
-    val imports: MutableList<ImportDeclaration> = mutableListOf()
+    val imports: MutableList<AstImportDeclaration> = mutableListOf()
 
     val globalVariables: MutableList<VariableDeclaration> = mutableListOf()
 
@@ -98,9 +98,10 @@ class ASTSourceFile(
             ?: Span(lexerFile, 1u, 1u, 1u, 1u, true)
         val defaultImports = DEFAULT_IMPORT_PACKAGES
             .map { pkgName ->
-                ImportDeclaration(
+                AstImportDeclaration(
                     defaultImportLocation,
-                    (pkgName.components + "*").map(::IdentifierToken),
+                    pkgName.components.map(::IdentifierToken),
+                    listOf(IdentifierToken("*")),
                 )
             }
 
