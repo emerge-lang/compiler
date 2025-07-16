@@ -46,7 +46,6 @@ class SourceQuoteWidget(
         canvas.assureOnBlankLine()
 
         canvas.append(TextSpan("$file:"))
-        canvas.appendLineBreak()
 
         val quoteCanvas = canvas.createViewAppendingToBlankLine()
         renderQuoteAndInlineHints(quoteCanvas)
@@ -165,9 +164,8 @@ class SourceQuoteWidget(
             }
         }
 
-        canvas.assureOnBlankLine()
-        canvas.appendLineBreak()
         multiLineHints.filter { it.description != null }.forEachIndexed { index, multiLineHint ->
+            canvas.assureOnBlankLine()
             canvas.append(TextSpan("[${index + 1}]: ${multiLineHint.description}"))
         }
     }
@@ -187,15 +185,10 @@ class SourceQuoteWidget(
 
 private class LineNumberSet(val nTotalLines: UInt, val ns: MutableSet<UInt> = mutableSetOf()) : Set<UInt> by ns {
     fun addLineAndContext(desiredLine: UInt, nContextLines: UInt) {
-        for (i in 1u..nContextLines) {
-            ns.add(desiredLine)
-
-            if (desiredLine > 2u) {
-                ns.add(desiredLine - i)
-            }
-            if (desiredLine < nTotalLines) {
-                ns.add(desiredLine + i)
-            }
+        val start = (desiredLine - nContextLines).coerceAtLeast(1u)
+        val end = (desiredLine + nContextLines).coerceAtMost(nTotalLines)
+        for (i in start .. end) {
+            ns.add(i)
         }
     }
 }
