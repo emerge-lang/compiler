@@ -60,6 +60,8 @@ interface CellBuilder : MonospaceCanvas {
             val widget = SourceQuoteWidget(file)
             hintsInGroup.forEach(widget::addHint)
             widget.render(this)
+            assureOnBlankLine()
+            appendLineBreak()
         }
     }
 }

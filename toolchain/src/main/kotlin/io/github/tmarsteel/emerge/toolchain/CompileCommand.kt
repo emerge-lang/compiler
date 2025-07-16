@@ -146,8 +146,6 @@ object CompileCommand : CliktCommand() {
         diagnostic.render(diagnosticEchoCanvas)
         echo(diagnosticEchoCanvas.toMordantLines())
         diagnosticEchoCanvas.clear()
-        echo()
-        echo()
     }
 }
 
