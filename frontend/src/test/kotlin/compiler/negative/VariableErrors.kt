@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.diagnostic.CircularVariableInitializationDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.GlobalVariableNotInitializedDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
@@ -46,6 +47,22 @@ class VariableErrors : FreeSpec({
                 borrow x: String
             """.trimIndent())
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
+        }
+
+        "circular type inference" {
+            validateModule("""
+                x = y
+                y = x
+            """.trimIndent())
+                .shouldFind<CircularVariableInitializationDiagnostic>()
+        }
+
+        "circular initialization" {
+            validateModule("""
+                x: UWord = y
+                y: UWord = x
+            """.trimIndent())
+                .shouldFind<CircularVariableInitializationDiagnostic>()
         }
     }
 

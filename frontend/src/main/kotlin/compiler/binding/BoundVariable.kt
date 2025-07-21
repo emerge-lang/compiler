@@ -41,6 +41,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.circularVariableInitialization
 import compiler.diagnostic.explicitInferTypeNotAllowed
 import compiler.diagnostic.explicitInferTypeWithArguments
 import compiler.diagnostic.explicitOwnershipNotAllowed
@@ -170,10 +171,7 @@ class BoundVariable(
                         initializerExpression.semanticAnalysisPhase2(diagnosis)
                     },
                     onCycle = {
-                        diagnosis.typeDeductionError(
-                            "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                            initializerExpression.declaration.span
-                        )
+                        diagnosis.circularVariableInitialization(this)
                     },
                 )
 
@@ -406,6 +404,7 @@ class BoundVariable(
         interface Sean2Stage {
             val typeAfterSean1: BoundTypeReference?
             val expectedInitializerEvaluationType: BoundTypeReference
+            val utilizesInitializerType: Boolean
 
             fun doSean2WithInitializer(initializerExpression: BoundExpression<*>, diagnosis: Diagnosis): Sean3Stage
             fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage
@@ -428,6 +427,7 @@ class BoundVariable(
             ): Sean1Stage = object : Sean1Stage {
                 override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
                     return object : Sean2Stage {
+                        override val utilizesInitializerType = false
                         override val typeAfterSean1: BoundTypeReference? =
                             if (declaredType != null) {
                                 if (declaredType.requestsBaseTypeInference) {
@@ -499,6 +499,7 @@ class BoundVariable(
                     }
 
                     return object : Sean2Stage {
+                        override val utilizesInitializerType = shouldInferBaseType
                         override val typeAfterSean1: BoundTypeReference? = declaredType
                             ?.takeUnless { shouldInferBaseType }
                             ?.let(context::resolveType)
@@ -574,6 +575,7 @@ class BoundVariable(
                     override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
                         val impliedType = lazyGetImpliedType()
                         return object : Sean2Stage {
+                            override val utilizesInitializerType = false
                             override val typeAfterSean1 =
                                 declaredType
                                     ?.resolveWithImpliedType(impliedType, context)

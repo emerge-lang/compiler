@@ -430,6 +430,10 @@ fun Diagnosis.typeDeductionError(message: String, location: Span) {
     add(TypeDeductionErrorDiagnostic(message, location))
 }
 
+fun Diagnosis.circularVariableInitialization(variable: BoundVariable) {
+    add(CircularVariableInitializationDiagnostic(variable.declaration))
+}
+
 fun Diagnosis.explicitInferTypeWithArguments(type: NamedTypeReference) {
     add(ExplicitInferTypeWithArgumentsDiagnostic(type))
 }
