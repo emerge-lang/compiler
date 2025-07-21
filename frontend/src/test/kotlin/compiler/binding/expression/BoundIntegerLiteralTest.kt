@@ -1,9 +1,11 @@
 package compiler.compiler.binding.expression
 
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.type.CoreTypes
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.FailTestOnFindingDiagnosis
 import compiler.lexer.Span
 import io.kotest.core.spec.style.FreeSpec
@@ -37,6 +39,7 @@ class BoundIntegerLiteralTest : FreeSpec({
     "accepts bit-length-wise fitting numbers" - {
         for (base in listOf(2u, 16u)) {
             for ((signedRange, unsignedRange, baseType) in signedRanges.tripleZip(unsignedRanges, signedBaseTypes)) {
+                val baseTypeRef = RootResolvedTypeReference(mockCtx, AstAbsoluteTypeReference(baseType.canonicalName, span = Span.UNKNOWN), baseType, null)
                 "type S${unsignedRange.endInclusive.bitLength()}, source base $base" {
                     val rangeToTest = (signedRange.endInclusive + BigInteger.ONE) .. unsignedRange.endInclusive
                     for (largeFittingValue in rangeToTest.randomSample()) {
@@ -50,7 +53,7 @@ class BoundIntegerLiteralTest : FreeSpec({
                             emptySet(),
                         )
                         boundNode.semanticAnalysisPhase1(FailTestOnFindingDiagnosis)
-                        boundNode.setExpectedEvaluationResultType(baseType.baseReference, FailTestOnFindingDiagnosis)
+                        boundNode.setExpectedEvaluationResultType(baseTypeRef, FailTestOnFindingDiagnosis)
                         boundNode.semanticAnalysisPhase2(FailTestOnFindingDiagnosis)
                         boundNode.semanticAnalysisPhase3(FailTestOnFindingDiagnosis)
                     }
@@ -95,6 +98,5 @@ private fun mockNumericBaseType(nBits: Int, prefix: Char): BoundBaseType {
         every { isCoreNumericType } returns true
         every { simpleName } returns prefix.toString() + nBits.toString()
         every { typeParameters } returns null
-        every { baseReference } answers { callOriginal() }
     }
 }
