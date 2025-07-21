@@ -142,7 +142,7 @@ interface CTContext {
         do {
             name = "__${namePayload}$i"
             i++
-        } while (resolveTypeParameter(name) != null || resolveBaseType(name).none())
+        } while (resolveTypeParameter(name) != null || resolveBaseType(name).any())
 
         return name
     }
