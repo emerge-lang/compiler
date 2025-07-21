@@ -62,6 +62,7 @@ class SourceFile(
             )
             .filter { (_, imports) -> imports.size > 1 }
             .forEach { (simpleName, ambiguousImports) ->
+                context.markSimpleNameAmbiguousByImports(simpleName)
                 diagnosis.ambiguousOrRedundantImports(ambiguousImports, simpleName)
             }
     }

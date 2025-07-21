@@ -86,7 +86,13 @@ interface CTContext {
      * @return whether this context has a [BoundImportDeclaration] that refers to [simpleName] (or is a import-all)
      * and that is erroneous (no symbol for [simpleName] found or package not found).
      */
-    fun hasErroneousImportForSimpleName(simpleName: String): Boolean
+    fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean
+
+    /**
+     * @return whether resolving [simpleName] in this context is ambiguous simply due to the imports
+     * (if so, the fault is in the import, and references just suffer along).
+     */
+    fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 

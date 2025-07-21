@@ -119,12 +119,16 @@ open class MutableCTContext(
         )
     }
 
-    override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
-        if (_imports.any { it.isErroneousAndAppliesToSimpleName(simpleName) }) {
+    override fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean {
+        if (_imports.any { it.isUnresolvedAndAppliesToSimpleName(simpleName) }) {
             return true
         }
 
-        return parentContext.hasErroneousImportForSimpleName(simpleName)
+        return parentContext.hasUnresolvableImportForSimpleName(simpleName)
+    }
+
+    override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+        return parentContext.hasAmbiguousImportOrDeclarationsForSimpleName(simpleName)
     }
 
     private fun resolveNamedTypeExceptNullability(ref: AstSimpleTypeReference): BoundTypeReference {

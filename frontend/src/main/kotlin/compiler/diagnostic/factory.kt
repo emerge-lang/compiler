@@ -72,11 +72,11 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
 }
 
 fun Diagnosis.unknownType(erroneousType: ErroneousType) {
-    add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasErroneousImportForSimpleName(erroneousType.astNode.simpleName)))
+    add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasUnresolvableImportForSimpleName(erroneousType.simpleName)))
 }
 
 fun Diagnosis.ambiguousType(errorneousType: ErroneousType) {
-    add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }))
+    add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }, errorneousType.context.hasAmbiguousImportOrDeclarationsForSimpleName(errorneousType.simpleName)))
 }
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
@@ -327,7 +327,7 @@ fun Diagnosis.noMatchingFunctionOverload(
         valueArguments.map { it.type },
         functionDeclaredAtAll,
         inapplicableCandidates,
-        context.hasErroneousImportForSimpleName(functionNameReference.value),
+        context.hasUnresolvableImportForSimpleName(functionNameReference.value),
     ))
 }
 

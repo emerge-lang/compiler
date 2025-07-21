@@ -24,7 +24,7 @@ sealed class BoundImportDeclaration(
     abstract fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>>
     abstract fun getBaseTypeOfName(simpleName: String): BoundBaseType?
     abstract fun getVariableOfName(simpleName: String): BoundVariable?
-    abstract fun isErroneousAndAppliesToSimpleName(simpleName: String): Boolean
+    abstract fun isUnresolvedAndAppliesToSimpleName(simpleName: String): Boolean
 
     final override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         if (packageContext == null) {
@@ -108,7 +108,7 @@ class BoundSingleSymbolImportDeclaration(
         null -> null
     }
 
-    override fun isErroneousAndAppliesToSimpleName(simpleName: String): Boolean {
+    override fun isUnresolvedAndAppliesToSimpleName(simpleName: String): Boolean {
         return this.simpleName == simpleName && (resolutionResult == null || resolutionResult?.isErroneous == true)
     }
 }
@@ -141,7 +141,7 @@ class BoundEntirePackageImportDeclaration(
         // nothing to do
     }
 
-    override fun isErroneousAndAppliesToSimpleName(simpleName: String): Boolean {
+    override fun isUnresolvedAndAppliesToSimpleName(simpleName: String): Boolean {
         return packageContext == null
     }
 }
@@ -207,7 +207,7 @@ class BoundMultipleSymbolsImportDeclaration(
         }
     }
 
-    override fun isErroneousAndAppliesToSimpleName(simpleName: String): Boolean {
+    override fun isUnresolvedAndAppliesToSimpleName(simpleName: String): Boolean {
         return resolutionResultsBySimpleName[simpleName]?.isErroneous == true
     }
 }

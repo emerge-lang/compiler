@@ -49,6 +49,14 @@ class SourceFileRootContext(
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
+    private val ambiguousSimpleNamesByImport = HashSet<String>()
+    fun markSimpleNameAmbiguousByImports(simpleName: String) {
+        ambiguousSimpleNamesByImport.add(simpleName)
+    }
+    override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+        return simpleName in ambiguousSimpleNamesByImport || parentContext.hasAmbiguousImportOrDeclarationsForSimpleName(simpleName)
+    }
+
     private companion object {
         val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
@@ -75,7 +83,10 @@ class SourceFileRootContext(
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> = emptySequence()
-            override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
+            override fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean {
+                return false
+            }
+            override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
                 return false
             }
 
@@ -149,6 +160,26 @@ class SourceFileRootContext(
 
         override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> {
             return sequenceOf(packageContext.resolveBaseType(simpleName)).filterNotNull()
+        }
+
+        override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+            val fromTypes = packageContext.types
+                .filter { it.simpleName == simpleName }
+                .take(2)
+                .count() > 1
+            if (fromTypes) {
+                return true
+            }
+
+            val fromVars = packageContext.globalVariables
+                .filter { it.name == simpleName }
+                .take(2)
+                .count() > 1
+            if (fromVars) {
+                return true
+            }
+
+            return false
         }
 
         override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> {

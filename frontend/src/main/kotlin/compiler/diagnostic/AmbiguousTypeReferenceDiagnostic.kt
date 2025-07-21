@@ -9,8 +9,9 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 class AmbiguousTypeReferenceDiagnostic(
     val reference: AstSimpleTypeReference,
     val candidates: List<CanonicalElementName.BaseType>,
+    fileHasAmbiguousImportForSimpleName: Boolean,
 ) : Diagnostic(
-    severity = Severity.ERROR,
+    if (fileHasAmbiguousImportForSimpleName) Severity.CONSECUTIVE else Severity.ERROR,
     "This reference is ambiguous, there are multiple types in scope with simple name ${reference.simpleName.quoteIdentifier()}",
     reference.span ?: Span.UNKNOWN,
 ) {
