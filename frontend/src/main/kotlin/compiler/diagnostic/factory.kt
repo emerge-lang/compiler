@@ -58,8 +58,8 @@ import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -71,8 +71,12 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(unresolvedType: UnresolvedType) {
-    add(UnknownTypeDiagnostic(unresolvedType.astNode, unresolvedType.context.hasErroneousImportForSimpleName(unresolvedType.astNode.simpleName)))
+fun Diagnosis.unknownType(erroneousType: ErroneousType) {
+    add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasErroneousImportForSimpleName(erroneousType.astNode.simpleName)))
+}
+
+fun Diagnosis.ambiguousType(errorneousType: ErroneousType) {
+    add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }))
 }
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {

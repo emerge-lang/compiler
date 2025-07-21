@@ -13,9 +13,9 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.typeCheckOnVolatileTypeParameter
@@ -104,7 +104,7 @@ internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundT
         // TODO: warn about unchecked type arguments!!
     }
 
-    if (fullTypeToCheck !is UnresolvedType) {
+    if (fullTypeToCheck !is ErroneousType) {
         diagnosis.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck)
     }
 

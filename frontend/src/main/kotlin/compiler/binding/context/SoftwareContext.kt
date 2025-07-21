@@ -23,7 +23,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.UnresolvedType
+import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -194,6 +194,6 @@ class SoftwareContext {
             .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }
 
-    /** the type to use when a type cannot be determined, see [UnresolvedType] */
+    /** the type to use when a type cannot be determined, see [ErroneousType] */
     val unresolvableReplacementType: BoundTypeReference get() = topTypeRef
 }

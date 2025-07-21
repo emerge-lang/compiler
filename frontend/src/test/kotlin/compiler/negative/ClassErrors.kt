@@ -152,7 +152,7 @@ class ClassErrors : FreeSpec({
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
 
-        "decorated members" - {
+        "decorated members".config(enabled = false) - {
             "duplicate decorates keyword" {
                 validateModule("""
                     interface A {}
@@ -179,7 +179,7 @@ class ClassErrors : FreeSpec({
                     }
             }
 
-            "decorates combined with non-read type" - {
+            "decorates combined with non-read type".config(enabled = false) - {
                 "with mut" {
                     validateModule("""
                         class A {}

@@ -15,7 +15,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.UnresolvedType
+import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
 
@@ -74,18 +74,19 @@ class SourceFileRootContext(
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
-            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
+            override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> = emptySequence()
             override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
                 return false
             }
 
-            override fun resolveType(ref: TypeReference): BoundTypeReference = UnresolvedType(
+            override fun resolveType(ref: TypeReference): BoundTypeReference = ErroneousType(
                 this,
                 when (ref) {
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
                 (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it, null) },
+                emptyList(),
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 
@@ -146,12 +147,8 @@ class SourceFileRootContext(
             return packageContext.resolveVariable(name)
         }
 
-        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? {
-            if (fromOwnFileOnly) {
-                return EMPTY.resolveBaseType(simpleName, fromOwnFileOnly)
-            }
-
-            return packageContext.resolveBaseType(simpleName)
+        override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> {
+            return sequenceOf(packageContext.resolveBaseType(simpleName)).filterNotNull()
         }
 
         override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> {

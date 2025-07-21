@@ -223,7 +223,7 @@ class RootResolvedTypeReference private constructor(
                 )
             }
             is GenericTypeReference,
-            is UnresolvedType,
+            is ErroneousType,
             is BoundIntersectionTypeReference,
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
@@ -283,7 +283,7 @@ class RootResolvedTypeReference private constructor(
                         targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                     }
             }
-            is UnresolvedType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
+            is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
             is BoundTypeArgument -> {
                 // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument

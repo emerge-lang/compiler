@@ -79,7 +79,7 @@ interface CTContext {
      */
     val visibility: BoundVisibility
 
-    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseType?
+    fun resolveBaseType(simpleName: String): Sequence<BoundBaseType>
 
     /**
      * @return whether this context has a [BoundImportDeclaration] that refers to [simpleName] (or is a import-all)
@@ -142,7 +142,7 @@ interface CTContext {
         do {
             name = "__${namePayload}$i"
             i++
-        } while (resolveTypeParameter(name) != null || resolveBaseType(name) != null)
+        } while (resolveTypeParameter(name) != null || resolveBaseType(name).none())
 
         return name
     }

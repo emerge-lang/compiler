@@ -36,8 +36,8 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.explicitInferTypeNotAllowed
@@ -232,7 +232,7 @@ class BoundVariable(
 
                     initializerExpression.type?.let { initializerType ->
                         // discrepancy between assign expression and declared type
-                        if (initializerType !is UnresolvedType) {
+                        if (initializerType !is ErroneousType) {
                             initializerType.evaluateAssignabilityTo(
                                 typeAtDeclarationTime!!,
                                 declaration.initializerExpression!!.span

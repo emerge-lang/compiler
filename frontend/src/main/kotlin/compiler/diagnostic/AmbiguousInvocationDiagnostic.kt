@@ -14,9 +14,9 @@ class AmbiguousInvocationDiagnostic(
 ) {
     context(CellBuilder)
     override fun renderBody() {
-        val uniqueCandidates = candidates.distinctBy{ it.declaredAt }
+        val uniqueCandidates = candidates.distinctBy { it.declaredAt }
         sourceHints(
-            SourceHint(invocation.span, "this invocation is ambiguous", true),
+            SourceHint(invocation.span, "this invocation is ambiguous", true, severity = severity),
             *uniqueCandidates.map { SourceHint(it.declaredAt, "this is a viable candidate", nLinesContext = 0u) }.toTypedArray(),
         )
     }

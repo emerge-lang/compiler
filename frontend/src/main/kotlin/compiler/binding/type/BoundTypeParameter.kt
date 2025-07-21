@@ -37,7 +37,7 @@ data class BoundTypeParameter(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         context.resolveType(NamedTypeReference(name))
-            .takeUnless { it is UnresolvedType }
+            .takeUnless { it is ErroneousType }
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }

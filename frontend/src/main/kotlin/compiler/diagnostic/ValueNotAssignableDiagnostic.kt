@@ -21,8 +21,8 @@ package compiler.diagnostic
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeVariableNotUnderInferenceException
-import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Span
@@ -42,7 +42,7 @@ open class ValueNotAssignableDiagnostic(
 
     assignmentLocation: Span
 ) : Diagnostic(
-    if (targetType is UnresolvedType || sourceType is UnresolvedType) Severity.CONSECUTIVE else Severity.ERROR,
+    if (targetType is ErroneousType || sourceType is ErroneousType) Severity.CONSECUTIVE else Severity.ERROR,
     "Type mismatch: $reason",
     assignmentLocation
 ) {

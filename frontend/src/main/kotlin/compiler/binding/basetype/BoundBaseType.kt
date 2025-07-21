@@ -79,6 +79,8 @@ class BoundBaseType(
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
+    // TODO: remove baseReference
+    @Deprecated(message = "gives wildcard type arguments, which is not generally correct")
     val baseReference: RootResolvedTypeReference get() {
         return RootResolvedTypeReference(
             context,

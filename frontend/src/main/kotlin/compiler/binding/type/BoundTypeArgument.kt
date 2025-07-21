@@ -115,7 +115,7 @@ class BoundTypeArgument(
             is BoundIntersectionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry) {
                 "$assigneeType is not a subtype of $this"
             }
-            is UnresolvedType -> {
+            is ErroneousType -> {
                 return unify(assigneeType.asNothing, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)

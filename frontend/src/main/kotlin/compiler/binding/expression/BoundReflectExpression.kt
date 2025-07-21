@@ -8,9 +8,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.unsupportedReflection
@@ -53,7 +53,7 @@ class BoundReflectExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         if (typeToReflectOn is RootResolvedTypeReference) {
             baseTypeToReflectOn = (typeToReflectOn as RootResolvedTypeReference).baseType
-        } else if (typeToReflectOn !is UnresolvedType) {
+        } else if (typeToReflectOn !is ErroneousType) {
             diagnosis.unsupportedReflection(typeToReflectOn)
         }
     }
