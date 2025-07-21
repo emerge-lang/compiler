@@ -22,7 +22,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.lexer.Span
 
 internal class ConditionNotBooleanDiagnostic(val condition: BoundExpression<*>, location: Span)
-    : ValueNotAssignableDiagnostic(condition.context.swCtx.bool.baseReference, condition.type!!, "", location)
+    : ValueNotAssignableDiagnostic(condition.context.swCtx.bool.getBoundReferenceAssertNoTypeParameters(), condition.type!!, "", location)
 {
     override val message: String = "The condition must evaluate to ${condition.context.swCtx.bool.simpleName}, got ${condition.type!!}"
 }

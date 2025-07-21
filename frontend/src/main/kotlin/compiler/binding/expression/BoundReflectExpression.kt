@@ -1,7 +1,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.AstReflectExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
@@ -62,7 +61,7 @@ class BoundReflectExpression(
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     override val type: BoundTypeReference
-        get() = context.swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE)
+        get() = context.swCtx.reflectionBaseType.getBoundReferenceAssertNoTypeParameters(declaration.keyword.span)
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
 

@@ -100,7 +100,7 @@ sealed interface AccessorKind {
                     }
                 }
 
-                if (returnType?.equals(functionRootContext.swCtx.unit.baseReference) == false) {
+                if (returnType?.equals(functionRootContext.swCtx.unit.getBoundReferenceAssertNoTypeParameters()) == false) {
                     diagnosis.accessorContractViolation(
                         declaration,
                         "Setters must return `${functionRootContext.swCtx.unit.canonicalName}`",

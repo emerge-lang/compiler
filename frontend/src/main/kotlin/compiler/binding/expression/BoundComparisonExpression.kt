@@ -21,7 +21,7 @@ class BoundComparisonExpression(
     val hiddenCompareInvocation: BoundInvocationExpression,
     val predicate: IrNumericComparisonExpression.Predicate,
 ) : BoundExpression<Expression> by hiddenCompareInvocation {
-    override val type get() = context.swCtx.bool.baseReference
+    override val type get() = context.swCtx.bool.getBoundReferenceAssertNoTypeParameters(declaration.operator.token.span)
 
     private val boundZeroConstant = NumericLiteralExpression(
         NumericLiteralToken(declaration.span.deriveGenerated(), "0")
@@ -77,7 +77,7 @@ class BoundComparisonExpression(
                 IrTemporaryValueReferenceImpl(lhsTemporary),
                 IrTemporaryValueReferenceImpl(rhsTemporary),
                 predicate,
-                context.swCtx.bool.baseReference.toBackendIr(),
+                context.swCtx.bool.irReadNotNullReference,
             )
         )
 

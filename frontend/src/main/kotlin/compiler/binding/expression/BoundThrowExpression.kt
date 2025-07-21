@@ -46,7 +46,9 @@ class BoundThrowExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-            val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.MUTABLE)
+            val expectedType = context.swCtx.throwable
+                .getBoundReferenceAssertNoTypeParameters(declaration.throwKeyword.span)
+                .withMutability(TypeMutability.MUTABLE)
             throwableExpression.setExpectedEvaluationResultType(expectedType, diagnosis)
             throwableExpression.semanticAnalysisPhase2(diagnosis)
             throwableExpression.type
@@ -114,7 +116,7 @@ internal fun buildIrThrow(
     // so that is more elaborate here; might make sense to look into addSuppressed like Java has
     val varDeclExceptionFromFillStackTrace = object : IrVariableDeclaration {
         override val name = context.findInternalVariableName("fillStackTraceException")
-        override val type: IrType = context.swCtx.throwable.baseReference.toBackendIr()
+        override val type: IrType = context.swCtx.throwable.irReadNotNullReference
         override val isBorrowed = false
         override val isReAssignable = false
         override val isSSA = true
@@ -139,7 +141,7 @@ internal fun buildIrThrow(
             .toBackendIr(),
         listOf(IrTemporaryValueReferenceImpl(throwableInstance)),
         emptyMap(),
-        context.swCtx.unit.baseReference.toBackendIr(),
+        context.swCtx.unit.irReadNotNullReference,
         fillStackTraceLandingpad,
     ))
 

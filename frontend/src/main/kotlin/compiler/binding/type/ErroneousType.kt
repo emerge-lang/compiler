@@ -94,11 +94,15 @@ class ErroneousType(
     }
 
     val asAny: RootResolvedTypeReference by lazy {
-        context.swCtx.any.baseReference.withMutability(this.mutability)
+        context.swCtx.any
+            .getBoundReferenceAssertNoTypeParameters(span ?: Span.UNKNOWN)
+            .withMutability(this.mutability)
     }
 
     val asNothing: RootResolvedTypeReference by lazy {
-        context.swCtx.nothing.baseReference.withMutability(this.mutability)
+        context.swCtx.nothing
+            .getBoundReferenceAssertNoTypeParameters(span ?: Span.UNKNOWN)
+            .withMutability(this.mutability)
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {

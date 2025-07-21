@@ -67,7 +67,7 @@ abstract class Diagnostic internal constructor(
     }
 
     /**
-     * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
+     * TODO: make final, so that all subclasses are forced to utilize renderMessage() and renderBody()
      */
     override fun toString(): String {
         val canvas = createBufferedMonospaceCanvas()

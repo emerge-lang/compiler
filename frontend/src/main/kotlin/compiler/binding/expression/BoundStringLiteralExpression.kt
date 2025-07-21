@@ -24,7 +24,9 @@ class BoundStringLiteralExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        type = context.swCtx.string.baseReference.withMutability(TypeMutability.IMMUTABLE)
+        type = context.swCtx.string
+            .getBoundReferenceAssertNoTypeParameters(declaration.span)
+            .withMutability(TypeMutability.IMMUTABLE)
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}

@@ -13,6 +13,7 @@ data object EmergeConstants {
 
     val UNIT_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Unit")
     val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Throwable")
+    val CAST_ERROR_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "CastError")
 
     /**
      * the identifier to use in the initialization expression for member variables to indicate that the

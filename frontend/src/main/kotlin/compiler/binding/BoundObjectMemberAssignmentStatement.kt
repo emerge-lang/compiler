@@ -140,7 +140,7 @@ class BoundObjectMemberAssignmentStatement(
             }
 
             if (availableSetters.size + physicalMembers.size == 0) {
-                diagnosis.unresolvableMemberVariable(declaration.targetExpression, targetObjectExpression.type ?: context.swCtx.unresolvableReplacementType)
+                diagnosis.unresolvableMemberVariable(declaration.targetExpression, targetObjectExpression.type)
             }
         }
 

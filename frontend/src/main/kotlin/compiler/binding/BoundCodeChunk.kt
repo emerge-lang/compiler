@@ -101,16 +101,17 @@ class BoundCodeChunk(
             if (lastStatementAsExpression != null) {
                 type = lastStatementAsExpression.type
             } else {
-                if (statements.lastOrNull()?.throwBehavior == SideEffectPrediction.GUARANTEED || statements.lastOrNull()?.returnBehavior == SideEffectPrediction.GUARANTEED) {
+                val lastStatement = statements.lastOrNull()
+                if (lastStatement?.throwBehavior == SideEffectPrediction.GUARANTEED || lastStatement?.returnBehavior == SideEffectPrediction.GUARANTEED) {
                     // implicit evaluation never matters
-                    type = context.swCtx.bottomTypeRef
+                    type = context.swCtx.getBottomType(lastStatement.declaration.span)
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
                     // using the bottom type hides that error, and this becomes the more understandable alternative
                     diagnosis.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this)
-                    type = context.swCtx.bottomTypeRef
+                    type = context.swCtx.getBottomType(lastStatement?.declaration?.span ?: declaration.span)
                 } else {
-                    type = context.swCtx.unit.baseReference
+                    type = context.swCtx.unit.getBoundReferenceAssertNoTypeParameters(lastStatement?.declaration?.span ?: declaration.span)
                 }
             }
         }
@@ -218,7 +219,7 @@ class BoundCodeChunk(
                     .toBackendIr(),
                 emptyList(),
                 emptyMap(),
-                context.swCtx.unit.baseReference.toBackendIr(),
+                context.swCtx.unit.irReadNotNullReference,
                 null,
             )
         )

@@ -149,7 +149,7 @@ class BoundNotNullExpression(
         val errorMessage = IrCreateTemporaryValueImpl(
             IrStringLiteralExpressionImpl(
                 "failed not-null assertion in ${declaration.span.fileLineColumnText}".toByteArray(Charsets.UTF_8),
-                context.swCtx.string.baseReference.toBackendIr(),
+                context.swCtx.string.irReadNotNullReference,
             )
         )
         val panicInvocation = IrCreateTemporaryValueImpl(IrStaticDispatchFunctionInvocationImpl(
@@ -173,7 +173,7 @@ class BoundNotNullExpression(
                     IrTemporaryValueReferenceImpl(panicInvocation),
                 ),
                 null,
-                context.swCtx.unit.baseReference.toBackendIr(),
+                context.swCtx.unit.irReadNotNullReference,
             ))
         ))
 

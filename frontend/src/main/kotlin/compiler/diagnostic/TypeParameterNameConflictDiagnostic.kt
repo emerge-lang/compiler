@@ -5,7 +5,6 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.lexer.Span
 
 class TypeParameterNameConflictDiagnostic(
     val originalType: BoundTypeReference,
@@ -19,7 +18,7 @@ class TypeParameterNameConflictDiagnostic(
 ) {
     override fun toString(): String {
         val originalReference = when (originalType) {
-            is RootResolvedTypeReference -> originalType.baseType.baseReference.span ?: Span.UNKNOWN
+            is RootResolvedTypeReference -> originalType.baseType.declaration.declaredAt
             is GenericTypeReference -> originalType.parameter.astNode.name.span
             else -> throw InternalCompilerError("This should be impossible")
         }

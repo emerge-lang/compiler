@@ -99,7 +99,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
                 TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
-                TypeVariance.IN -> unify(context.swCtx.topTypeRef, assignmentLocation, carry)
+                TypeVariance.IN -> unify(context.swCtx.getTopType(span ?: Span.UNKNOWN), assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given

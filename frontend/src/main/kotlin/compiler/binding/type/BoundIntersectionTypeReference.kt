@@ -161,7 +161,8 @@ class BoundIntersectionTypeReference private constructor(
                     }
                 }
                 val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
-                    context.swCtx.any.baseReference
+                    context.swCtx.any
+                        .getBoundReferenceAssertNoTypeParameters(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
                         .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
                 }
@@ -434,7 +435,8 @@ class BoundIntersectionTypeReference private constructor(
 
             if (nonAnys.isEmpty()) {
                 return listOf(
-                    context.swCtx.any.baseReference
+                    context.swCtx.any.
+                        getBoundReferenceAssertNoTypeParameters(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withMutability(anyMutability)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                 )
@@ -501,7 +503,7 @@ class BoundIntersectionTypeReference private constructor(
             if (simplifyIsEffectivelyBottomType(components)) {
                 val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
                 return listOf(
-                    context.swCtx.bottomTypeRef
+                    context.swCtx.getBottomType(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                         .withMutability(selfMutability)
                 )

@@ -71,7 +71,7 @@ class BoundArrayLiteralExpression(
             elementType = elements
                 .mapNotNull { it.type }
                 .reduceOrNull(BoundTypeReference::closestCommonSupertypeWith)
-                ?: context.swCtx.any.baseReference
+                ?: context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaration.leftBracket.span)
         }
 
         type = RootResolvedTypeReference(

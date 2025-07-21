@@ -28,7 +28,7 @@ data class BoundTypeParameter(
      * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
     val bound: BoundTypeReference by lazy {
-        astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
+        astNode.bound?.let(context::resolveType) ?: context.swCtx.getTopType(astNode.span)
     }
 
     val modifiedContext: CTContext = MutableCTContext(context).also {

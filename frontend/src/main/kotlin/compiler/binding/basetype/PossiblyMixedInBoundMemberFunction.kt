@@ -11,7 +11,6 @@ import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.abstractInheritedFunctionNotImplemented
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -60,7 +59,7 @@ class PossiblyMixedInBoundMemberFunction(
         val field = mixinRegistration!!.obtainField()
         val fieldIr = field.toBackendIr()
 
-        val mixinHostTypeIr = inheritedFn.ownerBaseType.baseReference.toBackendIr()
+        val mixinHostTypeIr = inheritedFn.ownerBaseType.irReadNotNullReference
         val selfTemporary = IrCreateTemporaryValueImpl(
             IrVariableAccessExpressionImpl(parametersIr.first()),
             mixinHostTypeIr,

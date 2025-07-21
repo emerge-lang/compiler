@@ -404,7 +404,7 @@ fun Diagnosis.unresolvableConstructor(nameToken: IdentifierToken, valueArguments
     add(UnresolvableConstructorDiagnostic(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable))
 }
 
-fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference) {
+fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference?) {
     add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 

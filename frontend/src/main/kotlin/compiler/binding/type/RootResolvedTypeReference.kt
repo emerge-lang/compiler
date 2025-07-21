@@ -188,7 +188,7 @@ class RootResolvedTypeReference private constructor(
     fun getInstantiatedSupertype(superBaseType: BoundBaseType): RootResolvedTypeReference {
         return when (this.baseType) {
             superBaseType -> this
-            context.swCtx.nothing -> superBaseType.baseReference
+            context.swCtx.nothing -> superBaseType.getBoundReferenceAssertNoTypeParameters()
             else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
         }
     }

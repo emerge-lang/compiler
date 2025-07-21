@@ -22,9 +22,8 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -178,22 +177,18 @@ class SoftwareContext {
     val iterable by lazyBaseTypeFromSource(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
 
     /**
-     * the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because
+     * @return the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because
      * it has `read` mutability, so it's neither a subtype of `const Any` nor of `mut Any`
      */
-    val bottomTypeRef by lazy {
-        nothing.baseReference.withMutability(TypeMutability.EXCLUSIVE)
-    }
+    fun getBottomType(span: Span) = nothing
+        .getBoundReferenceAssertNoTypeParameters(span)
+        .withMutability(TypeMutability.EXCLUSIVE)
 
     /**
-     * the absolute top type (the type that is a supertype of all possible types), `read Any?`.
+     * @return the absolute top type (the type that is a supertype of all possible types), `read Any?`.
      */
-    val topTypeRef by lazy {
-        any.baseReference
-            .withMutability(TypeMutability.READONLY)
-            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-    }
-
-    /** the type to use when a type cannot be determined, see [ErroneousType] */
-    val unresolvableReplacementType: BoundTypeReference get() = topTypeRef
+    fun getTopType(span: Span) = any
+        .getBoundReferenceAssertNoTypeParameters(span)
+        .withMutability(TypeMutability.READONLY)
+        .withCombinedNullability(TypeReference.Nullability.NULLABLE)
 }

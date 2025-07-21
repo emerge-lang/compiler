@@ -42,7 +42,8 @@ class BoundNullLiteralExpression(
     }
 
     override val type: BoundTypeReference
-        get() = context.swCtx.bottomTypeRef.withCombinedNullability(TypeReference.Nullability.NULLABLE)
+        get() = context.swCtx.getBottomType(declaration.span)
+            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
 
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
@@ -60,7 +61,7 @@ class BoundNullLiteralExpression(
     override val isCompileTimeConstant = true
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrNullLiteralExpressionImpl(type.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
+        return IrNullLiteralExpressionImpl(type.toBackendIr())
     }
 }
 

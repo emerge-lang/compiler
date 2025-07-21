@@ -32,6 +32,7 @@ import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.lexer.Span
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -95,7 +96,7 @@ interface CTContext {
         return when (ref) {
             is AstSpecificTypeArgument -> BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
             is AstWildcardTypeArgument -> if (parameter == null) {
-                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.topTypeRef)
+                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.getTopType(ref.span ?: Span.UNKNOWN))
             } else {
                 BoundTypeArgument(
                     this,

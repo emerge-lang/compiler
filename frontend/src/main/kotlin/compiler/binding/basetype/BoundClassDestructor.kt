@@ -89,7 +89,9 @@ class BoundClassDestructor(
     }
     override val name by lazy { "__${classDef.simpleName}__finalize" }
     override val allTypeParameters = declaredTypeParameters
-    override val returnType get() = fileContextWithTypeParameters.swCtx.unit.baseReference
+    override val returnType get() = fileContextWithTypeParameters.swCtx.unit.getBoundReferenceAssertNoTypeParameters(
+        declaredAt
+    )
 
     override val parameters by lazy {
         val astParameterList = ParameterList(listOf(

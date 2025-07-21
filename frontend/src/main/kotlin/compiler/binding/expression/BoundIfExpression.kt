@@ -66,7 +66,7 @@ class BoundIfExpression(
         private set
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        type = context.swCtx.unit.baseReference
+        type = context.swCtx.unit.getBoundReferenceAssertNoTypeParameters(declaration.ifKeyword.span)
 
         condition.semanticAnalysisPhase1(diagnosis)
         thenCode.semanticAnalysisPhase1(diagnosis)

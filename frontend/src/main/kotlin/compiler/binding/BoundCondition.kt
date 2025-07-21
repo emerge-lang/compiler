@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.ast.Expression
-import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrrelevantValueUsage
@@ -17,7 +16,7 @@ class BoundCondition(
     val expression: BoundExpression<*>,
 ) : BoundExpression<Expression> by expression {
     override val type: BoundTypeReference by lazy {
-        context.swCtx.bool.baseReference.withMutability(TypeMutability.READONLY)
+        context.swCtx.bool.getBoundReferenceAssertNoTypeParameters(expression.declaration.span)
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

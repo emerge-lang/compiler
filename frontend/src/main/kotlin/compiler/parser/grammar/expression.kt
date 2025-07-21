@@ -298,7 +298,8 @@ val IfExpression = sequence("if-expression") {
         }
 
         IfExpression(
-            ifKeyword.span,
+            ifKeyword.span .. (elseCode?.span ?: thenCode.span),
+            ifKeyword,
             condition,
             thenCode,
             elseCode

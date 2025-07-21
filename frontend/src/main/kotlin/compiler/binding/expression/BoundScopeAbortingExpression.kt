@@ -15,7 +15,7 @@ import compiler.ast.Expression as AstExpression
  */
 abstract class BoundScopeAbortingExpression() : BoundExpression<AstExpression> {
     final override val type: BoundTypeReference by lazy {
-        context.swCtx.bottomTypeRef
+        context.swCtx.getBottomType(declaration.span)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -36,7 +36,7 @@ abstract class BoundScopeAbortingExpression() : BoundExpression<AstExpression> {
                     .toBackendIr(),
                 emptyList(),
                 emptyMap(),
-                context.swCtx.unit.baseReference.toBackendIr(),
+                context.swCtx.unit.irReadNotNullReference,
                 null,
             )
         )

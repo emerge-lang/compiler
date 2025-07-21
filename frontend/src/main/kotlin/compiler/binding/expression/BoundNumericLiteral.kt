@@ -101,7 +101,7 @@ class BoundIntegerLiteral(
     private lateinit var valueCoercedToRange: BigInteger
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        type = (expectedNumericType ?: context.swCtx.s32).baseReference
+        type = (expectedNumericType ?: context.swCtx.s32).getBoundReferenceAssertNoTypeParameters(declaration.span)
         val typeRange = when (type.baseType) {
             context.swCtx.s8 -> CoreTypes.S8_RANGE
             context.swCtx.u8 -> CoreTypes.U8_RANGE
@@ -158,7 +158,7 @@ class BoundFloatingPointLiteral(
     val float: BigDecimal,
     diagnostics: Collection<Diagnostic>
 ) : BoundNumericLiteral(context, declaration, diagnostics) {
-    override val type = context.swCtx.f32.baseReference
+    override val type = context.swCtx.f32.getBoundReferenceAssertNoTypeParameters(declaration.span)
 
     override fun toBackendIrExpression(): IrExpression {
         TODO()
