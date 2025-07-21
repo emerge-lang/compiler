@@ -63,4 +63,7 @@ class AstImportDeclaration(
         result *= 31 + symbols.hashCode()
         return result
     }
+
+    override fun toString() = packageIdentifiers.joinToString(transform = { it.value }, separator = ".", postfix = ".{") +
+        symbols.joinToString(transform = { it.value }, separator = ", ", postfix = "}")
 }

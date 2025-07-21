@@ -22,9 +22,10 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.ambiguousImports
+import compiler.diagnostic.ambiguousOrRedundantImports
 import compiler.diagnostic.toplevelFunctionWithOverrideAttribute
 import compiler.lexer.LexerSourceFile
+import compiler.lexer.Operator
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class SourceFile(
@@ -52,15 +53,16 @@ class SourceFile(
 
         context.imports
             .flatMap { import ->
-                import.explicitSimpleNames.map { Pair(it, import) }
+                import.declaration.symbols.map { Pair(it.value, import) }
             }
+            .filter { (simpleName, _) -> simpleName != Operator.TIMES.text }
             .groupBy(
                 keySelector = { (simpleName, _) -> simpleName },
                 valueTransform = { (_, import) -> import }
             )
             .filter { (_, imports) -> imports.size > 1 }
             .forEach { (simpleName, ambiguousImports) ->
-                diagnosis.ambiguousImports(ambiguousImports, simpleName)
+                diagnosis.ambiguousOrRedundantImports(ambiguousImports, simpleName)
             }
     }
 

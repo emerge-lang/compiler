@@ -408,8 +408,14 @@ fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpressio
     add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 
-fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>, simpleName: String) {
-    add(AmbiguousImportsDiagnostic(imports.map { it.declaration }, simpleName))
+fun Diagnosis.ambiguousOrRedundantImports(imports: Iterable<BoundImportDeclaration>, simpleName: String) {
+    val declarations = imports.map { it.declaration }
+    if (imports.distinctBy { it.packageName }.size == 1) {
+        // all importing the same element
+        add(RedundantImportsDiagnostic(declarations, simpleName))
+    } else {
+        add(AmbiguousImportsDiagnostic(declarations, simpleName))
+    }
 }
 
 fun Diagnosis.implicitlyEvaluatingAStatement(statement: BoundExecutable<*>) {

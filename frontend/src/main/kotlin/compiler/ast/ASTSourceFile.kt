@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
+import compiler.binding.BoundImportDeclaration
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
@@ -101,7 +102,7 @@ class ASTSourceFile(
                 AstImportDeclaration(
                     defaultImportLocation,
                     pkgName.components.map(::IdentifierToken),
-                    listOf(IdentifierToken("*")),
+                    listOf(IdentifierToken(BoundImportDeclaration.WILDCARD_SYMBOL)),
                 )
             }
 

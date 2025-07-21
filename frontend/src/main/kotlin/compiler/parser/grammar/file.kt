@@ -89,7 +89,7 @@ val WildcardImportDeclaration: Rule<AstImportDeclaration> = sequence("wildcard i
         val packageIdentifiers = remainingTokens.filterIsInstance<IdentifierToken>()
         val wildcardToken = remainingTokens.last() as OperatorToken
         AstImportDeclaration(keyword.span..wildcardToken.span, packageIdentifiers, listOf(
-            IdentifierToken("*", wildcardToken.span)
+            IdentifierToken(wildcardToken.operator.text, wildcardToken.span)
         ))
     }
 

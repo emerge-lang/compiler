@@ -9,9 +9,10 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.UnresolvableImportDiagnostic
 import compiler.diagnostic.UnresolvablePackageNameDiagnostic
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Operator
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
-sealed class BoundImportDeclaration protected constructor(
+sealed class BoundImportDeclaration(
     val context: CTContext,
     val declaration: AstImportDeclaration,
 ) : SemanticallyAnalyzable {
@@ -19,8 +20,6 @@ sealed class BoundImportDeclaration protected constructor(
     protected val packageContext: PackageContext? by lazy {
         context.swCtx.getPackage(packageName)
     }
-
-    abstract val explicitSimpleNames: Set<String>
 
     abstract fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>>
     abstract fun getBaseTypeOfName(simpleName: String): BoundBaseType?
@@ -39,10 +38,15 @@ sealed class BoundImportDeclaration protected constructor(
     protected abstract fun innerSemanticAnalysisPhase1(diagnosis: Diagnosis)
 
     companion object {
+        /**
+         * The value that triggers a wildcard import (all exported elements of the package)
+         */
+        val WILDCARD_SYMBOL = Operator.TIMES.text
+
         operator fun invoke(context: CTContext, declaration: AstImportDeclaration): BoundImportDeclaration = when {
             declaration.symbols.size == 1 -> {
                 val singleSymbol = declaration.symbols.single()
-                if (singleSymbol.value == "*") {
+                if (singleSymbol.value == WILDCARD_SYMBOL) {
                     BoundEntirePackageImportDeclaration(context, declaration)
                 } else {
                     BoundSingleSymbolImportDeclaration(context, declaration, singleSymbol)
@@ -67,8 +71,6 @@ class BoundSingleSymbolImportDeclaration(
             resolveSingleSymbolInPackage(localPkgCtx, simpleNameRaw)
         }
     }
-
-    override val explicitSimpleNames get() = setOf(simpleName)
 
     override fun innerSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         resolutionResult?.semanticAnalysisPhase1(diagnosis)
@@ -115,9 +117,6 @@ class BoundEntirePackageImportDeclaration(
     context: CTContext,
     declaration: AstImportDeclaration,
 ) : BoundImportDeclaration(context, declaration) {
-    override val explicitSimpleNames: Set<String>
-        get() = emptySet()
-
     override fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> {
         return packageContext?.getTopLevelFunctionOverloadSetsBySimpleName(simpleName) ?: emptySet()
     }
@@ -151,9 +150,6 @@ class BoundMultipleSymbolsImportDeclaration(
     context: CTContext,
     declaration: AstImportDeclaration,
 ) : BoundImportDeclaration(context, declaration) {
-    override val explicitSimpleNames: Set<String>
-        get() = declaration.symbols.mapTo(mutableSetOf()) { it.value }
-
     private val resolutionResultsBySimpleName: Map<String, ResolutionResult> by lazy {
         packageContext?.let { localPkgCtx ->
             declaration.symbols.associate {
