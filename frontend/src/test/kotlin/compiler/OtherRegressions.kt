@@ -1,9 +1,13 @@
 package compiler.compiler
 
+import compiler.compiler.binding.type.beAssignableTo
+import compiler.compiler.binding.type.parseType
 import compiler.compiler.negative.shouldHaveNoDiagnostics
+import compiler.compiler.negative.useValidModule
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.should
 
 class OtherRegressions : FreeSpec({
     "generics" - {
@@ -70,5 +74,14 @@ class OtherRegressions : FreeSpec({
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
+    }
+
+    "declaration-site variance".config(enabled = false) {
+        // TODO: enable and fix, is broken since a LONG time
+        val swCtx = useValidModule("""
+            class C<out T> {}
+        """.trimIndent())
+
+        swCtx.parseType("read C<UWord>") should beAssignableTo(swCtx.parseType("read C<UWord?>"))
     }
 })
