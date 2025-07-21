@@ -30,3 +30,14 @@ fun <A, B, C> zip(`as`: Iterable<A>, bs: Iterable<B>, cs: Iterable<C>) = object 
         }
     }
 }
+
+fun <A, B> zipNandNullable(`as`: Iterable<A>?, bs: Iterable<B>?): Iterable<Pair<A, B>>? {
+    if (`as` == null) {
+        check(bs == null)
+        return null
+    }
+    check(bs != null)
+
+    return `as`.zip(bs)
+}
+

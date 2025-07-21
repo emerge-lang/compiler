@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
@@ -39,12 +40,16 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.zipNandNullable
 
 class BaseTypeDeclaration(
     val declarationKeyword: KeywordToken,
@@ -71,6 +76,31 @@ class BaseTypeDeclaration(
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
         val boundSupertypeList = BoundSupertypeList.bindSingleSupertype(supertype, typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
+        val buildLazyReceiverType: (Span) -> () -> RootResolvedTypeReference = { span -> {
+            val astTypeArgNodes = typeParameters?.map { astTypeParam ->
+                AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(astTypeParam.name.value, span = span))
+            }
+            RootResolvedTypeReference(
+                typeRootContext,
+                AstAbsoluteTypeReference(
+                    boundTypeDef.canonicalName,
+                    astTypeArgNodes,
+                    span = span,
+                ),
+                boundTypeDef,
+                zipNandNullable(astTypeArgNodes, boundTypeParameters)?.map { (astTypeArg, boundParam) ->
+                    BoundTypeArgument(
+                        typeRootContext,
+                        astTypeArg,
+                        astTypeArg.variance,
+                        GenericTypeReference(
+                            astTypeArg.type as NamedTypeReference,
+                            boundParam,
+                        )
+                    )
+                }
+            )
+        } }
         fun buildSelfTypeReference(location: Span) = NamedTypeReference(
             simpleName = this.name.value,
             nullability = TypeReference.Nullability.NOT_NULLABLE,
@@ -103,7 +133,7 @@ class BaseTypeDeclaration(
                     is BaseTypeMemberFunctionDeclaration -> {
                         entry.bindTo(
                             typeRootContext,
-                            buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.name?.span ?: entry.span),
+                            buildLazyReceiverType(entry.functionDeclaration.parameters.parameters.firstOrNull()?.name?.span ?: entry.span),
                             typeDefAccessor
                         )
                     }
@@ -205,12 +235,12 @@ class BaseTypeMemberFunctionDeclaration(
 
     fun bindTo(
         typeRootContext: CTContext,
-        selfType: NamedTypeReference,
+        lazyImpliedReceiverType: () -> RootResolvedTypeReference,
         getTypeDef: () -> BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(
             typeRootContext,
-            selfType,
+            lazyImpliedReceiverType,
             getTypeDef,
         )
     }

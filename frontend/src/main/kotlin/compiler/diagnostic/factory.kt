@@ -115,8 +115,8 @@ fun Diagnosis.parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaratio
     add(MultipleParameterDeclarationsDiagnostic(firstDeclaration, additionalDeclaration))
 }
 
-fun Diagnosis.variableTypeNotDeclared(variable: BoundVariable) {
-    add(MissingVariableTypeDiagnostic(variable.declaration, variable.kind))
+fun Diagnosis.variableTypeNotDeclared(kind: BoundVariable.Kind, name: String, declaredAt: Span) {
+    add(MissingVariableTypeDiagnostic(kind, name, declaredAt))
 }
 
 fun Diagnosis.wildcardTypeArgumentWithVariance(argument: BoundTypeArgument) {

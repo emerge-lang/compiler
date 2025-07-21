@@ -18,7 +18,6 @@
 
 package compiler.ast
 
-import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -30,6 +29,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter.Companion.chain
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -66,14 +66,14 @@ data class FunctionDeclaration(
 
     fun bindToAsMember(
         context: CTContext,
-        impliedReceiverType: NamedTypeReference,
+        lazyImpliedReceiverType: () -> RootResolvedTypeReference,
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
-        val boundParameterList = parameters.bindTo(functionRootContext, impliedReceiverType)
+        val boundParameterList = parameters.bindTo(functionRootContext, lazyImpliedReceiverType)
 
         boundFn = BoundDeclaredBaseTypeMemberFunction(
             context,
@@ -84,7 +84,7 @@ data class FunctionDeclaration(
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),
             getTypeDef,
-            impliedReceiverType,
+            lazyImpliedReceiverType,
         )
         return boundFn
     }

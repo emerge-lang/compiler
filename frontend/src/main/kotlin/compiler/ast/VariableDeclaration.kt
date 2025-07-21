@@ -41,35 +41,45 @@ data class VariableDeclaration(
     override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindToAsLocalVariable(context)
 
     fun bindToAsGlobalVariable(context: ExecutionScopedCTContext, initializerContext: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, initializerContext, BoundVariable.Kind.GLOBAL_VARIABLE)
+        return bindTo(context, initializerContext, BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability, BoundVariable.Kind.GLOBAL_VARIABLE)
     }
 
-    fun bindToAsParameter(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.Kind.PARAMETER)
+    fun bindToAsParameter(
+        context: ExecutionScopedCTContext,
+        typeInferenceStrategy: BoundVariable.TypeInferenceStrategy
+    ): BoundVariable {
+        return bindTo(context, context, typeInferenceStrategy, BoundVariable.Kind.PARAMETER)
     }
 
     fun bindToAsConstructorParameter(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.Kind.CONSTRUCTOR_PARAMETER)
+        return bindTo(context, context, BoundVariable.TypeInferenceStrategy.NoInference, BoundVariable.Kind.CONSTRUCTOR_PARAMETER)
     }
 
     fun bindToAsLocalVariable(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.Kind.LOCAL_VARIABLE)
+        return bindTo(context, context, BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability, BoundVariable.Kind.LOCAL_VARIABLE)
     }
 
     fun bindToAsMemberVariable(context: ExecutionScopedCTContext, isDecorated: Boolean): BoundVariable {
         return bindTo(
             context,
             context,
+            BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability,
             if (isDecorated) BoundVariable.Kind.DECORATED_MEMBER_VARIABLE else BoundVariable.Kind.MEMBER_VARIABLE,
         )
     }
 
-    private fun bindTo(context: ExecutionScopedCTContext, initializerContext: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {
+    private fun bindTo(
+        context: ExecutionScopedCTContext,
+        initializerContext: ExecutionScopedCTContext,
+        typeInferenceStrategy: BoundVariable.TypeInferenceStrategy,
+        kind: BoundVariable.Kind
+    ): BoundVariable {
         return BoundVariable(
             context,
             this,
             visibility?.bindTo(context) ?: BoundVisibility.default(context),
             initializerExpression?.bindTo(initializerContext),
+            typeInferenceStrategy,
             kind,
         )
     }

@@ -18,13 +18,13 @@
 
 package compiler.ast.type
 
+import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 
 /**
  * todo: rename to AstType
@@ -35,13 +35,13 @@ sealed interface TypeReference {
     val mutability: TypeMutability?
 
     /**
-     * @return this reference is a placeholder asking for type inference, this method fills in the
+     * @return iff this reference is a placeholder asking for type inference, this method fills in the
      * referrable parts from [impliedType] and returns the resulting combination of information
      * from this instance and [impliedType].
      *
-     * Otherwise, returns itself.
+     * Otherwise, returns itself, resolved through [context]
      */
-    fun fillInInferrableType(impliedType: NamedTypeReference): TypeReference = this
+    fun resolveWithImpliedType(impliedType: RootResolvedTypeReference, context: CTContext): BoundTypeReference = context.resolveType(this)
 
     fun withMutability(mutability: TypeMutability): TypeReference
 
@@ -153,27 +153,24 @@ data class NamedTypeReference(
         return this._string
     }
 
-    /**
-     * Whether `this` type reference is explicitly requesting inference, see [BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE]
-     */
-    @OptIn(ExperimentalContracts::class)
-    fun TypeReference.asksForInference(): Boolean {
-        contract {
-            returns(true) implies (this@asksForInference is NamedTypeReference)
-        }
-        if (this !is NamedTypeReference) return false
-        return this.simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE
-    }
-
-    override fun fillInInferrableType(impliedType: NamedTypeReference): TypeReference {
+    override fun resolveWithImpliedType(impliedType: RootResolvedTypeReference, context: CTContext): BoundTypeReference {
         if (this.simpleName != BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE) {
-            return this
+            return super.resolveWithImpliedType(impliedType, context)
         }
 
-        return copy(
-            simpleName = impliedType.simpleName,
-            arguments = arguments ?: impliedType.arguments,
-        )
+        if (arguments == null) {
+            return impliedType
+                .withCombinedNullability(this.nullability)
+                .withMutability(this.mutability)
+        }
+
+        return context.resolveType(AstAbsoluteTypeReference(
+            impliedType.baseType.canonicalName,
+            arguments,
+            this.nullability,
+            this.mutability,
+            this.span ?: Span.UNKNOWN,
+        ))
     }
 
     override fun equals(other: Any?): Boolean {

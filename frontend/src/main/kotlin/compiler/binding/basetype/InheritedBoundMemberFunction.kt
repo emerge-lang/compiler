@@ -2,6 +2,7 @@ package compiler.binding.basetype
 
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
+import compiler.binding.BoundVariable
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
@@ -61,7 +62,10 @@ class InheritedBoundMemberFunction(
             )
             ?.withSpan(inheritedParamTypeLocation)
 
-        superParam.declaration.copy(declaredAt = inheritedParamLocation, type = translatedType).bindToAsParameter(contextCarry)
+        superParam.declaration.copy(declaredAt = inheritedParamLocation, type = translatedType).bindToAsParameter(
+            contextCarry,
+            BoundVariable.TypeInferenceStrategy.NoInference, // is this correct?
+        )
     }
 
     override val receiverType get()= parameters.declaredReceiver!!.typeAtDeclarationTime

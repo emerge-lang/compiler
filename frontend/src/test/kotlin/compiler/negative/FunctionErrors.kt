@@ -60,7 +60,7 @@ class FunctionErrors : FreeSpec({
             """.trimIndent()
             )
                 .shouldFind<MissingVariableTypeDiagnostic>() {
-                    it.parameter.name.value shouldBe "bar"
+                    it.variableName shouldBe "bar"
                 }
         }
 
