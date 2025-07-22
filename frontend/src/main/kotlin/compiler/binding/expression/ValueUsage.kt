@@ -145,7 +145,7 @@ class TypeCheckValueUsage private constructor(
     override val span: Span,
 ) : ValueUsage {
     constructor(softwareContext: SoftwareContext, span: Span) : this(
-        softwareContext.any.baseReference
+        softwareContext.any.getBoundReferenceAssertNoTypeParameters(span)
             .withMutability(TypeMutability.READONLY)
             .withCombinedNullability(TypeReference.Nullability.NULLABLE),
         span,

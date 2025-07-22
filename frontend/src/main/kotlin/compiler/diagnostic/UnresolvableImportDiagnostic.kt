@@ -1,13 +1,15 @@
 package compiler.diagnostic
 
-import compiler.binding.BoundImportDeclaration
+import compiler.lexer.IdentifierToken
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 data class UnresolvableImportDiagnostic(
-    val import: BoundImportDeclaration,
+    val packageName: CanonicalElementName.Package,
+    val symbol: IdentifierToken,
 ) : Diagnostic(
     Severity.ERROR,
-    "Could not find a function, type or variable with the name ${import.simpleName} in package ${import.packageName}",
-    import.declaration.identifiers.last().span,
+    "Could not find a function, type or variable with the name ${symbol.quote()} in package ${packageName.quote()}",
+    symbol.span,
 ) {
     override fun toString() = super.toString()
 }

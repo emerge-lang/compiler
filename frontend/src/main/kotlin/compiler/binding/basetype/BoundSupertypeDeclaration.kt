@@ -7,9 +7,9 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.cyclicInheritance
 import compiler.diagnostic.illegalSupertype
@@ -59,7 +59,7 @@ class BoundSupertypeDeclaration(
                 }
             )
 
-            if (unfilteredResolved !is RootResolvedTypeReference && unfilteredResolved !is UnresolvedType) {
+            if (unfilteredResolved !is RootResolvedTypeReference && unfilteredResolved !is ErroneousType) {
                 diagnosis.illegalSupertype(astNode, "can only inherit from interfaces")
             }
         }

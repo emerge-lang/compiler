@@ -28,7 +28,7 @@ data class BoundTypeParameter(
      * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
     val bound: BoundTypeReference by lazy {
-        astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
+        astNode.bound?.let(context::resolveType) ?: context.swCtx.getTopType(astNode.span)
     }
 
     val modifiedContext: CTContext = MutableCTContext(context).also {
@@ -37,7 +37,7 @@ data class BoundTypeParameter(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         context.resolveType(NamedTypeReference(name))
-            .takeUnless { it is UnresolvedType }
+            .takeUnless { it is ErroneousType }
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }

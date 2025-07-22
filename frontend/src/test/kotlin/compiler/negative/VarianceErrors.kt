@@ -1,17 +1,14 @@
 package compiler.compiler.negative
 
 import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeVariance.IN
-import compiler.ast.type.TypeVariance.OUT
-import compiler.ast.type.TypeVariance.UNSPECIFIED
-import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.compiler.ast.type.getTestType
+import compiler.compiler.binding.type.parseTypeArgument
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentOnInvocationDiagnostic
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
@@ -19,7 +16,6 @@ import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
-import io.mockk.mockk
 
 class VarianceErrors : FreeSpec({
     val swCtx = validateModule("""
@@ -27,13 +23,7 @@ class VarianceErrors : FreeSpec({
         interface Child : Parent {}
     """.trimIndent()).first
 
-    val Parent = swCtx.getTestType("Parent")
-    val Child = swCtx.getTestType("Child")
-    val ctCtx = Parent.context
-
-    fun varIn(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), IN, t.baseReference)
-    fun varOut(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), OUT, t.baseReference)
-    fun varExact(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
+    val ctCtx = swCtx.getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.sourceFiles.single().context
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         ctCtx,
@@ -55,117 +45,124 @@ class VarianceErrors : FreeSpec({
         }
     }
 
+    val exactParent = swCtx.parseTypeArgument("Parent")
+    val inParent = swCtx.parseTypeArgument("in Parent")
+    val outParent = swCtx.parseTypeArgument("out Parent")
+    val exactChild = swCtx.parseTypeArgument("Child")
+    val inChild = swCtx.parseTypeArgument("in Child")
+    val outChild = swCtx.parseTypeArgument("out Child")
+
     "same type" - {
         "Child to Child" {
-            varExact(Child) should beAssignableTo(varExact(Child))
+            exactChild should beAssignableTo(exactChild)
         }
 
         "Child to in Child" {
-            varExact(Child) should beAssignableTo(varIn(Child))
+            exactChild should beAssignableTo(inChild)
         }
 
         "Child to out Child" {
-            varExact(Child) should beAssignableTo(varOut(Child))
+            exactChild should beAssignableTo(outChild)
         }
 
         "in Child to Child" {
-            varIn(Child) shouldNot beAssignableTo(varExact(Child))
+            inChild shouldNot beAssignableTo(exactChild)
         }
 
         "in Child to in Child" {
-            varIn(Child) should beAssignableTo(varIn(Child))
+            inChild should beAssignableTo(inChild)
         }
 
         "in Child to out Child" {
-            varIn(Child) shouldNot beAssignableTo(varOut(Child))
+            inChild shouldNot beAssignableTo(outChild)
         }
 
         "out Child to Child" {
-            varOut(Child) shouldNot beAssignableTo(varExact(Child))
+            outChild shouldNot beAssignableTo(exactChild)
         }
 
         "out Child to in Child" {
-            varOut(Child) shouldNot beAssignableTo(varIn(Child))
+            outChild shouldNot beAssignableTo(inChild)
         }
 
         "out Child to out Child" {
-            varOut(Child) should beAssignableTo(varOut(Child))
+            outChild should beAssignableTo(outChild)
         }
     }
 
     "assign child type to parent reference" - {
         "Child to Parent" {
-            varExact(Child) shouldNot beAssignableTo(varExact(Parent))
+            exactChild shouldNot beAssignableTo(exactParent)
         }
 
         "Child to in Parent" {
-            varExact(Child) shouldNot beAssignableTo(varIn(Parent))
+            exactChild shouldNot beAssignableTo(inParent)
         }
 
         "Child to out Parent" {
-            varExact(Child) should beAssignableTo(varOut(Parent))
+            exactChild should beAssignableTo(outParent)
         }
 
         "in Child to Parent" {
-            varIn(Child) shouldNot beAssignableTo(varExact(Parent))
+            inChild shouldNot beAssignableTo(exactParent)
         }
 
         "in Child to in Parent" {
-            varIn(Child) shouldNot beAssignableTo(varIn(Parent))
+            inChild shouldNot beAssignableTo(inParent)
         }
 
         "in Child to out Parent" {
-            varIn(Child) shouldNot beAssignableTo(varOut(Parent))
+            inChild shouldNot beAssignableTo(outParent)
         }
 
         "out Child to Parent" {
-            varOut(Child) shouldNot beAssignableTo(varExact(Parent))
+            outChild shouldNot beAssignableTo(exactParent)
         }
 
         "out Child to in Parent" {
-            varOut(Child) shouldNot beAssignableTo(varIn(Parent))
+            outChild shouldNot beAssignableTo(inParent)
         }
 
         "out Child to out Parent" {
-            varOut(Child) should beAssignableTo(varOut(Parent))
+            outChild should beAssignableTo(outParent)
         }
     }
 
     "assign parent type to child reference" - {
         "Parent to Child" {
-            varExact(Parent) shouldNot beAssignableTo(varExact(Child))
+            exactParent shouldNot beAssignableTo(exactChild)
         }
 
         "Parent to in Child" {
-            varExact(Parent) should beAssignableTo(varIn(Child))
+            exactParent should beAssignableTo(inChild)
         }
 
         "Parent to out Child" {
-            varExact(Parent) shouldNot beAssignableTo(varOut(Child))
+            exactParent shouldNot beAssignableTo(outChild)
         }
 
         "in Parent to Child" {
-            varIn(Parent) shouldNot beAssignableTo(varExact(Child))
+            inParent shouldNot beAssignableTo(exactChild)
         }
 
         "in Parent to in Child" {
-            varIn(Parent) should beAssignableTo(varIn(Child))
+            inParent should beAssignableTo(inChild)
         }
 
         "in Parent to out Child" {
-            varIn(Parent) shouldNot beAssignableTo(varOut(Child))
+            inParent shouldNot beAssignableTo(outChild)
         }
 
         "out Parent to Child" {
-            varOut(Parent) shouldNot beAssignableTo(varExact(Child))
+            outParent shouldNot beAssignableTo(exactChild)
         }
 
         "out Parent to in Child" {
-            varOut(Parent) shouldNot beAssignableTo(varIn(Child))
+            outParent shouldNot beAssignableTo(inChild)
         }
 
         "out Parent to out Child" {
-            varOut(Parent) shouldNot beAssignableTo(varOut(Child))
+            outParent shouldNot beAssignableTo(outChild)
         }
     }
 

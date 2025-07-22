@@ -107,7 +107,7 @@ class TypeVariable private constructor(
             is BoundTypeArgument, -> {
                 return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
             }
-            is UnresolvedType -> unify(assigneeType.asNothing, assignmentLocation, carry)
+            is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
                 if (isNullable) {

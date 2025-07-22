@@ -15,7 +15,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.UnresolvedType
+import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
 
@@ -49,6 +49,14 @@ class SourceFileRootContext(
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
+    private val ambiguousSimpleNamesByImport = HashSet<String>()
+    fun markSimpleNameAmbiguousByImports(simpleName: String) {
+        ambiguousSimpleNamesByImport.add(simpleName)
+    }
+    override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+        return simpleName in ambiguousSimpleNamesByImport || parentContext.hasAmbiguousImportOrDeclarationsForSimpleName(simpleName)
+    }
+
     private companion object {
         val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
@@ -74,18 +82,22 @@ class SourceFileRootContext(
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
-            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
-            override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
+            override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> = emptySequence()
+            override fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean {
+                return false
+            }
+            override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
                 return false
             }
 
-            override fun resolveType(ref: TypeReference): BoundTypeReference = UnresolvedType(
+            override fun resolveType(ref: TypeReference): BoundTypeReference = ErroneousType(
                 this,
                 when (ref) {
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
                 (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it, null) },
+                emptyList(),
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 
@@ -146,12 +158,28 @@ class SourceFileRootContext(
             return packageContext.resolveVariable(name)
         }
 
-        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? {
-            if (fromOwnFileOnly) {
-                return EMPTY.resolveBaseType(simpleName, fromOwnFileOnly)
+        override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> {
+            return sequenceOf(packageContext.resolveBaseType(simpleName)).filterNotNull()
+        }
+
+        override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+            val fromTypes = packageContext.types
+                .filter { it.simpleName == simpleName }
+                .take(2)
+                .count() > 1
+            if (fromTypes) {
+                return true
             }
 
-            return packageContext.resolveBaseType(simpleName)
+            val fromVars = packageContext.globalVariables
+                .filter { it.name == simpleName }
+                .take(2)
+                .count() > 1
+            if (fromVars) {
+                return true
+            }
+
+            return false
         }
 
         override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> {

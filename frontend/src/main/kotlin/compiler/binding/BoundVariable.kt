@@ -36,14 +36,17 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.circularVariableInitialization
 import compiler.diagnostic.explicitInferTypeNotAllowed
 import compiler.diagnostic.explicitInferTypeWithArguments
 import compiler.diagnostic.explicitOwnershipNotAllowed
 import compiler.diagnostic.globalVariableNotInitialized
+import compiler.diagnostic.quoteIdentifier
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.diagnostic.variableTypeNotDeclared
@@ -53,7 +56,6 @@ import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
-import kotlin.properties.Delegates.notNull
 
 /**
  * Describes the presence/availability of a (class member) variable or (class member) value in a context.
@@ -64,15 +66,18 @@ class BoundVariable(
     override val declaration: VariableDeclaration,
     override val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
+    private val typeInferenceStrategy: TypeInferenceStrategy,
     val kind: Kind,
 ) : BoundStatement<VariableDeclaration>, DefinitionWithVisibility {
+    private val seanHelper = SeanHelper()
+
     val name: String = declaration.name.value
     private val isGlobal = kind == Kind.GLOBAL_VARIABLE
 
     val isReAssignable: Boolean = declaration.isReAssignable
-    private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
-    /** initialized during [semanticAnalysisPhase1] */
-    private var shouldInferBaseType: Boolean by notNull()
+
+    var typeInferenceStage2: TypeInferenceStrategy.Sean2Stage by seanHelper.resultOfPhase1(allowReassignment = false)
+    var typeInferenceStage3: TypeInferenceStrategy.Sean3Stage by seanHelper.resultOfPhase2(allowReassignment = false)
 
     /**
      * The type as _declared_ or inferred _from the declaration only_; there is some level of dependent typing
@@ -83,18 +88,12 @@ class BoundVariable(
      * Available after [semanticAnalysisPhase2]; iff a type is declared and no inference is needed,
      * already available after [semanticAnalysisPhase1].
      */
-    var typeAtDeclarationTime: BoundTypeReference? = null
-        private set
-
-    /**
-     * The type, solely as _declared_ (excluding type inference). Null if fully inferred or not resolved yet
-     */
-    private var resolvedDeclaredType: BoundTypeReference? = null
-    private val expectedInitializerEvaluationType: BoundTypeReference
-        get() = this.resolvedDeclaredType
-            ?: context.swCtx.any.baseReference
-                .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
-                .withMutability(declaration.type?.mutability ?: implicitMutability)
+    val typeAtDeclarationTime: BoundTypeReference?
+        get() = when {
+            seanHelper.phase2Done -> typeInferenceStage3.typeAfterSean2
+            seanHelper.phase1Done -> typeInferenceStage2.typeAfterSean1
+            else -> null
+        }
 
     /**
      * publicly mutable so that it can be changed depending on context. However, the value must be set before
@@ -116,27 +115,11 @@ class BoundVariable(
     override val returnBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.returnBehavior
     override val throwBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.throwBehavior
 
-    private val seanHelper = SeanHelper()
-
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
                 diagnosis.visibilityNotAllowedOnVariable(this)
-            }
-
-            shouldInferBaseType = when (declaration.type) {
-                null -> true
-                is NamedTypeReference -> when (declaration.type.simpleName) {
-                    BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE -> {
-                        if (declaration.type.arguments?.isNotEmpty() == true) {
-                            diagnosis.explicitInferTypeWithArguments(declaration.type)
-                        }
-                        true
-                    }
-                    else -> false
-                }
-                else -> false
             }
 
             context.resolveVariable(this.name)
@@ -153,34 +136,18 @@ class BoundVariable(
                 diagnosis.globalVariableNotInitialized(this)
             }
 
-            if (kind.requiresExplicitType) {
-                if (declaration.type == null) {
-                    diagnosis.variableTypeNotDeclared(this)
-                }
-            } else if (declaration.initializerExpression == null && shouldInferBaseType) {
-                diagnosis.typeDeductionError(
-                    "Cannot determine type of $kind $name; neither type nor initializer is specified.",
-                    declaration.declaredAt
-                )
-            }
-
-            declaration.type
-                ?.takeUnless { shouldInferBaseType }
-                ?.let(context::resolveType)
-                ?.defaultMutabilityTo(implicitMutability)
-                ?.let { resolvedDeclaredType ->
-                    this.resolvedDeclaredType = resolvedDeclaredType
-                    this.typeAtDeclarationTime = resolvedDeclaredType
-                }
+            typeInferenceStage2 = typeInferenceStrategy.init(
+                context,
+                kind,
+                isReAssignable,
+                name,
+                declaration.span,
+            ).doSean1(declaration.type, initializerExpression != null, diagnosis)
 
             if (initializerExpression != null) {
                 initializerExpression.semanticAnalysisPhase1(diagnosis)
-                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType, diagnosis)
+                initializerExpression.setExpectedEvaluationResultType(typeInferenceStage2.expectedInitializerEvaluationType, diagnosis)
                 initializerExpression.markEvaluationResultUsed()
-            }
-
-            if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {
-                diagnosis.explicitInferTypeNotAllowed(declaration.type)
             }
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
@@ -195,7 +162,6 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-
             visibility.semanticAnalysisPhase2(diagnosis)
 
             if (initializerExpression != null) {
@@ -205,58 +171,24 @@ class BoundVariable(
                         initializerExpression.semanticAnalysisPhase2(diagnosis)
                     },
                     onCycle = {
-                        diagnosis.typeDeductionError(
-                            "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                            initializerExpression.declaration.span
-                        )
+                        diagnosis.circularVariableInitialization(this)
                     },
                 )
 
-                if (declaration.type == null) {
-                    // full inference
-                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
-                } else {
-                    val finalNullability = declaration.type.nullability
-                    val finalMutability = declaration.type.mutability
-                        ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
-
-                    if (shouldInferBaseType) {
-                        typeAtDeclarationTime = initializerExpression.type
-                    } else {
-                        typeAtDeclarationTime = resolvedDeclaredType
-                    }
-
-                    typeAtDeclarationTime = typeAtDeclarationTime
-                        ?.withMutability(finalMutability)
-                        ?.withCombinedNullability(finalNullability)
-
-                    initializerExpression.type?.let { initializerType ->
-                        // discrepancy between assign expression and declared type
-                        if (initializerType !is UnresolvedType) {
-                            initializerType.evaluateAssignabilityTo(
-                                typeAtDeclarationTime!!,
-                                declaration.initializerExpression!!.span
-                            )
-                                ?.let(diagnosis::add)
-                        }
-                    }
-                }
+                typeInferenceStage3 = typeInferenceStage2.doSean2WithInitializer(initializerExpression, diagnosis)
 
                 initializerExpression.setEvaluationResultUsage(CreateReferenceValueUsage(
-                    typeAtDeclarationTime,
+                    typeInferenceStage3.typeAfterSean2,
                     declaration.declaredAt,
                     ownershipAtDeclarationTime,
                 ))
+            } else {
+                typeInferenceStage3 = typeInferenceStage2.doSean2WithoutInitializer(diagnosis)
             }
 
-            // handle no initializer case
-            if (typeAtDeclarationTime == null) {
-                typeAtDeclarationTime = resolvedDeclaredType
-            }
-
-            if (resolvedDeclaredType != null) {
+            if (declaration.type != null && typeInferenceStage2.typeAfterSean1 != null) {
                 val useSite = kind.getTypeUseSite(this, declaration.span)
-                resolvedDeclaredType!!.validate(useSite, diagnosis)
+                typeInferenceStage2.typeAfterSean1!!.validate(useSite, diagnosis)
             }
         }
     }
@@ -316,7 +248,7 @@ class BoundVariable(
         return visibility.validateAccessFrom(location, this, diagnosis)
     }
 
-    override fun toStringForErrorMessage() = "$kind $name"
+    override fun toStringForErrorMessage() = "$kind ${name.quoteIdentifier()}"
 
     val backendIrDeclaration: IrVariableDeclaration by lazy {
         val isSSA = when  {
@@ -365,9 +297,7 @@ class BoundVariable(
     enum class Kind(
         val readableKindName: String,
         val implicitMutabilityWhenNotReAssignable: TypeMutability,
-        val allowsExplicitBaseTypeInfer: Boolean,
         val allowsExplicitOwnership: Boolean,
-        val requiresExplicitType: Boolean,
         val isInitializedByDefault: Boolean,
         val allowsVisibility: Boolean,
         val runInitializerInSubScope: Boolean,
@@ -376,19 +306,15 @@ class BoundVariable(
         LOCAL_VARIABLE(
             "local variable",
             implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
-            allowsExplicitBaseTypeInfer = true,
             allowsExplicitOwnership = false,
-            requiresExplicitType = false,
             isInitializedByDefault = false,
             allowsVisibility = false,
             runInitializerInSubScope = false,
         ),
         MEMBER_VARIABLE(
             "member variable",
-            TypeMutability.IMMUTABLE,
-            allowsExplicitBaseTypeInfer = true,
+            implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
             allowsExplicitOwnership = false,
-            requiresExplicitType = false,
             isInitializedByDefault = false,
             allowsVisibility = true,
             runInitializerInSubScope = false,
@@ -399,10 +325,8 @@ class BoundVariable(
         ),
         DECORATED_MEMBER_VARIABLE(
             readableKindName = "member variable",
-            TypeMutability.READONLY,
-            allowsExplicitBaseTypeInfer = MEMBER_VARIABLE.allowsExplicitBaseTypeInfer,
+            implicitMutabilityWhenNotReAssignable = TypeMutability.READONLY,
             allowsExplicitOwnership = MEMBER_VARIABLE.allowsExplicitOwnership,
-            requiresExplicitType = MEMBER_VARIABLE.requiresExplicitType,
             isInitializedByDefault = MEMBER_VARIABLE.isInitializedByDefault,
             allowsVisibility = MEMBER_VARIABLE.allowsVisibility,
             runInitializerInSubScope = MEMBER_VARIABLE.runInitializerInSubScope,
@@ -410,20 +334,16 @@ class BoundVariable(
         ),
         GLOBAL_VARIABLE(
             readableKindName = "global variable",
-            TypeMutability.IMMUTABLE,
-            allowsExplicitBaseTypeInfer = true,
+            implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
             allowsExplicitOwnership = false,
-            requiresExplicitType = false,
             isInitializedByDefault = true,
             allowsVisibility = true,
             runInitializerInSubScope = true,
         ),
         PARAMETER(
             readableKindName = "parameter",
-            TypeMutability.READONLY,
-            allowsExplicitBaseTypeInfer = false,
+            implicitMutabilityWhenNotReAssignable = TypeMutability.READONLY,
             allowsExplicitOwnership = true,
-            requiresExplicitType = true,
             isInitializedByDefault = true,
             allowsVisibility = false,
             runInitializerInSubScope = false,
@@ -435,9 +355,7 @@ class BoundVariable(
         CONSTRUCTOR_PARAMETER(
             readableKindName = "constructor parameter",
             PARAMETER.implicitMutabilityWhenNotReAssignable,
-            PARAMETER.allowsExplicitBaseTypeInfer,
             PARAMETER.allowsExplicitOwnership,
-            PARAMETER.requiresExplicitType,
             PARAMETER.isInitializedByDefault,
             PARAMETER.allowsVisibility,
             PARAMETER.runInitializerInSubScope,
@@ -447,12 +365,6 @@ class BoundVariable(
             allowsShadowingGlobals = true,
         )
         ;
-
-        init {
-            if (requiresExplicitType) {
-                check(!allowsExplicitBaseTypeInfer)
-            }
-        }
 
         override fun toString() = name.lowercase().replace('_', ' ')
         fun getTypeUseSite(exposedBy: DefinitionWithVisibility,  location: Span): TypeUseSite {
@@ -464,6 +376,228 @@ class BoundVariable(
                 GLOBAL_VARIABLE,
                 CONSTRUCTOR_PARAMETER -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)
+            }
+        }
+    }
+
+    /**
+     * Decouples type inference logic from the other semantic analysis that goes on around variables for simplicity.
+     */
+    interface TypeInferenceStrategy {
+        private companion object {
+            val TypeReference.requestsBaseTypeInference: Boolean
+                get() = this is NamedTypeReference && simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE
+        }
+
+        fun init(
+            context: CTContext,
+            kind: Kind,
+            isReAssignable: Boolean,
+            name: String,
+            declaredAt: Span
+        ): Sean1Stage
+
+        interface Sean1Stage {
+            fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage
+        }
+
+        interface Sean2Stage {
+            val typeAfterSean1: BoundTypeReference?
+            val expectedInitializerEvaluationType: BoundTypeReference
+            val utilizesInitializerType: Boolean
+
+            fun doSean2WithInitializer(initializerExpression: BoundExpression<*>, diagnosis: Diagnosis): Sean3Stage
+            fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage
+        }
+
+        interface Sean3Stage {
+            val typeAfterSean2: BoundTypeReference?
+        }
+
+        /**
+         * No inference, the type must be declared explicitly. For function parameters that are not a receiver with implied type.
+         */
+        object NoInference : TypeInferenceStrategy {
+            override fun init(
+                context: CTContext,
+                kind: Kind,
+                isReAssignable: Boolean,
+                name: String,
+                declaredAt: Span
+            ): Sean1Stage = object : Sean1Stage {
+                override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
+                    return object : Sean2Stage {
+                        override val utilizesInitializerType = false
+                        override val typeAfterSean1: BoundTypeReference? =
+                            if (declaredType != null) {
+                                if (declaredType.requestsBaseTypeInference) {
+                                    diagnosis.explicitInferTypeNotAllowed(declaredType)
+                                    null
+                                } else {
+                                    context.resolveType(declaredType)
+                                }
+                            } else {
+                                diagnosis.variableTypeNotDeclared(kind, name, declaredAt)
+                                null
+                            }
+
+                        override val expectedInitializerEvaluationType: BoundTypeReference
+                            get() =  context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaredAt)
+                                .withCombinedNullability(declaredType?.nullability ?: TypeReference.Nullability.NULLABLE)
+                                .withMutability(declaredType?.mutability ?: TypeMutability.READONLY)
+
+                        override fun doSean2WithInitializer(
+                            initializerExpression: BoundExpression<*>,
+                            diagnosis: Diagnosis
+                        ): Sean3Stage {
+                            return doSean2WithoutInitializer(diagnosis)
+                        }
+
+                        override fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage {
+                            return object : Sean3Stage {
+                                override val typeAfterSean2 = typeAfterSean1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Mutability is inferred from [BoundVariable.isReAssignable] and when the basetype simplename of the
+         * declared type is [BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE], the base type is inferred from
+         * the initializer expression.
+         */
+        object InferBaseTypeAndMutability : TypeInferenceStrategy {
+            override fun init(
+                context: CTContext,
+                kind: Kind,
+                isReAssignable: Boolean,
+                name: String,
+                declaredAt: Span,
+            ): Sean1Stage = object : Sean1Stage {
+                private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
+
+                override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
+                    val shouldInferBaseType = when {
+                        declaredType == null -> true
+                        declaredType.requestsBaseTypeInference -> {
+                            declaredType as NamedTypeReference
+                            if (declaredType.arguments?.isNotEmpty() == true) {
+                                diagnosis.explicitInferTypeWithArguments(declaredType)
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+
+                    if (shouldInferBaseType && !hasInitializer) {
+                        diagnosis.typeDeductionError(
+                            "Cannot determine type of ${kind.readableKindName} $name; neither type nor initializer is specified.",
+                            declaredAt,
+                        )
+                    }
+
+                    return object : Sean2Stage {
+                        override val utilizesInitializerType = shouldInferBaseType
+                        override val typeAfterSean1: BoundTypeReference? = declaredType
+                            ?.takeUnless { shouldInferBaseType }
+                            ?.let(context::resolveType)
+                            ?.defaultMutabilityTo(implicitMutability)
+
+                        override val expectedInitializerEvaluationType: BoundTypeReference
+                            get() = typeAfterSean1
+                                ?: context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaredAt)
+                                    .withCombinedNullability(declaredType?.nullability ?: TypeReference.Nullability.NULLABLE)
+                                    .withMutability(declaredType?.mutability ?: implicitMutability)
+
+                        override fun doSean2WithInitializer(
+                            initializerExpression: BoundExpression<*>,
+                            diagnosis: Diagnosis
+                        ): Sean3Stage {
+                            var typeAfterSean2: BoundTypeReference?
+                            if (declaredType == null) {
+                                // full inference
+                                typeAfterSean2 = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
+                            } else {
+                                val finalNullability = declaredType.nullability
+                                val finalMutability = declaredType.mutability
+                                    ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
+
+                                if (shouldInferBaseType) {
+                                    typeAfterSean2 = initializerExpression.type
+                                } else {
+                                    typeAfterSean2 = typeAfterSean1
+                                }
+
+                                typeAfterSean2 = typeAfterSean2
+                                    ?.withMutability(finalMutability)
+                                    ?.withCombinedNullability(finalNullability)
+
+                                initializerExpression.type?.let { initializerType ->
+                                    // discrepancy between assign expression and declared type
+                                    if (initializerType !is ErroneousType) {
+                                        initializerType.evaluateAssignabilityTo(
+                                            typeAfterSean2!!,
+                                            initializerExpression.declaration.span,
+                                        )
+                                            ?.let(diagnosis::add)
+                                    }
+                                }
+                            }
+
+                            return object : Sean3Stage {
+                                override val typeAfterSean2: BoundTypeReference? = typeAfterSean2
+                            }
+                        }
+
+                        override fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage {
+                            return object : Sean3Stage {
+                                override val typeAfterSean2: BoundTypeReference? = typeAfterSean1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        class ImpliedTypeIgnoreInitializer(
+            val lazyGetImpliedType: () -> RootResolvedTypeReference
+        ) : TypeInferenceStrategy {
+            override fun init(
+                context: CTContext,
+                kind: Kind,
+                isReAssignable: Boolean,
+                name: String,
+                declaredAt: Span,
+            ): Sean1Stage {
+                return object : Sean1Stage {
+                    override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
+                        val impliedType = lazyGetImpliedType()
+                        return object : Sean2Stage {
+                            override val utilizesInitializerType = false
+                            override val typeAfterSean1 =
+                                declaredType
+                                    ?.resolveWithImpliedType(impliedType, context)
+                                    ?: impliedType
+
+                            override val expectedInitializerEvaluationType: BoundTypeReference = typeAfterSean1
+
+                            override fun doSean2WithInitializer(
+                                initializerExpression: BoundExpression<*>,
+                                diagnosis: Diagnosis
+                            ): Sean3Stage {
+                                return doSean2WithoutInitializer(diagnosis)
+                            }
+
+                            override fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage {
+                                return object : Sean3Stage {
+                                    override val typeAfterSean2 = typeAfterSean1
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

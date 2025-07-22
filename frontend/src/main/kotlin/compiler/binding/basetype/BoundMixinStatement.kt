@@ -46,7 +46,7 @@ class BoundMixinStatement(
     }
 
     private val expectedType: BoundTypeReference by lazy {
-        context.swCtx.any.baseReference
+        context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaration.mixinKeyword.span)
             .withMutability(TypeMutability.EXCLUSIVE)
             .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
     }
@@ -73,7 +73,7 @@ class BoundMixinStatement(
         return seanHelper.phase2(diagnosis) {
             expression.semanticAnalysisPhase2(diagnosis)
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(diagnosis::add)
-            val mixinType = expression.type ?: context.swCtx.any.baseReference
+            val mixinType = expression.type ?: context.swCtx.any.getBoundReferenceAssertNoTypeParameters(expression.declaration.span)
             registration = context.registerMixin(this, mixinType, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }

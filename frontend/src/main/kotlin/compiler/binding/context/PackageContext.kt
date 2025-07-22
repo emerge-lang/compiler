@@ -1,5 +1,6 @@
 package compiler.binding.context
 
+import compiler.ast.AstVisibility
 import compiler.binding.AccessorKind
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -12,6 +13,9 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.duplicateBaseTypes
 import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.multipleAccessorsOnPackage
+import compiler.diagnostic.variableDeclaredMoreThanOnce
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class PackageContext(
@@ -26,6 +30,12 @@ class PackageContext(
         return sourceFiles
             .filter { it.packageName == packageName }
             .flatMap { it.context.types }
+    }
+
+    val globalVariables: Sequence<BoundVariable> get() {
+        return sourceFiles
+            .filter { it.packageName == packageName }
+            .flatMap { it.context.variables }
     }
 
     private val typeByNameCache = HashMap<String, BoundBaseType>()
@@ -90,6 +100,23 @@ class PackageContext(
             .filter { it.size > 1 }
             .forEach { duplicateTypes ->
                 diagnosis.duplicateBaseTypes(packageName, duplicateTypes)
+            }
+
+        globalVariables
+            .groupBy { it.name }
+            .values
+            .asSequence()
+            .filter { it.size > 1 }
+            .map { duplicatesOfOneName ->
+                // variables private to their file are not problematic; double-declaration in one file is checked elsewhere
+                duplicatesOfOneName.filter { it.visibility.isPossiblyBroaderThan(AstVisibility.Private(KeywordToken(Keyword.PRIVATE)).bindTo(it.context)) }
+            }
+            .filter { it.size > 1 }
+            .forEach { duplicateGlobalVariables ->
+                val winner = duplicateGlobalVariables.first()
+                duplicateGlobalVariables.drop(1).forEach { loser ->
+                    diagnosis.variableDeclaredMoreThanOnce(winner.declaration, loser.declaration)
+                }
             }
     }
 

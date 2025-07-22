@@ -38,6 +38,15 @@ private abstract class CanvasNode {
         next.prev.next = this
         next.prev = this
     }
+
+    fun insertAfter(prev: CanvasNode) {
+        checkNotInitialized()
+
+        this.next = prev.next
+        this.prev = prev
+        prev.next.prev = this
+        prev.next = this
+    }
 }
 
 private class CanvasBeginNode : CanvasNode() {
@@ -69,12 +78,20 @@ private class DoublyLinkedCanvas(
     private val originalStart: CanvasNode,
     private val originalEnd: CanvasNode,
 ) : MonospaceCanvas {
+    private var pendingBeforeWriteHead: CanvasNode = originalStart
     private var writeHead: LineNode? = null
 
     override fun createViewAppendingToBlankLine(): MonospaceCanvas {
         val newBegin = CanvasBeginNode()
         val newEnd = CanvasEndNode()
-        newEnd.insertBefore(originalEnd)
+        if (writeHead == null) {
+            newEnd.insertBefore(originalEnd)
+        } else {
+            newEnd.insertAfter(writeHead!!)
+            pendingBeforeWriteHead = newEnd
+            writeHead = null
+        }
+
         newBegin.insertBefore(newEnd)
         return DoublyLinkedCanvas(renderTargetInfo, theme, newBegin, newEnd)
     }
@@ -145,6 +162,9 @@ private class DoublyLinkedCanvas(
         computeContent: (line: MonospaceCanvas.Line) -> TextSpan
     ) {
         val lines = lines.toList()
+        if (lines.isEmpty()) {
+            return
+        }
         val columnContents = lines.map(computeContent)
         val columnWidth = columnContents.maxOf(renderTargetInfo::computeCellWidth)
         lines.zip(columnContents) { line, columnContent ->

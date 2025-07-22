@@ -75,7 +75,7 @@ class BoundNullCoalescingExpression(
         alternativeExpression.semanticAnalysisPhase2(diagnosis)
 
         val notNullableType = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-            ?: context.swCtx.bottomTypeRef
+            ?: context.swCtx.getBottomType(declaration.operator.token.span)
         val alternateType = alternativeExpression.type
         this.type = alternateType?.closestCommonSupertypeWith(notNullableType) ?: notNullableType
 

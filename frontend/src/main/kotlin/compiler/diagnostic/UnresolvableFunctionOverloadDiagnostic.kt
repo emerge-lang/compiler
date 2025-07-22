@@ -31,9 +31,9 @@ class UnresolvableFunctionOverloadDiagnostic(
     val parameterTypes: List<BoundTypeReference?>,
     val functionDeclaredAtAll: Boolean,
     val inapplicableCandidates: List<InvocationCandidateNotApplicableDiagnostic>,
-    val hasErroneousImportForFunctionName: Boolean,
+    val hasUnresolvableImportForFunctionName: Boolean,
 ) : Diagnostic(
-    if (hasErroneousImportForFunctionName) Severity.CONSECUTIVE else Severity.ERROR,
+    if (hasUnresolvableImportForFunctionName) Severity.CONSECUTIVE else Severity.ERROR,
     if (functionDeclaredAtAll) {
         "Function ${functionNameReference.value} is not declared for types ${parameterTypes.typeTupleToString()}"
     } else if (receiverType == null) {

@@ -11,7 +11,7 @@ class IrIsNullExpressionImpl private constructor(
 ) : IrIsNullExpression {
     constructor(lhs: IrTemporaryValueReference, ctx: SoftwareContext) : this(
         lhs,
-        { ctx.bool.baseReference.toBackendIr() },
+        { ctx.bool.irReadNotNullReference },
     )
 
     override val evaluatesTo = getEvaluatesTo()

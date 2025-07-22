@@ -1,5 +1,6 @@
 package compiler.diagnostic
 
+import compiler.diagnostic.rendering.CellBuilder
 import compiler.lexer.Token
 
 class ParsingMismatchDiagnostic(
@@ -10,13 +11,16 @@ class ParsingMismatchDiagnostic(
     "<mismatch>",
     actual.span
 ) {
-    override val message: String by lazy {
+    context(CellBuilder)
+    override fun renderMessage() {
         val uniqueAlternatives = expectedAlternatives.toSet()
-        val expectedDesc = uniqueAlternatives.singleOrNull() ?: uniqueAlternatives.joinToString(
-            prefix = "either of:\n",
-            transform = { "  - $it" },
-            separator = "\n",
-        )
-        "Unexpected ${actual.toStringWithoutLocation()}, expected $expectedDesc"
+        val expectedFirstPart = uniqueAlternatives.singleOrNull() ?: "either of:"
+        text("Unexpected ${actual.toStringWithoutLocation()}, expected $expectedFirstPart")
+        uniqueAlternatives
+            .takeIf { it.size > 1 }
+            ?.forEach {
+                assureOnBlankLine()
+                text("- $it")
+            }
     }
 }

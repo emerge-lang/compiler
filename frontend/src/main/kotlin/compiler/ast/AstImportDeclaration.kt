@@ -26,10 +26,20 @@ import compiler.lexer.Span
 /**
  * An import statement
  */
-class ImportDeclaration(
+class AstImportDeclaration(
     override val declaredAt: Span,
-    /** The identifiers in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2, component]` */
-    val identifiers: List<IdentifierToken>
+    /**
+     * The identifiers of the package in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2]`
+     */
+    val packageIdentifiers: List<IdentifierToken>,
+
+    /**
+     * The symbols/simple-names that are being imported.
+     * * `import pkg1.pkg2.component` => `[component]`
+     * * `import pkg1.pkg2.*` => `[*]`
+     * * `import pkg1.pkg2.{A, B}` => `[A, B]`
+     */
+    val symbols: List<IdentifierToken>,
 ) : AstFileLevelDeclaration {
 
     fun bindTo(context: CTContext): BoundImportDeclaration {
@@ -40,14 +50,20 @@ class ImportDeclaration(
         if (this === other) return true
         if (other?.javaClass != javaClass) return false
 
-        other as ImportDeclaration
+        other as AstImportDeclaration
 
-        if (identifiers != other.identifiers) return false
+        if (packageIdentifiers != other.packageIdentifiers) return false
+        if (symbols != other.symbols) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return identifiers.hashCode()
+        var result = packageIdentifiers.hashCode()
+        result *= 31 + symbols.hashCode()
+        return result
     }
+
+    override fun toString() = packageIdentifiers.joinToString(transform = { it.value }, separator = ".", postfix = ".{") +
+        symbols.joinToString(transform = { it.value }, separator = ", ", postfix = "}")
 }

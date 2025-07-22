@@ -2,7 +2,6 @@ package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberFunctionDeclaration
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.NamedTypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
@@ -47,7 +46,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     parameters: BoundParameterList,
     body: Body?,
     getTypeDef: () -> BoundBaseType,
-    private val impliedReceiverType: NamedTypeReference,
+    private val lazyImpliedReceiverType: () -> RootResolvedTypeReference,
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     parentContext,
     functionRootContext,
@@ -232,7 +231,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                 val declaredReceiverType = this.receiverType
                 val superReceiverType = inheritedFn.receiverType?.instantiateAllParameters(inheritedFn.supertypeAsDeclared.inherentTypeBindings)
                 if (declaredReceiverType != null && superReceiverType != null) {
-                    val expectedReceiverType = superReceiverType.intersect(functionRootContext.resolveType(this.impliedReceiverType))
+                    val expectedReceiverType = superReceiverType.intersect(lazyImpliedReceiverType())
                     expectedReceiverType
                         .evaluateAssignabilityTo(declaredReceiverType, declaredReceiverType.span ?: Span.UNKNOWN)
                         ?.let { narrowReceiverError ->

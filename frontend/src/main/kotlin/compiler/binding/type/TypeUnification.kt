@@ -188,7 +188,7 @@ class TypeUnification private constructor(
             return TypeUnification(
                 parameters.associateWith {
                     val upperBound = it.bound.withTypeVariables(parameters)
-                    VariableState(upperBound, upperBound, it.context.swCtx.bottomTypeRef, false)
+                    VariableState(upperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false)
                 },
                 emptySet(),
             )

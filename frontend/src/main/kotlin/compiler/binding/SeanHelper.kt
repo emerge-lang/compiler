@@ -74,9 +74,9 @@ class SeanHelper {
         phase3HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    private val phase1Done: Boolean get() = phase1DoneOn != null
-    private val phase2Done: Boolean get() = phase2DoneOn != null
-    private val phase3Done: Boolean get() = phase3DoneOn != null
+    val phase1Done: Boolean get() = phase1DoneOn != null
+    val phase2Done: Boolean get() = phase2DoneOn != null
+    val phase3Done: Boolean get() = phase3DoneOn != null
 
     fun requirePhase1Done() {
         if (!phase1Done) {

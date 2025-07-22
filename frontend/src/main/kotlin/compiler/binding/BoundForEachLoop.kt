@@ -54,7 +54,9 @@ class BoundForEachLoop(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
             iterableExpression.semanticAnalysisPhase2(diagnosis)
-            val notAnIterableError = iterableExpression.type?.evaluateAssignabilityTo(context.swCtx.iterable.baseReference, iterableExpression.declaration.span)
+            val notAnIterableError = iterableExpression.type?.evaluateAssignabilityTo(context.swCtx.iterable.getBoundReferenceWithNoneOrWildcardTypeArguments(
+                declaration.foreachKeyword.span
+            ), iterableExpression.declaration.span)
             if (notAnIterableError == null) {
                 rangeHolderDeclaration.semanticAnalysisPhase2(diagnosis)
             } else {

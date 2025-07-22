@@ -5,6 +5,7 @@ import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
@@ -25,7 +26,9 @@ import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -62,25 +65,33 @@ class BoundClassDestructor(
     override val functionRootContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
 
     override val declaresReceiver = true
-    override val receiverType by lazy {
-        functionRootContext.resolveType(
-            NamedTypeReference(
-                classDef.simpleName,
-                TypeReference.Nullability.NOT_NULLABLE,
-                TypeMutability.EXCLUSIVE,
-                classDef.declaration.name,
-                classDef.typeParameters?.map {
-                    AstSpecificTypeArgument(
-                        TypeVariance.UNSPECIFIED,
-                        NamedTypeReference(it.astNode.name),
+    override val receiverType: RootResolvedTypeReference by lazy {
+        RootResolvedTypeReference(
+            functionRootContext,
+            AstAbsoluteTypeReference(classDef.canonicalName, span = generatedSourceLocation),
+            classDef,
+            classDef.typeParameters?.map { boundTypeParam ->
+                val astParamRef = NamedTypeReference(boundTypeParam.astNode.name.value, span = generatedSourceLocation)
+                BoundTypeArgument(
+                    functionRootContext,
+                    AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, astParamRef),
+                    TypeVariance.UNSPECIFIED,
+                    GenericTypeReference(
+                        astParamRef,
+                        boundTypeParam,
                     )
-                },
-            ),
+                )
+            }
         )
+            .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+            .withMutability(TypeMutability.EXCLUSIVE)
+            .let { it as RootResolvedTypeReference }
     }
     override val name by lazy { "__${classDef.simpleName}__finalize" }
     override val allTypeParameters = declaredTypeParameters
-    override val returnType get() = fileContextWithTypeParameters.swCtx.unit.baseReference
+    override val returnType get() = fileContextWithTypeParameters.swCtx.unit.getBoundReferenceAssertNoTypeParameters(
+        declaredAt
+    )
 
     override val parameters by lazy {
         val astParameterList = ParameterList(listOf(
@@ -93,7 +104,7 @@ class BoundClassDestructor(
                     KeywordToken(Keyword.BORROW, span = generatedSourceLocation),
                 ),
                 IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
-                (receiverType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
+                receiverType.original!!.withMutability(TypeMutability.EXCLUSIVE),
                 null,
             )
         ))

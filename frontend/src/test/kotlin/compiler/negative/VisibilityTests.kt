@@ -19,27 +19,29 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class VisibilityTests : FreeSpec({
     "global variables" - {
-        "access is verified on import" {
-            validateModules(
-                IntegrationTestModule.of("module_A", """
+        "access is verified on import" - {
+            "explicit import" {
+                validateModules(
+                    IntegrationTestModule.of("module_A", """
                     package module_A
                     
                     module x = 3
                 """.trimIndent()),
-                IntegrationTestModule.of("module_B", """
+                    IntegrationTestModule.of("module_B", """
                     package module_B
                     
                     import module_A.x 
                     
                     fn dummy() {}
                 """.trimIndent())
-            )
-                .shouldFind<ElementNotAccessibleDiagnostic> {
-                    it.element should beInstanceOf<BoundVariable>()
-                }
+                )
+                    .shouldFind<ElementNotAccessibleDiagnostic> {
+                        it.element should beInstanceOf<BoundVariable>()
+                    }
+            }
         }
 
-        "access is verified on use" {
+        "access is verified on use with wildcard import" {
             validateModules(
                 IntegrationTestModule.of("module_A", """
                     package module_A

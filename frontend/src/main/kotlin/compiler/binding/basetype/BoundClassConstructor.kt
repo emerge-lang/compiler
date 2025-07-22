@@ -194,7 +194,7 @@ class BoundClassConstructor(
             exclusiveSelfBaseTypeRef,
             null,
         )
-        val varInstance = varAst.bindToAsParameter(contextWithSelfVar)
+        val varInstance = varAst.bindToAsParameter(contextWithSelfVar, BoundVariable.TypeInferenceStrategy.NoInference)
         contextWithSelfVar.addVariable(varInstance)
         varInstance.defaultOwnership = VariableOwnership.BORROWED
         contextWithSelfVar.trackSideEffect(VariableInitialization.WriteToVariableEffect(varInstance))

@@ -100,7 +100,7 @@ abstract class BoundDeclaredFunction(
                 if (this.body is Body.SingleExpression) {
                     this.returnType = this.body.expression.type
                 } else {
-                    this.returnType = functionRootContext.swCtx.unit.baseReference
+                    this.returnType = functionRootContext.swCtx.unit.getBoundReferenceAssertNoTypeParameters(declaredAt)
                         .withMutability(TypeMutability.READONLY)
                 }
             }

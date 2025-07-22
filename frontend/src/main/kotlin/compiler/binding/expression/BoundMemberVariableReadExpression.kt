@@ -171,7 +171,7 @@ class BoundMemberVariableReadExpression(
             }
 
             if (availableGetters.size + physicalMembers.size == 0) {
-                diagnosis.unresolvableMemberVariable(declaration, valueExpression.type ?: context.swCtx.unresolvableReplacementType)
+                diagnosis.unresolvableMemberVariable(declaration, valueExpression.type)
             }
         }
     }

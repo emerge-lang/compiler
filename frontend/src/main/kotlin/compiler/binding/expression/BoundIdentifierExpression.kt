@@ -34,8 +34,8 @@ import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.VariableUsedAsMutable
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.notAllMemberVariablesInitialized
@@ -78,7 +78,7 @@ class BoundIdentifierExpression(
         } else {
             val type: BoundTypeReference? = context.resolveType(
                 NamedTypeReference(declaration.identifier)
-            ).takeUnless { it is UnresolvedType }
+            ).takeUnless { it is ErroneousType }
 
             if (type == null) {
                 diagnosis.undefinedIdentifier(declaration.identifier)

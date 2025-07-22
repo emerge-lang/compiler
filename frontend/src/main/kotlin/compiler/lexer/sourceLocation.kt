@@ -155,7 +155,7 @@ data class Span(
         end.columnNumber,
     )
 
-    fun deriveGenerated() = copy(generated = true)
+    fun deriveGenerated() = if (generated) this else copy(generated = true)
 
     override fun toString(): String {
         return if (generated) {

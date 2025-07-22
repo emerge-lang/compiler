@@ -22,10 +22,12 @@ import compiler.binding.BoundCondition
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundIfExpression
+import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 
 class IfExpression (
     override val span: Span,
+    val ifKeyword: KeywordToken,
     val condition: Expression,
     val thenCode: Executable,
     val elseCode: Executable?

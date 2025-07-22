@@ -6,7 +6,7 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
 class BufferedMonospaceCanvasTest : FreeSpec({
-    "foo" {
+    "basic test" {
         val canvas = createBufferedMonospaceCanvas()
         canvas.toString() shouldBe ""
 
@@ -37,5 +37,20 @@ class BufferedMonospaceCanvasTest : FreeSpec({
         insertsFourth.toString() shouldBe "e\nf\n"
 
         canvas.toString() shouldBe "a\nb\nc\nd\nto the root\ne\nf\n"
+    }
+
+    "regression 1" {
+        val canvas = createBufferedMonospaceCanvas()
+
+        canvas.append(TextSpan("direct 1"))
+        canvas.createViewAppendingToBlankLine().also {
+            it.append(TextSpan("sub 2"))
+            it.assureOnBlankLine()
+            it.append(TextSpan("sub 3"))
+        }
+        canvas.assureOnBlankLine()
+        canvas.append(TextSpan("direct 4"))
+
+        canvas.toString() shouldBe "direct 1\nsub 2\nsub 3\ndirect 4\n"
     }
 })

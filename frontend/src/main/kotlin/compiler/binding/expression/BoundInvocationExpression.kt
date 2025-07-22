@@ -49,9 +49,9 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUnreachableStatementImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeUnification
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.binding.type.nonDisjointPairs
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
@@ -156,7 +156,7 @@ class BoundInvocationExpression(
 
             receiverExpression?.semanticAnalysisPhase2(diagnosis)
 
-            val availableOverloads: AvailableOverloads? = if (receiverExpression == null || (receiverExpression.type != null && receiverExpression.type !is UnresolvedType)) {
+            val availableOverloads: AvailableOverloads? = if (receiverExpression == null || (receiverExpression.type != null && receiverExpression.type !is ErroneousType)) {
                 collectOverloadCandidates()
             } else {
                 // receiver is present but type is not known -> cannot determine overload
@@ -214,11 +214,12 @@ class BoundInvocationExpression(
     private fun collectOverloadCandidates(): AvailableOverloads {
         assert((receiverExpression == null) xor (receiverExpression?.type != null))
 
-        val candidateConstructors = if (receiverExpression != null) null else {
+        val candidateConstructors: Collection<BoundOverloadSet<*>>? = if (receiverExpression != null) null else {
             context.resolveBaseType(functionNameToken.value)
-                ?.constructor
-                ?.let { BoundOverloadSet.fromSingle(it) }
-                ?.let(::setOf)
+                .distinct()
+                .mapNotNull { it.constructor }
+                .map { BoundOverloadSet.fromSingle(it) }
+                .toList()
         }
         val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
         val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()

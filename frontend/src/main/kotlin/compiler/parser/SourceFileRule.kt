@@ -3,9 +3,9 @@ package compiler.parser
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.AstFileLevelDeclaration
+import compiler.ast.AstImportDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.FunctionDeclaration
-import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.diagnostic.ParsingErrorDiagnostic
 import compiler.diagnostic.UnsupportedFeatureDiagnostic
@@ -51,7 +51,7 @@ object SourceFileRule {
                     )
                 }
             }
-            else if (declaration is ImportDeclaration) {
+            else if (declaration is AstImportDeclaration) {
                 astSourceFile.imports.add(declaration)
             }
             else if (declaration is VariableDeclaration) {

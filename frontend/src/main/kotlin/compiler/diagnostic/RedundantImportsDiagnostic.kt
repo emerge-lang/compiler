@@ -3,12 +3,12 @@ package compiler.diagnostic
 import compiler.ast.AstImportDeclaration
 import compiler.diagnostic.rendering.CellBuilder
 
-data class AmbiguousImportsDiagnostic(
+data class RedundantImportsDiagnostic(
     val imports: List<AstImportDeclaration>,
     val commonSimpleName: String,
 ) : Diagnostic(
-    Severity.ERROR,
-    "These imports are ambiguous, they all import the symbol ${commonSimpleName.quoteIdentifier()}",
+    Severity.INFO,
+    "These imports are redundant, they all import the same element ${commonSimpleName.quoteIdentifier()}",
     imports.first().declaredAt,
 ) {
     context(CellBuilder)

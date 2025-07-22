@@ -1,6 +1,8 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.diagnostic.CircularVariableInitializationDiagnostic
+import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.GlobalVariableNotInitializedDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
@@ -46,6 +48,98 @@ class VariableErrors : FreeSpec({
                 borrow x: String
             """.trimIndent())
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
+        }
+
+        "circular type inference" {
+            validateModule("""
+                x = y
+                y = x
+            """.trimIndent())
+                .shouldFind<CircularVariableInitializationDiagnostic>()
+        }
+
+        "circular initialization" {
+            validateModule("""
+                x: UWord = y
+                y: UWord = x
+            """.trimIndent())
+                .shouldFind<CircularVariableInitializationDiagnostic>()
+        }
+
+        "double declare" - {
+            "in single file" {
+                validateModule("""
+                    private x = 3
+                    private x = 4
+                """.trimIndent())
+                    .shouldFind<MultipleVariableDeclarationsDiagnostic> {
+                        it.originalDeclaration.name.value shouldBe "x"
+                    }
+            }
+
+            "in multiple files" - {
+                "with visibility of more than the file" {
+                    val file1 = IntegrationTestModule.of(
+                        moduleName = "testmodule",
+                        code = """
+                            package testmodule
+                            
+                            x = 3
+                        """.trimIndent()
+                    ).parseAsOneSourceFileOfMultiple()
+
+                    val file2 = IntegrationTestModule.of(
+                        moduleName = "testmodule",
+                        code = """
+                            package testmodule
+                            
+                            x = 3
+                        """.trimIndent()
+                    ).parseAsOneSourceFileOfMultiple()
+
+                    val swCtx = emptySoftwareContext(validate = false)
+                    val module = swCtx.registerModule(file1.expectedPackageName, emptySet())
+                    module.addSourceFile(file1)
+                    module.addSourceFile(file2)
+
+                    val diagnosis = CollectingDiagnosis()
+                    swCtx.doSemanticAnalysis(diagnosis)
+                    Pair(swCtx, diagnosis.findings.toList())
+                        .shouldFind<MultipleVariableDeclarationsDiagnostic> {
+                            it.originalDeclaration.name.value shouldBe "x"
+                        }
+                }
+
+                "with visibility limited to the respective files" {
+                    val file1 = IntegrationTestModule.of(
+                        moduleName = "testmodule",
+                        code = """
+                            package testmodule
+                            
+                            private x = 3
+                        """.trimIndent()
+                    ).parseAsOneSourceFileOfMultiple()
+
+                    val file2 = IntegrationTestModule.of(
+                        moduleName = "testmodule",
+                        code = """
+                            package testmodule
+                            
+                            private x = 3
+                        """.trimIndent()
+                    ).parseAsOneSourceFileOfMultiple()
+
+                    val swCtx = emptySoftwareContext(validate = false)
+                    val module = swCtx.registerModule(file1.expectedPackageName, emptySet())
+                    module.addSourceFile(file1)
+                    module.addSourceFile(file2)
+
+                    val diagnosis = CollectingDiagnosis()
+                    swCtx.doSemanticAnalysis(diagnosis)
+                    Pair(swCtx, diagnosis.findings.toList())
+                        .shouldNotFind<MultipleVariableDeclarationsDiagnostic>()
+                }
+            }
         }
     }
 

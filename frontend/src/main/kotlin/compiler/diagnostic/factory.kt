@@ -58,8 +58,8 @@ import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -71,8 +71,12 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(unresolvedType: UnresolvedType) {
-    add(UnknownTypeDiagnostic(unresolvedType.astNode, unresolvedType.context.hasErroneousImportForSimpleName(unresolvedType.astNode.simpleName)))
+fun Diagnosis.unknownType(erroneousType: ErroneousType) {
+    add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasUnresolvableImportForSimpleName(erroneousType.simpleName)))
+}
+
+fun Diagnosis.ambiguousType(errorneousType: ErroneousType) {
+    add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }, errorneousType.context.hasAmbiguousImportOrDeclarationsForSimpleName(errorneousType.simpleName)))
 }
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
@@ -111,8 +115,8 @@ fun Diagnosis.parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaratio
     add(MultipleParameterDeclarationsDiagnostic(firstDeclaration, additionalDeclaration))
 }
 
-fun Diagnosis.variableTypeNotDeclared(variable: BoundVariable) {
-    add(MissingVariableTypeDiagnostic(variable.declaration, variable.kind))
+fun Diagnosis.variableTypeNotDeclared(kind: BoundVariable.Kind, name: String, declaredAt: Span) {
+    add(MissingVariableTypeDiagnostic(kind, name, declaredAt))
 }
 
 fun Diagnosis.wildcardTypeArgumentWithVariance(argument: BoundTypeArgument) {
@@ -323,7 +327,7 @@ fun Diagnosis.noMatchingFunctionOverload(
         valueArguments.map { it.type },
         functionDeclaredAtAll,
         inapplicableCandidates,
-        context.hasErroneousImportForSimpleName(functionNameReference.value),
+        context.hasUnresolvableImportForSimpleName(functionNameReference.value),
     ))
 }
 
@@ -400,12 +404,18 @@ fun Diagnosis.unresolvableConstructor(nameToken: IdentifierToken, valueArguments
     add(UnresolvableConstructorDiagnostic(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable))
 }
 
-fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference) {
+fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference?) {
     add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 
-fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>) {
-    add(AmbiguousImportsDiagnostic(imports.map { it.declaration }, imports.first().simpleName!!))
+fun Diagnosis.ambiguousOrRedundantImports(imports: Iterable<BoundImportDeclaration>, simpleName: String) {
+    val declarations = imports.map { it.declaration }
+    if (imports.distinctBy { it.packageName }.size == 1) {
+        // all importing the same element
+        add(RedundantImportsDiagnostic(declarations, simpleName))
+    } else {
+        add(AmbiguousImportsDiagnostic(declarations, simpleName))
+    }
 }
 
 fun Diagnosis.implicitlyEvaluatingAStatement(statement: BoundExecutable<*>) {
@@ -418,6 +428,10 @@ fun Diagnosis.ambiguousInvocation(invocation: BoundInvocationExpression, candida
 
 fun Diagnosis.typeDeductionError(message: String, location: Span) {
     add(TypeDeductionErrorDiagnostic(message, location))
+}
+
+fun Diagnosis.circularVariableInitialization(variable: BoundVariable) {
+    add(CircularVariableInitializationDiagnostic(variable.declaration))
 }
 
 fun Diagnosis.explicitInferTypeWithArguments(type: NamedTypeReference) {

@@ -121,6 +121,10 @@ class AstForEachLoop(
                     AstCodeChunk(listOf(
                         IfExpression(
                             generatedSpan,
+                            KeywordToken(
+                                Keyword.IF,
+                                span = generatedSpan
+                            ),
                             AstInstanceOfExpression(
                                 IdentifierExpression(frontExceptionVarName),
                                 KeywordToken(Keyword.INSTANCEOF, span = generatedSpan),

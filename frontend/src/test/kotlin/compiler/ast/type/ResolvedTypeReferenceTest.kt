@@ -41,26 +41,22 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             interface C : A {}
         """.trimIndent())
 
-        val typeA = swCtx.getTestType("A")
-        val typeB = swCtx.getTestType("B")
-        val typeC = swCtx.getTestType("C")
-
-        val mutableA = typeA.baseReference.withMutability(TypeMutability.MUTABLE)
+        val mutableA = swCtx.parseType("mut A")
         val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
         val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
         val exclusiveA = readonlyA.withMutability(TypeMutability.EXCLUSIVE)
 
-        val mutableB = typeB.baseReference.withMutability(TypeMutability.MUTABLE)
+        val mutableB = swCtx.parseType("mut B")
         val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
         val immutableB = readonlyB.withMutability(TypeMutability.IMMUTABLE)
 
-        val mutableC = typeC.baseReference.withMutability(TypeMutability.MUTABLE)
+        val mutableC = swCtx.parseType("mut C")
         val readonlyC = mutableC.withMutability(TypeMutability.READONLY)
         val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
 
-        val readonlyNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.READONLY)
-        val mutableNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.MUTABLE)
-        val immutableNothing = swCtx.nothing.baseReference.withMutability(TypeMutability.IMMUTABLE)
+        val readonlyNothing = swCtx.parseType("read Nothing")
+        val mutableNothing = swCtx.parseType("mut Nothing")
+        val immutableNothing = swCtx.parseType("const Nothing")
 
         "the closest common ancestor of" - {
             "mut B and mut A is mut A" {

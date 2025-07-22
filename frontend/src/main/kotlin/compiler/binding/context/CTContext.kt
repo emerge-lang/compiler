@@ -32,6 +32,7 @@ import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.lexer.Span
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -79,13 +80,19 @@ interface CTContext {
      */
     val visibility: BoundVisibility
 
-    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseType?
+    fun resolveBaseType(simpleName: String): Sequence<BoundBaseType>
 
     /**
      * @return whether this context has a [BoundImportDeclaration] that refers to [simpleName] (or is a import-all)
      * and that is erroneous (no symbol for [simpleName] found or package not found).
      */
-    fun hasErroneousImportForSimpleName(simpleName: String): Boolean
+    fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean
+
+    /**
+     * @return whether resolving [simpleName] in this context is ambiguous simply due to the imports
+     * (if so, the fault is in the import, and references just suffer along).
+     */
+    fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
@@ -95,7 +102,7 @@ interface CTContext {
         return when (ref) {
             is AstSpecificTypeArgument -> BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
             is AstWildcardTypeArgument -> if (parameter == null) {
-                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.topTypeRef)
+                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.getTopType(ref.span ?: Span.UNKNOWN))
             } else {
                 BoundTypeArgument(
                     this,
@@ -142,7 +149,7 @@ interface CTContext {
         do {
             name = "__${namePayload}$i"
             i++
-        } while (resolveTypeParameter(name) != null || resolveBaseType(name) != null)
+        } while (resolveTypeParameter(name) != null || resolveBaseType(name).any())
 
         return name
     }

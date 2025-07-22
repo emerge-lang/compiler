@@ -77,15 +77,13 @@ class BoundTypeArgument(
             }
             is BoundTypeArgument -> {
                 if (this.variance == TypeVariance.UNSPECIFIED) {
-                    val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
-
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry2.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    val carry3 = this.type.unify(assigneeType.type, assignmentLocation, carry2)
-                    return assigneeType.type.unify(this.type, assignmentLocation, carry3)
+                    val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
+                    return assigneeType.type.unify(this.type, assignmentLocation, carry2)
                 }
 
                 if (this.variance == TypeVariance.OUT) {
@@ -115,7 +113,7 @@ class BoundTypeArgument(
             is BoundIntersectionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry) {
                 "$assigneeType is not a subtype of $this"
             }
-            is UnresolvedType -> {
+            is ErroneousType -> {
                 return unify(assigneeType.asNothing, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
@@ -150,7 +148,7 @@ class BoundTypeArgument(
                 nestedInstantiated = nestedInstantiated.type
             } else {
                 resultVariance = TypeVariance.OUT
-                nestedInstantiated = this.context.swCtx.topTypeRef.withMutability(this.mutability.intersect(nestedInstantiated.mutability))
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(this.mutability.intersect(nestedInstantiated.mutability))
                 isNullable = this.isNullable || isNullable
             }
         } else {
@@ -217,7 +215,7 @@ class BoundTypeArgument(
         return when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type.closestCommonSupertypeWith(other)
-            TypeVariance.IN -> context.swCtx.any.baseReference.closestCommonSupertypeWith(other)
+            TypeVariance.IN -> context.swCtx.any.getBoundReferenceAssertNoTypeParameters(astNode.span ?: Span.UNKNOWN).closestCommonSupertypeWith(other)
         }
     }
 

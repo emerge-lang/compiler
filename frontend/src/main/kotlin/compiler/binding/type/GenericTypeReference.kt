@@ -86,7 +86,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                 // that can determine success/failure of a sub-unification
                 carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
-            is UnresolvedType -> unify(assigneeType.asNothing, assignmentLocation, carry)
+            is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
                 if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
@@ -99,7 +99,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
                 TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
-                TypeVariance.IN -> unify(context.swCtx.topTypeRef, assignmentLocation, carry)
+                TypeVariance.IN -> unify(context.swCtx.getTopType(span ?: Span.UNKNOWN), assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given

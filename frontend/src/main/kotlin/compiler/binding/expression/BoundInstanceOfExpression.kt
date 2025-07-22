@@ -2,7 +2,6 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstInstanceOfExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
@@ -13,15 +12,17 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
+import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.typeCheckOnVolatileTypeParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 /**
  * Entirely syntax sugar; `v is T` desugars to `isInstance(v, reflect T)`,
@@ -54,7 +55,7 @@ class BoundInstanceOfExpression(
         val fullTypeToCheck = context.resolveType(declaration.typeToCheck)
         fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null), diagnosis)
         typeToCheck = validateTypeCheck(this, fullTypeToCheck, diagnosis)
-        type = context.swCtx.bool.baseReference
+        type = context.swCtx.bool.getBoundReferenceAssertNoTypeParameters(declaration.operator.span)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -104,7 +105,7 @@ internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundT
         // TODO: warn about unchecked type arguments!!
     }
 
-    if (fullTypeToCheck !is UnresolvedType) {
+    if (fullTypeToCheck !is ErroneousType) {
         diagnosis.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck)
     }
 
@@ -127,7 +128,7 @@ internal fun buildInstanceOf(
         .asSequence()
         .filter { it.parameterCount == 2 }
         .flatMap { it.overloads }
-        .filter { it.parameterTypes[0]!!.hasSameBaseTypeAs(swCtx.any.baseReference) }
+        .filter { it.parameterTypes[0]!!.hasSameBaseTypeAs(swCtx.any.getBoundReferenceAssertNoTypeParameters()) }
         .filter {
             val param2Type = it.parameterTypes[1]!!
             param2Type is RootResolvedTypeReference && param2Type.baseType == swCtx.reflectionBaseType
@@ -141,7 +142,11 @@ internal fun buildInstanceOf(
     val reflectionObjectTemporary = IrCreateTemporaryValueImpl(
         IrBaseTypeReflectionExpressionImpl(
             typeToCheck.toBackendIr(),
-            swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE).toBackendIr(),
+            IrSimpleTypeImpl(
+                swCtx.reflectionBaseType.toBackendIr(),
+                IrTypeMutability.IMMUTABLE,
+                isNullable = false,
+            ),
         )
     )
 

@@ -16,6 +16,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -24,7 +25,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
  * Currently this is merely a way to specify the type of numeric literals
@@ -163,9 +165,8 @@ class BoundCastExpression(
         }
 
         val classCastErrorBoundType = context.swCtx
-            .getPackage(CanonicalElementName.Package(listOf("emerge", "core")))
-            ?.resolveBaseType("CastError")
-            ?: throw InternalCompilerError("Could not resolve base type emerge.core.CastError")
+            .resolveBaseType(EmergeConstants.CAST_ERROR_TYPE_NAME)
+            ?: throw InternalCompilerError("Could not resolve base type ${EmergeConstants.CAST_ERROR_TYPE_NAME}")
 
         val exceptionInstanceExpr = buildGenericInvocationLikeIr(
             context,
@@ -176,7 +177,11 @@ class BoundCastExpression(
                     classCastErrorBoundType.constructor!!.toBackendIr(),
                     arguments,
                     emptyMap(),
-                    classCastErrorBoundType.baseReference.withMutability(TypeMutability.EXCLUSIVE).toBackendIr(),
+                    IrSimpleTypeImpl(
+                        classCastErrorBoundType.toBackendIr(),
+                        IrTypeMutability.EXCLUSIVE,
+                        isNullable = false,
+                    ),
                     landingpad,
                 )
             },

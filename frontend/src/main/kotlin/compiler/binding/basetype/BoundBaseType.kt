@@ -22,8 +22,8 @@ import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstWildcardTypeArgument
-import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
@@ -33,8 +33,10 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
@@ -57,6 +59,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
 import java.util.Collections
@@ -79,15 +83,40 @@ class BoundBaseType(
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
-    val baseReference: RootResolvedTypeReference get() {
+
+    private fun buildBoundReference(arguments: List<BoundTypeArgument>?, span: Span): RootResolvedTypeReference {
         return RootResolvedTypeReference(
-            context,
-            NamedTypeReference(this.simpleName),
+            this.context,
+            AstAbsoluteTypeReference(canonicalName, span = span.deriveGenerated()),
             this,
+            arguments,
+        )
+    }
+
+    private val cachedReferenceNoneOrWildcardTypeArgumentsUnknownSpan by lazy {
+        buildBoundReference(
             typeParameters?.map { typeParam ->
                 context.resolveTypeArgument(AstWildcardTypeArgument.INSTANCE, typeParam)
-            }
+            },
+            Span.UNKNOWN
         )
+    }
+
+    fun getBoundReferenceAssertNoTypeParameters(span: Span = Span.UNKNOWN): RootResolvedTypeReference {
+        require(typeParameters.isNullOrEmpty())
+
+        return if (span == Span.UNKNOWN) cachedReferenceNoneOrWildcardTypeArgumentsUnknownSpan else buildBoundReference(null, span)
+    }
+
+    fun getBoundReferenceWithNoneOrWildcardTypeArguments(span: Span = Span.UNKNOWN): RootResolvedTypeReference {
+        return if (span == Span.UNKNOWN) {
+            cachedReferenceNoneOrWildcardTypeArgumentsUnknownSpan
+        } else {
+            buildBoundReference(
+                cachedReferenceNoneOrWildcardTypeArgumentsUnknownSpan.arguments,
+                span,
+            )
+        }
     }
 
     private val _memberVariables: MutableList<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>().toMutableList()
@@ -321,7 +350,7 @@ class BoundBaseType(
                     mixins
                         .firstOrNull { mixin ->
                             val type = mixin.type ?: return@firstOrNull false
-                            type.isAssignableTo(originallyInheritedFrom.baseReference)
+                            type.isAssignableTo(originallyInheritedFrom.getBoundReferenceWithNoneOrWildcardTypeArguments())
                         }
                         ?.assignToFunction(fnNeedingMixin)
                 }
@@ -386,6 +415,10 @@ class BoundBaseType(
         kind.toBackendIr(this)
     }
     fun toBackendIr(): IrBaseType = backendIr
+
+    val irReadNotNullReference: IrType by lazy {
+        IrSimpleTypeImpl(backendIr, IrTypeMutability.READONLY, false)
+    }
 
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
 

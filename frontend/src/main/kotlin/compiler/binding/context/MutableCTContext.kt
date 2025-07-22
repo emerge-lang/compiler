@@ -19,8 +19,8 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.AstImportDeclaration
 import compiler.ast.BaseTypeDeclaration
-import compiler.ast.ImportDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
@@ -35,9 +35,10 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.UnresolvedType
+import compiler.handleCyclicInvocation
 
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
@@ -77,7 +78,7 @@ open class MutableCTContext(
     /** Holds all the base types defined in this context */
     protected val _types: MutableSet<BoundBaseType> = HashSet()
 
-    fun addImport(decl: ImportDeclaration) {
+    fun addImport(decl: AstImportDeclaration) {
         this._imports.add(decl.bindTo(this))
     }
 
@@ -102,25 +103,32 @@ open class MutableCTContext(
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
-    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? {
-        _types.find { it.simpleName == simpleName }?.let { return it }
+    override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> {
+        return handleCyclicInvocation(
+            Pair(this, simpleName),
+            action = {
+                val fromLocal = _types.asSequence().filter { it.simpleName == simpleName }
+                val fromImports = _imports.mapNotNull { it.getBaseTypeOfName(simpleName) }
+                val fromParent = parentContext.resolveBaseType(simpleName)
 
-        val fromImport = if (fromOwnFileOnly) null else {
-            _imports
-                .asSequence()
-                .mapNotNull { it.getBaseTypeOfName(simpleName) }
-                .firstOrNull()
-        }
-
-        return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
+                fromLocal + fromParent + fromImports
+            },
+            onCycle = {
+                throw InternalCompilerError("infinite for $simpleName")
+            }
+        )
     }
 
-    override fun hasErroneousImportForSimpleName(simpleName: String): Boolean {
-        if (_imports.any { (it.isImportAll || it.simpleName == simpleName) && it.isErroneous }) {
+    override fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean {
+        if (_imports.any { it.isUnresolvedAndAppliesToSimpleName(simpleName) }) {
             return true
         }
 
-        return parentContext.hasErroneousImportForSimpleName(simpleName)
+        return parentContext.hasUnresolvableImportForSimpleName(simpleName)
+    }
+
+    override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
+        return parentContext.hasAmbiguousImportOrDeclarationsForSimpleName(simpleName)
     }
 
     private fun resolveNamedTypeExceptNullability(ref: AstSimpleTypeReference): BoundTypeReference {
@@ -130,19 +138,22 @@ open class MutableCTContext(
             }
         }
 
-        val baseType = when (ref) {
+        val baseTypes = when (ref) {
             is AstAbsoluteTypeReference -> {
                 swCtx.getPackage(ref.canonicalTypeName.packageName)
                     ?.resolveBaseType(ref.canonicalTypeName.simpleName)
+                    .let(::listOfNotNull)
             }
-            is NamedTypeReference -> resolveBaseType(ref.simpleName)
+            is NamedTypeReference -> resolveBaseType(ref.simpleName).distinct().toList()
         }
         val resolvedArguments = ref.arguments?.mapIndexed { index, typeArgAstNode ->
-            resolveTypeArgument(typeArgAstNode, baseType?.typeParameters?.getOrNull(index))
+            resolveTypeArgument(typeArgAstNode, baseTypes.singleOrNull()?.typeParameters?.getOrNull(index))
         }
-        return baseType
+
+        return baseTypes
+            .singleOrNull()
             ?.let { RootResolvedTypeReference(this, ref, it, resolvedArguments) }
-            ?: UnresolvedType(this, ref, resolvedArguments)
+            ?: ErroneousType(this, ref, resolvedArguments, baseTypes)
     }
 
     override fun resolveType(ref: TypeReference): BoundTypeReference {

@@ -131,7 +131,7 @@ class BoundIntersectionTypeReference private constructor(
                 return unify(assigneeType.nested, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is UnresolvedType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
+            is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             else -> {
                 /*
                 one would think that this is just a case of unifying each component with the assignee. But there's more
@@ -161,7 +161,8 @@ class BoundIntersectionTypeReference private constructor(
                     }
                 }
                 val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
-                    context.swCtx.any.baseReference
+                    context.swCtx.any
+                        .getBoundReferenceAssertNoTypeParameters(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
                         .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
                 }
@@ -398,7 +399,7 @@ class BoundIntersectionTypeReference private constructor(
                 is RootResolvedTypeReference,
                 is NullableTypeReference,
                 is TypeVariable,
-                is UnresolvedType, -> {
+                is ErroneousType, -> {
                     return ofComponents(context, null, listOf(this, other), true)
                 }
             }
@@ -434,7 +435,8 @@ class BoundIntersectionTypeReference private constructor(
 
             if (nonAnys.isEmpty()) {
                 return listOf(
-                    context.swCtx.any.baseReference
+                    context.swCtx.any.
+                        getBoundReferenceAssertNoTypeParameters(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withMutability(anyMutability)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                 )
@@ -501,7 +503,7 @@ class BoundIntersectionTypeReference private constructor(
             if (simplifyIsEffectivelyBottomType(components)) {
                 val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
                 return listOf(
-                    context.swCtx.bottomTypeRef
+                    context.swCtx.getBottomType(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                         .withMutability(selfMutability)
                 )
@@ -530,7 +532,7 @@ private fun BoundTypeReference.asRootResolved(): RootResolvedTypeReference? = wh
     is NullableTypeReference -> this.nested.asRootResolved()
     is BoundTypeArgument -> this.type.asRootResolved()
     is GenericTypeReference -> this.effectiveBound.asRootResolved()
-    is UnresolvedType -> null
+    is ErroneousType -> null
     is TypeVariable -> error("cannot validate during type inference")
     is BoundIntersectionTypeReference -> error("this should have been prevented in ${BoundIntersectionTypeReference.Companion::ofComponents.name}")
 }

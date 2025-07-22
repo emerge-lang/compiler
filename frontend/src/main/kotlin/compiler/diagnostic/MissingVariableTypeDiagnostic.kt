@@ -18,16 +18,15 @@
 
 package compiler.diagnostic
 
-import compiler.ast.VariableDeclaration
 import compiler.binding.BoundVariable
+import compiler.lexer.Span
 
-data class MissingVariableTypeDiagnostic(
-    val parameter: VariableDeclaration,
+class MissingVariableTypeDiagnostic(
     val kind: BoundVariable.Kind,
+    val variableName: String,
+    declaredAt: Span,
 ) : Diagnostic(
     Severity.ERROR,
-    "The type of ${kind.readableKindName} ${parameter.name.value} must be explicitly declared.",
-    parameter.span
-) {
-    override fun toString() = super.toString()
-}
+    "The type of ${kind.readableKindName} ${variableName.quoteIdentifier()} must be explicitly declared.",
+    declaredAt,
+)

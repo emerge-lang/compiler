@@ -58,7 +58,7 @@ sealed interface BoundTypeReference {
     val baseTypeOfLowerBound: BoundBaseType
 
     /**
-     * True if `this` is an [UnresolvedType] or whether any subcomponents of this type
+     * True if `this` is an [ErroneousType] or whether any subcomponents of this type
      * are [isPartiallyUnresolved].
      */
     val isPartiallyUnresolved: Boolean

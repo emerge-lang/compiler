@@ -18,10 +18,11 @@
 
 package compiler.ast
 
-import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundParameterList
+import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.type.RootResolvedTypeReference
 
 data class ParameterList (
     val parameters: List<VariableDeclaration> = emptyList()
@@ -29,21 +30,18 @@ data class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: NamedTypeReference? = null) = BoundParameterList(
+    fun bindTo(context: ExecutionScopedCTContext, lazyImpliedReceiverType: (() -> RootResolvedTypeReference)? = null) = BoundParameterList(
         context,
         this,
         parameters.mapIndexed { index, parameter ->
-            if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
-                val actualType = when {
-                    parameter.type != null && impliedReceiverType != null -> parameter.type.fillInInferrableType(impliedReceiverType)
-                    else -> parameter.type ?: impliedReceiverType
+            return@mapIndexed parameter.bindToAsParameter(
+                context = context,
+                if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME && lazyImpliedReceiverType != null) {
+                    BoundVariable.TypeInferenceStrategy.ImpliedTypeIgnoreInitializer(lazyImpliedReceiverType)
+                } else {
+                    BoundVariable.TypeInferenceStrategy.NoInference
                 }
-
-                val retypedParam = if (actualType === parameter.type) parameter else parameter.copy(type = actualType)
-                return@mapIndexed retypedParam.bindToAsParameter(context)
-            }
-
-            return@mapIndexed parameter.bindToAsParameter(context)
+            )
         },
     )
 }

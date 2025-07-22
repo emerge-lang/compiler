@@ -1,40 +1,63 @@
 package compiler.compiler.binding.type
 
-import compiler.ast.type.TypeReference
 import compiler.binding.context.SoftwareContext
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.compiler.negative.lexCode
 import compiler.lexer.Span
+import compiler.parser.grammar.BracedTypeArguments
 import compiler.parser.grammar.Type
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.Rule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.assertions.fail
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 
-internal fun SoftwareContext.parseType(
-    type: String,
-    module: String = "testmodule",
-    definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]
-): BoundTypeReference {
-    val moduleCtx = getRegisteredModule(CanonicalElementName.Package(listOf(module)))
-    val tokens = lexCode(addPackageDeclaration = false, code = type, invokedFrom = definedAt)
-    val typeMatch = Type.match(tokens, 0)
+private fun <T : Any> SoftwareContext.parse(
+    snippet: String,
+    grammar: Rule<T>,
+): T {
+    val invokedFrom = Thread.currentThread().stackTrace[3]
+    val tokens = lexCode(addPackageDeclaration = false, code = snippet, invokedFrom = invokedFrom)
+    val match = grammar.match(tokens, 0)
         .sortedByDescending { it is MatchingResult.Success<*> }
         .filter { when (it) {
             is MatchingResult.Success<*> -> it.continueAtIndex == tokens.size - 1
             else -> true
         } }
         .firstOrNull()
-    if (typeMatch == null) {
+    if (match == null) {
         fail("Failed to parse type")
     }
-    if (typeMatch is MatchingResult.Error) {
-        fail(typeMatch.diagnostic.toString())
+    if (match is MatchingResult.Error) {
+        fail(match.diagnostic.toString())
     }
-    check(typeMatch is MatchingResult.Success<TypeReference>)
-    val boundType = moduleCtx.sourceFiles.first().context.resolveType(typeMatch.item)
+    check(match is MatchingResult.Success<T>)
+
+    return match.item
+}
+
+internal fun SoftwareContext.parseType(
+    type: String,
+    module: String = "testmodule",
+): BoundTypeReference {
+    val astType = parse(type, Type)
+    val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
+    val boundType = moduleCtx.sourceFiles.first().context.resolveType(astType)
     return boundType
+}
+
+internal fun SoftwareContext.parseTypeArgument(
+    typeArgument: String,
+    module: String = "testmodule",
+    parameter: BoundTypeParameter? = null,
+): BoundTypeArgument {
+    val astArg = parse("<$typeArgument>", BracedTypeArguments).arguments.single()
+    val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
+    val boundArg = moduleCtx.sourceFiles.first().context.resolveTypeArgument(astArg, parameter)
+    return boundArg
 }
 
 internal fun beAssignableTo(target: BoundTypeReference) = object : Matcher<BoundTypeReference> {

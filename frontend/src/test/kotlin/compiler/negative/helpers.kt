@@ -118,19 +118,25 @@ fun emptySoftwareContext(validate: Boolean = true, noStd: Boolean = false): Soft
     return swCtxt
 }
 
-fun SoftwareContext.registerModule(module: IntegrationTestModule): ModuleContext {
-    val lexerSourceFile = module.tokens.first().span.sourceFile
-    val result = SourceFileRule.match(module.tokens, lexerSourceFile)
+fun IntegrationTestModule.parseAsOneSourceFileOfMultiple(): ASTSourceFile {
+    val lexerSourceFile = tokens.first().span.sourceFile
+    val result = SourceFileRule.match(tokens, lexerSourceFile)
     if (result is MatchingResult.Error) {
         throw AssertionError("Failed to parse code: ${result.diagnostic}")
     }
     result as MatchingResult.Success<ASTSourceFile>
     val sourceFile = result.item
     val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.globalVariables.size
-    check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
+    check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${moduleName}. Very likely a parsing bug." }
+
+    return result.item
+}
+
+fun SoftwareContext.registerModule(module: IntegrationTestModule): ModuleContext {
+    val astSourceFile = module.parseAsOneSourceFileOfMultiple()
 
     val moduleCtx = registerModule(module.moduleName, module.dependsOnModules)
-    moduleCtx.addSourceFile(sourceFile)
+    moduleCtx.addSourceFile(astSourceFile)
 
     return moduleCtx
 }
