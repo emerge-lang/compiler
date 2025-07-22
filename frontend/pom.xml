@@ -24,7 +24,7 @@
     <parent>
         <groupId>io.github.tmarsteel.emerge-lang</groupId>
         <artifactId>parent</artifactId>
-        <version>0.6.1-SNAPSHOT</version>
+        <version>0.7.0</version>
     </parent>
 
     <name>Emerge Lang Compiler Frontend</name>
@@ -133,7 +133,7 @@
         <dependency>
             <groupId>io.github.tmarsteel.emerge-lang</groupId>
             <artifactId>common</artifactId>
-            <version>0.6.1-SNAPSHOT</version>
+            <version>0.7.0</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
