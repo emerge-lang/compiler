@@ -33,7 +33,7 @@ class DuplicateBaseTypeMemberDiagnostic(
     context(CellBuilder)
     override fun renderBody() {
         sourceHints(duplicates.map {
-            SourceHint(it.declaration.span, severity = severity)
+            SourceHint(it.entryDeclaration.span, severity = severity)
         })
     }
 }

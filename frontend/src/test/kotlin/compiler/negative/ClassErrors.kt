@@ -146,7 +146,7 @@ class ClassErrors : FreeSpec({
         "cannot declare ownership" {
             validateModule("""
                 class Foo {
-                    borrow x: S32
+                    borrow x: S32 = 0
                 }
             """.trimIndent())
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
@@ -757,6 +757,16 @@ class ClassErrors : FreeSpec({
                     constructor {
                         set self.y = x
                     }
+                }
+            """.trimIndent())
+                .shouldFind<UndefinedIdentifierDiagnostic> {
+                    it.expr.value shouldBe "x"
+                }
+
+            validateModule("""
+                class A {
+                    x: String = init
+                    y: String = x
                 }
             """.trimIndent())
                 .shouldFind<UndefinedIdentifierDiagnostic> {

@@ -65,6 +65,7 @@ data class VariableDeclaration(
             context,
             BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability,
             if (isDecorated) BoundVariable.Kind.DECORATED_MEMBER_VARIABLE else BoundVariable.Kind.MEMBER_VARIABLE,
+            bindInitializer = false,
         )
     }
 
@@ -72,13 +73,14 @@ data class VariableDeclaration(
         context: ExecutionScopedCTContext,
         initializerContext: ExecutionScopedCTContext,
         typeInferenceStrategy: BoundVariable.TypeInferenceStrategy,
-        kind: BoundVariable.Kind
+        kind: BoundVariable.Kind,
+        bindInitializer: Boolean = true,
     ): BoundVariable {
         return BoundVariable(
             context,
             this,
             visibility?.bindTo(context) ?: BoundVisibility.default(context),
-            initializerExpression?.bindTo(initializerContext),
+            initializerExpression?.takeIf { bindInitializer }?.bindTo(initializerContext),
             typeInferenceStrategy,
             kind,
         )

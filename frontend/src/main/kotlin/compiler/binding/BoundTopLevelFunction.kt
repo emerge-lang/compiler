@@ -30,7 +30,7 @@ class BoundTopLevelFunction(
 ) {
     override val canonicalName by lazy {
         CanonicalElementName.Function(
-            parentContext.sourceFile.packageName,
+            parentContext.packageName,
             name,
         )
     }

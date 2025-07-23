@@ -91,7 +91,7 @@ class SoftwareContext {
             .asSequence()
             .flatMap { it.sourceFiles }
             .onEach {
-                check(it.packageName in packages) {
+                check(it.context.packageName in packages) {
                     "All packages explicitly mentioned in package declarations should have been registered until now"
                 }
             }
@@ -134,7 +134,7 @@ class SoftwareContext {
             if (!this::value.isInitialized) {
                 val simpleTypeName = name ?: p.name.capitalizeFirst()
                 value = emergeCorePackage.resolveBaseType(simpleTypeName)
-                    ?: throw InternalCompilerError("Did not find core type $name")
+                    ?: throw InternalCompilerError("Did not find core type $simpleTypeName")
             }
             return value
         }

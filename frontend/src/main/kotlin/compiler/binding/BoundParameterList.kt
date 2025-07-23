@@ -21,7 +21,6 @@ package compiler.binding
 import compiler.ast.ParameterList
 import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.parameterDeclaredMoreThanOnce
 
@@ -35,9 +34,7 @@ class BoundParameterList(
         declaredReceiver?.defaultOwnership = VariableOwnership.BORROWED
     }
     
-    val modifiedContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context).also {
-        parameters.forEach(it::addVariable)
-    }
+    val modifiedContext: ExecutionScopedCTContext = parameters.lastOrNull()?.modifiedContext ?: context
 
     fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parameters.forEachIndexed { index, parameter ->

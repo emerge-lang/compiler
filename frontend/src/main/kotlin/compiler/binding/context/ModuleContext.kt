@@ -52,7 +52,7 @@ class ModuleContext(
 
     val nonEmptyPackages: Sequence<PackageContext> get() = _sourceFiles
         .asSequence()
-        .map { softwareContext.getPackage(it.packageName)!! }
+        .map { softwareContext.getPackage(it.context.packageName)!! }
 
     override fun toString() = moduleName.toString()
 

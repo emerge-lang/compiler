@@ -5,11 +5,7 @@ import emerge.platform.panic
 export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Element> & BidirectionalRange<Element> {
     array: read Array<Element> = init
     var frontIndex: UWord = 0
-    var backIndexPlus1: UWord
-
-    constructor {
-        set self.backIndexPlus1 = self.array.size
-    }
+    var backIndexPlus1: UWord = self.array.size
 
     export override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 

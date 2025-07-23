@@ -69,24 +69,24 @@ class ASTSourceFile(
      * [CTContext]) this has its own signature.
      */
     fun bindTo(context: ModuleContext): SourceFile {
-        val packageContext = context.softwareContext.getPackage(expectedPackageName)
-            ?: throw InternalCompilerError("Cannot bind source file in $expectedPackageName because its module hasn't been registered with the software-context yet.")
-        val fileContext = SourceFileRootContext(packageContext)
-
-        bindImportsInto(fileContext)
-        bindFunctionsInto(fileContext)
-        bindBaseTypesInto(fileContext)
-        bindVariablesInto(fileContext, parseTimeDiagnosis)
-
         selfDeclaration?.packageName?.let { declaredPackageName ->
             if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
                 parseTimeDiagnosis.incorrectPackageDeclaration(declaredPackageName, expectedPackageName)
             }
         }
 
+        val packageContext = context.softwareContext.getPackage(expectedPackageName)
+            ?: throw InternalCompilerError("Cannot bind source file in $expectedPackageName because its module hasn't been registered with the software-context yet.")
+        val declaredPackage = selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(CanonicalElementName::Package) ?: expectedPackageName
+        val fileContext = SourceFileRootContext(packageContext, declaredPackage)
+
+        bindImportsInto(fileContext)
+        bindFunctionsInto(fileContext)
+        bindBaseTypesInto(fileContext)
+        bindVariablesInto(fileContext, parseTimeDiagnosis)
+
         return SourceFile(
             lexerFile,
-            selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(CanonicalElementName::Package) ?: expectedPackageName,
             fileContext,
             parseTimeDiagnosis
         )

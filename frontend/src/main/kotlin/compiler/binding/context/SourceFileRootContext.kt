@@ -18,15 +18,18 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class SourceFileRootContext(
     packageContext: PackageContext,
+    declaredOrInferredPackageName: CanonicalElementName.Package,
 ) : MutableExecutionScopedCTContext(
     SourceFileParentContext(packageContext),
     true,
     false,
     ExecutionScopedCTContext.Repetition.EXACTLY_ONCE,
 ) {
+    override val packageName: CanonicalElementName.Package = declaredOrInferredPackageName
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
@@ -60,10 +63,13 @@ class SourceFileRootContext(
     private companion object {
         val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
-                get() = throw InternalCompilerError("${this::swCtx.name} not initialized yet")
+                get() = throw InternalCompilerError("${this::swCtx.name} not available")
 
             override val moduleContext: ModuleContext
-                get() = throw InternalCompilerError("${this::moduleContext.name} not initialized yet")
+                get() = throw InternalCompilerError("${this::moduleContext.name} not available")
+
+            override val packageName: CanonicalElementName.Package
+                get() = throw InternalCompilerError("${this::packageName.name} not available")
 
             override val sourceFile: SourceFile
                 get() = throw InternalCompilerError("file not initialized yet")

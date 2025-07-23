@@ -20,91 +20,91 @@ package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
+import compiler.binding.SeanHelper
+import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.decoratingMemberVariableWithNonReadType
 import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
+import compiler.diagnostic.quoteIdentifier
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BoundBaseTypeMemberVariable(
-    val context: ExecutionScopedCTContext,
-    val declaration: BaseTypeMemberVariableDeclaration,
+    private val typeRootContext: CTContext,
+    private val boundLocalVariableInConstructorCode: BoundVariable?,
+    override val visibility: BoundVisibility,
     val attributes: BoundBaseTypeMemberVariableAttributes,
     private val getTypeDef: () -> BoundBaseType,
+    override val entryDeclaration: BaseTypeMemberVariableDeclaration,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
-    val name = declaration.name.value
-    override val declaredAt = declaration.span
-    val isReAssignable = declaration.variableDeclaration.isReAssignable
+    init {
+        if (boundLocalVariableInConstructorCode == null) {
+            check(entryDeclaration.variableDeclaration.type != null)
+        }
+    }
+    val name = entryDeclaration.name.value
+    override val declaredAt = entryDeclaration.span
+    val isReAssignable = entryDeclaration.variableDeclaration.isReAssignable
     val isDecorated: Boolean = attributes.firstDecoratesAttribute != null
+    val isConstructorParameterInitialized: Boolean = entryDeclaration.isConstructorParameterInitialized
 
-    val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
-        declaration.variableDeclaration.initializerExpression.identifier.value == EmergeConstants.MAGIC_IDENTIFIER_CONSTRUCTOR_INITIALIZED_MEMBER_VARIABLE
-    } else {
-        false
-    }
-
-    private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
-        declaration.variableDeclaration.copy(initializerExpression = null)
-    }
-    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context, isDecorated)
-
-    override val visibility = boundEffectiveVariableDeclaration.visibility
-
-    /**
-     * The initial value for this member variable, or `null` if [isConstructorParameterInitialized]
-     */
-    val initializer: BoundExpression<*>? = boundEffectiveVariableDeclaration.initializerExpression
-
-    val modifiedContext: ExecutionScopedCTContext get() = boundEffectiveVariableDeclaration.modifiedContext
+    private val seanHelper = SeanHelper()
 
     /**
      * The type of this member in the context of the hosting data structure. It still needs to
      * be [BoundTypeReference.instantiateAllParameters]-ed with the type of the variable used to access
      * the hosting data structure.
      *
-     * Is null if not yet determined or if it cannot be determined.
+     * available after [semanticAnalysisPhase2]
      */
-    val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
+    var type: BoundTypeReference? by seanHelper.resultOfPhase2()
+        private set
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
-        visibility.validateOnElement(this, diagnosis)
-        attributes.validate(diagnosis)
-        if (isDecorated && !isConstructorParameterInitialized) {
-            diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
+        seanHelper.phase1(diagnosis) {
+            visibility.validateOnElement(this, diagnosis)
+            attributes.validate(diagnosis)
+            if (isDecorated && !entryDeclaration.isConstructorParameterInitialized) {
+                diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
+            }
+            boundLocalVariableInConstructorCode?.semanticAnalysisPhase1(diagnosis)
         }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        boundEffectiveVariableDeclaration.semanticAnalysisPhase2(diagnosis)
-        val typeUseSite = if (declaration.variableDeclaration.isReAssignable) {
-            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
-        } else {
-            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
-        }
-        type?.validate(typeUseSite, diagnosis)
-        if (isDecorated) {
-            type?.mutability?.let { typeMutability ->
-                if (typeMutability != TypeMutability.READONLY) {
-                    diagnosis.decoratingMemberVariableWithNonReadType(this, typeMutability)
+        seanHelper.phase2(diagnosis) {
+            boundLocalVariableInConstructorCode?.semanticAnalysisPhase2(diagnosis)
+            type = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
+                ?: entryDeclaration.variableDeclaration.type?.let(typeRootContext::resolveType)
+
+            val typeUseSite = if (entryDeclaration.variableDeclaration.isReAssignable) {
+                TypeUseSite.InvariantUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
+            } else {
+                TypeUseSite.OutUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
+            }
+            type?.validate(typeUseSite, diagnosis)
+
+            if (isDecorated) {
+                type?.mutability?.let { typeMutability ->
+                    if (typeMutability != TypeMutability.READONLY) {
+                        diagnosis.decoratingMemberVariableWithNonReadType(this, typeMutability)
+                    }
                 }
             }
         }
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
-
-        // the initializer expression is being analyzed by the ctor
+        seanHelper.phase3(diagnosis) {
+            // the initializer expression is being analyzed by the ctor
+        }
     }
 
     lateinit var field: BaseTypeField
@@ -124,12 +124,14 @@ class BoundBaseTypeMemberVariable(
         visibility.validateAccessFrom(location, this, diagnosis)
     }
 
-    override fun toStringForErrorMessage() = "member variable $name"
+    override fun toStringForErrorMessage() = "member variable ${name.quoteIdentifier()}"
 
     private val _backendIr by lazy {
         IrClassMemberVariableImpl(name, type!!.toBackendIr(), field.id)
     }
     fun toBackendIr(): IrClass.MemberVariable = _backendIr
+
+    override fun toString() = getTypeDef().canonicalName.toString() + "." + name
 }
 
 private class IrClassMemberVariableImpl(

@@ -135,6 +135,7 @@ class BoundMemberVariableReadExpression(
 
             val availableGetters = mutableSetOf<BoundFunction>()
             physicalMembers = valueType.findMemberVariable(memberName)
+            physicalMembers.forEach { it.semanticAnalysisPhase2(diagnosis) }
             diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->
                     if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {

@@ -169,6 +169,10 @@ class BoundIdentifierExpression(
             usageContext = VariableUsageContext.READ
         }
 
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+            variable.semanticAnalysisPhase1(diagnosis)
+        }
+
         override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
             variable.semanticAnalysisPhase2(diagnosis)
         }

@@ -1,20 +1,15 @@
 package compiler.compiler.binding.context
 
-import compiler.ast.Statement
-import compiler.binding.BoundStatement
 import compiler.binding.context.DeferrableExecutable
-import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.PackageContext
 import compiler.binding.context.SourceFileRootContext
-import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forNone
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
-import kotlin.reflect.KProperty
 
 class ExecutionScopedCTContextTest : FreeSpec({
     "single lineage" - {
@@ -143,5 +138,5 @@ class ExecutionScopedCTContextTest : FreeSpec({
 
 private fun mockSourceFileContext(): SourceFileRootContext {
     val name = CanonicalElementName.Package(listOf("mock"))
-    return SourceFileRootContext(PackageContext(ModuleContext(name, emptySet(), mockk()), name))
+    return SourceFileRootContext(PackageContext(ModuleContext(name, emptySet(), mockk()), name), name)
 }
