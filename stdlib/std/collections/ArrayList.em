@@ -50,11 +50,7 @@ export class ArrayList<X : Any> : Iterable<X> {
 private class ArrayListRange<T : Any> : SizedRange<T> & RandomAccessRange<T> & BidirectionalRange<T> {
     list: read ArrayList<T> = init
     var frontIndex: UWord = 0
-    var backIndexPlus1: UWord
-
-    constructor {
-        set self.backIndexPlus1 = self.list.size
-    }
+    var backIndexPlus1: UWord = self.list.size
 
     override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 

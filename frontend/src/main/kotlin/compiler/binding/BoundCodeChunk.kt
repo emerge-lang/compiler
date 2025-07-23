@@ -228,4 +228,17 @@ class BoundCodeChunk(
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),
         )
     }
+
+    companion object {
+        fun fromBoundStatements(
+            statements: List<BoundStatement<*>>,
+            fallbackContext: ExecutionScopedCTContext,
+        ): BoundCodeChunk {
+            return BoundCodeChunk(
+                statements.firstOrNull()?.context ?: fallbackContext,
+                AstCodeChunk(statements.map { it.declaration }),
+                statements,
+            )
+        }
+    }
 }

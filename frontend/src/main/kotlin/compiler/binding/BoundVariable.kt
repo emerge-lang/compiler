@@ -52,6 +52,7 @@ import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.diagnostic.variableTypeNotDeclared
 import compiler.diagnostic.visibilityNotAllowedOnVariable
 import compiler.handleCyclicInvocation
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -115,6 +116,8 @@ class BoundVariable(
     override val returnBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.returnBehavior
     override val throwBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.throwBehavior
 
+    private var hasCircularInitialization: Boolean by seanHelper.resultOfPhase1(allowReassignment = false)
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             visibility.semanticAnalysisPhase1(diagnosis)
@@ -145,9 +148,21 @@ class BoundVariable(
             ).doSean1(declaration.type, initializerExpression != null, diagnosis)
 
             if (initializerExpression != null) {
-                initializerExpression.semanticAnalysisPhase1(diagnosis)
+                handleCyclicInvocation(
+                    context = this,
+                    action = {
+                        initializerExpression.semanticAnalysisPhase1(diagnosis)
+                        hasCircularInitialization = false
+                    },
+                    onCycle = {
+                        diagnosis.circularVariableInitialization(this)
+                        hasCircularInitialization = true
+                    },
+                )
                 initializerExpression.setExpectedEvaluationResultType(typeInferenceStage2.expectedInitializerEvaluationType, diagnosis)
                 initializerExpression.markEvaluationResultUsed()
+            } else {
+                hasCircularInitialization = false
             }
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
@@ -165,16 +180,9 @@ class BoundVariable(
             visibility.semanticAnalysisPhase2(diagnosis)
 
             if (initializerExpression != null) {
-                handleCyclicInvocation(
-                    context = this,
-                    action = {
-                        initializerExpression.semanticAnalysisPhase2(diagnosis)
-                    },
-                    onCycle = {
-                        diagnosis.circularVariableInitialization(this)
-                    },
-                )
-
+                if (!hasCircularInitialization) {
+                    initializerExpression.semanticAnalysisPhase2(diagnosis)
+                }
                 typeInferenceStage3 = typeInferenceStage2.doSean2WithInitializer(initializerExpression, diagnosis)
 
                 initializerExpression.setEvaluationResultUsage(CreateReferenceValueUsage(
@@ -599,6 +607,33 @@ class BoundVariable(
                     }
                 }
             }
+        }
+    }
+
+    companion object {
+        fun stronglyTypedNonReAssignable(
+            context: ExecutionScopedCTContext,
+            name: String,
+            type: BoundTypeReference,
+            kind: Kind,
+            span: Span,
+        ): BoundVariable {
+            return BoundVariable(
+                context,
+                VariableDeclaration(
+                    declaredAt = span,
+                    visibility = null,
+                    varToken = null,
+                    ownership = null,
+                    name = IdentifierToken(name, span),
+                    type.asAstReference(),
+                    null,
+                ),
+                BoundVisibility.default(context),
+                null,
+                TypeInferenceStrategy.NoInference,
+                kind,
+            )
         }
     }
 }

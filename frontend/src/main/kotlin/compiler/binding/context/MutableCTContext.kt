@@ -62,6 +62,8 @@ open class MutableCTContext(
             _moduleContext = value
         }
 
+    override val packageName get()= parentContext.packageName
+
     private var _sourceFile: SourceFile? = null
     override var sourceFile
         get() = _sourceFile ?: parentContext.sourceFile

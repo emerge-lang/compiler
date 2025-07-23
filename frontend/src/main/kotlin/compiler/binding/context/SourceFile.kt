@@ -26,11 +26,9 @@ import compiler.diagnostic.ambiguousOrRedundantImports
 import compiler.diagnostic.toplevelFunctionWithOverrideAttribute
 import compiler.lexer.LexerSourceFile
 import compiler.lexer.Operator
-import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class SourceFile(
     val lexerFile: LexerSourceFile,
-    val packageName: CanonicalElementName.Package,
     val context: SourceFileRootContext,
     /** [Diagnostic]s generated at bind-time: double declarations, ... */
     val bindTimeDiagnosis: CollectingDiagnosis,

@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -65,26 +66,28 @@ data class FunctionDeclaration(
     }
 
     fun bindToAsMember(
+        entryDeclaration: BaseTypeMemberFunctionDeclaration,
         context: CTContext,
-        lazyImpliedReceiverType: () -> RootResolvedTypeReference,
+        receiverType: AstAbsoluteTypeReference,
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
-        val boundParameterList = parameters.bindTo(functionRootContext, lazyImpliedReceiverType)
+        val lazyReceiverType = { context.resolveType(receiverType) as RootResolvedTypeReference }
+        val boundParameterList = parameters.bindTo(functionRootContext, lazyReceiverType)
 
         boundFn = BoundDeclaredBaseTypeMemberFunction(
             context,
             functionRootContext,
-            this,
+            entryDeclaration,
             attributes,
             boundTypeParams,
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),
             getTypeDef,
-            lazyImpliedReceiverType,
+            lazyReceiverType,
         )
         return boundFn
     }

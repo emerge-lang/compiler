@@ -53,10 +53,10 @@ class BoundClassDestructor(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseType,
     override val attributes: BoundFunctionAttributeList,
-    val declaration: BaseTypeDestructorDeclaration,
+    override val entryDeclaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
     val classDef: BoundBaseType by lazy(getClassDef)
-    override val declaredAt = declaration.span
+    override val declaredAt = entryDeclaration.span
     private val generatedSourceLocation = declaredAt.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$destructor")
@@ -112,7 +112,7 @@ class BoundClassDestructor(
     }
 
     val userDefinedCode: BoundCodeChunk by lazy {
-        declaration.code.bindTo(parameters.modifiedContext)
+        entryDeclaration.code.bindTo(parameters.modifiedContext)
     }
 
     override val purity = BoundFunction.Purity.MODIFYING

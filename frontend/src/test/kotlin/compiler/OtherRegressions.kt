@@ -2,12 +2,15 @@ package compiler.compiler
 
 import compiler.compiler.binding.type.beAssignableTo
 import compiler.compiler.binding.type.parseType
+import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.useValidModule
 import compiler.compiler.negative.validateModule
+import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
 
 class OtherRegressions : FreeSpec({
     "generics" - {
@@ -73,6 +76,30 @@ class OtherRegressions : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "member var initializers can reference self (github issue #17)" - {
+        "simple case" {
+            validateModule("""
+                class Foo {
+                    a: S32 = 0
+                    b: S32 = self.a + 5
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "are initialized in syntactic order, partial initialization is respected" {
+            validateModule("""
+                class Foo {
+                    a: S32 = self.b + 5
+                    b: S32 = 0
+                }
+            """.trimIndent())
+                .shouldFind<UseOfUninitializedClassMemberVariableDiagnostic> {
+                    it.member.name.value shouldBe "b"
+                }
         }
     }
 

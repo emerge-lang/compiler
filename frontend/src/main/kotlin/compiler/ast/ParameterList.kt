@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
@@ -30,18 +31,22 @@ data class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: ExecutionScopedCTContext, lazyImpliedReceiverType: (() -> RootResolvedTypeReference)? = null) = BoundParameterList(
-        context,
-        this,
-        parameters.mapIndexed { index, parameter ->
-            return@mapIndexed parameter.bindToAsParameter(
-                context = context,
+    fun bindTo(context: ExecutionScopedCTContext, lazyImpliedReceiverType: (() -> RootResolvedTypeReference)? = null): BoundParameterList {
+        val boundParams = mutableListOf<BoundParameter>()
+        var contextCarry = context
+        for ((index, parameter) in parameters.withIndex()) {
+            val bound = parameter.bindToAsParameter(
+                contextCarry,
                 if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME && lazyImpliedReceiverType != null) {
                     BoundVariable.TypeInferenceStrategy.ImpliedTypeIgnoreInitializer(lazyImpliedReceiverType)
                 } else {
                     BoundVariable.TypeInferenceStrategy.NoInference
                 }
             )
-        },
-    )
+            contextCarry = bound.modifiedContext
+            boundParams.add(bound)
+        }
+
+        return BoundParameterList(context, this, boundParams)
+    }
 }

@@ -24,17 +24,17 @@ class PackageContext(
 ) : SemanticallyAnalyzable {
     val sourceFiles: Sequence<SourceFile> = sequence {
         yieldAll(moduleContext.sourceFiles)
-    }.filter { it.packageName == packageName }
+    }.filter { it.context.packageName == packageName }
 
     val types: Sequence<BoundBaseType> get() {
         return sourceFiles
-            .filter { it.packageName == packageName }
+            .filter { it.context.packageName == packageName }
             .flatMap { it.context.types }
     }
 
     val globalVariables: Sequence<BoundVariable> get() {
         return sourceFiles
-            .filter { it.packageName == packageName }
+            .filter { it.context.packageName == packageName }
             .flatMap { it.context.variables }
     }
 

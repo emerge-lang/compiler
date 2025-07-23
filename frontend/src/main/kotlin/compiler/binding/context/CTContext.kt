@@ -33,6 +33,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -69,6 +70,8 @@ interface CTContext {
     val swCtx: SoftwareContext get() = moduleContext.softwareContext
 
     val moduleContext: ModuleContext
+
+    val packageName: CanonicalElementName.Package
 
     /** The file this context belongs to, right beneath the module context in the tree */
     val sourceFile: SourceFile

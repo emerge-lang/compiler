@@ -4,6 +4,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeEntryDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
@@ -188,7 +189,7 @@ fun Diagnosis.ambiguousMemberVariableRead(
     add(AmbiguousMemberVariableAccessDiagnostic(
         read.memberName,
         AccessorKind.Read,
-        members.map { it. declaration },
+        members.map { it. entryDeclaration },
         getters.map { it.declaredAt },
         read.declaration.memberName.span,
     ))
@@ -202,7 +203,7 @@ fun Diagnosis.ambiguousMemberVariableWrite(
     add(AmbiguousMemberVariableAccessDiagnostic(
         write.memberName,
         AccessorKind.Write,
-        members.map { it.declaration },
+        members.map { it.entryDeclaration },
         setters.map { it.declaredAt },
         write.declaration.targetExpression.memberName.span,
     ))
@@ -237,12 +238,12 @@ fun Diagnosis.duplicateMemberVariableAttributes(firstMention: KeywordToken, dupl
 }
 
 fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar: BoundBaseTypeMemberVariable) {
-    add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.declaration, memberVar.attributes.firstDecoratesAttribute!!))
+    add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.entryDeclaration, memberVar.attributes.firstDecoratesAttribute!!))
 }
 
 fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
     add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
-        memberVar.declaration,
+        memberVar.entryDeclaration,
         actualMutability,
     ))
 }
@@ -461,7 +462,7 @@ fun Diagnosis.nonVirtualMemberFunctionWithReceiver(function: BoundDeclaredBaseTy
 
 fun Diagnosis.notAllMemberVariablesInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span) {
     add(NotAllMemberVariablesInitializedDiagnostic(
-        uninitializedMembers.map { it.declaration },
+        uninitializedMembers.map { it.entryDeclaration },
         usedAt
     ))
 }
@@ -473,7 +474,7 @@ fun Diagnosis.notAllMixinsInitialized(uninitializedMixins: Collection<BoundMixin
 fun Diagnosis.useOfUninitializedMember(member: BoundBaseTypeMemberVariable, access: MemberAccessExpression) {
     add(
         UseOfUninitializedClassMemberVariableDiagnostic(
-            member.declaration,
+            member.entryDeclaration,
             access.memberName.span,
         )
     )
@@ -644,7 +645,11 @@ fun Diagnosis.multipleClassDestructors(additionalDtors: Collection<BaseTypeDestr
     add(MultipleClassDestructorsDiagnostic(additionalDtors))
 }
 
-fun Diagnosis.entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BoundBaseTypeEntry<*>) {
+fun Diagnosis.entryNotAllowedOnBaseType(baseType: BoundBaseType, boundEntry: BoundBaseTypeEntry<*>) {
+    add(EntryNotAllowedInBaseTypeDiagnostic(baseType.kind, boundEntry.entryDeclaration))
+}
+
+fun Diagnosis.entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BaseTypeEntryDeclaration) {
     add(EntryNotAllowedInBaseTypeDiagnostic(baseType.kind, entry))
 }
 
