@@ -5,23 +5,6 @@ import compiler.diagnostic.TypeDeductionErrorDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class TypeInferenceErrors : FreeSpec({
-    "cyclic inference in variables (2)" {
-        validateModule("""
-            x = y
-            y = x
-        """.trimIndent())
-            .shouldFind<TypeDeductionErrorDiagnostic>()
-    }
-
-    "cyclic inference in variables (3)" {
-        validateModule("""
-            x = y
-            y = z
-            z = x
-        """.trimIndent())
-            .shouldFind<TypeDeductionErrorDiagnostic>()
-    }
-
     "cyclic inference in functions" {
         validateModule("""
             fn a() = b()

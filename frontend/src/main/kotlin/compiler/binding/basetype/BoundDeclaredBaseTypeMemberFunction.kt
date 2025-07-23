@@ -1,7 +1,6 @@
 package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberFunctionDeclaration
-import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
@@ -40,7 +39,7 @@ import io.github.tmarsteel.emerge.common.zip
 class BoundDeclaredBaseTypeMemberFunction(
     parentContext: CTContext,
     functionRootContext: MutableExecutionScopedCTContext,
-    declaration: FunctionDeclaration,
+    override val entryDeclaration: BaseTypeMemberFunctionDeclaration,
     attributes: BoundFunctionAttributeList,
     declaredTypeParameters: List<BoundTypeParameter>,
     parameters: BoundParameterList,
@@ -50,7 +49,7 @@ class BoundDeclaredBaseTypeMemberFunction(
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     parentContext,
     functionRootContext,
-    declaration,
+    entryDeclaration.functionDeclaration,
     attributes,
     declaredTypeParameters,
     parameters,

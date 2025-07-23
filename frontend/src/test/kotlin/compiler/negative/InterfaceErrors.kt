@@ -1,9 +1,9 @@
 package compiler.compiler.negative
 
+import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.basetype.BoundClassDestructor
 import compiler.diagnostic.CyclicInheritanceDiagnostic
 import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
 import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
@@ -22,7 +22,7 @@ class InterfaceErrors : FreeSpec({
         """.trimIndent())
             .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
-                it.violatingEntry should beInstanceOf<BoundClassConstructor>()
+                it.violatingEntry should beInstanceOf<BaseTypeConstructorDeclaration>()
             }
     }
 
@@ -35,7 +35,7 @@ class InterfaceErrors : FreeSpec({
         """.trimIndent())
             .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
-                it.violatingEntry should beInstanceOf<BoundClassDestructor>()
+                it.violatingEntry should beInstanceOf<BaseTypeDestructorDeclaration>()
             }
     }
 
@@ -47,7 +47,7 @@ class InterfaceErrors : FreeSpec({
         """.trimIndent())
             .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
-                it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
+                it.violatingEntry should beInstanceOf<BaseTypeMemberVariableDeclaration>()
             }
     }
 

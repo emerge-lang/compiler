@@ -19,7 +19,6 @@
 package compiler.binding.basetype
 
 import compiler.ast.AstCodeChunk
-import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
@@ -39,6 +38,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
+import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
@@ -46,8 +46,6 @@ import compiler.diagnostic.entryNotAllowedOnBaseType
 import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
 import compiler.diagnostic.multipleAccessorsOnBaseType
-import compiler.diagnostic.multipleClassConstructors
-import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
 import compiler.diagnostic.unusedMixin
 import compiler.diagnostic.virtualAndActualMemberVariableNameClash
@@ -74,15 +72,37 @@ class BoundBaseType(
     val typeParameters: List<BoundTypeParameter>?,
     val superTypes: BoundSupertypeList,
     override val declaration: BaseTypeDeclaration,
-    val entries: List<BoundBaseTypeEntry<*>>,
+    private val bindTimeDiagnosis: CollectingDiagnosis,
 ) : BoundElement<BaseTypeDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
     override val context: CTContext = fileContext
     val canonicalName: CanonicalElementName.BaseType by lazy {
-        CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
+        CanonicalElementName.BaseType(context.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
+
+    private lateinit var entries: List<BoundBaseTypeEntry<*>>
+    lateinit var memberVariables: List<BoundBaseTypeMemberVariable>
+        private set
+    lateinit var declaredConstructors: Sequence<BoundClassConstructor>
+        private set
+    lateinit var declaredDestructors: Sequence<BoundClassDestructor>
+        private set
+    var constructor: BoundClassConstructor? = null
+        private set
+
+    /**
+     * Late initialization so that references to this base-type can already be created in the entries
+     * (member variables and constructor code).
+     */
+    fun init(constructor: BoundClassConstructor, memberVariables: List<BoundBaseTypeMemberVariable>, nonVariableEntries: List<BoundBaseTypeEntry<*>>) {
+        this.constructor = constructor.takeIf { kind.hasCtorsAndDtors }
+        this.memberVariables = memberVariables
+        declaredDestructors = nonVariableEntries.filterIsInstance<BoundClassDestructor>().asSequence()
+
+        this.entries = listOf(constructor) + memberVariables + nonVariableEntries
+    }
 
     private fun buildBoundReference(arguments: List<BoundTypeArgument>?, span: Span): RootResolvedTypeReference {
         return RootResolvedTypeReference(
@@ -119,23 +139,11 @@ class BoundBaseType(
         }
     }
 
-    private val _memberVariables: MutableList<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>().toMutableList()
-    val memberVariables: List<BoundBaseTypeMemberVariable> = _memberVariables
-    val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
-    val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
-
     /**
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
      * [semanticAnalysisPhase1] to a given declaration or a generated one.
      */
-    var constructor: BoundClassConstructor? = null
-        private set
-
-    /**
-     * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
-     * [semanticAnalysisPhase1] to a given declaration or a generated one.
-     */
-    var destructor: BoundClassDestructor? = null
+    var destructor: BoundClassDestructor? by seanHelper.resultOfPhase1()
         private set
 
     private lateinit var allMemberFunctionOverloadSetsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>>
@@ -162,6 +170,8 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            bindTimeDiagnosis.replayOnto(diagnosis)
+
             typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
             superTypes.semanticAnalysisPhase1(diagnosis)
 
@@ -169,39 +179,7 @@ class BoundBaseType(
                 it.semanticAnalysisPhase1(diagnosis)
             }
 
-            _memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
-                diagnosis.duplicateBaseTypeMembers(this, dupMembers)
-            }
-            if (!kind.allowsMemberVariables) {
-                _memberVariables.forEach {
-                    diagnosis.entryNotAllowedOnBaseType(this, it)
-                }
-            }
-
             if (kind.hasCtorsAndDtors) {
-                declaredConstructors
-                    .drop(1)
-                    .toList()
-                    .takeUnless { it.isEmpty() }
-                    ?.let { list -> diagnosis.multipleClassConstructors(list.map { it.declaration }) }
-
-                declaredDestructors
-                    .drop(1)
-                    .toList()
-                    .takeUnless { it.isEmpty() }
-                    ?.let { list -> diagnosis.multipleClassDestructors(list.map { it.declaration }) }
-
-                if (declaredConstructors.none()) {
-                    val defaultCtorAst = BaseTypeConstructorDeclaration(
-                        listOfNotNull(declaration.visibility),
-                        KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
-                        AstCodeChunk(emptyList())
-                    )
-                    constructor = defaultCtorAst.bindTo(context, typeRootContext, typeParameters, _memberVariables) { this }
-                    constructor!!.semanticAnalysisPhase1(diagnosis)
-                } else {
-                    constructor = declaredConstructors.first()
-                }
                 if (declaredDestructors.none()) {
                     val defaultDtorAst = BaseTypeDestructorDeclaration(
                         KeywordToken(Keyword.DESTRUCTOR, span = declaration.declaredAt),
@@ -214,10 +192,14 @@ class BoundBaseType(
                     destructor = declaredDestructors.first()
                 }
             } else {
-                declaredConstructors.forEach {
-                    diagnosis.entryNotAllowedOnBaseType(this, it)
-                }
-                declaredDestructors.forEach {
+                destructor = null
+            }
+
+            memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
+                diagnosis.duplicateBaseTypeMembers(this, dupMembers)
+            }
+            if (!kind.allowsMemberVariables) {
+                memberVariables.forEach {
                     diagnosis.entryNotAllowedOnBaseType(this, it)
                 }
             }
@@ -277,14 +259,14 @@ class BoundBaseType(
                 .filter { (_, memberVar) -> memberVar != null }
                 .forEach { (accessorFns, memberVar) ->
                     diagnosis.virtualAndActualMemberVariableNameClash(
-                        memberVar!!.declaration,
+                        memberVar!!.entryDeclaration,
                         accessorFns,
                     )
                 }
         }
     }
 
-    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = _memberVariables.find { it.name == name }
+    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
@@ -293,7 +275,6 @@ class BoundBaseType(
             typeParameters?.forEach { it.semanticAnalysisPhase2(diagnosis) }
             superTypes.semanticAnalysisPhase2(diagnosis)
             entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
-            constructor?.semanticAnalysisPhase2(diagnosis)
             destructor?.semanticAnalysisPhase2(diagnosis)
 
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
@@ -391,7 +372,7 @@ class BoundBaseType(
         }
     }
 
-    private val _fields: MutableList<BaseTypeField> = ArrayList(memberVariables.size)
+    private val _fields: MutableList<BaseTypeField> = ArrayList()
     val fields: List<BaseTypeField> = _fields
 
     /**
@@ -409,7 +390,7 @@ class BoundBaseType(
     }
 
     private val backendIr by lazy {
-        _memberVariables.forEach {
+        memberVariables.forEach {
             it.assureFieldAllocated()
         }
         kind.toBackendIr(this)

@@ -83,6 +83,7 @@ class BoundObjectMemberAssignmentStatement(
         }
 
         physicalMembers = baseType.findMemberVariable(memberName)
+        physicalMembers.forEach { it.semanticAnalysisPhase2(diagnosis) }
         if (physicalMembers.isNotEmpty()) {
             targetObjectExpression.setEvaluationResultUsage(TransientValueUsage(declaration.span))
         }

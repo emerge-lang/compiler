@@ -6,7 +6,7 @@ class ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic(
     val memberDeclaration: BaseTypeMemberVariableDeclaration
 ) : Diagnostic(
     Severity.ERROR,
-    "Member variable ${memberDeclaration.name.value} is not guaranteed to be initialized during object construction",
+        "Member variable ${memberDeclaration.name.quote()} is not guaranteed to be initialized during object construction",
     memberDeclaration.span,
 ) {
     override fun equals(other: Any?): Boolean {
