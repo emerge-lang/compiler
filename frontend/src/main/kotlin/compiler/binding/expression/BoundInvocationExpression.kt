@@ -31,12 +31,11 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpureInvocation
@@ -112,19 +111,6 @@ class BoundInvocationExpression(
     private val receiverExceptReferringType: BoundExpression<*>?
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
-    override val throwBehavior: SideEffectPrediction? get() {
-        if (functionToInvoke?.returnType?.isNonNullableNothing == true) {
-            return SideEffectPrediction.GUARANTEED
-        }
-        val behaviors = valueArguments.map { it.throwBehavior } + listOf(functionToInvoke?.throwBehavior)
-        return behaviors.reduceSequentialExecution()
-    }
-
-    override val returnBehavior: SideEffectPrediction? get() {
-        val behaviors = valueArguments.map { it.returnBehavior } + listOf(SideEffectPrediction.NEVER)
-        return behaviors.reduceSequentialExecution()
-    }
-
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
@@ -182,6 +168,8 @@ class BoundInvocationExpression(
             }
 
             chosenOverload = selectOverload(availableOverloads, diagnosis) ?: return@phase2
+
+            _modifiedContext.trackSideEffect(CallFrameExit.Effect.InvokesFunction(chosenOverload!!.candidate.callFrameExitEffectOnInvocation))
 
             if (chosenOverload!!.returnType == null) {
                 handleCyclicInvocation(
@@ -445,7 +433,7 @@ class BoundInvocationExpression(
             functionToInvoke?.let { targetFn ->
                 targetFn.validateAccessFrom(functionNameToken.span, diagnosis)
                 nothrowBoundary?.let { nothrowBoundary ->
-                    if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
+                    if (targetFn.callFrameExitEffectOnInvocation.throws != CallFrameExit.Occurrence.NEVER) {
                         diagnosis.nothrowViolatingInvocation(this, nothrowBoundary)
                     }
                 }
@@ -552,7 +540,7 @@ class BoundInvocationExpression(
             ::buildBackendIrInvocation,
             buildResultCleanup = { resultTemporary ->
                 val unreachable = when {
-                    functionToInvoke!!.throwBehavior == SideEffectPrediction.GUARANTEED -> {
+                    functionToInvoke!!.callFrameExitEffectOnInvocation.throws == CallFrameExit.Occurrence.GUARANTEED -> {
                         listOf(IrUnreachableStatementImpl("function $functionToInvoke reports that it is guaranteed to throw", true))
                     }
                     functionToInvoke!!.returnType!!.isNonNullableNothing -> {

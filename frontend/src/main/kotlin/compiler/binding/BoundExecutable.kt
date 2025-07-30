@@ -31,23 +31,17 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
     override val context: ExecutionScopedCTContext
 
     /**
-     * How this executable behaves at runtime with respect to throwing exceptions. Must not be `null` after
-     * [semanticAnalysisPhase2].
-     */
-    val throwBehavior: SideEffectPrediction?
-
-    /**
-     * How this executable behaves at runtime with respect to returning from the call/stack frame. Must not be `null`
-     * after [semanticAnalysisPhase2].
-     */
-    val returnBehavior: SideEffectPrediction?
-
-    /**
      * A context derived from the one bound to ([context]), containing all the changes the [Executable] applies
      * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
     val modifiedContext: ExecutionScopedCTContext
-        get() = context
+
+    /**
+     * `true` iff this executable does none of these things:
+     * * consume CPU cycles
+     * * modify any state in the execution environment whatsoever
+     */
+    val isNoop: Boolean get() = false
 
     /**
      * Must be invoked before [semanticAnalysisPhase3].

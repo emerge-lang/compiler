@@ -4,9 +4,10 @@ import compiler.ast.AstThrowExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -32,8 +33,11 @@ class BoundThrowExpression(
     val throwableExpression: BoundExpression<*>,
     override val declaration: AstThrowExpression,
 ) : BoundScopeAbortingExpression() {
-    override val throwBehavior = SideEffectPrediction.GUARANTEED
-    override val returnBehavior = SideEffectPrediction.NEVER
+    override val modifiedContext: ExecutionScopedCTContext = run {
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(throwableExpression.modifiedContext)
+        newCtx.trackSideEffect(CallFrameExit.Effect.Throws)
+        newCtx
+    }
 
     private val seanHelper = SeanHelper()
 

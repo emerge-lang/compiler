@@ -33,8 +33,7 @@ class BoundInstanceOfExpression(
     override val declaration: AstInstanceOfExpression,
     val expressionToCheck: BoundExpression<*>,
 ) : BoundExpression<AstInstanceOfExpression> {
-    override val throwBehavior get() = expressionToCheck.throwBehavior
-    override val returnBehavior get() = expressionToCheck.returnBehavior
+    override val modifiedContext = expressionToCheck.modifiedContext
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expressionToCheck.setNothrow(boundary)

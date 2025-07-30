@@ -19,9 +19,9 @@
 package compiler.binding
 
 import compiler.ast.AstCodeChunk
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
 import compiler.binding.expression.ValueUsage
@@ -52,12 +52,11 @@ class BoundCodeChunk(
 
     val statements: List<BoundExecutable<*>>,
 ) : BoundExpression<AstCodeChunk> {
-    override val returnBehavior get() = statements.map { it.returnBehavior }.reduceSequentialExecution()
-    override val throwBehavior get() = statements.map { it.throwBehavior }.reduceSequentialExecution()
-
     private val lastStatementAsExpression = statements.lastOrNull() as? BoundExpression<*>
 
     override var type: BoundTypeReference? = null
+
+    override val isNoop: Boolean get()= statements.all { it.isNoop }
 
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context
@@ -102,7 +101,7 @@ class BoundCodeChunk(
                 type = lastStatementAsExpression.type
             } else {
                 val lastStatement = statements.lastOrNull()
-                if (lastStatement?.throwBehavior == SideEffectPrediction.GUARANTEED || lastStatement?.returnBehavior == SideEffectPrediction.GUARANTEED) {
+                if (lastStatement?.modifiedContext?.getEphemeralState(CallFrameExit)?.isGuaranteedToReturnThrowOrTerminate == true) {
                     // implicit evaluation never matters
                     type = context.swCtx.getBottomType(lastStatement.declaration.span)
                 } else if (isInExpressionContext) {

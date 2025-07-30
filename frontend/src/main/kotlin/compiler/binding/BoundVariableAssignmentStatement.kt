@@ -5,6 +5,7 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundExpression
@@ -32,8 +33,8 @@ class BoundVariableAssignmentStatement(
     val variableName: IdentifierToken,
     toAssignExpression: BoundExpression<*>,
 ) : BoundAssignmentStatement<IdentifierExpression>(context, declaration, toAssignExpression) {
-    override val targetThrowBehavior = SideEffectPrediction.NEVER
-    override val targetReturnBehavior = SideEffectPrediction.NEVER
+    private var _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
+    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     private var targetVariable: BoundVariable? = null
 

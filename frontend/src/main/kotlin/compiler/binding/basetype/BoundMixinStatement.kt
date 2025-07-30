@@ -10,7 +10,6 @@ import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -35,9 +34,6 @@ class BoundMixinStatement(
 ) : BoundStatement<AstMixinStatement> {
     override val context = expression.context
     override val modifiedContext = MutableExecutionScopedCTContext.deriveFrom(expression.modifiedContext)
-
-    override val throwBehavior: SideEffectPrediction? get()= expression.throwBehavior
-    override val returnBehavior: SideEffectPrediction? get()= expression.returnBehavior
 
     private val seanHelper = SeanHelper()
 

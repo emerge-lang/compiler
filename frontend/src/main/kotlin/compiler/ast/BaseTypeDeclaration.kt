@@ -376,15 +376,18 @@ class BaseTypeConstructorDeclaration(
         val constructorContextForInitCode = MutableExecutionScopedCTContext.deriveFrom(constructorContextWithAllArguments)
 
         val memberVariableInitCode = mutableListOf<BoundStatement<*>>()
-        for (binder in memberVariableBinders.filter { it.isConstructorParameterInitialized }) {
-            memberVariableInitCode.addAll(
-                binder
-                    .generateConstructorInitializationCode(
-                        memberVariableInitCode.lastOrNull()?.modifiedContext ?: constructorContextForInitCode,
-                        selfVariableForInitCode
-                    )
-            )
-        }
+        memberVariableBinders
+            .asSequence()
+            .filter { it.isConstructorParameterInitialized }
+            .forEach { binder ->
+                memberVariableInitCode.addAll(
+                    binder
+                        .generateConstructorInitializationCode(
+                            memberVariableInitCode.lastOrNull()?.modifiedContext ?: constructorContextForInitCode,
+                            selfVariableForInitCode
+                        )
+                )
+            }
         val boundConstructorInitCode = BoundCodeChunk.fromBoundStatements(
             memberVariableInitCode,
             constructorContextForInitCode,
@@ -394,15 +397,18 @@ class BaseTypeConstructorDeclaration(
         // access them through the selfVariableForInitCode
         val contextForUserInitCode = MutableExecutionScopedCTContext.deriveFrom(selfVariableForInitCode.modifiedContext)
         val userInitCode = mutableListOf<BoundStatement<*>>()
-        for ((index, binder) in memberVariableBinders.filter { !it.isConstructorParameterInitialized }.withIndex()) {
-            userInitCode.addAll(
-                binder
-                    .generateConstructorInitializationCode(
-                        userInitCode.lastOrNull()?.modifiedContext ?: contextForUserInitCode,
-                        selfVariableForInitCode
-                    )
-            )
-        }
+        memberVariableBinders
+            .asSequence()
+            .filter { !it.isConstructorParameterInitialized }
+            .forEach { binder ->
+                userInitCode.addAll(
+                    binder
+                        .generateConstructorInitializationCode(
+                            userInitCode.lastOrNull()?.modifiedContext ?: contextForUserInitCode,
+                            selfVariableForInitCode
+                        )
+                )
+            }
 
         val boundMemberVariables = memberVariableBinders
             .map { it.bindMemberVariableFinal(typeDefAccessor) }

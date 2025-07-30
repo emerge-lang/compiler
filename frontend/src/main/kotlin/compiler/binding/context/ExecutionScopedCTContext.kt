@@ -66,7 +66,6 @@ interface ExecutionScopedCTContext : CTContext {
      */
     fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): Repetition
 
-
     /**
      * the [LoopExecutionScopedCTContext.loopNode] from the [LoopExecutionScopedCTContext] that is the closest
      * parent to `this` loop, or `null` if there is no enclosing loop context.
@@ -285,7 +284,7 @@ open class MutableExecutionScopedCTContext protected constructor(
         _variables[boundVariable.name] = boundVariable
     }
 
-    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, SequencedSet<SideEffect<*>>>> = IdentityHashMap()
+    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, SequencedSet<SideEffect<*>>>> by lazy { IdentityHashMap() }
     fun trackSideEffect(effect: SideEffect<*>) {
         val byEffectClass = sideEffectsBySubjectAndClass.computeIfAbsent(effect.subject) { HashMap() }
         val effectList = byEffectClass.computeIfAbsent(effect.stateClass) { LinkedHashSet() }

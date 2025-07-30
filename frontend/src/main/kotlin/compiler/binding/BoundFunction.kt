@@ -24,6 +24,7 @@ import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Keyword
@@ -83,18 +84,34 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val declaredTypeParameters: List<BoundTypeParameter>
 
     /**
-     * The side-effect category of this function, strictly as derived from [attributes].
+     * The side effect category of this function, strictly as derived from [attributes].
      */
     val purity: Purity get() = attributes.purity
 
     /**
-     * Is derived solely from [attributes] and [returnType]
+     * How invoking this function affects the call frame of the caller. Is derived solely from [attributes] and [returnType].
      */
-    val throwBehavior: SideEffectPrediction?
-        get() = when {
-            attributes.isDeclaredNothrow -> SideEffectPrediction.NEVER
-            returnType != null && returnType!!.isNonNullableNothing -> SideEffectPrediction.GUARANTEED
-            else -> SideEffectPrediction.POSSIBLY
+    val callFrameExitEffectOnInvocation: CallFrameExit.FunctionBehavior get() {
+        val mustThrowOrTerminate = returnType != null && returnType!!.isNonNullableNothing
+        val terminates = mustThrowOrTerminate && attributes.isDeclaredNothrow
+
+        return CallFrameExit.FunctionBehavior(
+            throws = when {
+                attributes.isDeclaredNothrow -> CallFrameExit.Occurrence.NEVER
+                else -> CallFrameExit.Occurrence.POSSIBLY
+            },
+            terminates = when {
+                terminates -> CallFrameExit.Occurrence.GUARANTEED
+                else -> CallFrameExit.Occurrence.POSSIBLY
+            }
+        )
+    }
+
+    val programTerminationBehavior: CallFrameExit.Occurrence
+        get() = if (attributes.isDeclaredNothrow && returnType != null && returnType!!.isNonNullableNothing) {
+            CallFrameExit.Occurrence.GUARANTEED
+        } else {
+            CallFrameExit.Occurrence.POSSIBLY
         }
 
     val parameters: BoundParameterList

@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.ast.AstWhileLoop
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
@@ -23,9 +22,6 @@ class BoundWhileLoop(
     val condition: BoundCondition,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstWhileLoop> {
-    override val throwBehavior get() = condition.throwBehavior.combineSequentialExecution(body.throwBehavior)
-    override val returnBehavior get() = condition.returnBehavior.combineSequentialExecution(body.returnBehavior)
-
     override val modifiedContext = SingleBranchJoinExecutionScopedCTContext(
         context,
         body.modifiedContext,

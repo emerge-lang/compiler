@@ -29,6 +29,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.effect.EphemeralStateClass
+import compiler.binding.context.effect.SingletonEphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -156,6 +157,10 @@ interface CTContext {
 
     fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         return stateClass.getInitialState(subject)
+    }
+
+    fun <State> getEphemeralState(stateClass: SingletonEphemeralStateClass<State, *>): State {
+        return getEphemeralState(stateClass, SingletonEphemeralStateClass.Subject)
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>>

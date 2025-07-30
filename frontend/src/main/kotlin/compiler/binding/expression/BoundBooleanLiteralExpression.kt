@@ -19,7 +19,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
@@ -36,9 +35,7 @@ class BoundBooleanLiteralExpression(
     val value: Boolean
 ) : BoundLiteralExpression<BooleanLiteralExpression> {
     override val type: BoundTypeReference get() = context.swCtx.bool.getBoundReferenceAssertNoTypeParameters(declaration.span)
-
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
+    override val modifiedContext get()= context
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do: this expression can only ever have one type

@@ -3,10 +3,10 @@ package compiler.binding.expression
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
@@ -22,16 +22,17 @@ class BoundTryCatchExpression(
     val fallibleCode: BoundCodeChunk,
     val catchBlock: BoundCatchBlockExpression,
 ) : BoundExpression<AstTryCatchExpression> {
-    override val throwBehavior get() = fallibleCode.throwBehavior.combineBranch(catchBlock.throwBehavior)
-    override val returnBehavior get() = fallibleCode.returnBehavior.combineBranch(catchBlock.returnBehavior)
-    override val modifiedContext = context
+    override val modifiedContext = MultiBranchJoinExecutionScopedCTContext(
+        context,
+        listOf(fallibleCode.modifiedContext, catchBlock.modifiedContext)
+    )
 
     override val isEvaluationResultReferenceCounted = fallibleCode.isEvaluationResultReferenceCounted || catchBlock.isEvaluationResultReferenceCounted
     override val isEvaluationResultAnchored = fallibleCode.isEvaluationResultAnchored && catchBlock.isEvaluationResultAnchored
 
-    override val isCompileTimeConstant: Boolean get() = when (fallibleCode.throwBehavior) {
-        SideEffectPrediction.NEVER -> fallibleCode.isCompileTimeConstant
-        SideEffectPrediction.GUARANTEED -> catchBlock.isCompileTimeConstant
+    override val isCompileTimeConstant: Boolean get() = when (fallibleCode.modifiedContext.getEphemeralState(CallFrameExit).throws) {
+        CallFrameExit.Occurrence.NEVER -> fallibleCode.isCompileTimeConstant
+        CallFrameExit.Occurrence.GUARANTEED -> catchBlock.isCompileTimeConstant
         else -> false
     }
 

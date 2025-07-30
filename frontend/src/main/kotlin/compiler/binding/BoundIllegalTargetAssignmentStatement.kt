@@ -24,8 +24,7 @@ class BoundIllegalTargetAssignmentStatement(
     val targetExpression: BoundExpression<*>,
     toAssignExpression: BoundExpression<*>,
 ) : BoundAssignmentStatement<Expression>(context, declaration, toAssignExpression) {
-    override val targetThrowBehavior get() = targetExpression.throwBehavior
-    override val targetReturnBehavior get() = targetExpression.returnBehavior
+    override val modifiedContext = toAssignExpression.modifiedContext
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetExpression.semanticAnalysisPhase1(diagnosis)

@@ -17,10 +17,10 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameterList
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -116,7 +116,10 @@ class BoundClassDestructor(
     }
 
     override val purity = BoundFunction.Purity.MODIFYING
-    override val throwBehavior: SideEffectPrediction = SideEffectPrediction.NEVER
+    override val callFrameExitEffectOnInvocation = CallFrameExit.FunctionBehavior(
+        throws = CallFrameExit.Occurrence.NEVER,
+        terminates = CallFrameExit.Occurrence.POSSIBLY,
+    )
 
     private val seanHelper = SeanHelper()
 

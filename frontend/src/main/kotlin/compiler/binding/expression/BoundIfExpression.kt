@@ -23,9 +23,6 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundCondition
 import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.combineBranch
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
@@ -52,16 +49,6 @@ class BoundIfExpression(
     val thenCode: BoundCodeChunk,
     val elseCode: BoundCodeChunk?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
-    override val throwBehavior: SideEffectPrediction? get() {
-        val branches = thenCode.throwBehavior.combineBranch(if (elseCode == null) SideEffectPrediction.NEVER else elseCode.throwBehavior)
-        return condition.throwBehavior.combineSequentialExecution(branches)
-    }
-
-    override val returnBehavior: SideEffectPrediction? get() {
-        val branches = thenCode.returnBehavior.combineBranch(if (elseCode == null) SideEffectPrediction.NEVER else elseCode.returnBehavior)
-        return condition.returnBehavior.combineSequentialExecution(branches)
-    }
-
     override var type: BoundTypeReference? = null
         private set
 
@@ -106,9 +93,9 @@ class BoundIfExpression(
     }
 
     override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
-        MultiBranchJoinExecutionScopedCTContext(context, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
+        MultiBranchJoinExecutionScopedCTContext(condition.modifiedContext, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
     } else {
-        SingleBranchJoinExecutionScopedCTContext(context, thenCode.modifiedContext)
+        SingleBranchJoinExecutionScopedCTContext(condition.modifiedContext, thenCode.modifiedContext)
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

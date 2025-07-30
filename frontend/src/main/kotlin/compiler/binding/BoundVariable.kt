@@ -113,9 +113,6 @@ class BoundVariable(
         get() = declaration.ownership?.first?.takeIf { kind.allowsExplicitOwnership }
             ?: defaultOwnership
 
-    override val returnBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.returnBehavior
-    override val throwBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.throwBehavior
-
     private var hasCircularInitialization: Boolean by seanHelper.resultOfPhase1(allowReassignment = false)
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
