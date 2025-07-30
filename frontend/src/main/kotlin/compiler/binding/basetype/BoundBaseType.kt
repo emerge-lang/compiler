@@ -23,6 +23,7 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstWildcardTypeArgument
+import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
@@ -47,6 +48,7 @@ import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
 import compiler.diagnostic.multipleAccessorsOnBaseType
 import compiler.diagnostic.unconventionalTypeName
+import compiler.diagnostic.unsupportedVarianceOnBaseTypeTypeParameter
 import compiler.diagnostic.unusedMixin
 import compiler.diagnostic.virtualAndActualMemberVariableNameClash
 import compiler.lexer.Keyword
@@ -172,7 +174,12 @@ class BoundBaseType(
         return seanHelper.phase1(diagnosis) {
             bindTimeDiagnosis.replayOnto(diagnosis)
 
-            typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            typeParameters?.forEach {
+                it.semanticAnalysisPhase1(diagnosis)
+                if (it.astNode.variance != TypeVariance.UNSPECIFIED) {
+                    diagnosis.unsupportedVarianceOnBaseTypeTypeParameter(it)
+                }
+            }
             superTypes.semanticAnalysisPhase1(diagnosis)
 
             entries.forEach {

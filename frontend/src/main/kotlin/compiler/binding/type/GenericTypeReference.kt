@@ -59,7 +59,6 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         effectiveBound.validate(forUsage, diagnosis)
-        forUsage.validateForTypeVariance(parameter.variance, diagnosis)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {

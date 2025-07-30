@@ -5,7 +5,7 @@ import emerge.std.collections.ArrayList
 // decodes the codepoint in [data] at [index].
 // @return first: the codepoint, second: the index of the next codepoint, or null if the end of data has been reached
 // @throws InvalidUtf8Exception
-export fn getNextCodepointAt(borrow data: Array<S8>, index: UWord) -> Pair<U32, UWord?> {
+export fn getNextCodepointAt(borrow data: Array<S8>, index: UWord) -> Pair<out U32, out UWord?> {
     byte1 = data[index]
     if byte1 >= 0 {
         nextIndex = index + 1

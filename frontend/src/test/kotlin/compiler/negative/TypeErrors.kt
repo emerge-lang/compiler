@@ -8,8 +8,6 @@ import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgument
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
-import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
-import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
@@ -142,26 +140,28 @@ class TypeErrors : FreeSpec({
                 }
         }
 
-        "reference to generic type with mismatching parameter variance" {
+        "reference to generic type with mismatching parameter variance".config(enabled = false) {
+            // re-enable when declaration-site variance is implemented
             validateModule("""
                 class X<in T> {}
                 fn test(p: X<out Any>) {}
             """.trimIndent())
-                .shouldFind<TypeArgumentVarianceMismatchDiagnostic>()
+                .shouldFind<Diagnostic> { null shouldBe "diagnostic type not present "}
 
             validateModule("""
                 class X<out T> {}
                 fn test(p: X<in Any>) {}
             """.trimIndent())
-                .shouldFind<TypeArgumentVarianceMismatchDiagnostic>()
+                .shouldFind<Diagnostic> { null shouldBe "diagnostic type not present "}
         }
 
-        "reference to generic type with superfluous parameter variance" {
+        "reference to generic type with superfluous parameter variance".config(enabled = false) {
+            // re-enable when declaration-site variance is implemented
             validateModule("""
                 class X<in T> {}
                 fn test(p: X<in Any>) {}
             """.trimIndent())
-                .shouldFind<TypeArgumentVarianceSuperfluousDiagnostic>()
+                .shouldFind<Diagnostic> { null shouldBe "diagnostic type not present "}
         }
 
         "reference to generic type with incompatible type argument mutability" - {
@@ -228,7 +228,8 @@ class TypeErrors : FreeSpec({
         }
 
         "use-site variance errors" - {
-            "in type at class member" {
+            "in type at class member".config(enabled = false) {
+                // re-enable when declaration-site variance is implemented
                 validateModule("""
                     class X<in T> {
                         prop: T = init
