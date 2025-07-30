@@ -18,7 +18,6 @@ interface IrBaseType {
 
     interface Parameter {
         val name: String
-        val variance: IrTypeVariance
         val bound: IrType
     }
 }

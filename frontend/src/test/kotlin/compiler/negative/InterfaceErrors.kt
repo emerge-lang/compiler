@@ -7,6 +7,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.diagnostic.CyclicInheritanceDiagnostic
 import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
 import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
+import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -95,6 +96,20 @@ class InterfaceErrors : FreeSpec({
                 interface D : C {}
             """.trimIndent())
                 .shouldFind<CyclicInheritanceDiagnostic>()
+        }
+    }
+
+    "generics" - {
+        "declaration-site variance is not supported" {
+            validateModule("""
+                interface Foo<out T> {}
+            """.trimIndent())
+                .shouldFind<UnsupportedDeclarationSiteVarianceDiagnostic>()
+
+            validateModule("""
+                interface Foo<in T> {}
+            """.trimIndent())
+                .shouldFind<UnsupportedDeclarationSiteVarianceDiagnostic>()
         }
     }
 })

@@ -36,6 +36,7 @@ import compiler.diagnostic.TypeParameterNameConflictDiagnostic
 import compiler.diagnostic.UndeclaredOverrideDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
+import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
 import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Keyword
@@ -820,6 +821,18 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<TypeParameterNameConflictDiagnostic>()
+        }
+
+        "declaration-site variance is not supported" {
+            validateModule("""
+                class Foo<out T> {}
+            """.trimIndent())
+                .shouldFind<UnsupportedDeclarationSiteVarianceDiagnostic>()
+
+            validateModule("""
+                class Foo<in T> {}
+            """.trimIndent())
+                .shouldFind<UnsupportedDeclarationSiteVarianceDiagnostic>()
         }
     }
 

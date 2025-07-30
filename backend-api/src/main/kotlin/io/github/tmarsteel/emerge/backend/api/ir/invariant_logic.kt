@@ -13,7 +13,6 @@ fun IrBaseType.independentEquals(other: IrBaseType): Boolean {
 }
 
 fun IrBaseType.Parameter.independentEquals(other: IrBaseType.Parameter): Boolean {
-    if (this.variance != other.variance) return false
     if (!this.bound.independentEquals(other.bound)) return false
     if (this.name != other.name) return false
 

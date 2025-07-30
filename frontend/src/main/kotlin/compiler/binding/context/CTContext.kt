@@ -110,10 +110,7 @@ interface CTContext {
                 BoundTypeArgument(
                     this,
                     ref,
-                    when (parameter.variance) {
-                        TypeVariance.UNSPECIFIED -> TypeVariance.OUT
-                        else -> TypeVariance.UNSPECIFIED
-                    },
+                    TypeVariance.OUT,
                     parameter.bound,
                 )
             }

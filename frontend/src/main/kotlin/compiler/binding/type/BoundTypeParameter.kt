@@ -3,7 +3,6 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
@@ -13,14 +12,12 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.typeParameterNameConflict
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 data class BoundTypeParameter(
     val astNode: TypeParameter,
     val context: CTContext,
 ) : SemanticallyAnalyzable, DefinitionWithVisibility {
     val name: String = astNode.name.value
-    val variance: TypeVariance = astNode.variance
     override val visibility: BoundVisibility = context.visibility
 
     /**
@@ -56,23 +53,10 @@ data class BoundTypeParameter(
 
     override fun toStringForErrorMessage() = "type parameter $name"
 
-    private val _backendIr by lazy { IrTypeParameterImpl(name, variance, bound) }
+    private val _backendIr by lazy { IrTypeParameterImpl(name, bound) }
     fun toBackendIr(): IrBaseType.Parameter = _backendIr
 
-    override fun toString(): String {
-        var str = ""
-        if (variance != TypeVariance.UNSPECIFIED) {
-            str += variance.name.lowercase()
-            str += " "
-        }
-
-        str += name
-
-        str += " : "
-        str += bound.toString()
-
-        return str
-    }
+    override fun toString() = "$name : $bound"
 
     companion object {
         fun List<TypeParameter>.chain(context: CTContext): Pair<List<BoundTypeParameter>, CTContext> {
@@ -91,14 +75,7 @@ data class BoundTypeParameter(
 
 private class IrTypeParameterImpl(
     override val name: String,
-    givenVariance: TypeVariance,
     givenBound: BoundTypeReference,
 ) : IrBaseType.Parameter {
-    override val variance: IrTypeVariance = when(givenVariance) {
-        TypeVariance.UNSPECIFIED -> IrTypeVariance.INVARIANT
-        TypeVariance.IN -> IrTypeVariance.IN
-        TypeVariance.OUT -> IrTypeVariance.OUT
-    }
-
     override val bound = givenBound.toBackendIr()
 }

@@ -128,6 +128,10 @@ fun Diagnosis.varianceOnFunctionTypeParameter(parameter: BoundTypeParameter) {
     add(VarianceOnFunctionTypeParameterDiagnostic(parameter.astNode))
 }
 
+fun Diagnosis.unsupportedVarianceOnBaseTypeTypeParameter(parameter: BoundTypeParameter) {
+    add(UnsupportedDeclarationSiteVarianceDiagnostic(parameter.astNode))
+}
+
 fun Diagnosis.varianceOnInvocationTypeArgument(argument: BoundTypeArgument) {
     add(VarianceOnInvocationTypeArgumentDiagnostic(argument.astNode))
 }
