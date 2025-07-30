@@ -1,6 +1,5 @@
 package compiler.binding.type
 
-import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
@@ -8,8 +7,6 @@ import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
-import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
-import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -233,14 +230,6 @@ class TypeUnification private constructor(
             for (i in 0..declaredTypeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
                 val parameter = declaredTypeParameters[i]
                 val argument = arguments[i]
-                if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
-                    if (argument.variance != parameter.variance) {
-                        unification = unification.plusDiagnostic(TypeArgumentVarianceMismatchDiagnostic(parameter.astNode, argument))
-                    } else {
-                        unification = unification.plusDiagnostic(TypeArgumentVarianceSuperfluousDiagnostic(argument))
-                    }
-                }
-
                 unification = unification.plusExactBinding(parameter, argument, argument.span ?: Span.UNKNOWN)
             }
 

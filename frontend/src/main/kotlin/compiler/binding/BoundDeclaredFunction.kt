@@ -121,7 +121,7 @@ abstract class BoundDeclaredFunction(
             }
             declaredTypeParameters.forEach {
                 it.semanticAnalysisPhase2(diagnosis)
-                if (it.variance != TypeVariance.UNSPECIFIED) {
+                if (it.astNode.variance != TypeVariance.UNSPECIFIED) {
                     diagnosis.varianceOnFunctionTypeParameter(it)
                 }
             }

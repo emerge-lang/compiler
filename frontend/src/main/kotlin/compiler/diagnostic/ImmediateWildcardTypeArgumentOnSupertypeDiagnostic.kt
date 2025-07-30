@@ -2,7 +2,6 @@ package compiler.diagnostic
 
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeVariance
 import compiler.lexer.Span
 
 class ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(
@@ -15,14 +14,8 @@ class ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(
 ) {
     private companion object {
         fun getSubstituteNotation(parameter: TypeParameter?): String {
-            val varianceStr = when (parameter?.variance) {
-                TypeVariance.OUT,
-                TypeVariance.IN -> ""
-                TypeVariance.UNSPECIFIED,
-                 null -> "out "
-            }
             val boundStr = parameter?.bound?.toString() ?: "Any"
-            return "$varianceStr$boundStr"
+            return "out $boundStr"
         }
     }
 }

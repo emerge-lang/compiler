@@ -160,10 +160,17 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-22. named arguments
-    * allow to change the order of arguments? Its important to keep the evaluation order on the
+22. Declaration-Site variance
+    * support declaration-site variance: `class Pair<out A, out B> { ... }`. Anticipated problems:
+      * assignment to member vars that have a generic type referencing an in/out type parameter can only
+        be assigned on construction -> must not be "var"
+      * the code generated in the constructor for the assignment won't validate, precisely because it's
+        not generally valid to assign to an out-variant/in-variant member var -> needs an exception
+      * it was partially supported before; some test-cases are already present but disabled
+23. named arguments
+    * allow to change the order of arguments? It's important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-23. threading
+24. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
@@ -192,7 +199,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
-24. various optimizations collected over time
+25. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
 
