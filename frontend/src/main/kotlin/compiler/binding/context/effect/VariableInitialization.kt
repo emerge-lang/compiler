@@ -10,7 +10,7 @@ object VariableInitialization : EphemeralStateClass<BoundVariable, VariableIniti
         return State.INITIALIZED
     }
 
-    override fun intersect(stateOne: State, stateTwo: State): State {
+    override fun combineExclusiveBranches(stateOne: State, stateTwo: State): State {
         return when (stateOne) {
             State.NOT_INITIALIZED -> when (stateTwo) {
                 State.NOT_INITIALIZED -> State.NOT_INITIALIZED

@@ -746,7 +746,7 @@ internal fun buildGenericInvocationLikeIr(
                     +
                     listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)))
                 )
-                val catchOrRethrow: List<IrExecutable> = if (context.hasExceptionHandler) {
+                val catchOrRethrow: List<IrExecutable> = if (context.isInTryContext) {
                     val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
                         landingpadContext.swCtx,
                         IrTemporaryValueReferenceImpl(exceptionTemporary),

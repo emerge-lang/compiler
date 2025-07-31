@@ -40,14 +40,14 @@ interface ExecutionScopedCTContext : CTContext {
 
     /**
      * true for all contexts that introduce a new exception handling boundary (a try block). For now
-     * that is only [ExceptionHandlingExecutionScopedCTContext].
+     * that is only [TryBlockExecutionScopedCTContext].
      */
-    val isExceptionHandler: Boolean
+    val isTryContext: Boolean
 
     /**
-     * true iff this context or any of its parents has [isExceptionHandler] = `true`
+     * true iff this context or any of its parents has [isTryContext] = `true`
      */
-    val hasExceptionHandler: Boolean
+    val isInTryContext: Boolean
 
     /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
@@ -85,16 +85,16 @@ interface ExecutionScopedCTContext : CTContext {
     fun getScopeLocalDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
-     * If there is a parent context that has [isExceptionHandler] = `true`, returns all deferred code up to and including
+     * If there is a parent context that has [isTryContext] = `true`, returns all deferred code up to and including
      * that context, in the **reverse** order of how it was added to [addDeferredCode].
-     * If there is no parent context marked with [isExceptionHandler], returns an empty sequence.
+     * If there is no parent context marked with [isTryContext], returns an empty sequence.
      */
     fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable>
 
     /**
-     * If there is a parent context that has [isExceptionHandler] = `true`, returns an empty sequence. This range must
+     * If there is a parent context that has [isTryContext] = `true`, returns an empty sequence. This range must
      * be covered by using the return value of [getExceptionHandlingLocalDeferredCode].
-     * Otherwise, returns all deferred code starting with the parent context of the one that has [isExceptionHandler] = `true`
+     * Otherwise, returns all deferred code starting with the parent context of the one that has [isTryContext] = `true`
      * up to the next parent with [isFunctionRoot] = `true`, in the **reverse** order of how it was added
      * via [addDeferredCode].
      */
@@ -203,10 +203,10 @@ open class MutableExecutionScopedCTContext protected constructor(
         parent
     }
 
-    private val parentExceptionHandlerContext: ExecutionScopedCTContext? by lazy {
+    private val parentTryContext: ExecutionScopedCTContext? by lazy {
         hierarchy.drop(1)
             .filterIsInstance<ExecutionScopedCTContext>()
-            .firstOrNull { it.isExceptionHandler }
+            .firstOrNull { it.isTryContext }
     }
 
     private val parentLoopContext: LoopExecutionScopedCTContext<*>? by lazy {
@@ -216,8 +216,8 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
     override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
 
-    override val isExceptionHandler = false
-    override val hasExceptionHandler get() = parentExceptionHandlerContext != null
+    override val isTryContext = false
+    override val isInTryContext get() = parentTryContext != null
 
     private var localDeferredCode: ArrayList<DeferrableExecutable>? = null
 
@@ -249,14 +249,14 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable> {
-        parentExceptionHandlerContext
+        parentTryContext
             ?.let { return getDeferredCodeUpToIncluding(it) }
 
         return emptySequence()
     }
 
     override fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable> {
-        val parentEHContext = parentExceptionHandlerContext
+        val parentEHContext = parentTryContext
         if (parentEHContext != null) {
             return emptySequence()
         }
@@ -434,7 +434,7 @@ class SingleBranchJoinExecutionScopedCTContext(
  * Models the context after a conditional branch where there are many choices, and it is guaranteed that
  * one of them is taken.
  * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranches] are considered
- * using [EphemeralStateClass.intersect]
+ * using [EphemeralStateClass.combineExclusiveBranches]
  */
 class MultiBranchJoinExecutionScopedCTContext(
     internal val beforeBranch: ExecutionScopedCTContext,
@@ -444,8 +444,9 @@ class MultiBranchJoinExecutionScopedCTContext(
         stateClass: EphemeralStateClass<Subject, State, *>,
         subject: Subject,
     ): State {
-        val states = atEndOfBranches.map { it.getEphemeralState(stateClass, subject) }
-        return states.reduce(stateClass::intersect)
+        return atEndOfBranches.asSequence()
+            .map { it.getEphemeralState(stateClass, subject) }
+            .reduce(stateClass::combineExclusiveBranches)
     }
 }
 
@@ -463,11 +464,11 @@ class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
     }
 ) {
-    override val isExceptionHandler = false
+    override val isTryContext = false
     val loopNode: LoopNode by lazy(getBoundLoopNode)
 }
 
-class ExceptionHandlingExecutionScopedCTContext(
+class TryBlockExecutionScopedCTContext(
     parent: CTContext,
 ) : MutableExecutionScopedCTContext(
     parent,
@@ -475,5 +476,5 @@ class ExceptionHandlingExecutionScopedCTContext(
     isFunctionRoot = false,
     ExecutionScopedCTContext.Repetition.MAYBE,
 ) {
-    override val isExceptionHandler = true
+    override val isTryContext = true
 }

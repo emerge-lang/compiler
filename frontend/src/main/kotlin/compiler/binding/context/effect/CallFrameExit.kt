@@ -1,10 +1,21 @@
 package compiler.binding.context.effect
 
+import compiler.binding.BoundExecutable
+
 /**
  * Models how code execution exits the current stack frame / function call.
  */
 object CallFrameExit : SingletonEphemeralStateClass<CallFrameExit.Behavior, CallFrameExit.Effect>() {
-    override val initialState = Behavior(Occurrence.NEVER, Occurrence.NEVER, Occurrence.NEVER)
+    override val initialState = Behavior(
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+        Occurrence.NEVER,
+    )
+
     override fun fold(state: Behavior, effect: Effect): Behavior {
         return Behavior(
             returns = when (effect) {
@@ -36,11 +47,15 @@ object CallFrameExit : SingletonEphemeralStateClass<CallFrameExit.Behavior, Call
         )
     }
 
-    override fun intersect(stateOne: Behavior, stateTwo: Behavior): Behavior {
+    override fun combineExclusiveBranches(stateOne: Behavior, stateTwo: Behavior): Behavior {
         return Behavior(
             returns = stateOne.returns.combineBranch(stateTwo.returns),
             throws = stateOne.throws.combineBranch(stateTwo.throws),
             terminates = stateOne.throws.combineBranch(stateTwo.terminates),
+            eitherThrowsOrTerminates = stateOne.eitherThrowsOrTerminates.combineExclusiveBranch(stateTwo.eitherThrowsOrTerminates),
+            eitherThrowsOrReturns = stateOne.eitherThrowsOrReturns.combineExclusiveBranch(stateTwo.eitherThrowsOrReturns),
+            eitherTerminatesOrReturns = stateOne.eitherTerminatesOrReturns.combineExclusiveBranch(stateTwo.eitherTerminatesOrReturns),
+            eitherThrowsReturnsOrTerminates = stateOne.eitherThrowsReturnsOrTerminates.combineExclusiveBranch(stateTwo.eitherThrowsReturnsOrTerminates),
         )
     }
 
@@ -61,8 +76,13 @@ object CallFrameExit : SingletonEphemeralStateClass<CallFrameExit.Behavior, Call
 
         /** How a given [BoundExecutable] behaves in terms of normally returning to the caller */
         val returns: Occurrence,
+
+        val eitherThrowsOrTerminates: Occurrence = throws or terminates,
+        val eitherThrowsOrReturns: Occurrence = throws or returns,
+        val eitherTerminatesOrReturns: Occurrence = terminates or returns,
+        val eitherThrowsReturnsOrTerminates: Occurrence = returns or throws or terminates,
     ) {
-        val isGuaranteedToReturnThrowOrTerminate: Boolean = returns == Occurrence.GUARANTEED || throws == Occurrence.GUARANTEED || terminates == Occurrence.GUARANTEED
+        val isGuaranteedToReturnThrowOrTerminate: Boolean = eitherThrowsReturnsOrTerminates == Occurrence.GUARANTEED
     }
 
     sealed class Effect : SingletonEffect(CallFrameExit) {
@@ -112,6 +132,26 @@ object CallFrameExit : SingletonEphemeralStateClass<CallFrameExit.Behavior, Call
                 GUARANTEED -> GUARANTEED
             }
             GUARANTEED -> GUARANTEED
+        }
+
+        infix fun or(other: Occurrence): Occurrence = combineSequentialExecution(other)
+
+        fun combineExclusiveBranch(other: Occurrence): Occurrence = when (this) {
+            NEVER -> when (other) {
+                NEVER -> NEVER
+                POSSIBLY -> POSSIBLY
+                GUARANTEED -> POSSIBLY
+            }
+            POSSIBLY -> when (other) {
+                NEVER -> POSSIBLY
+                POSSIBLY -> POSSIBLY
+                GUARANTEED -> POSSIBLY
+            }
+            GUARANTEED -> when (other) {
+                NEVER -> POSSIBLY
+                POSSIBLY -> POSSIBLY
+                GUARANTEED -> GUARANTEED
+            }
         }
 
         /**

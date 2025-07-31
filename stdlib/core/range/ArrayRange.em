@@ -19,8 +19,6 @@ export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Eleme
 
             throw e
         }
-
-        panic("unreachable")
     }
 
     export override get fn back(self) -> Element {
@@ -33,8 +31,6 @@ export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Eleme
 
             throw e
         }
-
-        panic("unreachable")
     }
 
     private get fn isEmpty(self) = self.frontIndex >= self.backIndexPlus1 or self.frontIndex >= self.array.size

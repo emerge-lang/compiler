@@ -78,7 +78,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         }
     }
 
-    override fun intersect(stateOne: State, stateTwo: State): State {
+    override fun combineExclusiveBranches(stateOne: State, stateTwo: State): State {
         return when (stateOne) {
             is State.Untracked -> {
                 check(stateTwo is State.Untracked) { "variables cannot suddenly become tracked" }

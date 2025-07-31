@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.AstCodeChunk
 import compiler.binding.context.CTContext
+import compiler.binding.context.CTContext.Companion.getEphemeralState
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.expression.BoundExpression
@@ -30,6 +31,7 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUnreachableStatementImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
@@ -39,6 +41,7 @@ import compiler.handleCyclicInvocation
 import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -188,43 +191,48 @@ class BoundCodeChunk(
             .toMutableList()
 
         val lastStatement = statements.lastOrNull()
+        val irImplicitValueTemporary: IrCreateTemporaryValue
 
         if (lastStatement is BoundExpression<*>) {
             plainStatements.add(IrUpdateSourceLocationStatementImpl(lastStatement.declaration.span))
-            val implicitValueTemporary = IrCreateTemporaryValueImpl(
+            irImplicitValueTemporary = IrCreateTemporaryValueImpl(
                 lastStatement.toBackendIrExpression(),
                 expectedImplicitEvaluationResultType?.toBackendIr(),
             )
-            plainStatements += implicitValueTemporary
+            plainStatements.add(irImplicitValueTemporary)
             if (lastStatement.isEvaluationResultReferenceCounted) {
                 check(assureResultHasReferenceCountIncrement) {
                     "Reference counting bug: the implicit result is implicitly reference counted (${lastStatement::class.simpleName}) but the code using the result isn't aware."
                 }
             } else if (assureResultHasReferenceCountIncrement) {
-                plainStatements += IrCreateStrongReferenceStatementImpl(implicitValueTemporary)
+                plainStatements.add(IrCreateStrongReferenceStatementImpl(irImplicitValueTemporary))
             }
-            return IrImplicitEvaluationExpressionImpl(
-                IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
-                IrTemporaryValueReferenceImpl(implicitValueTemporary),
+        } else {
+            lastStatement?.toBackendIrStatement()?.let(plainStatements::add)
+            irImplicitValueTemporary = IrCreateTemporaryValueImpl(
+                IrStaticDispatchFunctionInvocationImpl(
+                    context.swCtx.unit.resolveMemberFunction("instance")
+                        .single { it.parameterCount == 0 }
+                        .overloads
+                        .single()
+                        .toBackendIr(),
+                    emptyList(),
+                    emptyMap(),
+                    context.swCtx.unit.irReadNotNullReference,
+                    null,
+                )
             )
+            plainStatements.add(irImplicitValueTemporary)
         }
 
-        val standInLiteralTemporary = IrCreateTemporaryValueImpl(
-            IrStaticDispatchFunctionInvocationImpl(
-                context.swCtx.unit.resolveMemberFunction("instance")
-                    .single { it.parameterCount == 0 }
-                    .overloads
-                    .single()
-                    .toBackendIr(),
-                emptyList(),
-                emptyMap(),
-                context.swCtx.unit.irReadNotNullReference,
-                null,
-            )
-        )
+        if (lastStatement?.modifiedContext?.getEphemeralState(CallFrameExit)?.isGuaranteedToReturnThrowOrTerminate == true) {
+            // end of code block is never reached
+            plainStatements.add(IrUnreachableStatementImpl("previous code should return, throw or terminate the program", true))
+        }
+
         return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
-            IrTemporaryValueReferenceImpl(standInLiteralTemporary),
+            IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
+            IrTemporaryValueReferenceImpl(irImplicitValueTemporary),
         )
     }
 
