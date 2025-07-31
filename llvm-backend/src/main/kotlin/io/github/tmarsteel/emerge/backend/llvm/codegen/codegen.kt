@@ -327,7 +327,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrThrowStatement -> {
             val exceptionPtr = code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue)
-            if (tryContext != null) {
+            if (tryContext != null && !code.ignoreLocalCatchBlock) {
                 // throw inside a try-catch, jump directly to catch
                 if (functionHasNothrowAbi) {
                     // verify that the catch can even do something about the exception

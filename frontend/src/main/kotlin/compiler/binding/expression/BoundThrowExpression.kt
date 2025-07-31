@@ -164,5 +164,6 @@ internal fun buildIrThrow(
 }
 
 internal class IrThrowStatementImpl(
-    override val throwable: IrTemporaryValueReference
+    override val throwable: IrTemporaryValueReference,
+    override val ignoreLocalCatchBlock: Boolean = false,
 ) : IrThrowStatement

@@ -744,7 +744,7 @@ internal fun buildGenericInvocationLikeIr(
                 val rethrowStmt = IrCodeChunkImpl(
                     context.getDeferredCodeForThrow().mapToBackendIrWithDebugLocations()
                     +
-                    listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)))
+                    listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary), ignoreLocalCatchBlock = true))
                 )
                 val catchOrRethrow: List<IrExecutable> = if (context.isInTryContext) {
                     val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
