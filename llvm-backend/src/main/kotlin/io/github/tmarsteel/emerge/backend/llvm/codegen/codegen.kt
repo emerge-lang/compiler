@@ -131,6 +131,7 @@ import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import kotlin.properties.Delegates
 
 internal sealed interface ExecutableResult {
     object ExecutionOngoing : ExecutableResult
@@ -763,9 +764,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val tryCatchResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo, false)
             val resultBucket = if (expressionResultUsed) PhiBucket(tryCatchResultLlvmType) else null
             val exceptionBucket = PhiBucket(PointerToAnyEmergeValue)
+            var fallibleCodeAlwaysTerminates: Boolean by Delegates.notNull()
+            var catchpadAlwaysTerminates: Boolean by Delegates.notNull()
             unsafeBranch(
-                prepareBlockName = "try",
-                prepare = {
+                prepare = fallible@{
                     val fallibleExprResult = emitExpressionCode(
                         expression.fallibleCode,
                         functionReturnType,
@@ -776,37 +778,56 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                             jumpToUnsafeBranch()
                         }
                     )
-                    when (fallibleExprResult) {
-                        is ExpressionResult.Terminated -> fallibleExprResult.termination
+                    return@fallible when (fallibleExprResult) {
+                        is ExpressionResult.Terminated -> {
+                            fallibleCodeAlwaysTerminates = true
+                            fallibleExprResult.termination
+                        }
                         is ExpressionResult.Value -> {
+                            fallibleCodeAlwaysTerminates = false
                             resultBucket?.setBranchResult(fallibleExprResult.value)
                             skipUnsafeBranch()
                         }
                     }
                 },
-                branchBlockName = "catch",
-                branch = {
-                    val exceptionPtr = exceptionBucket.buildPhi()
-                    expression.throwableVariable.emitRead = { exceptionPtr }
-                    expression.throwableVariable.emitWrite = {
-                        throw CodeGenerationException("Cannot write to the exception variable of a catch")
+                branchBlockName = "catchpad",
+                branch = catchpad@{
+                    val catchpadResult = if (exceptionBucket.hasAnyResults) {
+                        val exceptionPtr = exceptionBucket.buildPhi()
+                        expression.throwableVariable.emitRead = { exceptionPtr }
+                        expression.throwableVariable.emitWrite = {
+                            throw CodeGenerationException("Cannot write to the exception variable of a catch")
+                        }
+                        emitExpressionCode(
+                            expression.catchpad,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed,
+                            tryContext,
+                        )
+                    } else {
+                        // catchpad is never reached
+                        ExpressionResult.Terminated(unreachable())
                     }
-                    val catchpadResult = emitExpressionCode(
-                        expression.catchpad,
-                        functionReturnType,
-                        functionHasNothrowAbi,
-                        expressionResultUsed,
-                        tryContext,
-                    )
-                    when (catchpadResult) {
-                        is ExpressionResult.Terminated -> catchpadResult.termination
+
+                    return@catchpad when (catchpadResult) {
+                        is ExpressionResult.Terminated -> {
+                            catchpadAlwaysTerminates = true
+                            catchpadResult.termination
+                        }
                         is ExpressionResult.Value -> {
+                            catchpadAlwaysTerminates = false
                             resultBucket?.setBranchResult(catchpadResult.value)
                             concludeBranch()
                         }
                     }
-                }
+                },
+                resumeBlockName = "after_catch",
             )
+
+            if (fallibleCodeAlwaysTerminates && catchpadAlwaysTerminates) {
+                return ExpressionResult.Terminated(unreachable())
+            }
 
             return ExpressionResult.Value(
                 resultBucket?.buildPhi() ?: context.poisonValue(tryCatchResultLlvmType)

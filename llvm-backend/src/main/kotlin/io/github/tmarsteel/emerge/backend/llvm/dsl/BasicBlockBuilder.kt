@@ -125,8 +125,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
     fun unsafeBranch(
         prepare: UnsafeBranchPrepare<C, R>.() -> Termination,
         branch: Branch<C, R>.() -> Termination,
-        prepareBlockName: String? = null,
         branchBlockName: String? = null,
+        resumeBlockName: String? = null,
     )
 
     /**
@@ -597,11 +597,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun unsafeBranch(
         prepare: BasicBlockBuilder.UnsafeBranchPrepare<C, R>.() -> BasicBlockBuilder.Termination,
         branch: BasicBlockBuilder.Branch<C, R>.() -> BasicBlockBuilder.Termination,
-        prepareBlockName: String?,
         branchBlockName: String?,
+        resumeBlockName: String?,
     ) {
-        val prepareBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_" + (prepareBlockName ?: "unsafe_branch"))
-        val branchBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_" + (branchBlockName ?: "unsafe_resume"))
+        val branchBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_" + (branchBlockName ?: "unsafe_branch"))
+        val resumeBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_" + (resumeBlockName ?: "unsafe_resume"))
 
         prepare(UnsafeBranchPrepareImpl(
             context,
@@ -611,11 +611,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             builder,
             tmpVars,
             scopeTracker,
-            prepareBlockRef,
             branchBlockRef,
+            resumeBlockRef,
         ))
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, prepareBlockRef)
+        Llvm.LLVMPositionBuilderAtEnd(builder, branchBlockRef)
         branch(BranchImpl(
             context,
             llvmFunctionReturnType,
@@ -624,10 +624,10 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             builder,
             tmpVars,
             scopeTracker.createSubScope(),
-            branchBlockRef,
+            resumeBlockRef,
         ))
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, branchBlockRef)
+        Llvm.LLVMPositionBuilderAtEnd(builder, resumeBlockRef)
     }
 }
 

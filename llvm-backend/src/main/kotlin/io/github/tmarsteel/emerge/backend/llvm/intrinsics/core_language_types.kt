@@ -219,11 +219,11 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
             }
 
             private fun buildTypeName(nakedResultType: LlvmType): String {
-                return (
+                return "exc_or_" + (
                     nakedResultType.toString()
                         .replace(Regex("^\\*(.+)$")) { it.groupValues[1] + "ptr" }
                         .replace("%", "")
-                ) + "_or_exc"
+                )
             }
         }
     }

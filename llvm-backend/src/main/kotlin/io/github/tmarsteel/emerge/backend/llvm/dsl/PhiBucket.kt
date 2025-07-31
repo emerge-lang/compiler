@@ -9,6 +9,8 @@ class PhiBucket<E : LlvmType>(val type: E) {
     private val branches = ArrayList<LlvmBasicBlockRef>()
     private val results = ArrayList<LlvmValueRef>()
 
+    val hasAnyResults: Boolean get()= branches.any()
+
     private var built = false
 
     context(BasicBlockBuilder<*, *>)
