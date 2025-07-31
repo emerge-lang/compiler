@@ -226,9 +226,9 @@ class BoundClassConstructor(
     }
 
     private val backendIr by lazy {
-        val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         val initIr = ArrayList<IrExecutable>()
         initIr.add(IrUpdateSourceLocationStatementImpl(declaredAt))
+        val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         initIr.add(selfTemporary)
         if (classDef === functionRootContext.swCtx.weak) {
             check(boundBody.isNoop) {

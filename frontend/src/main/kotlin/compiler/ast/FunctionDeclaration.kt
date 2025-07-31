@@ -52,6 +52,7 @@ data class FunctionDeclaration(
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
         val boundParameterList = parameters.bindTo(functionRootContext)
+        val boundBody = body?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(boundParameterList.modifiedContext))
 
         boundFn = BoundTopLevelFunction(
             context,
@@ -60,7 +61,7 @@ data class FunctionDeclaration(
             attributes,
             boundTypeParams,
             boundParameterList,
-            body?.bindTo(boundParameterList.modifiedContext),
+            boundBody,
         )
         return boundFn
     }
@@ -77,6 +78,7 @@ data class FunctionDeclaration(
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
         val lazyReceiverType = { context.resolveType(receiverType) as RootResolvedTypeReference }
         val boundParameterList = parameters.bindTo(functionRootContext, lazyReceiverType)
+        val boundBody = body?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(boundParameterList.modifiedContext))
 
         boundFn = BoundDeclaredBaseTypeMemberFunction(
             context,
@@ -85,7 +87,7 @@ data class FunctionDeclaration(
             attributes,
             boundTypeParams,
             boundParameterList,
-            body?.bindTo(boundParameterList.modifiedContext),
+            boundBody,
             getTypeDef,
             lazyReceiverType,
         )

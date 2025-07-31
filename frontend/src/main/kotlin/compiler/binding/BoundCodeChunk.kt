@@ -161,6 +161,10 @@ class BoundCodeChunk(
     }
 
     private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
+        if (!context.isScopeBoundary) {
+            return emptyList()
+        }
+
         return modifiedContext
             .getScopeLocalDeferredCode()
             .mapToBackendIrWithDebugLocations()
