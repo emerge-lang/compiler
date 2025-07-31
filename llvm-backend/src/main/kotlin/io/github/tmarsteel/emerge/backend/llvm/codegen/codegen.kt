@@ -130,7 +130,7 @@ import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
-import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import kotlin.properties.Delegates
 
 internal sealed interface ExecutableResult {
@@ -332,13 +332,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 // throw inside a try-catch, jump directly to catch
                 if (functionHasNothrowAbi) {
                     // verify that the catch can even do something about the exception
-                    code.throwable.type.findSimpleTypeBound().baseType.allDistinctSupertypesExceptAny
-                        .filter { it.canonicalName.packageName == CanonicalElementName.Package(listOf("emerge", "core")) }
-                        .filter { it.canonicalName.simpleName == "Error" }
-                        .firstOrNull()
-                        ?.let {
-                            throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
-                        }
+                    val isStaticallyASubtypeOfError = code.throwable.type
+                        .findSimpleTypeBound().baseType
+                        .allDistinctSupertypesExceptAny
+                        .any { it.canonicalName == EmergeConstants.ERROR_TYPE_NAME }
+                    if (isStaticallyASubtypeOfError) {
+                        throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
+                    }
                 }
                 return ExpressionResult.Terminated(tryContext.jumpToCatchpad(exceptionPtr))
             }

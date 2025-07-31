@@ -217,7 +217,7 @@ open class MutableExecutionScopedCTContext protected constructor(
     override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
 
     override val isTryContext = false
-    override val isInTryContext get() = parentTryContext != null
+    override val isInTryContext get() = isTryContext || parentTryContext != null
 
     private var localDeferredCode: ArrayList<DeferrableExecutable>? = null
 
