@@ -208,6 +208,7 @@ class BoundInvocationExpression(
                 .mapNotNull { it.constructor }
                 .map { BoundOverloadSet.fromSingle(it) }
                 .toList()
+                .takeUnless { it.isEmpty() }
         }
         val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
         val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
