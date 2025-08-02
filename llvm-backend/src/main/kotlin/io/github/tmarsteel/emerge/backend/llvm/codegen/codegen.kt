@@ -583,45 +583,45 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 }
             }
 
-            if (callInstruction.type !is EmergeFallibleCallResult<*>) {
-                if (expression.evaluatesTo.isUnit) {
-                    return ExpressionResult.Value(context.pointerToUnitInstance)
-                }
+            val rawNonThrowableReturnValue = when {
+                callInstruction.type is EmergeFallibleCallResult<*> -> {
+                    // not checking functionHasNothrowAbi here, because it will turn into a panic at runtime if it's a nothrow context
+                    @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
+                    (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                        if (expression.landingpad == null) {
+                            return@abortOnException propagateOrPanic(exceptionPtr)
+                        }
+                        val invocationLandingpad = expression.landingpad!!
+                        invocationLandingpad.throwableVariable.emitRead = { exceptionPtr }
+                        invocationLandingpad.throwableVariable.emitWrite = {
+                            throw CodeGenerationException("Cannot write to exception variables in landingpads or catchpads!")
+                        }
+                        val landingpadResult = emitCode(
+                            invocationLandingpad.code,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed,
+                            tryContext,
+                        )
 
-                return ExpressionResult.Value(callInstruction)
+                        check(landingpadResult is ExpressionResult.Terminated) {
+                            "illegal IR - landingpad does not terminate. It should either catch or rethrow"
+                        }
+                        landingpadResult.termination
+                    }
+                }
+                else -> callInstruction
             }
 
-            // not checking functionHasNothrowAbi here, because it will turn into a panic at runtime if it's a nothrow context
-
-            @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
-            val unwrappedReturnValue = (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
-                if (expression.landingpad == null) {
-                    return@abortOnException propagateOrPanic(exceptionPtr)
-                }
-                val invocationLandingpad = expression.landingpad!!
-                invocationLandingpad.throwableVariable.emitRead = { exceptionPtr }
-                invocationLandingpad.throwableVariable.emitWrite = {
-                    throw CodeGenerationException("Cannot write to exception variables in landingpads or catchpads!")
-                }
-                val landingpadResult = emitCode(
-                    invocationLandingpad.code,
-                    functionReturnType,
-                    functionHasNothrowAbi,
-                    expressionResultUsed,
-                    tryContext,
-                )
-
-                check(landingpadResult is ExpressionResult.Terminated) {
-                    "illegal IR - landingpad does not terminate. It should either catch or rethrow"
-                }
-                landingpadResult.termination
+            val returnValueOrUnit = if (expression.evaluatesTo.isUnit) {
+                context.pointerToUnitInstance
+            } else {
+                rawNonThrowableReturnValue
             }
 
-            if (expression.evaluatesTo.isUnit) {
-                return ExpressionResult.Value(context.pointerToUnitInstance)
-            }
+            val autoboxedReturnValue = autoBoxOrUnbox(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
 
-            return ExpressionResult.Value(unwrappedReturnValue)
+            return ExpressionResult.Value(autoboxedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
