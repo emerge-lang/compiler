@@ -14,9 +14,11 @@ class DuplicateBaseTypesDiagnostic(
 ) {
     private val simpleName = duplicates.first().name.value
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(duplicates.map { SourceHint(it.declaredAt, severity = severity) })
+        with(builder) {
+            sourceHints(duplicates.map { SourceHint(it.declaredAt, severity = severity) })
+        }
     }
 
     override fun equals(other: Any?): Boolean {

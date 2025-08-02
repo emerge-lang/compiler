@@ -10,8 +10,10 @@ class DuplicateMemberVariableAttributeDiagnostic(
     "Duplicate member variable attribute ${duplicates.first().keyword.text}",
     duplicates.first().span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(duplicates.map { SourceHint(it.span, severity = severity) })
+        with(builder) {
+            sourceHints(duplicates.map { SourceHint(it.span, severity = severity) })
+        }
     }
 }

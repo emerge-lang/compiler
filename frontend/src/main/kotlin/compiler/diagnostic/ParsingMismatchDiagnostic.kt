@@ -11,16 +11,18 @@ class ParsingMismatchDiagnostic(
     "<mismatch>",
     actual.span
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderMessage() {
-        val uniqueAlternatives = expectedAlternatives.toSet()
-        val expectedFirstPart = uniqueAlternatives.singleOrNull() ?: "either of:"
-        text("Unexpected ${actual.toStringWithoutLocation()}, expected $expectedFirstPart")
-        uniqueAlternatives
-            .takeIf { it.size > 1 }
-            ?.forEach {
-                assureOnBlankLine()
-                text("- $it")
-            }
+        with(builder) {
+            val uniqueAlternatives = expectedAlternatives.toSet()
+            val expectedFirstPart = uniqueAlternatives.singleOrNull() ?: "either of:"
+            text("Unexpected ${actual.toStringWithoutLocation()}, expected $expectedFirstPart")
+            uniqueAlternatives
+                .takeIf { it.size > 1 }
+                ?.forEach {
+                    assureOnBlankLine()
+                    text("- $it")
+                }
+        }
     }
 }

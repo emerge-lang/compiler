@@ -39,8 +39,9 @@ data class MultipleVariableDeclarationsDiagnostic(
     },
     additionalDeclaration.span
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(
             SourceHint(originalDeclaration.span, "originally declared here", relativeOrderMatters = true, severity = Severity.INFO),
             SourceHint(additionalDeclaration.span, "declared again here", relativeOrderMatters = true, severity = severity),
         )

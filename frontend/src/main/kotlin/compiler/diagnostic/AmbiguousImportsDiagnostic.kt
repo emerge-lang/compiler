@@ -11,12 +11,14 @@ data class AmbiguousImportsDiagnostic(
     "These imports are ambiguous, they all import the symbol ${commonSimpleName.quoteIdentifier()}",
     imports.first().declaredAt,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(*imports.flatMap { import ->
-            import.symbols
-                .filter { it.value == commonSimpleName }
-                .map { SourceHint(it.span, null, severity = severity) }
-        }.toTypedArray())
+        with(builder) {
+            sourceHints(*imports.flatMap { import ->
+                import.symbols
+                    .filter { it.value == commonSimpleName }
+                    .map { SourceHint(it.span, null, severity = severity) }
+            }.toTypedArray())
+        }
     }
 }

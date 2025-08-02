@@ -12,8 +12,9 @@ class ObjectUsedBeforeMixinInitializationDiagnostic(
     "The object is not fully initialized yet. A mixin must still be initialized.",
     objectUsedAt,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(
             SourceHint(span, "Object used before initialization is complete", severity = severity),
             SourceHint(uninitializedMixin.span, "This mixin is not yet initialized", severity = Severity.INFO),
         )

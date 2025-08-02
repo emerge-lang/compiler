@@ -12,12 +12,18 @@ class ExtendingOwnershipOverrideDiagnostic(
     "Cannot extend ownership of parameter ${override.name}",
     override.declaration.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(
-            SourceHint(superParameter.ownershipSpan, "overridden function borrows the parameter", severity = Severity.INFO),
-            SourceHint(override.ownershipSpan, "override cannot capture it", severity = severity),
-        )
+        with(builder) {
+            sourceHints(
+                SourceHint(
+                    superParameter.ownershipSpan,
+                    "overridden function borrows the parameter",
+                    severity = Severity.INFO
+                ),
+                SourceHint(override.ownershipSpan, "override cannot capture it", severity = severity),
+            )
+        }
     }
 
     override fun equals(other: Any?): Boolean {

@@ -16,10 +16,19 @@ class VirtualAndActualMemberVariableNameClashDiagnostic(
         SourceHint(it.declaredAt, "an accessor is declared here", false)
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(
-            listOf(SourceHint(memberVar.span, "member variable declared as a field here", true, severity = Severity.INFO)) + accessorsDeclarationHints
-        )
+        with(builder) {
+            sourceHints(
+                listOf(
+                    SourceHint(
+                        memberVar.span,
+                        "member variable declared as a field here",
+                        true,
+                        severity = Severity.INFO
+                    )
+                ) + accessorsDeclarationHints
+            )
+        }
     }
 }

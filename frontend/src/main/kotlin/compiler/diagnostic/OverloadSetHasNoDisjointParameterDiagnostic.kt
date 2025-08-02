@@ -13,9 +13,11 @@ class OverloadSetHasNoDisjointParameterDiagnostic(
     val overloadSetName = overloadSet.overloads.first().canonicalName
     val overloadSetParameterCount = overloadSet.overloads.first().parameters.parameters.size
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(overloadSet.overloads.map {  SourceHint(it.declaredAt, severity = severity) })
+        with(builder) {
+            sourceHints(overloadSet.overloads.map { SourceHint(it.declaredAt, severity = severity) })
+        }
     }
 
     override fun equals(other: Any?): Boolean {
