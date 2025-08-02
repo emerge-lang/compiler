@@ -129,7 +129,9 @@ internal sealed interface Autoboxer {
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun box(llvmValue: LlvmValue<*>): LlvmValue<*> {
-            check(llvmValue.type == unboxedType)
+            check(llvmValue.type == unboxedType) {
+                "cannot box an ${llvmValue.type} as a $unboxedType"
+            }
             val boxedType = getBoxedType(context)
             val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
                 propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
@@ -377,35 +379,37 @@ internal sealed interface Autoboxer {
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun autoBoxOrUnbox(llvmValue: LlvmValue<*>, irTypeOfValue: IrType, targetIrType: IrType): LlvmValue<*> {
             if (irTypeOfValue.independentEquals(targetIrType)) {
+                // ir types identical -> no autoboxing needed
                 return llvmValue
             }
 
             val valueAutoboxer = irTypeOfValue.autoboxer
             val targetAutoboxer = targetIrType.autoboxer
             if (valueAutoboxer == null && targetAutoboxer == null) {
+                // neither source type nor target type have autoboxing semantics -> no autoboxing needed
                 return llvmValue
             }
 
             if (valueAutoboxer == null) {
+                // the source type doesn't have autoboxing semantics
                 check(targetAutoboxer != null) { "assured by previous check" }
                 check(targetAutoboxer.isBox(context, irTypeOfValue))
-                if (targetAutoboxer.isBox(context, targetIrType)) {
-                    return llvmValue
-                } else {
-                    return targetAutoboxer.unbox(llvmValue)
+                return when {
+                    targetAutoboxer.isBox(context, targetIrType) -> llvmValue
+                    llvmValue.type == targetAutoboxer.unboxedType -> llvmValue
+                    else -> targetAutoboxer.unbox(llvmValue)
                 }
             }
 
             if (targetAutoboxer == null) {
-                return if (valueAutoboxer.isBox(context, irTypeOfValue)) {
-                    llvmValue
-                } else {
-                    valueAutoboxer.box(llvmValue)
+                return when {
+                    valueAutoboxer.isBox(context, irTypeOfValue) -> llvmValue
+                    else -> valueAutoboxer.box(llvmValue)
                 }
             }
 
             check(valueAutoboxer === targetAutoboxer) {
-                "autoboxing cannot convert between types - value is $irTypeOfValue, target is $targetIrType"
+                "autoboxing cannot convert between types - value is $irTypeOfValue, target is $targetIrType (${currentDebugLocation()})"
             }
 
             val valueIsBox = valueAutoboxer.isBox(context, irTypeOfValue)
