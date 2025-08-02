@@ -498,7 +498,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             expression.base.type.autoboxer?.let { autoboxer ->
                 if (autoboxer.isAccessingIntoTheBox(context, expression)) {
-                    val rewrittenValue = autoboxer.rewriteAccessIntoTheBox(expression)
+                    val rewrittenValue = autoboxer.rewriteAccessIntoTheBox( expression)
                     return ExpressionResult.Value(rewrittenValue)
                 }
             }

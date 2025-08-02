@@ -66,14 +66,16 @@ private fun BasicBlockBuilder<*, *>.printConstantString(printer: (LlvmValue<Llvm
     printer(constant, context.word(constant.type.pointed.elementCount))
 }
 
-context(BasicBlockBuilder<*, *>)
+context(builder: BasicBlockBuilder<*, *>)
 private val LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.typeName: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>> get() {
-    return this.anyValueBase()
-        .member { typeinfo }
-        .let { getelementptr(it.get().dereference()) }
-        .member { canonicalNamePtr }
-        .get()
-        .dereference()
+    with(builder) {
+        return this@typeName.anyValueBase()
+            .member { typeinfo }
+            .let { getelementptr(it.get().dereference()) }
+            .member { canonicalNamePtr }
+            .get()
+            .dereference()
+    }
 }
 
 private fun BasicBlockBuilder<out EmergeLlvmContext, *>.printStackTraceToStdErr() {

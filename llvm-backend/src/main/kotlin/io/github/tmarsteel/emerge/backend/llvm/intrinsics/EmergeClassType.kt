@@ -210,19 +210,19 @@ internal class EmergeClassType private constructor(
             return EmergeClassType(context, structRef, irClass)
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         internal fun GetElementPointerStep<EmergeClassType>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
-            return stepUnsafe(context.i32(0), EmergeHeapAllocatedValueBaseType)
+            return stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         fun GetElementPointerStep<EmergeClassType>.member(field: IrClass.Field): GetElementPointerStep<LlvmType> {
             if (field.isCPointerPointed) {
                 return this as GetElementPointerStep<LlvmType>
             }
 
             check(field in this@member.pointeeType.irClass.fields)
-            return stepUnsafe(context.i32(field.indexInLlvmStruct!!), context.getReferenceSiteType(field.type))
+            return stepUnsafe(builder.context.i32(field.indexInLlvmStruct!!), builder.context.getReferenceSiteType(field.type))
         }
     }
 }

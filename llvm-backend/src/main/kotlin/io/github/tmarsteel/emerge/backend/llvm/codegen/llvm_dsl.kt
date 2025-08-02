@@ -33,12 +33,12 @@ internal fun EmergeLlvmContext.emergeStringLiteral(value: String): LlvmGlobal<Em
     return emergeStringLiteral(value.toByteArray(Charsets.UTF_8))
 }
 
-context(BasicBlockBuilder<*, *>)
+context(b: BasicBlockBuilder<*, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
-    return this.type.pointed.pointerToCommonBase(this@BasicBlockBuilder, this@anyValueBase)
+    return this.type.pointed.pointerToCommonBase(b, this@anyValueBase)
 }
 
-context(BasicBlockBuilder<*, *>)
+context(b: BasicBlockBuilder<*, *>)
 internal fun LlvmType.sizeof(): LlvmValue<EmergeWordType> {
-    return LlvmValue(Llvm.LLVMSizeOf(this.getRawInContext(context)), EmergeWordType)
+    return LlvmValue(Llvm.LLVMSizeOf(this.getRawInContext(b.context)), EmergeWordType)
 }

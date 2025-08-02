@@ -53,13 +53,13 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
             return Base(basePointer, index)
         }
 
-        context(BasicBlockBuilder<*, *>)
+        context(builder: BasicBlockBuilder<*, *>)
         fun <S : LlvmStructType, MemberType : LlvmType> GetElementPointerStep<S>.member(
             accessor: S.() -> LlvmStructType.Member<out S, MemberType>
         ): GetElementPointerStep<MemberType> {
             val member = accessor(pointeeType)
             return stepUnsafe(
-                context.i32(member.indexInStruct),
+                builder.context.i32(member.indexInStruct),
                 member.type,
             )
         }

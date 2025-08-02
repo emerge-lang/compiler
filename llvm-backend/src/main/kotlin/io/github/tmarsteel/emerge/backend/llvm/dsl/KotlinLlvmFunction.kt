@@ -72,9 +72,9 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
             return KotlinLlvmFunction(name, declaredOn, returnType, definition)
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         fun <R : LlvmType> callIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, out R>, args: List<LlvmValue<*>>): LlvmValue<R> {
-            return call(context.registerIntrinsic(fn), args)
+            return builder.call(builder.context.registerIntrinsic(fn), args)
         }
     }
 }

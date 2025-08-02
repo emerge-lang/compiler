@@ -122,14 +122,14 @@ internal interface EmergeHeapAllocated : LlvmType {
  */
 internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType {
 
-    context(BasicBlockBuilder<C, R>)
+    context(builder: BasicBlockBuilder<C, R>)
     fun <C : EmergeLlvmContext, R : LlvmType> handle(
         compoundReturnValue: LlvmValue<EmergeFallibleCallResult<Value>>,
         regularBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<Value>) -> BasicBlockBuilder.Termination,
         exceptionBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
     )
 
-    context(BasicBlockBuilder<C, R>)
+    context(builder: BasicBlockBuilder<C, R>)
     fun <C : EmergeLlvmContext, R : LlvmType> abortOnException(
         compoundReturnValue: LlvmValue<EmergeFallibleCallResult<Value>>,
         abortBuilder: ExceptionAbortBuilder<C, R>,
@@ -140,45 +140,49 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
         val exceptionPtr by structMember(PointerToAnyEmergeValue)
         val returnValue by structMember(valueType)
 
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         override fun <C : EmergeLlvmContext, R : LlvmType> handle(
             compoundReturnValue: LlvmValue<EmergeFallibleCallResult<Value>>,
             regularBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<Value>) -> BasicBlockBuilder.Termination,
             exceptionBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
         ) {
-            @Suppress("UNCHECKED_CAST")
-            compoundReturnValue as LlvmValue<WithValue<Value>>
-            val exceptionPtr = extractValue(compoundReturnValue) { exceptionPtr }
-            conditionalBranch(
-                condition = isNull(exceptionPtr),
-                ifTrue = {
-                    val returnValue = extractValue(compoundReturnValue) { returnValue }
-                    regularBranch(returnValue)
-                },
-                ifFalse = {
-                    exceptionBranch(exceptionPtr)
-                }
-            )
+            with(builder) {
+                @Suppress("UNCHECKED_CAST")
+                compoundReturnValue as LlvmValue<WithValue<Value>>
+                val exceptionPtr = extractValue(compoundReturnValue) { exceptionPtr }
+                conditionalBranch(
+                    condition = isNull(exceptionPtr),
+                    ifTrue = {
+                        val returnValue = extractValue(compoundReturnValue) { returnValue }
+                        regularBranch(returnValue)
+                    },
+                    ifFalse = {
+                        exceptionBranch(exceptionPtr)
+                    }
+                )
+            }
         }
 
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         override fun <C : EmergeLlvmContext, R : LlvmType> abortOnException(
             compoundReturnValue: LlvmValue<EmergeFallibleCallResult<Value>>,
             abortBuilder: ExceptionAbortBuilder<C, R>,
             doAbort: ExceptionAbortBuilder<C, R>.(LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
         ): LlvmValue<Value> {
-            @Suppress("UNCHECKED_CAST")
-            compoundReturnValue as LlvmValue<WithValue<Value>>
-            val exceptionPtr = extractValue(compoundReturnValue) { exceptionPtr }
-            conditionalBranch(
-                condition = isNotNull(exceptionPtr),
-                ifTrue = {
-                    abortBuilder.doAbort(exceptionPtr)
-                },
-                branchBlockName = "fallible_result",
-            )
-            val returnValue = extractValue(compoundReturnValue) { returnValue }
-            return returnValue
+            with(builder) {
+                @Suppress("UNCHECKED_CAST")
+                compoundReturnValue as LlvmValue<WithValue<Value>>
+                val exceptionPtr = extractValue(compoundReturnValue) { exceptionPtr }
+                conditionalBranch(
+                    condition = isNotNull(exceptionPtr),
+                    ifTrue = {
+                        abortBuilder.doAbort(exceptionPtr)
+                    },
+                    branchBlockName = "fallible_result",
+                )
+                val returnValue = extractValue(compoundReturnValue) { returnValue }
+                return returnValue
+            }
         }
 
         override fun isAssignableTo(other: LlvmType): Boolean {
@@ -237,41 +241,45 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
             return PointerToAnyEmergeValue.toString()
         }
 
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         override fun <C : EmergeLlvmContext, R : LlvmType> handle(
             compoundReturnValue: LlvmValue<EmergeFallibleCallResult<LlvmVoidType>>,
             regularBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<LlvmVoidType>) -> BasicBlockBuilder.Termination,
             exceptionBranch: BasicBlockBuilder.Branch<C, R>.(LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
         ) {
-            val exceptionPtr = compoundReturnValue.reinterpretAs(PointerToAnyEmergeValue)
-            conditionalBranch(
-                condition = isNull(exceptionPtr),
-                ifTrue = {
-                    regularBranch(context.poisonValue(LlvmVoidType))
-                },
-                ifFalse = {
-                    exceptionBranch(exceptionPtr)
-                },
-                branchBlockName = "propagate_exc",
-            )
+            with(builder) {
+                val exceptionPtr = compoundReturnValue.reinterpretAs(PointerToAnyEmergeValue)
+                conditionalBranch(
+                    condition = isNull(exceptionPtr),
+                    ifTrue = {
+                        regularBranch(context.poisonValue(LlvmVoidType))
+                    },
+                    ifFalse = {
+                        exceptionBranch(exceptionPtr)
+                    },
+                    branchBlockName = "propagate_exc",
+                )
+            }
         }
 
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         override fun <C : EmergeLlvmContext, R : LlvmType> abortOnException(
             compoundReturnValue: LlvmValue<EmergeFallibleCallResult<LlvmVoidType>>,
             abortBuilder: ExceptionAbortBuilder<C, R>,
             doAbort: ExceptionAbortBuilder<C, R>.(LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
         ): LlvmValue<LlvmVoidType> {
-            val exceptionPtr = compoundReturnValue.reinterpretAs(PointerToAnyEmergeValue)
-            conditionalBranch(
-                condition = isNotNull(exceptionPtr),
-                ifTrue = {
-                    abortBuilder.doAbort(exceptionPtr)
-                },
-                branchBlockName = "fallible_result",
-            )
+            with(builder) {
+                val exceptionPtr = compoundReturnValue.reinterpretAs(PointerToAnyEmergeValue)
+                conditionalBranch(
+                    condition = isNotNull(exceptionPtr),
+                    ifTrue = {
+                        abortBuilder.doAbort(exceptionPtr)
+                    },
+                    branchBlockName = "fallible_result",
+                )
 
-            return context.poisonValue(LlvmVoidType)
+                return context.poisonValue(LlvmVoidType)
+            }
         }
 
         override fun isAssignableTo(other: LlvmType): Boolean {
@@ -298,30 +306,34 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
             return WithValue.invoke(valueType)
         }
 
-        context(BasicBlockBuilder<*, WithValue<T>>)
+        context(builder: BasicBlockBuilder<*, WithValue<T>>)
         fun <T : LlvmType> fallibleSuccess(value: LlvmValue<T>): LlvmValue<EmergeFallibleCallResult.WithValue<T>> {
-            var compoundValue = llvmFunctionReturnType.buildConstantIn(context) {
-                setNull(llvmFunctionReturnType.returnValue)
-                setNull(llvmFunctionReturnType.exceptionPtr)
-            } as LlvmValue<WithValue<T>>
-            compoundValue = insertValue(compoundValue, value) { llvmFunctionReturnType.returnValue }
-            return compoundValue
+            with(builder) {
+                var compoundValue = llvmFunctionReturnType.buildConstantIn(context) {
+                    setNull(llvmFunctionReturnType.returnValue)
+                    setNull(llvmFunctionReturnType.exceptionPtr)
+                } as LlvmValue<WithValue<T>>
+                compoundValue = insertValue(compoundValue, value) { llvmFunctionReturnType.returnValue }
+                return compoundValue
+            }
         }
 
-        context(BasicBlockBuilder<*, out EmergeFallibleCallResult<*>>)
+        context(builder: BasicBlockBuilder<*, out EmergeFallibleCallResult<*>>)
         fun fallibleFailure(exceptionPointer: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>): BasicBlockBuilder.Termination {
-            when (llvmFunctionReturnType) {
-                is WithValue<*> -> {
-                    val llvmReturnTypeAsWithValue = llvmFunctionReturnType as WithValue<LlvmType>
-                    var compoundValue = llvmReturnTypeAsWithValue.buildConstantIn(context) {
-                        setPoison(llvmReturnTypeAsWithValue.returnValue)
-                        setNull(llvmReturnTypeAsWithValue.exceptionPtr)
-                    } as LlvmValue<WithValue<LlvmType>>
-                    compoundValue = insertValue(compoundValue, exceptionPointer) { exceptionPtr }
-                    return ret(compoundValue as LlvmValue<Nothing>)
-                }
-                is OfVoid -> {
-                    return ret(exceptionPointer.reinterpretAs(OfVoid) as LlvmValue<Nothing>)
+            with(builder) {
+                when (llvmFunctionReturnType) {
+                    is WithValue<*> -> {
+                        val llvmReturnTypeAsWithValue = llvmFunctionReturnType as WithValue<LlvmType>
+                        var compoundValue = llvmReturnTypeAsWithValue.buildConstantIn(context) {
+                            setPoison(llvmReturnTypeAsWithValue.returnValue)
+                            setNull(llvmReturnTypeAsWithValue.exceptionPtr)
+                        } as LlvmValue<WithValue<LlvmType>>
+                        compoundValue = insertValue(compoundValue, exceptionPointer) { exceptionPtr }
+                        return ret(compoundValue as LlvmValue<Nothing>)
+                    }
+                    is OfVoid -> {
+                        return ret(exceptionPointer.reinterpretAs(OfVoid) as LlvmValue<Nothing>)
+                    }
                 }
             }
         }
@@ -330,7 +342,7 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
          * Given a returned [compoundReturnValue] of `this` type, interprets it and transfers control either to [regularBranch] if the
          * call was successful or to [exceptionBranch] if the call resulted in an exception.
          */
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         fun <C : EmergeLlvmContext, R : LlvmType, Value : LlvmType> LlvmValue<EmergeFallibleCallResult<Value>>.handle(
             regularBranch: BasicBlockBuilder.Branch<C, R>.(returnValue: LlvmValue<Value>) -> BasicBlockBuilder.Termination,
             exceptionBranch: BasicBlockBuilder.Branch<C, R>.(exceptionPtr: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
@@ -345,13 +357,13 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
          * @return the actual return value, after having moved the [BasicBlockBuilder] to a new basic-block which
          * only executes on the successful-return path
          */
-        context(BasicBlockBuilder<C, R>)
+        context(builder: BasicBlockBuilder<C, R>)
         fun <C : EmergeLlvmContext, R : LlvmType, Value : LlvmType> LlvmValue<EmergeFallibleCallResult<Value>>.abortOnException(
             doAbort: ExceptionAbortBuilder<C, R>.(exceptionPtr: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>) -> BasicBlockBuilder.Termination
         ): LlvmValue<Value> {
             return this@abortOnException.type.abortOnException(
                 this@abortOnException,
-                ExceptionAbortBuilder(this@BasicBlockBuilder, this),
+                ExceptionAbortBuilder(builder, this),
                 doAbort
             )
         }
