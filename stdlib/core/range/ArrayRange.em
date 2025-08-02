@@ -10,30 +10,22 @@ export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Eleme
     export override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 
     export override get fn front(self) -> Element {
-        try {
-            return self.array[self.frontIndex]
-        } catch e {
-            if e is ArrayIndexOutOfBoundsError {
-                throw EmptyRangeException()
-            }
-
-            throw e
+        if self.isEmpty {
+            throw EmptyRangeException()
         }
+
+        return self.array.getOrPanic(self.frontIndex)
     }
 
     export override get fn back(self) -> Element {
-        try {
-            return self.array[self.backIndexPlus1 - 1]
-        } catch e {
-            if e is ArrayIndexOutOfBoundsError {
-                throw EmptyRangeException()
-            }
-
-            throw e
+        if self.isEmpty {
+            throw EmptyRangeException()
         }
+
+        return self.array.getOrPanic(self.backIndexPlus1 - 1)
     }
 
-    private get fn isEmpty(self) = self.frontIndex >= self.backIndexPlus1 or self.frontIndex >= self.array.size
+    private get nothrow fn isEmpty(self) = self.frontIndex >= self.backIndexPlus1 or self.frontIndex >= self.array.size
 
     export override fn popFront(self: mut _) {
         if self.isEmpty {
