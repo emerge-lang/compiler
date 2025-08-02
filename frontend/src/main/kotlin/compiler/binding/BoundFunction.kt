@@ -98,6 +98,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
         return CallFrameExit.FunctionBehavior(
             throws = when {
                 attributes.isDeclaredNothrow -> CallFrameExit.Occurrence.NEVER
+                mustThrowOrTerminate -> CallFrameExit.Occurrence.GUARANTEED
                 else -> CallFrameExit.Occurrence.POSSIBLY
             },
             terminates = when {

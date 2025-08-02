@@ -1,5 +1,6 @@
 package compiler.binding.context.effect
 
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 
 /**
@@ -52,5 +53,12 @@ abstract class SingletonEphemeralStateClass<State, Effect : SingletonEphemeralSt
 
     abstract class SingletonEffect(override val stateClass: SingletonEphemeralStateClass<*, *>) : SideEffect<Subject> {
         final override val subject = Subject
+    }
+
+    companion object {
+        @JvmStatic
+        fun <State> CTContext.getEphemeralState(stateClass: SingletonEphemeralStateClass<State, *>): State {
+            return getEphemeralState(stateClass, Subject)
+        }
     }
 }

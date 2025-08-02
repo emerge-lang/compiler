@@ -600,6 +600,10 @@ fun Diagnosis.uncertainTermination(function: BoundDeclaredFunction) {
     add(UncertainTerminationDiagnostic(function))
 }
 
+fun Diagnosis.unreachableCode(terminatingCode: BoundExecutable<*>, unreachableCode: BoundExecutable<*>) {
+    add(UnreachableCodeDiagnostic(terminatingCode.declaration, unreachableCode.declaration))
+}
+
 fun Diagnosis.conditionIsNotBoolean(condition: BoundExpression<*>) {
     val location = condition.declaration.span
     if (condition.type == null) {

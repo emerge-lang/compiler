@@ -83,6 +83,7 @@ object CallFrameExit : SingletonEphemeralStateClass<CallFrameExit.Behavior, Call
         val eitherThrowsReturnsOrTerminates: Occurrence = returns or throws or terminates,
     ) {
         val isGuaranteedToReturnThrowOrTerminate: Boolean = eitherThrowsReturnsOrTerminates == Occurrence.GUARANTEED
+        val isGuaranteedToReturnOrThrow: Boolean = eitherThrowsOrReturns == Occurrence.GUARANTEED
     }
 
     sealed class Effect : SingletonEffect(CallFrameExit) {

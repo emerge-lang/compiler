@@ -4,10 +4,10 @@ import compiler.ast.expression.AstTryCatchExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
-import compiler.binding.context.CTContext.Companion.getEphemeralState
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis

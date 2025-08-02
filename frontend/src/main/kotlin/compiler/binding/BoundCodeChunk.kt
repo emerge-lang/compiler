@@ -20,9 +20,9 @@ package compiler.binding
 
 import compiler.ast.AstCodeChunk
 import compiler.binding.context.CTContext
-import compiler.binding.context.CTContext.Companion.getEphemeralState
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
 import compiler.binding.expression.ValueUsage
@@ -37,6 +37,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.implicitlyEvaluatingAStatement
+import compiler.diagnostic.unreachableCode
 import compiler.handleCyclicInvocation
 import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -135,6 +136,20 @@ class BoundCodeChunk(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             statements.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            diagnoseUnreachableStatement(diagnosis)
+        }
+    }
+
+    private fun diagnoseUnreachableStatement(diagnosis: Diagnosis) {
+        val stmtIt = statements.iterator()
+        while (stmtIt.hasNext()) {
+            val statement = stmtIt.next()
+            if (statement.modifiedContext.getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
+                if (stmtIt.hasNext()) {
+                    diagnosis.unreachableCode(statement, stmtIt.next())
+                    return
+                }
+            }
         }
     }
 

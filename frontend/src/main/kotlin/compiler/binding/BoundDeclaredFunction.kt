@@ -6,9 +6,9 @@ import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
-import compiler.binding.context.CTContext.Companion.getEphemeralState
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.expression.ReturnValueFromFunctionUsage

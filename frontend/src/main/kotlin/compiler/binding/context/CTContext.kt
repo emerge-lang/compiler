@@ -29,7 +29,6 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.effect.EphemeralStateClass
-import compiler.binding.context.effect.SingletonEphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -160,18 +159,4 @@ interface CTContext {
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>>
-
-    companion object {
-        /**
-         * This cannot be declared on CTContext because of a bug (miscompilation) in the Kotlin 1.9 compiler:
-         * if it is placed as a default impl into the interface, then the following incorrect behavior is observed:
-         * [MultiBranchJoinExecutionScopedCTContext.getEphemeralState]`(SingletonEphemeralStateClass)` will end up
-         * executing the implementation [MutableExecutionScopedCTContext.getEphemeralState]`(EphemeralStateClass, Any)`
-         * instead of the override in [MultiBranchJoinExecutionScopedCTContext]. This avoids the problem.
-         */
-        @JvmStatic
-        fun <State> CTContext.getEphemeralState(stateClass: SingletonEphemeralStateClass<State, *>): State {
-            return getEphemeralState(stateClass, SingletonEphemeralStateClass.Subject)
-        }
-    }
 }
