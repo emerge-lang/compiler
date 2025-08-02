@@ -112,6 +112,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleSet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
@@ -1054,7 +1055,7 @@ private sealed interface ArrayDispatchOverride {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
                         EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC,
-                        context.registerIntrinsic(arrayAbstractFallibleGet).type,
+                        context.registerIntrinsic(arrayAbstractPanicGet).type,
                     )
 
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(

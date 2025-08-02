@@ -72,7 +72,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     private val virtualGetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
 
     /**
-     * A function of the signature (self: Array<Element>, index: UWord) -> Any, to be placed in the vtable.
+     * A function of the signature nothrow (self: Array<Element>, index: UWord) -> Any, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic boxing (e.g. S8 -> S8Box)
      */
     private val virtualGetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
@@ -84,7 +84,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     private val virtualSetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>,
 
     /**
-     * A function of the signature (self: Array<Element>, index: UWord, value: Any) -> Unit, to be placed in the vtable.
+     * A function of the signature nothrow (self: Array<Element>, index: UWord, value: Any) -> Unit, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic unboxing (e.g. S8Box -> S8)
      */
     private val virtualSetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
