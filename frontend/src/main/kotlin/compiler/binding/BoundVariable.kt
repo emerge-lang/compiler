@@ -52,7 +52,6 @@ import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.diagnostic.variableTypeNotDeclared
 import compiler.diagnostic.visibilityNotAllowedOnVariable
 import compiler.handleCyclicInvocation
-import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -156,7 +155,9 @@ class BoundVariable(
                         hasCircularInitialization = true
                     },
                 )
-                initializerExpression.setExpectedEvaluationResultType(typeInferenceStage2.expectedInitializerEvaluationType, diagnosis)
+                typeInferenceStage2.expectedInitializerEvaluationType?.let {
+                    initializerExpression.setExpectedEvaluationResultType(it, diagnosis)
+                }
                 initializerExpression.markEvaluationResultUsed()
             } else {
                 hasCircularInitialization = false
@@ -408,7 +409,7 @@ class BoundVariable(
 
         interface Sean2Stage {
             val typeAfterSean1: BoundTypeReference?
-            val expectedInitializerEvaluationType: BoundTypeReference
+            val expectedInitializerEvaluationType: BoundTypeReference?
             val utilizesInitializerType: Boolean
 
             fun doSean2WithInitializer(initializerExpression: BoundExpression<*>, diagnosis: Diagnosis): Sean3Stage
@@ -510,11 +511,14 @@ class BoundVariable(
                             ?.let(context::resolveType)
                             ?.defaultMutabilityTo(implicitMutability)
 
-                        override val expectedInitializerEvaluationType: BoundTypeReference
-                            get() = typeAfterSean1
-                                ?: context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaredAt)
-                                    .withCombinedNullability(declaredType?.nullability ?: TypeReference.Nullability.NULLABLE)
-                                    .withMutability(declaredType?.mutability ?: implicitMutability)
+                        override val expectedInitializerEvaluationType: BoundTypeReference?
+                            get() = when {
+                                typeAfterSean1 != null -> typeAfterSean1
+                                declaredType != null -> context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaredAt)
+                                    .withCombinedNullability(declaredType.nullability)
+                                    .withMutability(declaredType.mutability ?: implicitMutability)
+                                else -> null
+                            }
 
                         override fun doSean2WithInitializer(
                             initializerExpression: BoundExpression<*>,
@@ -604,33 +608,6 @@ class BoundVariable(
                     }
                 }
             }
-        }
-    }
-
-    companion object {
-        fun stronglyTypedNonReAssignable(
-            context: ExecutionScopedCTContext,
-            name: String,
-            type: BoundTypeReference,
-            kind: Kind,
-            span: Span,
-        ): BoundVariable {
-            return BoundVariable(
-                context,
-                VariableDeclaration(
-                    declaredAt = span,
-                    visibility = null,
-                    varToken = null,
-                    ownership = null,
-                    name = IdentifierToken(name, span),
-                    type.asAstReference(),
-                    null,
-                ),
-                BoundVisibility.default(context),
-                null,
-                TypeInferenceStrategy.NoInference,
-                kind,
-            )
         }
     }
 }
