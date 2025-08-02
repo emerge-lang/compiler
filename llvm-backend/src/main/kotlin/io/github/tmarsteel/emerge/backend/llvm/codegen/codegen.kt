@@ -795,7 +795,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         }
                         is ExpressionResult.Value -> {
                             fallibleCodeAlwaysTerminates = false
-                            resultBucket?.setBranchResult(fallibleExprResult.value)
+                            resultBucket?.setBranchResult(
+                                autoBoxOrUnbox(fallibleExprResult.value, expression.fallibleCode.evaluatesTo, expression.evaluatesTo)
+                            )
                             skipUnsafeBranch()
                         }
                     }
@@ -827,7 +829,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         }
                         is ExpressionResult.Value -> {
                             catchpadAlwaysTerminates = false
-                            resultBucket?.setBranchResult(catchpadResult.value)
+                            resultBucket?.setBranchResult(
+                                autoBoxOrUnbox(catchpadResult.value, expression.catchpad.evaluatesTo, expression.evaluatesTo)
+                            )
                             concludeBranch()
                         }
                     }

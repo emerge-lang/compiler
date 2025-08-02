@@ -20,7 +20,9 @@ class PhiBucket<E : LlvmType>(val type: E) {
             // look into extending this code if you encounter this error
             "phi node is already built, cannot add more branch results"
         }
-        assert(result.isLlvmAssignableTo(this.type))
+        check(result.isLlvmAssignableTo(this.type)) {
+            "cannot store an ${result.type} into a phi-bucket of type ${this.type}"
+        }
         branches.add(Llvm.LLVMGetInsertBlock(builder))
         results.add(result.raw)
     }
