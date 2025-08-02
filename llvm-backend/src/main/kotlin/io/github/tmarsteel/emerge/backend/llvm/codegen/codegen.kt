@@ -640,8 +640,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.word(expression.size)
-            val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
-            val arrayPtr = callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
+            val arrayType = context.getAllocationSiteType(expression.evaluatesTo)
+            val arrayPtr = if (arrayType is EmergeArrayType<*>) {
+                callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
+            } else {
+                if (expression.size == 0uL) {
+                    // the element type doesn't matter
+                    callIntrinsic(EmergeReferenceArrayType.constructorOfNullEntries, listOf(elementCount))
+                } else {
+                    throw CodeGenerationException("Cannot create an uninitialized array where the component type is not known (${expression.evaluatesTo} in ${currentDebugLocation()}")
+                }
+            }
             return ExpressionResult.Value(arrayPtr)
         }
         is IrIfExpression -> {

@@ -218,7 +218,6 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
         val writeToStdErr = buildStdErrPrinter()
 
         printConstantString(writeToStdErr, "PANIC! unhandled exception\n")
-        context.allocateFunction
         call(context.registerIntrinsic(displayThrowableToStdErr), listOf(exceptionPtr))
         printConstantString(writeToStdErr, "\nthis panic was triggered from this call chain:\n")
         printStackTraceToStdErr()
