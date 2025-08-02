@@ -12,7 +12,7 @@ This being a Kotlin/JVM codebase, you need the typical tools for that:
 
 #### Linux host
 
-To run the compiler on Ubuntu, install `llvm-18` and `lld-18` so that e.g. `llc-18` is available as a command.
+To run the compiler on Ubuntu, install `llvm-20` and `lld-20` so that e.g. `llc-20` is available as a command.
 Create a local copy of [](toolchain-config.yml.dist) and adapt it to your setup. You can then pass the path to
 that file to your development build of the compiler.
 
@@ -22,9 +22,9 @@ The windows distributions of LLVM don't include some important tools, e.g. a lin
 contains [a GitHub action to compile a windows build of LLVM](.github/workflows/build-llvm-windows.yaml)
 that includes the `lld` linker as a Windows executable.  You need to copy the build outputs of that action
 to the Windows machine you want to run the compiler on and then point the emerge compiler to that LLVM
-distribution. Say you extract the files to `F:\LLVM\18.1.5` so that e.g. `llc` is located at
-`F:\LLVM\18.1.5\bin\llc.exe`. Then you need to set `backends.x86_64-pc-linux-gnu.llvm-installation-directory`
-in toolchain-config.yml to `F:\LLVM\18.1.5` (copy from [](toolchain-config.yml.dist))
+distribution. Say you extract the files to `F:\LLVM\20.1.8` so that e.g. `llc` is located at
+`F:\LLVM\20.1.8\bin\llc.exe`. Then you need to set `backends.x86_64-pc-linux-gnu.llvm-installation-directory`
+in toolchain-config.yml to `F:\LLVM\20.1.8` (copy from [](toolchain-config.yml.dist))
 
 ### Pre-Built binaries
 

@@ -27,7 +27,7 @@ env:
   GLIBC_SOURCE_BALL_URL: "https://mirror.dogado.de/gnu/libc/glibc-2.41.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
-  LLVM_MAJOR_VERSION: "18"
+  LLVM_MAJOR_VERSION: "20"
   ZULU_JRE_URL: https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jre21.0.4-win_x64.zip
 
 jobs:
@@ -137,7 +137,7 @@ jobs:
           sudo ./llvm.sh "${{ env.LLVM_MAJOR_VERSION }}"
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
-        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
+        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B clean verify
   linux-distributables:
     name: Linux distributable archives
     runs-on: ubuntu-22.04

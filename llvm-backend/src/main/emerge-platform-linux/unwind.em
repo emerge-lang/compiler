@@ -45,7 +45,7 @@ read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> exc
     return stackList
 }
 
-// these structures are from LLVM-18s libunwind (libunwindh.h)
+// these structures are from LLVM-20s libunwind (libunwindh.h)
 // this works because right now, emerge classes have a layout identical to that of C structs
 // by the virtue of using LLVM and not re-ordering class variables to save space
 // this should be denoted ASAP with an attribute like rusts #[repr(C)] or another mechanism
