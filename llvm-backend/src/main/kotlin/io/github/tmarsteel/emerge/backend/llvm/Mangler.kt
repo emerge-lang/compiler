@@ -51,7 +51,9 @@ object Mangler {
     }
 
     private fun StringBuilder.appendLengthDelimitedText(text: String) {
-        appendEncodedNumber(text.length.toUInt())
+        // 0-length names are not a thing, so we can also save one number symbol
+        check(text.isNotEmpty())
+        appendEncodedNumber(text.length.toUInt() - 1u)
         append(text)
     }
 
@@ -66,7 +68,6 @@ object Mangler {
             } else {
                 append(digit.uppercase())
             }
-
         } while (remainingNumber > 0u)
     }
 
