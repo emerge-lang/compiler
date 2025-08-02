@@ -6,7 +6,6 @@ import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -35,9 +34,6 @@ class BoundArrayLiteralExpression(
     val elements: List<BoundExpression<*>>,
 ) : BoundLiteralExpression<ArrayLiteralExpression> {
     override val modifiedContext: ExecutionScopedCTContext = elements.lastOrNull()?.modifiedContext ?: context
-
-    override val throwBehavior get() = elements.map { it.throwBehavior }.reduceSequentialExecution()
-    override val returnBehavior get() = elements.map { it.returnBehavior }.reduceSequentialExecution()
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
     private var expectedElementType: BoundTypeReference? = null

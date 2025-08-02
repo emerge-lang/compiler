@@ -2,9 +2,9 @@ package compiler.ast.expression
 
 import compiler.ast.AstCodeChunk
 import compiler.ast.Executable
-import compiler.binding.context.ExceptionHandlingExecutionScopedCTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.TryBlockExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundTryCatchExpression
 import compiler.lexer.Span
@@ -22,7 +22,7 @@ class AstTryCatchExpression(
             is AstStatement -> AstCodeChunk(listOf(fallibleCode))
         }
         val boundFallibleCode = fallibleCodeAsChunk.bindTo(
-            ExceptionHandlingExecutionScopedCTContext(context)
+            TryBlockExecutionScopedCTContext(context)
         )
 
         return BoundTryCatchExpression(

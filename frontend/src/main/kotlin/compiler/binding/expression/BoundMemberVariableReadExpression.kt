@@ -102,8 +102,6 @@ class BoundMemberVariableReadExpression(
             ?.withCombinedNullability(if (valueType.isNullable && isNullSafeAccess) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
     }
 
-    override val throwBehavior get() = if (physicalMember != null) valueExpression.throwBehavior else getterInvocation.throwBehavior
-    override val returnBehavior get() = if (physicalMember != null) valueExpression.returnBehavior else getterInvocation.returnBehavior
     override val modifiedContext = getterInvocation.modifiedContext
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

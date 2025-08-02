@@ -14,10 +14,10 @@ import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.IrReturnStatementImpl
@@ -166,7 +166,10 @@ class BoundClassConstructor(
     override val purity = attributes.purity
 
     // this is for the memory allocation that can always throw OOM
-    override val throwBehavior = SideEffectPrediction.POSSIBLY
+    override val callFrameExitEffectOnInvocation = CallFrameExit.FunctionBehavior(
+        throws = CallFrameExit.Occurrence.POSSIBLY,
+        terminates = CallFrameExit.Occurrence.NEVER,
+    )
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
@@ -223,12 +226,12 @@ class BoundClassConstructor(
     }
 
     private val backendIr by lazy {
-        val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         val initIr = ArrayList<IrExecutable>()
         initIr.add(IrUpdateSourceLocationStatementImpl(declaredAt))
+        val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         initIr.add(selfTemporary)
         if (classDef === functionRootContext.swCtx.weak) {
-            check(boundBody.statements.isEmpty()) {
+            check(boundBody.isNoop) {
                 "Additional init code in ${classDef.canonicalName} is not supported"
             }
             val referencedObjTemporary = IrCreateTemporaryValueImpl(

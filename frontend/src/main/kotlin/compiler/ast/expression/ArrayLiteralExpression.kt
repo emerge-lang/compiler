@@ -1,9 +1,9 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
+import compiler.ast.Expression.Companion.chain
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundArrayLiteralExpression
-import compiler.binding.expression.BoundExpression
 import compiler.lexer.OperatorToken
 
 class ArrayLiteralExpression(
@@ -14,14 +14,6 @@ class ArrayLiteralExpression(
     override val span = leftBracket.span .. rightBracket.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundArrayLiteralExpression {
-        var carryContext = context
-        val boundElements = ArrayList<BoundExpression<*>>(elements.size)
-        for (element in elements) {
-            val boundElement = element.bindTo(carryContext)
-            boundElements.add(boundElement)
-            carryContext = boundElement.modifiedContext
-        }
-
-        return BoundArrayLiteralExpression(context, this, boundElements)
+        return BoundArrayLiteralExpression(context, this, elements.chain(context).toList())
     }
 }

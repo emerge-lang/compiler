@@ -6,10 +6,11 @@ import compiler.ast.expression.AstCastExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.expression.BoundExpression.Companion.wrapIrAsStatement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -38,13 +39,11 @@ class BoundCastExpression(
     val value: BoundExpression<*>,
     val safeCast: Boolean,
 ) : BoundExpression<Expression> by value {
-    override val throwBehavior: SideEffectPrediction? get() = when {
-        safeCast -> value.throwBehavior
-        else -> SideEffectPrediction.POSSIBLY
+    override val modifiedContext = if (safeCast) value.modifiedContext else {
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(value.modifiedContext)
+        newCtx.trackSideEffect(CallFrameExit.Effect.ThrowsPossibly)
+        newCtx
     }
-    override val returnBehavior: SideEffectPrediction? get() = value.returnBehavior
-
-    override val modifiedContext = value.modifiedContext
 
     override lateinit var type: BoundTypeReference
         private set

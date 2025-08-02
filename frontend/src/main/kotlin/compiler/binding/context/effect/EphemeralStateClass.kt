@@ -1,5 +1,6 @@
 package compiler.binding.context.effect
 
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 
 /**
@@ -24,15 +25,40 @@ interface EphemeralStateClass<Subject : Any, State, Effect : SideEffect<Subject>
 
     /**
      * Given a previous state [state] and a new state [advancedMaybe] that _may_ have manifested through
-     * [fold], returns a new state that encodes that information if necessary. In doubt, this function should
-     * just return [state]
+     * [fold], returns a new state that encodes that information if necessary.
+     *
+     * Simplistically: restrictive information/constraints is retained from [advancedMaybe] whereas permissive
+     * information/constraint relieves should not be retained from [advancedMaybe].
      */
     fun combineMaybe(state: State, advancedMaybe: State): State
 
     /**
      * Given two states of this effect, returns a new state that contains only information that be safely deducted
-     * from both states. It may also contain the information that some effects _may_ have occured, but aren't guaranteed
+     * from both states. It may also contain the information that some effects _may_ have occurred, but aren't guaranteed
      * to (a superposition, basically).
+     *
+     * Simplistically: restrictive information/constraints is retained from both states whereas permissive information
+     * or constraint relieves are only retained if present in both states.
      */
-    fun intersect(stateOne: State, stateTwo: State): State
+    fun combineExclusiveBranches(stateOne: State, stateTwo: State): State
+}
+
+abstract class SingletonEphemeralStateClass<State, Effect : SingletonEphemeralStateClass.SingletonEffect> :
+    EphemeralStateClass<SingletonEphemeralStateClass.Subject, State, Effect> {
+    final override fun getInitialState(subject: Subject): State = initialState
+
+    abstract val initialState: State
+
+    object Subject
+
+    abstract class SingletonEffect(override val stateClass: SingletonEphemeralStateClass<*, *>) : SideEffect<Subject> {
+        final override val subject = Subject
+    }
+
+    companion object {
+        @JvmStatic
+        fun <State> CTContext.getEphemeralState(stateClass: SingletonEphemeralStateClass<State, *>): State {
+            return getEphemeralState(stateClass, Subject)
+        }
+    }
 }

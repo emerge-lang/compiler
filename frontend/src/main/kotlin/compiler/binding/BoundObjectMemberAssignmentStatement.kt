@@ -9,6 +9,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
@@ -63,8 +64,9 @@ class BoundObjectMemberAssignmentStatement(
         declaration.span,
     ).bindTo(context, SetterFilter(), SetterDisambiguationBehavior)
 
-    override val targetThrowBehavior get() = if (physicalMembers.isNotEmpty()) SideEffectPrediction.NEVER else setterInvocation.throwBehavior
-    override val targetReturnBehavior get() = if (physicalMembers.isNotEmpty()) SideEffectPrediction.NEVER else setterInvocation.returnBehavior
+    // toAssignExpression is derived from targetObjectExpression
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
+    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetObjectExpression.semanticAnalysisPhase1(diagnosis)

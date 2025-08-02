@@ -3,7 +3,6 @@ package compiler.binding.expression
 import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
@@ -18,10 +17,8 @@ class BoundBreakExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstBreakExpression,
 ) : BoundScopeAbortingExpression() {
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
-
     private var parentLoop: BoundLoop<*>? = null
+    override val modifiedContext get()= context
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.parentLoop

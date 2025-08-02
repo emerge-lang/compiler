@@ -645,7 +645,7 @@ class EmergeLlvmContext(
                         "emerge.core.SWord" -> EmergeSWordArrayType
                         "emerge.core.UWord" -> EmergeUWordArrayType
                         "emerge.core.Bool" -> EmergeBooleanArrayType
-                        "emerge.core.Any" -> EmergeArrayBaseType
+                        "emerge.core.Any" -> if (component.variance == IrTypeVariance.OUT) EmergeArrayBaseType else EmergeReferenceArrayType
                         else -> EmergeReferenceArrayType
                     }
                 }

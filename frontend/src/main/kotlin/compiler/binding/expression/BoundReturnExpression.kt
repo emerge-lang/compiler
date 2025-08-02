@@ -23,9 +23,10 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -54,10 +55,10 @@ class BoundReturnExpression(
 
     val expression = declaration.expression?.bindTo(context)
 
-    override val throwBehavior get() = if (expression == null) SideEffectPrediction.NEVER else expression.throwBehavior
-    override val returnBehavior get() = when (throwBehavior) {
-        SideEffectPrediction.GUARANTEED -> SideEffectPrediction.NEVER
-        else -> SideEffectPrediction.GUARANTEED
+    override val modifiedContext: ExecutionScopedCTContext = run {
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(expression?.modifiedContext ?: context)
+        newCtx.trackSideEffect(CallFrameExit.Effect.Returns)
+        newCtx
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

@@ -1,7 +1,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.AstReflectExpression
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -22,8 +21,7 @@ class BoundReflectExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstReflectExpression
 ) : BoundExpression<AstReflectExpression> {
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
+    override val modifiedContext get()= context
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do

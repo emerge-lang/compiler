@@ -30,13 +30,10 @@ class BoundCatchBlockExpression(
         }
     }
 
-    override val modifiedContext = context
+    override val modifiedContext = catchCode.modifiedContext
     init {
         contextOfCatchCode.addDeferredCode(DeferredLocalVariableGCRelease(throwableVariable))
     }
-
-    override val throwBehavior get() = catchCode.throwBehavior
-    override val returnBehavior get() = catchCode.returnBehavior
 
     override val type get() = catchCode.type
     override val isEvaluationResultReferenceCounted: Boolean

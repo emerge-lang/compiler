@@ -2,10 +2,8 @@ package compiler.binding
 
 import compiler.ast.AssignmentStatement
 import compiler.ast.Expression
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.ImpurityVisitor
@@ -21,15 +19,6 @@ abstract class BoundAssignmentStatement<AstTarget : Expression>(
     override val declaration: AssignmentStatement<AstTarget>,
     val toAssignExpression: BoundExpression<*>
 ) : BoundStatement<AssignmentStatement<AstTarget>> {
-    protected abstract val targetThrowBehavior: SideEffectPrediction?
-    protected abstract val targetReturnBehavior: SideEffectPrediction?
-
-    final override val throwBehavior get() = targetThrowBehavior.combineSequentialExecution(toAssignExpression.throwBehavior)
-    final override val returnBehavior get() = targetReturnBehavior.combineSequentialExecution(toAssignExpression.returnBehavior)
-
-    protected val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
-    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
-
     private val seanHelper = SeanHelper()
 
     final override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

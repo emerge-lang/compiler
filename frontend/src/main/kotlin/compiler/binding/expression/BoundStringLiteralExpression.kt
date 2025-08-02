@@ -2,7 +2,6 @@ package compiler.binding.expression
 
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
@@ -17,9 +16,8 @@ class BoundStringLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: StringLiteralExpression,
 ) : BoundLiteralExpression<StringLiteralExpression> {
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
     override var type: BoundTypeReference? = null
+    override val modifiedContext get()= context
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
 

@@ -20,7 +20,6 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -49,9 +48,7 @@ open class BoundNumericLiteral(
     private val bindTimeDiagnostics: Collection<Diagnostic>
 ) : BoundLiteralExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
-
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
+    final override val modifiedContext get()= context
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         bindTimeDiagnostics.forEach(diagnosis::add)

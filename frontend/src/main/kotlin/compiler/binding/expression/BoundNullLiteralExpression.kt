@@ -20,7 +20,6 @@ package compiler.binding.expression
 
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
@@ -34,8 +33,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundNullLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: NullLiteralExpression
-) : BoundLiteralExpression<NullLiteralExpression>
-{
+) : BoundLiteralExpression<NullLiteralExpression> {
+    override val modifiedContext get()= context
+
     private var expectedType: BoundTypeReference? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedType = type
@@ -44,9 +44,6 @@ class BoundNullLiteralExpression(
     override val type: BoundTypeReference
         get() = context.swCtx.getBottomType(declaration.span)
             .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-
-    override val throwBehavior = SideEffectPrediction.NEVER
-    override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit

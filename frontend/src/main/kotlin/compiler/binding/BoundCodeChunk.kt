@@ -19,9 +19,10 @@
 package compiler.binding
 
 import compiler.ast.AstCodeChunk
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
 import compiler.binding.expression.ValueUsage
@@ -30,15 +31,18 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUnreachableStatementImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.implicitlyEvaluatingAStatement
+import compiler.diagnostic.unreachableCode
 import compiler.handleCyclicInvocation
 import compiler.util.mapToBackendIrWithDebugLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -52,12 +56,11 @@ class BoundCodeChunk(
 
     val statements: List<BoundExecutable<*>>,
 ) : BoundExpression<AstCodeChunk> {
-    override val returnBehavior get() = statements.map { it.returnBehavior }.reduceSequentialExecution()
-    override val throwBehavior get() = statements.map { it.throwBehavior }.reduceSequentialExecution()
-
     private val lastStatementAsExpression = statements.lastOrNull() as? BoundExpression<*>
 
     override var type: BoundTypeReference? = null
+
+    override val isNoop: Boolean get()= statements.all { it.isNoop }
 
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context
@@ -102,7 +105,7 @@ class BoundCodeChunk(
                 type = lastStatementAsExpression.type
             } else {
                 val lastStatement = statements.lastOrNull()
-                if (lastStatement?.throwBehavior == SideEffectPrediction.GUARANTEED || lastStatement?.returnBehavior == SideEffectPrediction.GUARANTEED) {
+                if (lastStatement?.modifiedContext?.getEphemeralState(CallFrameExit)?.isGuaranteedToReturnThrowOrTerminate == true) {
                     // implicit evaluation never matters
                     type = context.swCtx.getBottomType(lastStatement.declaration.span)
                 } else if (isInExpressionContext) {
@@ -133,6 +136,20 @@ class BoundCodeChunk(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             statements.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            diagnoseUnreachableStatement(diagnosis)
+        }
+    }
+
+    private fun diagnoseUnreachableStatement(diagnosis: Diagnosis) {
+        val stmtIt = statements.iterator()
+        while (stmtIt.hasNext()) {
+            val statement = stmtIt.next()
+            if (statement.modifiedContext.getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
+                if (stmtIt.hasNext()) {
+                    diagnosis.unreachableCode(statement, stmtIt.next())
+                    return
+                }
+            }
         }
     }
 
@@ -159,6 +176,10 @@ class BoundCodeChunk(
     }
 
     private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
+        if (!context.isScopeBoundary) {
+            return emptyList()
+        }
+
         return modifiedContext
             .getScopeLocalDeferredCode()
             .mapToBackendIrWithDebugLocations()
@@ -189,43 +210,48 @@ class BoundCodeChunk(
             .toMutableList()
 
         val lastStatement = statements.lastOrNull()
+        val irImplicitValueTemporary: IrCreateTemporaryValue
 
         if (lastStatement is BoundExpression<*>) {
             plainStatements.add(IrUpdateSourceLocationStatementImpl(lastStatement.declaration.span))
-            val implicitValueTemporary = IrCreateTemporaryValueImpl(
+            irImplicitValueTemporary = IrCreateTemporaryValueImpl(
                 lastStatement.toBackendIrExpression(),
                 expectedImplicitEvaluationResultType?.toBackendIr(),
             )
-            plainStatements += implicitValueTemporary
+            plainStatements.add(irImplicitValueTemporary)
             if (lastStatement.isEvaluationResultReferenceCounted) {
                 check(assureResultHasReferenceCountIncrement) {
                     "Reference counting bug: the implicit result is implicitly reference counted (${lastStatement::class.simpleName}) but the code using the result isn't aware."
                 }
             } else if (assureResultHasReferenceCountIncrement) {
-                plainStatements += IrCreateStrongReferenceStatementImpl(implicitValueTemporary)
+                plainStatements.add(IrCreateStrongReferenceStatementImpl(irImplicitValueTemporary))
             }
-            return IrImplicitEvaluationExpressionImpl(
-                IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
-                IrTemporaryValueReferenceImpl(implicitValueTemporary),
+        } else {
+            lastStatement?.toBackendIrStatement()?.let(plainStatements::add)
+            irImplicitValueTemporary = IrCreateTemporaryValueImpl(
+                IrStaticDispatchFunctionInvocationImpl(
+                    context.swCtx.unit.resolveMemberFunction("instance")
+                        .single { it.parameterCount == 0 }
+                        .overloads
+                        .single()
+                        .toBackendIr(),
+                    emptyList(),
+                    emptyMap(),
+                    context.swCtx.unit.irReadNotNullReference,
+                    null,
+                )
             )
+            plainStatements.add(irImplicitValueTemporary)
         }
 
-        val standInLiteralTemporary = IrCreateTemporaryValueImpl(
-            IrStaticDispatchFunctionInvocationImpl(
-                context.swCtx.unit.resolveMemberFunction("instance")
-                    .single { it.parameterCount == 0 }
-                    .overloads
-                    .single()
-                    .toBackendIr(),
-                emptyList(),
-                emptyMap(),
-                context.swCtx.unit.irReadNotNullReference,
-                null,
-            )
-        )
+        if (lastStatement?.modifiedContext?.getEphemeralState(CallFrameExit)?.isGuaranteedToReturnThrowOrTerminate == true) {
+            // end of code block is never reached
+            plainStatements.add(IrUnreachableStatementImpl("previous code should return, throw or terminate the program", true))
+        }
+
         return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
-            IrTemporaryValueReferenceImpl(standInLiteralTemporary),
+            IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
+            IrTemporaryValueReferenceImpl(irImplicitValueTemporary),
         )
     }
 

@@ -15,7 +15,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, State, P
     override fun getInitialState(subject: BoundVariable) = State.INITIAL
     override fun fold(state: State, effect: Effect) = state.fold(effect)
     override fun combineMaybe(state: State, advancedMaybe: State) = state.combineMaybe(advancedMaybe)
-    override fun intersect(stateOne: State, stateTwo: State) = stateOne.intersect(stateTwo)
+    override fun combineExclusiveBranches(stateOne: State, stateTwo: State) = stateOne.intersect(stateTwo)
 
     class State(
         private val knownMemberStates: Map<String, VariableInitialization.State>,
@@ -63,7 +63,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, State, P
         }
 
         fun combineMaybe(advancedMaybe: State) = combineEach(advancedMaybe, VariableInitialization::combineMaybe, { before, _ -> before })
-        fun intersect(other: State) = combineEach(other, VariableInitialization::intersect, Set<BoundMixinStatement>::intersect)
+        fun intersect(other: State) = combineEach(other, VariableInitialization::combineExclusiveBranches, Set<BoundMixinStatement>::intersect)
 
         fun getMemberInitializationState(member: BoundBaseTypeMemberVariable): VariableInitialization.State {
             return knownMemberStates[member.name] ?: VariableInitialization.State.INITIALIZED

@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.ast.AstForEachLoop
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -26,13 +25,6 @@ class BoundForEachLoop(
     val advanceRange: BoundExecutable<*>,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstForEachLoop> {
-    override val throwBehavior: SideEffectPrediction?
-        get() = listOf(rangeHolderDeclaration.throwBehavior, cursorInBodyDeclaration.throwBehavior, body.throwBehavior, advanceRange.throwBehavior)
-            .reduceSequentialExecution()
-    override val returnBehavior: SideEffectPrediction?
-        get() = listOf(rangeHolderDeclaration.returnBehavior, cursorInBodyDeclaration.returnBehavior, body.returnBehavior, advanceRange.returnBehavior)
-            .reduceSequentialExecution()
-
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         rangeHolderDeclaration.setNothrow(boundary)
         cursorInBodyDeclaration.setNothrow(boundary)
@@ -116,9 +108,9 @@ class BoundForEachLoop(
         private set
 
     private val backendIr: IrCodeChunk by lazy {
-        var cursorInBodyIr = cursorInBodyDeclaration.toBackendIrStatement()
+        val cursorInBodyIr = cursorInBodyDeclaration.toBackendIrStatement()
         irBeforeContinue = advanceRange.toBackendIrStatement()
-        var actualBodyIr = body.toBackendIrStatement()
+        val actualBodyIr = body.toBackendIrStatement()
         irLoopNode = IrLoopImpl(IrCodeChunkImpl(listOf(
             cursorInBodyIr, actualBodyIr, irBeforeContinue
         )))

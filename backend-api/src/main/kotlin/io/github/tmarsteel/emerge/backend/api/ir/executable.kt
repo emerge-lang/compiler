@@ -140,6 +140,31 @@ interface IrThrowStatement : IrExecutable {
      * the object to throw; must reference a non-null object of type `emerge.core.Throwable`
      */
     val throwable: IrTemporaryValueReference
+
+    /**
+     * Relevant in these two scenarios:
+     *
+     *     1.
+     *     IrTryCatchExpression(
+     *       fallibleCode = IrThrowStatement(...) // or somewhere nested
+     *     )
+     *
+     * and
+     *
+     *     2.
+     *     IrTryCatchExpression(
+     *       catchpad = IrThrowStatement(...) // or somehwere nested
+     *     )
+     *
+     * In the first case, the [IrThrowStatement] will be a direct jump to the catchpad if [ignoreLocalCatchBlock] is false.
+     * In the second case, the [IrThrowStatement] will be a direct jump to an enclosing catchpad, if any, if [ignoreLocalCatchBlock] is false.
+     * However, if [ignoreLocalCatchBlock] is true, the [IrThrowStatement] will immediately exit from the current function
+     * with the [throwable] as the exceptional result.
+     *
+     * In the emerge frontend, this is used to implement immediate propagation of uncatchable throwables (subclasses
+     * of emerge.core.Error).
+     */
+    val ignoreLocalCatchBlock: Boolean
 }
 
 /**

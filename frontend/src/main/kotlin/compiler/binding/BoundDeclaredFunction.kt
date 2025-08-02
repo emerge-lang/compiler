@@ -7,6 +7,8 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.expression.ReturnValueFromFunctionUsage
@@ -159,9 +161,7 @@ abstract class BoundDeclaredFunction(
                 }
 
                 // assure all paths return or throw
-                val isGuaranteedToTerminate = body.returnBehavior == SideEffectPrediction.GUARANTEED || body.throwBehavior == SideEffectPrediction.GUARANTEED
-
-                if (!isGuaranteedToTerminate) {
+                if (!body.modifiedContext.getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
                     val localReturnType = returnType
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
@@ -216,8 +216,6 @@ abstract class BoundDeclaredFunction(
             private val bodyDeclaration: FunctionDeclaration.Body.SingleExpression,
             val expression: BoundExpression<*>,
         ) : Body, BoundExecutable<Executable> by expression {
-            override val returnBehavior = SideEffectPrediction.GUARANTEED
-
             private var expectedReturnType: BoundTypeReference? = null
             private val seanHelper = SeanHelper()
 

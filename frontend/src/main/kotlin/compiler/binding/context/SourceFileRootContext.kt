@@ -79,8 +79,8 @@ class SourceFileRootContext(
 
             override val isScopeBoundary = false
             override val isFunctionRoot = false
-            override val isExceptionHandler = false
-            override val hasExceptionHandler = false
+            override val isTryContext = false
+            override val isInTryContext = false
             override val repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             override val imports = emptySet<BoundImportDeclaration>()
             override val allTypeParameters = emptySequence<BoundTypeParameter>()

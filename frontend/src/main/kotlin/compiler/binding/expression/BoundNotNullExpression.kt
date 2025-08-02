@@ -27,7 +27,9 @@ import compiler.binding.BoundFunction
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
@@ -55,8 +57,11 @@ class BoundNotNullExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override val throwBehavior get() = nullableExpression.throwBehavior
-    override val returnBehavior get() = nullableExpression.returnBehavior
+    override val modifiedContext: ExecutionScopedCTContext = run {
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(nullableExpression.modifiedContext)
+        newCtx.trackSideEffect(CallFrameExit.Effect.ThrowsPossibly)
+        newCtx
+    }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         nullableExpression.semanticAnalysisPhase1(diagnosis)

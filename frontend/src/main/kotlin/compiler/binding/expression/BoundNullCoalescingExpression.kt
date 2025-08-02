@@ -3,9 +3,6 @@ package compiler.binding.expression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.type.TypeReference
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.combineBranch
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
@@ -29,15 +26,6 @@ class BoundNullCoalescingExpression(
     val nullableExpression: BoundExpression<*>,
     val alternativeExpression: BoundExpression<*>,
 ) : BoundExpression<BinaryExpression> {
-    override val throwBehavior: SideEffectPrediction? get()= nullableExpression.throwBehavior.combineSequentialExecution(
-        // never because if nullableExpression is not null, no code gets executed
-        alternativeExpression.throwBehavior.combineBranch(SideEffectPrediction.NEVER)
-    )
-
-    override val returnBehavior: SideEffectPrediction? get() = nullableExpression.returnBehavior.combineSequentialExecution(
-        alternativeExpression.returnBehavior.combineBranch(SideEffectPrediction.NEVER)
-    )
-
     override val modifiedContext: ExecutionScopedCTContext = SingleBranchJoinExecutionScopedCTContext(nullableExpression.modifiedContext, alternativeExpression.modifiedContext)
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

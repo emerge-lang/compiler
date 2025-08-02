@@ -112,6 +112,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleSet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
@@ -130,7 +131,8 @@ import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
-import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import kotlin.properties.Delegates
 
 internal sealed interface ExecutableResult {
     object ExecutionOngoing : ExecutableResult
@@ -327,17 +329,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrThrowStatement -> {
             val exceptionPtr = code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue)
-            if (tryContext != null) {
+            if (tryContext != null && !code.ignoreLocalCatchBlock) {
                 // throw inside a try-catch, jump directly to catch
                 if (functionHasNothrowAbi) {
                     // verify that the catch can even do something about the exception
-                    code.throwable.type.findSimpleTypeBound().baseType.allDistinctSupertypesExceptAny
-                        .filter { it.canonicalName.packageName == CanonicalElementName.Package(listOf("emerge", "core")) }
-                        .filter { it.canonicalName.simpleName == "Error" }
-                        .firstOrNull()
-                        ?.let {
-                            throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
-                        }
+                    val isStaticallyASubtypeOfError = code.throwable.type
+                        .findSimpleTypeBound().baseType
+                        .allDistinctSupertypesExceptAny
+                        .any { it.canonicalName == EmergeConstants.ERROR_TYPE_NAME }
+                    if (isStaticallyASubtypeOfError) {
+                        throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
+                    }
                 }
                 return ExpressionResult.Terminated(tryContext.jumpToCatchpad(exceptionPtr))
             }
@@ -581,45 +583,45 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 }
             }
 
-            if (callInstruction.type !is EmergeFallibleCallResult<*>) {
-                if (expression.evaluatesTo.isUnit) {
-                    return ExpressionResult.Value(context.pointerToUnitInstance)
-                }
+            val rawNonThrowableReturnValue = when {
+                callInstruction.type is EmergeFallibleCallResult<*> -> {
+                    // not checking functionHasNothrowAbi here, because it will turn into a panic at runtime if it's a nothrow context
+                    @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
+                    (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                        if (expression.landingpad == null) {
+                            return@abortOnException propagateOrPanic(exceptionPtr)
+                        }
+                        val invocationLandingpad = expression.landingpad!!
+                        invocationLandingpad.throwableVariable.emitRead = { exceptionPtr }
+                        invocationLandingpad.throwableVariable.emitWrite = {
+                            throw CodeGenerationException("Cannot write to exception variables in landingpads or catchpads!")
+                        }
+                        val landingpadResult = emitCode(
+                            invocationLandingpad.code,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed,
+                            tryContext,
+                        )
 
-                return ExpressionResult.Value(callInstruction)
+                        check(landingpadResult is ExpressionResult.Terminated) {
+                            "illegal IR - landingpad does not terminate. It should either catch or rethrow"
+                        }
+                        landingpadResult.termination
+                    }
+                }
+                else -> callInstruction
             }
 
-            // not checking functionHasNothrowAbi here, because it will turn into a panic at runtime if it's a nothrow context
-
-            @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
-            val unwrappedReturnValue = (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
-                if (expression.landingpad == null) {
-                    return@abortOnException propagateOrPanic(exceptionPtr)
-                }
-                val invocationLandingpad = expression.landingpad!!
-                invocationLandingpad.throwableVariable.emitRead = { exceptionPtr }
-                invocationLandingpad.throwableVariable.emitWrite = {
-                    throw CodeGenerationException("Cannot write to exception variables in landingpads or catchpads!")
-                }
-                val landingpadResult = emitCode(
-                    invocationLandingpad.code,
-                    functionReturnType,
-                    functionHasNothrowAbi,
-                    expressionResultUsed,
-                    tryContext,
-                )
-
-                check(landingpadResult is ExpressionResult.Terminated) {
-                    "illegal IR - landingpad does not terminate. It should either catch or rethrow"
-                }
-                landingpadResult.termination
+            val returnValueOrUnit = if (expression.evaluatesTo.isUnit) {
+                context.pointerToUnitInstance
+            } else {
+                rawNonThrowableReturnValue
             }
 
-            if (expression.evaluatesTo.isUnit) {
-                return ExpressionResult.Value(context.pointerToUnitInstance)
-            }
+            val autoboxedReturnValue = autoBoxOrUnbox(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
 
-            return ExpressionResult.Value(unwrappedReturnValue)
+            return ExpressionResult.Value(autoboxedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
@@ -639,8 +641,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.word(expression.size)
-            val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
-            val arrayPtr = callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
+            val arrayType = context.getAllocationSiteType(expression.evaluatesTo)
+            val arrayPtr = if (arrayType is EmergeArrayType<*>) {
+                callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
+            } else {
+                if (expression.size == 0uL) {
+                    // the element type doesn't matter
+                    callIntrinsic(EmergeReferenceArrayType.constructorOfNullEntries, listOf(elementCount))
+                } else {
+                    throw CodeGenerationException("Cannot create an uninitialized array where the component type is not known (${expression.evaluatesTo} in ${currentDebugLocation()}")
+                }
+            }
             return ExpressionResult.Value(arrayPtr)
         }
         is IrIfExpression -> {
@@ -763,9 +774,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val tryCatchResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo, false)
             val resultBucket = if (expressionResultUsed) PhiBucket(tryCatchResultLlvmType) else null
             val exceptionBucket = PhiBucket(PointerToAnyEmergeValue)
+            var fallibleCodeAlwaysTerminates: Boolean by Delegates.notNull()
+            var catchpadAlwaysTerminates: Boolean by Delegates.notNull()
             unsafeBranch(
-                prepareBlockName = "try",
-                prepare = {
+                prepare = fallible@{
                     val fallibleExprResult = emitExpressionCode(
                         expression.fallibleCode,
                         functionReturnType,
@@ -776,37 +788,60 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                             jumpToUnsafeBranch()
                         }
                     )
-                    when (fallibleExprResult) {
-                        is ExpressionResult.Terminated -> fallibleExprResult.termination
+                    return@fallible when (fallibleExprResult) {
+                        is ExpressionResult.Terminated -> {
+                            fallibleCodeAlwaysTerminates = true
+                            fallibleExprResult.termination
+                        }
                         is ExpressionResult.Value -> {
-                            resultBucket?.setBranchResult(fallibleExprResult.value)
+                            fallibleCodeAlwaysTerminates = false
+                            resultBucket?.setBranchResult(
+                                autoBoxOrUnbox(fallibleExprResult.value, expression.fallibleCode.evaluatesTo, expression.evaluatesTo)
+                            )
                             skipUnsafeBranch()
                         }
                     }
                 },
-                branchBlockName = "catch",
-                branch = {
-                    val exceptionPtr = exceptionBucket.buildPhi()
-                    expression.throwableVariable.emitRead = { exceptionPtr }
-                    expression.throwableVariable.emitWrite = {
-                        throw CodeGenerationException("Cannot write to the exception variable of a catch")
+                branchBlockName = "catchpad",
+                branch = catchpad@{
+                    val catchpadResult = if (exceptionBucket.hasAnyResults) {
+                        val exceptionPtr = exceptionBucket.buildPhi()
+                        expression.throwableVariable.emitRead = { exceptionPtr }
+                        expression.throwableVariable.emitWrite = {
+                            throw CodeGenerationException("Cannot write to the exception variable of a catch")
+                        }
+                        emitExpressionCode(
+                            expression.catchpad,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed,
+                            tryContext,
+                        )
+                    } else {
+                        // catchpad is never reached
+                        ExpressionResult.Terminated(unreachable())
                     }
-                    val catchpadResult = emitExpressionCode(
-                        expression.catchpad,
-                        functionReturnType,
-                        functionHasNothrowAbi,
-                        expressionResultUsed,
-                        tryContext,
-                    )
-                    when (catchpadResult) {
-                        is ExpressionResult.Terminated -> catchpadResult.termination
+
+                    return@catchpad when (catchpadResult) {
+                        is ExpressionResult.Terminated -> {
+                            catchpadAlwaysTerminates = true
+                            catchpadResult.termination
+                        }
                         is ExpressionResult.Value -> {
-                            resultBucket?.setBranchResult(catchpadResult.value)
+                            catchpadAlwaysTerminates = false
+                            resultBucket?.setBranchResult(
+                                autoBoxOrUnbox(catchpadResult.value, expression.catchpad.evaluatesTo, expression.evaluatesTo)
+                            )
                             concludeBranch()
                         }
                     }
-                }
+                },
+                resumeBlockName = "after_catch",
             )
+
+            if (fallibleCodeAlwaysTerminates && catchpadAlwaysTerminates) {
+                return ExpressionResult.Terminated(unreachable())
+            }
 
             return ExpressionResult.Value(
                 resultBucket?.buildPhi() ?: context.poisonValue(tryCatchResultLlvmType)
@@ -1024,7 +1059,7 @@ private sealed interface ArrayDispatchOverride {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
                         EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC,
-                        context.registerIntrinsic(arrayAbstractFallibleGet).type,
+                        context.registerIntrinsic(arrayAbstractPanicGet).type,
                     )
 
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
