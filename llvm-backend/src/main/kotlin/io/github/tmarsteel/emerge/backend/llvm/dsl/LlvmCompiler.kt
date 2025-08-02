@@ -51,7 +51,7 @@ class LlvmCompiler(private val llcBinary: Path) {
     companion object {
         fun fromLlvmInstallationDirectory(llvmInstallationDirectory: Path): LlvmCompiler {
             return LlvmCompiler(
-                ToolDiscoverer.INSTANCE.discover(llvmInstallationDirectory.resolve("bin").resolve("llc").toString(), "llc-18")
+                ToolDiscoverer.INSTANCE.discover(llvmInstallationDirectory.resolve("bin").resolve("llc").toString(), "llc-20")
             )
         }
     }

@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * LLVM C interface functions mapped for LLVM-18 using JNA.
+ * LLVM C interface functions mapped for LLVM-20 using JNA.
  */
 public class Llvm {
     private volatile static Path LLVM_DIR = null;
@@ -24,14 +24,14 @@ public class Llvm {
                 return;
             }
             LLVM_DIR = llvmInstallationDirectory;
-            NativeLibrary.addSearchPath("LLVM-18", LLVM_DIR.resolve("lib").toString());
+            NativeLibrary.addSearchPath("LLVM-20", LLVM_DIR.resolve("lib").toString());
             NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
             Map<String, Object> options = Map.of(
                     Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
             );
             NativeLibrary llvmLib;
             try {
-                llvmLib = NativeLibrary.getInstance("LLVM-18", options);
+                llvmLib = NativeLibrary.getInstance("LLVM-20", options);
             }
             catch (UnsatisfiedLinkError ex) {
                 try {

@@ -43,7 +43,7 @@ interface ToolDiscoverer {
      * Discovers a single tool on the system running this code.
      * Multiple command names can be specified, and the first to match will
      * be returned. Intended use is to fall back on more general/less optiomal
-     * tools, e.g. `lld-18` to `ld`.
+     * tools, e.g. `lld-20` to `ld`.
      * @throws ToolNotFoundException
      */
     fun discover(vararg commandNames: String): Path

@@ -48,7 +48,7 @@ class LinuxLinker(val linkerBinary: Path) {
             return LinuxLinker(
                 ToolDiscoverer.INSTANCE.discover(
                     llvmInstallationDirectory.resolve("bin").resolve("ld.lld").toString(),
-                    "ld.lld-18",
+                    "ld.lld-20",
                     "ld",
                 )
             )
