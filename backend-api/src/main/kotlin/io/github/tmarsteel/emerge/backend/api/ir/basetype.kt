@@ -44,6 +44,8 @@ interface IrClass : IrBaseType {
 
     val destructor: IrFunction
 
+    val declaredAt: IrSourceLocation
+
     interface MemberVariable {
         val name: String
 
@@ -58,6 +60,8 @@ interface IrClass : IrBaseType {
          * how to write this member variable
          */
         val writeStrategy: AccessStrategy
+
+        val declaredAt: IrSourceLocation
 
         sealed interface AccessStrategy {
             /**
