@@ -18,8 +18,8 @@ data class ConfigModuleDefinition(
     val uses: Set<CanonicalElementName.Package> = emptySet()
 ) {
     val implicitlyUses: Set<CanonicalElementName.Package> = when (this.name) {
-        EmergeConstants.CORE_MODULE_NAME -> emptySet()
-        EmergeConstants.STD_MODULE_NAME -> setOf(EmergeConstants.CORE_MODULE_NAME)
-        else -> setOf(EmergeConstants.CORE_MODULE_NAME, EmergeConstants.STD_MODULE_NAME)
+        EmergeConstants.CoreModule.NAME -> emptySet()
+        EmergeConstants.StdModule.NAME -> setOf(EmergeConstants.CoreModule.NAME)
+        else -> setOf(EmergeConstants.CoreModule.NAME, EmergeConstants.StdModule.NAME)
     }
 }
