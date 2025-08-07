@@ -6,13 +6,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedValueBaseType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
@@ -20,7 +20,7 @@ internal fun EmergeLlvmContext.emergeStringLiteral(utf8Bytes: ByteArray): LlvmGl
     val byteArrayConstant = EmergeS8ArrayType.buildConstantIn(
         this,
         utf8Bytes.asList(),
-        { i8(it) }
+        { s8(it) }
     )
     val byteArrayGlobal = addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     val stringLiteralConstant = stringType.buildStaticConstant(mapOf(
@@ -39,6 +39,6 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.anyValueBase():
 }
 
 context(b: BasicBlockBuilder<*, *>)
-internal fun LlvmType.sizeof(): LlvmValue<EmergeWordType> {
-    return LlvmValue(Llvm.LLVMSizeOf(this.getRawInContext(b.context)), EmergeWordType)
+internal fun LlvmType.sizeof(): LlvmValue<EmergeUWordType> {
+    return LlvmValue(Llvm.LLVMSizeOf(this.getRawInContext(b.context)), EmergeUWordType)
 }

@@ -6,7 +6,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
@@ -28,7 +28,7 @@ val EmergeEntrypoint = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType
             }
         }
 
-        call(context.exitFunction, listOf(context.i32(0)))
+        call(context.exitFunction, listOf(context.s32(0)))
         retVoid()
     }
 }

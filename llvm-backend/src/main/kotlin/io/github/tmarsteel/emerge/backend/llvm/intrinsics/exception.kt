@@ -13,15 +13,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
@@ -33,8 +34,8 @@ import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 
 // TODO: rename file to panic.kt
 
-private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildPrinter(fd: LlvmValue<LlvmI32Type>): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
-    return { dataPtr: LlvmValue<LlvmPointerType<*>>, dataLen: LlvmValue<EmergeWordType> ->
+private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildPrinter(fd: LlvmValue<LlvmS32Type>): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeUWordType>) -> Unit {
+    return { dataPtr: LlvmValue<LlvmPointerType<*>>, dataLen: LlvmValue<EmergeUWordType> ->
         call(context.libcWriteFunction, listOf(
             fd,
             dataPtr,
@@ -43,27 +44,27 @@ private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildPrinter(fd: LlvmVal
     }
 }
 
-private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
-    return buildPrinter(context.i32(2) /* FD_STDERR */)
+private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeUWordType>) -> Unit {
+    return buildPrinter(context.s32(2) /* FD_STDERR */)
 }
 
-private fun LlvmContext.constantString(data: String): LlvmGlobal<LlvmArrayType<LlvmI8Type>> {
-    val bytes = data.toByteArray(Charsets.UTF_8).map { i8(it) }
+private fun LlvmContext.constantString(data: String): LlvmGlobal<LlvmArrayType<LlvmS8Type>> {
+    val bytes = data.toByteArray(Charsets.UTF_8).map { s8(it) }
     return addGlobal(
-        LlvmArrayType(bytes.size.toLong(), LlvmI8Type).buildConstantIn(this, bytes),
+        LlvmArrayType(bytes.size.toLong(), LlvmS8Type).buildConstantIn(this, bytes),
         LlvmThreadLocalMode.NOT_THREAD_LOCAL
     )
 }
 
-private fun BasicBlockBuilder<*, *>.printLinefeed(printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit) {
-    val linefeedData = alloca(LlvmI8Type)
-    store(context.i8(10), linefeedData)
-    printer(linefeedData, context.word(1))
+private fun BasicBlockBuilder<*, *>.printLinefeed(printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeUWordType>) -> Unit) {
+    val linefeedData = alloca(LlvmS8Type)
+    store(context.s8(10), linefeedData)
+    printer(linefeedData, context.uWord(1u))
 }
 
-private fun BasicBlockBuilder<*, *>.printConstantString(printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit, str: String) {
+private fun BasicBlockBuilder<*, *>.printConstantString(printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeUWordType>) -> Unit, str: String) {
     val constant = context.constantString(str)
-    printer(constant, context.word(constant.type.pointed.elementCount))
+    printer(constant, context.uWord(constant.type.pointed.elementCount.toULong()))
 }
 
 context(builder: BasicBlockBuilder<*, *>)
@@ -83,7 +84,7 @@ private fun BasicBlockBuilder<out EmergeLlvmContext, *>.printStackTraceToStdErr(
 }
 
 private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
-    printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit,
+    printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeUWordType>) -> Unit,
     stringPtr: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>,
 ) {
     val utf8DataField = context.stringType.irClass.memberVariables
@@ -110,8 +111,8 @@ private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
 
 private fun BasicBlockBuilder<*, *>.exit(status: UByte): BasicBlockBuilder.Termination {
     val exitFnAddr = context.getNamedFunctionAddress("exit")!!
-    val exitFnType = LlvmFunctionType(LlvmVoidType, listOf(LlvmI32Type))
-    call(exitFnAddr, exitFnType, listOf(context.i32(status.toUInt())))
+    val exitFnType = LlvmFunctionType(LlvmVoidType, listOf(LlvmS32Type))
+    call(exitFnAddr, exitFnType, listOf(context.u32(status.toUInt())))
     return unreachable()
 }
 
@@ -160,7 +161,7 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
 
     val fillStackTraceFnAddress = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
         exceptionPtr,
-        context.word(fillStackTraceIrFn.signatureHashes.first()),
+        context.uWord(fillStackTraceIrFn.signatureHashes.first()),
     ))
 
     call(
@@ -228,26 +229,26 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
 }
 
 internal val writeMemoryAddress = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.writeMemoryAddress", LlvmVoidType) {
-    val address by param(EmergeWordType)
-    val fd by param(LlvmI32Type)
+    val address by param(EmergeUWordType)
+    val fd by param(LlvmS32Type)
 
     body {
         val prefixGlobal = context.constantString("0x")
 
         val writer = buildPrinter(fd)
-        writer(prefixGlobal, context.word(prefixGlobal.type.pointed.elementCount))
+        writer(prefixGlobal, context.uWord(prefixGlobal.type.pointed.elementCount.toULong()))
 
         val nibbleCharsGlobal = context.constantString("0123456789abcdef")
 
         IntProgression.fromClosedRange(
-            rangeStart = EmergeWordType.getNBitsInContext(context) - 4,
+            rangeStart = EmergeUWordType.getNBitsInContext(context).toInt() - 4,
             rangeEnd = 0,
             step = -4
         ).forEach { shrAmount ->
-            val nibble = and(lshr(address, context.word(shrAmount)), context.word(0b1111))
+            val nibble = and(lshr(address, context.s32(shrAmount)), context.uWord(0b1111u))
             writer(
                 getelementptr(nibbleCharsGlobal).index(nibble).get(),
-                context.word(1),
+                context.uWord(1u),
             )
         }
 

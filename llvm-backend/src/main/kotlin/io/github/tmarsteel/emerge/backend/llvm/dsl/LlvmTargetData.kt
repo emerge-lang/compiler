@@ -9,4 +9,8 @@ class LlvmTargetData(
     val pointerSizeInBytes: Int by lazy {
         Llvm.LLVMPointerSize(ref)
     }
+
+    val pointerSizeInBits: ULong by lazy {
+        pointerSizeInBytes.toULong() * 8u
+    }
 }

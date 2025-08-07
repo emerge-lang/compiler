@@ -15,15 +15,15 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -47,8 +47,8 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
 }
 
 internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStructType("vtable_vectors$nEntries") {
-    val shiftLeftAmount by structMember(LlvmI32Type)
-    val shiftRightAmount by structMember(LlvmI32Type)
+    val shiftLeftAmount by structMember(LlvmU32Type)
+    val shiftRightAmount by structMember(LlvmU32Type)
     val addresses by structMember(LlvmArrayType(nEntries, LlvmFunctionAddressType))
 
     companion object {
@@ -106,7 +106,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: Kotl
         EmergeFallibleCallResult.WithValue(pointerTo(TypeinfoType.GENERIC)),
     ) {
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         body {
             inlineFallibleBoundsCheck(self, index)
             val raw = getelementptr(self)
@@ -129,7 +129,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinL
         pointerTo(TypeinfoType.GENERIC),
     ) {
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         body {
             val selfSize = getelementptr(self)
                 .member { base }
@@ -162,7 +162,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinL
         LlvmVoidType
     ) {
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
             inlinePanicBoundsCheck(self, index)
@@ -187,7 +187,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: Kotl
         EmergeFallibleCallResult.OfVoid,
     ) {
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
             inlinePanicBoundsCheck(self, index)
@@ -209,7 +209,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         EmergeFallibleCallResult.ofEmergeReference,
     ) {
         param(PointerToAnyEmergeValue)
-        param(EmergeWordType)
+        param(EmergeUWordType)
 
         body {
             inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
@@ -221,7 +221,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         PointerToAnyEmergeValue,
     ) {
         param(PointerToAnyEmergeValue)
-        param(EmergeWordType)
+        param(EmergeUWordType)
 
         body {
             inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
@@ -233,7 +233,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         EmergeFallibleCallResult.OfVoid,
     ) {
         param(PointerToAnyEmergeValue)
-        param(EmergeWordType)
+        param(EmergeUWordType)
         param(pointerTo(TypeinfoType.GENERIC))
 
         body {
@@ -246,7 +246,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         LlvmVoidType,
     ) {
         param(PointerToAnyEmergeValue)
-        param(EmergeWordType)
+        param(EmergeUWordType)
         param(pointerTo(TypeinfoType.GENERIC))
 
         body {
@@ -258,7 +258,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         "array_pointer_to_typeinfo_defaultValueCtor",
         PointerToAnyEmergeValue,
     ) {
-        param(EmergeWordType)
+        param(EmergeUWordType)
         param(pointerTo(TypeinfoType.GENERIC))
 
         body {
@@ -446,8 +446,8 @@ internal fun buildVTable(
 
     val vtableType = VTableType(entries.size.toLong())
     return vtableType.buildConstantIn(context) {
-        setValue(vtableType.shiftLeftAmount, context.i32(shiftLeftAmount))
-        setValue(vtableType.shiftRightAmount, context.i32(shiftRightAmount))
+        setValue(vtableType.shiftLeftAmount, context.u32(shiftLeftAmount.toUInt()))
+        setValue(vtableType.shiftRightAmount, context.u32(shiftRightAmount.toUInt()))
         setValue(vtableType.addresses, addressesArrayType.buildConstantIn(context, entries.map { fnPtr ->
             fnPtr?.address ?: missingFunction
         }))
@@ -487,7 +487,7 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
     functionAttribute(LlvmFunctionAttribute.Hot)
 
     val self by param(PointerToAnyEmergeValue)
-    val hash by param(EmergeWordType)
+    val hash by param(EmergeUWordType)
 
     body {
         val typeinfoPtr = self
@@ -500,13 +500,13 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
             .member { shiftLeftAmount }
             .get()
             .dereference()
-        val shiftLeftAmountWord = enlargeUnsigned(shiftLeftAmountI32, EmergeWordType)
+        val shiftLeftAmountWord = enlargeUnsigned(shiftLeftAmountI32, EmergeUWordType)
         val shiftRightAmountI32 = getelementptr(typeinfoPtr)
             .member { vtable }
             .member { shiftRightAmount }
             .get()
             .dereference()
-        val shiftRightAmountWord = enlargeUnsigned(shiftRightAmountI32, EmergeWordType)
+        val shiftRightAmountWord = enlargeUnsigned(shiftRightAmountI32, EmergeUWordType)
 
         val reducedHash = lshr(shl(hash, shiftLeftAmountWord), shiftRightAmountWord)
         val functionAddress = getelementptr(typeinfoPtr)

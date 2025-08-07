@@ -13,9 +13,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
@@ -46,7 +46,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         return listOf(
             ConfigModuleDefinition(FFIC_MODULE_NAME, toolchainConfig.ffiCSources),
             ConfigModuleDefinition(LIBC_MODULE_NAME, toolchainConfig.libcSources, uses = setOf(FFIC_MODULE_NAME)),
-            ConfigModuleDefinition(EmergeConstants.PLATFORM_MODULE_NAME, toolchainConfig.platformSources, uses = setOf(FFIC_MODULE_NAME, LIBC_MODULE_NAME)),
+            ConfigModuleDefinition(EmergeConstants.PlatformModule.NAME, toolchainConfig.platformSources, uses = setOf(FFIC_MODULE_NAME, LIBC_MODULE_NAME)),
         )
     }
 
@@ -175,11 +175,11 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
                         .forEach(llvmContext::defineFunctionBody)
                 }
 
-            llvmContext.registerIntrinsic(KotlinLlvmFunction.define("_Ux86_64_setcontext", LlvmI32Type) {
+            llvmContext.registerIntrinsic(KotlinLlvmFunction.define("_Ux86_64_setcontext", LlvmS32Type) {
                 val contextPtr by param(pointerTo(LlvmVoidType))
                 body {
                     val setctxfnaddr = context.getNamedFunctionAddress("setcontext")!!
-                    val setctffntype = LlvmFunctionType<LlvmI32Type>(LlvmI32Type, listOf(LlvmPointerType(LlvmVoidType)))
+                    val setctffntype = LlvmFunctionType<LlvmS32Type>(LlvmS32Type, listOf(LlvmPointerType(LlvmVoidType)))
                     ret(call(setctxfnaddr, setctffntype, listOf(contextPtr)))
                 }
             })
@@ -262,7 +262,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "malloc")
         private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "free")
         private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "exit")
-        private val COLLECT_STACK_TRACE_FUNCTION_NAME = CanonicalElementName.Function(EmergeConstants.PLATFORM_MODULE_NAME, "collectStackTrace")
+        private val COLLECT_STACK_TRACE_FUNCTION_NAME = CanonicalElementName.Function(EmergeConstants.PlatformModule.NAME, "collectStackTrace")
 
         private val FUNCTION_SYMBOL_NAME_OVERRIDES: Map<CanonicalElementName.Function, String> = mapOf(
             // find those by calling the c-pre-processor on libunwind.h

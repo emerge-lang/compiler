@@ -9,10 +9,13 @@ import io.github.tmarsteel.emerge.common.EmergeConstants.IterableContract.RANGE_
 data object EmergeConstants {
     data object CoreModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "core"))
+        val ANY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Any")
         val UNIT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Unit")
         val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Throwable")
         val ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Error")
         val CAST_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "CastError")
+        val ARITHMETIC_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ArithmeticError")
+
         val BOOLEAN_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Boolean")
         val S8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S8")
         val U8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U8")
@@ -22,8 +25,15 @@ data object EmergeConstants {
         val U32_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U32")
         val S64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S64")
         val U64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U64")
+        val F32_TYPE_NAME = CanonicalElementName.BaseType(NAME, "F32")
+        val F64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "F64")
         val SWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "SWord")
         val UWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UWord")
+    }
+
+    data object ReflectionModule {
+        val NAME = CoreModule.NAME + "reflection"
+        val REFLECTION_BASE_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ReflectionBaseType")
     }
 
     data object StdModule {

@@ -73,10 +73,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s16
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s64
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u16
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u8
 import io.github.tmarsteel.emerge.backend.llvm.emitBreak
 import io.github.tmarsteel.emerge.backend.llvm.emitContinue
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
@@ -89,23 +92,28 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI16ArrayCopyFn
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI32ArrayCopyFn
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI8ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
@@ -118,8 +126,9 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sWord
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.uWord
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
@@ -336,7 +345,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     val isStaticallyASubtypeOfError = code.throwable.type
                         .findSimpleTypeBound().baseType
                         .allDistinctSupertypesExceptAny
-                        .any { it.canonicalName == EmergeConstants.ERROR_TYPE_NAME }
+                        .any { it.canonicalName == EmergeConstants.CoreModule.ERROR_TYPE_NAME }
                     if (isStaticallyASubtypeOfError) {
                         throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
                     }
@@ -530,7 +539,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                                 val addr = callIntrinsic(
                                     getDynamicCallAddress, listOf(
                                         expression.arguments.first().declaration.llvmValue,
-                                        context.word(override.hash),
+                                        context.uWord(override.hash),
                                     )
                                 )
                                 overridenCallInstruction = call(
@@ -576,7 +585,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     val targetAddr = callIntrinsic(
                         getDynamicCallAddress, listOf(
                             expression.dispatchOn.declaration.llvmValue,
-                            context.word(expression.function.signatureHashes.first()),
+                            context.uWord(expression.function.signatureHashes.first()),
                         )
                     )
                     call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
@@ -625,22 +634,22 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
-            "emerge.core.S8" -> context.i8(expression.value.byteValueExact())
-            "emerge.core.U8" -> context.i8(expression.value.shortValueExact().toUByte())
-            "emerge.core.S16" -> context.i16(expression.value.shortValueExact())
-            "emerge.core.U16" -> context.i16(expression.value.intValueExact().toUShort())
-            "emerge.core.S32" -> context.i32(expression.value.intValueExact())
-            "emerge.core.U32" -> context.i32(expression.value.longValueExact().toUInt())
-            "emerge.core.S64" -> context.i64(expression.value.longValueExact())
-            "emerge.core.U64" -> context.i64(expression.value.toLong())
-            "emerge.core.SWord" -> context.word(expression.value.longValueExact())
-            "emerge.core.UWord" -> context.word(expression.value.toLong())
+            "emerge.core.S8" -> context.s8(expression.value.byteValueExact())
+            "emerge.core.U8" -> context.u8(expression.value.shortValueExact().toUByte())
+            "emerge.core.S16" -> context.s16(expression.value.shortValueExact())
+            "emerge.core.U16" -> context.u16(expression.value.intValueExact().toUShort())
+            "emerge.core.S32" -> context.s32(expression.value.intValueExact())
+            "emerge.core.U32" -> context.u32(expression.value.longValueExact().toUInt())
+            "emerge.core.S64" -> context.s64(expression.value.longValueExact())
+            "emerge.core.U64" -> context.s64(expression.value.toLong())
+            "emerge.core.SWord" -> context.sWord(expression.value.longValueExact())
+            "emerge.core.UWord" -> context.uWord(expression.value.toLong().toULong())
             else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
         })
         is IrBooleanLiteralExpression -> return ExpressionResult.Value(context.i1(expression.value))
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
         is IrNullInitializedArrayExpression -> {
-            val elementCount = context.word(expression.size)
+            val elementCount = context.uWord(expression.size)
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo)
             val arrayPtr = if (arrayType is EmergeArrayType<*>) {
                 callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
@@ -1139,16 +1148,16 @@ private sealed interface ArrayDispatchOverride {
             if (invocation.function.canonicalName.simpleName == "copy" && invocation.function.parameters.size == 5) {
                 val elementType = (invocation.typeArgumentsAtCallSite.getValue("T")).findSimpleTypeBound().baseType
                 return when (elementType) {
-                    context.rawS8Clazz,
-                    context.rawU8Clazz -> InvokeIntrinsic(EmergeI8ArrayCopyFn)
-                    context.rawS16Clazz,
-                    context.rawU16Clazz -> InvokeIntrinsic(EmergeI16ArrayCopyFn)
-                    context.rawS32Clazz,
-                    context.rawU32Clazz -> InvokeIntrinsic(EmergeI32ArrayCopyFn)
-                    context.rawS64Clazz,
-                    context.rawU64Clazz -> InvokeIntrinsic(EmergeI64ArrayCopyFn)
-                    context.rawSWordClazz,
-                    context.rawUWordClazz -> InvokeIntrinsic(EmergeWordArrayCopyFn)
+                    context.rawS8Clazz -> InvokeIntrinsic(EmergeS8ArrayCopyFn)
+                    context.rawU8Clazz -> InvokeIntrinsic(EmergeU8ArrayCopyFn)
+                    context.rawS16Clazz -> InvokeIntrinsic(EmergeS16ArrayCopyFn)
+                    context.rawU16Clazz -> InvokeIntrinsic(EmergeU16ArrayCopyFn)
+                    context.rawS32Clazz -> InvokeIntrinsic(EmergeS32ArrayCopyFn)
+                    context.rawU32Clazz -> InvokeIntrinsic(EmergeU32ArrayCopyFn)
+                    context.rawS64Clazz -> InvokeIntrinsic(EmergeS64ArrayCopyFn)
+                    context.rawU64Clazz -> InvokeIntrinsic(EmergeU64ArrayCopyFn)
+                    context.rawSWordClazz -> InvokeIntrinsic(EmergeSWordArrayCopyFn)
+                    context.rawUWordClazz -> InvokeIntrinsic(EmergeUWordArrayCopyFn)
                     context.rawBoolClazz -> InvokeIntrinsic(EmergeBoolArrayCopyFn)
                     else -> None
                 }

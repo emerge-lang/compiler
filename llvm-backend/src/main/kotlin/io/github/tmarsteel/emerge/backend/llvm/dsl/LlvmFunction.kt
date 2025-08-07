@@ -20,7 +20,9 @@ data class LlvmFunction<out R : LlvmType>(
         Llvm.LLVMAddAttributeAtIndex(address.raw, -1, attrRef)
     }
 
-    fun setDiFunction(diFn: DebugInfoScope.Function) {
-        Llvm.LLVMSetSubprogram(address.raw, diFn.ref)
-    }
+    var diFunction: DebugInfoScope.Function? = null
+        set(value) {
+            Llvm.LLVMSetSubprogram(address.raw, value?.ref)
+            field = value
+        }
 }

@@ -49,8 +49,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
@@ -205,7 +205,7 @@ class EmergeLlvmContext(
     private var diBuilderCache = IdentityHashMap<IrSourceFile, DiBuilder>()
     private val IrSourceFile.diBuilder: DiBuilder get() {
         return diBuilderCache.computeIfAbsent(this) { location ->
-            DiBuilder(module, location.path)
+            DiBuilder(this@EmergeLlvmContext, module, location.path)
         }
     }
     
@@ -225,22 +225,22 @@ class EmergeLlvmContext(
             return
         }
 
-        when (clazz.canonicalName.toString()) {
-            "emerge.core.S8" -> rawS8Clazz = clazz
-            "emerge.core.U8" -> rawU8Clazz = clazz
-            "emerge.core.S16" -> rawS16Clazz = clazz
-            "emerge.core.U16" -> rawU16Clazz = clazz
-            "emerge.core.S32" -> rawS32Clazz = clazz
-            "emerge.core.U32" -> rawU32Clazz = clazz
-            "emerge.core.S64" -> rawS64Clazz = clazz
-            "emerge.core.U64" -> rawU64Clazz = clazz
-            "emerge.core.F32" -> rawF32Clazz = clazz
-            "emerge.core.F64" -> rawF64Clazz = clazz
-            "emerge.core.SWord" -> rawSWordClazz = clazz
-            "emerge.core.UWord" -> rawUWordClazz = clazz
-            "emerge.core.Bool" -> rawBoolClazz = clazz
-            "emerge.core.ArithmeticError" -> arithmeticErrorClazz = clazz
-            "emerge.core.reflection.ReflectionBaseType" -> rawReflectionBaseTypeClazz = clazz
+        when (clazz.canonicalName) {
+            EmergeConstants.CoreModule.S8_TYPE_NAME -> rawS8Clazz = clazz
+            EmergeConstants.CoreModule.U8_TYPE_NAME -> rawU8Clazz = clazz
+            EmergeConstants.CoreModule.S16_TYPE_NAME -> rawS16Clazz = clazz
+            EmergeConstants.CoreModule.U16_TYPE_NAME -> rawU16Clazz = clazz
+            EmergeConstants.CoreModule.S32_TYPE_NAME -> rawS32Clazz = clazz
+            EmergeConstants.CoreModule.U32_TYPE_NAME -> rawU32Clazz = clazz
+            EmergeConstants.CoreModule.S64_TYPE_NAME -> rawS64Clazz = clazz
+            EmergeConstants.CoreModule.U64_TYPE_NAME -> rawU64Clazz = clazz
+            EmergeConstants.CoreModule.F32_TYPE_NAME -> rawF32Clazz = clazz
+            EmergeConstants.CoreModule.F64_TYPE_NAME -> rawF64Clazz = clazz
+            EmergeConstants.CoreModule.SWORD_TYPE_NAME -> rawSWordClazz = clazz
+            EmergeConstants.CoreModule.UWORD_TYPE_NAME -> rawUWordClazz = clazz
+            EmergeConstants.CoreModule.BOOLEAN_TYPE_NAME -> rawBoolClazz = clazz
+            EmergeConstants.CoreModule.ARITHMETIC_ERROR_TYPE_NAME -> arithmeticErrorClazz = clazz
+            EmergeConstants.ReflectionModule.REFLECTION_BASE_TYPE_TYPE_NAME -> rawReflectionBaseTypeClazz = clazz
         }
 
         if (clazz.autoboxer is Autoboxer.PrimitiveType) {
@@ -282,6 +282,7 @@ class EmergeLlvmContext(
             }
         }
 
+        emergeClassType.fillDiStructType(clazz.declaredAt.file.diBuilder)
         emergeStructs.add(emergeClassType)
     }
 
@@ -299,9 +300,12 @@ class EmergeLlvmContext(
         return instance
     }
 
+    private val mockFilesForInstrinsicDiBuilders: MutableMap<String, IrSourceFile> = MapMaker().weakValues().makeMap()
     fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {
         val rawFn = this.kotlinLlvmFunctions
-            .computeIfAbsent(fn) { it.declareInContext(this) }
+            .computeIfAbsent(fn) {
+                it.declareInContext(this)
+            }
             .function
 
         @Suppress("UNCHECKED_CAST")
@@ -382,6 +386,21 @@ class EmergeLlvmContext(
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.NoUnwind) // emerge doesn't use unwinding as of now
 
+        val diBuilder = fn.declaredAt.file.diBuilder
+        fn.llvmRef!!.diFunction = diBuilder.createFunction(
+            name = fn.canonicalName.toString(),
+            linkageName = fn.llvmName,
+            fn.declaredAt.lineNumber,
+            diBuilder.createSubroutineType(fn.parameters.zip(llvmParameterTypes).mapIndexed { index, (param, paramLlvmType) ->
+                diBuilder.createSubroutineParameter(
+                    param.name,
+                    index.toUInt(),
+                    param.declaredAt.lineNumber,
+                    paramLlvmType.getDiType(diBuilder),
+                )
+            })
+        )
+
         fn.parameters.zip(llvmParameterTypes).forEachIndexed { index, (param, llvmParamType) ->
             val paramLlvmRawValue = Llvm.LLVMGetParam(rawRef, index)
             LlvmValue.setName(paramLlvmRawValue, param.name)
@@ -417,10 +436,10 @@ class EmergeLlvmContext(
             if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 2) {
                 val firstParamType = fn.parameters[0].type
                 val secondParamType = fn.parameters[1].type
-                if (firstParamType is IrSimpleType && firstParamType.baseType.canonicalName == EmergeConstants.THROWABLE_TYPE_NAME
+                if (firstParamType is IrSimpleType && firstParamType.baseType.canonicalName == EmergeConstants.CoreModule.THROWABLE_TYPE_NAME
                     && secondParamType is IrSimpleType && secondParamType.baseType.canonicalName.toString() == "emerge.std.io.PrintStream") {
                     val returnType = fn.returnType
-                    if (returnType !is IrSimpleType || returnType.baseType.canonicalName != EmergeConstants.UNIT_TYPE_NAME) {
+                    if (returnType !is IrSimpleType || returnType.baseType.canonicalName != EmergeConstants.CoreModule.UNIT_TYPE_NAME) {
                         throw CodeGenerationException("emerge.std.coresupport.prinTo(Throwable, PrintStream) must return Unit")
                     }
                     printThrowableFunction = fn.llvmRef!!
@@ -489,11 +508,7 @@ class EmergeLlvmContext(
                 }
         }
 
-        val diBuilder = fn.declaredAt.file.diBuilder
-        val diFunction = diBuilder.createFunction(fn.canonicalName, fn.declaredAt.lineNumber)
-        llvmFunction.setDiFunction(diFunction)
-
-        BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, diFunction) {
+        BasicBlockBuilder.fillBody(this, llvmFunction, fn.declaredAt.file.diBuilder, llvmFunction.diFunction!!) {
             when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false, null)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
@@ -586,7 +601,7 @@ class EmergeLlvmContext(
         addModuleFlag(
             LlvmModuleFlagBehavior.ERROR,
             "Debug Info Version",
-            this.i32(Llvm.LLVMDebugMetadataVersion()).toMetadata(),
+            this.s32(Llvm.LLVMDebugMetadataVersion()).toMetadata(),
         )
 
         diBuilderCache.values.forEach { it.diFinalize() }
@@ -633,19 +648,19 @@ class EmergeLlvmContext(
                         return EmergeArrayBaseType
                     }
 
-                    return when ((component.type as IrSimpleType).baseType.canonicalName.toString()) {
-                        "emerge.core.S8" -> EmergeS8ArrayType
-                        "emerge.core.U8" -> EmergeU8ArrayType
-                        "emerge.core.S16" -> EmergeS16ArrayType
-                        "emerge.core.U16" -> EmergeU16ArrayType
-                        "emerge.core.S32" -> EmergeS32ArrayType
-                        "emerge.core.U32" -> EmergeU32ArrayType
-                        "emerge.core.S64" -> EmergeS64ArrayType
-                        "emerge.core.U64" -> EmergeU64ArrayType
-                        "emerge.core.SWord" -> EmergeSWordArrayType
-                        "emerge.core.UWord" -> EmergeUWordArrayType
-                        "emerge.core.Bool" -> EmergeBooleanArrayType
-                        "emerge.core.Any" -> if (component.variance == IrTypeVariance.OUT) EmergeArrayBaseType else EmergeReferenceArrayType
+                    return when ((component.type as IrSimpleType).baseType.canonicalName) {
+                        EmergeConstants.CoreModule.S8_TYPE_NAME -> EmergeS8ArrayType
+                        EmergeConstants.CoreModule.U8_TYPE_NAME -> EmergeU8ArrayType
+                        EmergeConstants.CoreModule.S16_TYPE_NAME -> EmergeS16ArrayType
+                        EmergeConstants.CoreModule.U16_TYPE_NAME -> EmergeU16ArrayType
+                        EmergeConstants.CoreModule.S32_TYPE_NAME -> EmergeS32ArrayType
+                        EmergeConstants.CoreModule.U32_TYPE_NAME -> EmergeU32ArrayType
+                        EmergeConstants.CoreModule.S64_TYPE_NAME -> EmergeS64ArrayType
+                        EmergeConstants.CoreModule.U64_TYPE_NAME -> EmergeU64ArrayType
+                        EmergeConstants.CoreModule.SWORD_TYPE_NAME -> EmergeSWordArrayType
+                        EmergeConstants.CoreModule.UWORD_TYPE_NAME -> EmergeUWordArrayType
+                        EmergeConstants.CoreModule.BOOLEAN_TYPE_NAME -> EmergeBooleanArrayType
+                        EmergeConstants.CoreModule.ANY_TYPE_NAME -> if (component.variance == IrTypeVariance.OUT) EmergeArrayBaseType else EmergeReferenceArrayType
                         else -> EmergeReferenceArrayType
                     }
                 }
@@ -696,7 +711,7 @@ class EmergeLlvmContext(
                 if (paramType.canonicalName.simpleName == "String") {
                     intrinsic = registerIntrinsic(panicOnString)
                 }
-                if (paramType.canonicalName.simpleName == EmergeConstants.THROWABLE_TYPE_NAME.simpleName) {
+                if (paramType.canonicalName.simpleName == EmergeConstants.CoreModule.THROWABLE_TYPE_NAME.simpleName) {
                     intrinsic = registerIntrinsic(panicOnThrowable)
                 }
             }
@@ -733,7 +748,7 @@ class EmergeLlvmContext(
 /**
  * Allocates [nBytes] bytes on the heap, triggering an OOM exception if [EmergeLlvmContext.allocateFunction] returns `null`.
  */
-internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmValue<EmergeWordType>): LlvmValue<LlvmPointerType<LlvmVoidType>> {
+internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmValue<EmergeUWordType>): LlvmValue<LlvmPointerType<LlvmVoidType>> {
     val allocationPointer = call(context.allocateFunction, listOf(nBytes))
     // TODO: check allocation pointer == null, OOM
     return allocationPointer
@@ -745,7 +760,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmVa
 fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T, memset: Byte? = 0): LlvmValue<LlvmPointerType<T>> {
     val size = type.sizeof()
     val allocation = heapAllocate(size)
-    memset(allocation, context.i8(0), size)
+    memset(allocation, context.s8(0), size)
     return allocation.reinterpretAs(pointerTo(type))
 }
 

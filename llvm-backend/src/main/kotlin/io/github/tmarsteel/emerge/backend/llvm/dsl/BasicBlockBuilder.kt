@@ -1,7 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBasicBlockRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBuilderRef
@@ -25,7 +25,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
-        index: LlvmValue<LlvmIntegerType> = context.i32(0)
+        index: LlvmValue<LlvmIntegerType> = context.s32(0)
     ): GetElementPointerStep<BasePointee>
 
     fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>>
@@ -65,7 +65,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     }
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
-    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>)
+    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType>
@@ -447,7 +447,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val inst = Llvm.LLVMBuildMemCpy(llvmRef, destination.raw, 1, source.raw, 1, nBytes.raw)
     }
 
-    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
+    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
         val inst = Llvm.LLVMBuildMemSet(llvmRef, destination.raw, value.raw, nBytes.raw, 1)
     }
@@ -473,8 +473,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
-        val aAsInt = ptrtoint(pointerA, EmergeWordType)
-        val bAsInt = ptrtoint(pointerB, EmergeWordType)
+        val aAsInt = ptrtoint(pointerA, EmergeUWordType)
+        val bAsInt = ptrtoint(pointerB, EmergeUWordType)
         return icmp(aAsInt, LlvmIntPredicate.EQUAL, bAsInt)
     }
 
