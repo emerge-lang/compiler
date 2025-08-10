@@ -11,11 +11,13 @@ class UnreachableCodeDiagnostic(
     "This code is not reachable",
     unreachableCode.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(
-            SourceHint(previousCodeThatTerminates.span, "this code always terminates"),
-            SourceHint(unreachableCode.span, "so this code will never execute", severity = Severity.WARNING)
-        )
+        with(builder) {
+            sourceHints(
+                SourceHint(previousCodeThatTerminates.span, "this code always terminates"),
+                SourceHint(unreachableCode.span, "so this code will never execute", severity = Severity.WARNING)
+            )
+        }
     }
 }

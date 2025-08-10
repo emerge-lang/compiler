@@ -29,12 +29,24 @@ class VariableUsedAfterLifetimeDiagnostic private constructor(
         if (lifetimeEndedMaybe) "might have ended" else "has ended",
     )
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(
-            SourceHint(lifetimeEndedAt, "variable ${variable.name.value} is captured here, ending its lifetime", relativeOrderMatters = true, severity = Severity.INFO),
-            SourceHint(usageAt, "usage after lifetime $endedPhrase", relativeOrderMatters = true, severity = Severity.ERROR),
-        )
+        with(builder) {
+            sourceHints(
+                SourceHint(
+                    lifetimeEndedAt,
+                    "variable ${variable.name.value} is captured here, ending its lifetime",
+                    relativeOrderMatters = true,
+                    severity = Severity.INFO
+                ),
+                SourceHint(
+                    usageAt,
+                    "usage after lifetime $endedPhrase",
+                    relativeOrderMatters = true,
+                    severity = Severity.ERROR
+                ),
+            )
+        }
     }
 
     override fun equals(other: Any?): Boolean {

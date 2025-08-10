@@ -1,4 +1,4 @@
-package compiler.io.github.tmarsteel.emerge.frontend
+package io.kotest.provided
 
 import compiler.compiler.CompilerSystemPropertiesListener
 import io.kotest.core.config.AbstractProjectConfig

@@ -1077,8 +1077,7 @@ internal val arrayAbstractPanicSet = KotlinLlvmFunction.define<EmergeLlvmContext
     }
 }
 
-context(BasicBlockBuilder<*, *>)
-internal fun indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
+internal fun BasicBlockBuilder<*, *>.indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
     val size = getelementptr(arrayPtr)
         .member { base }
         .member { elementCount }
@@ -1088,8 +1087,7 @@ internal fun indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeAr
     return icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, size)
 }
 
-context(BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>)
-internal fun inlineFallibleBoundsCheck(
+internal fun BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>.inlineFallibleBoundsCheck(
     arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
     index: LlvmValue<EmergeWordType>,
 ) {
@@ -1101,8 +1099,7 @@ internal fun inlineFallibleBoundsCheck(
     )
 }
 
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
-internal fun inlinePanicBoundsCheck(
+internal fun BasicBlockBuilder<EmergeLlvmContext, *>.inlinePanicBoundsCheck(
     arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
     index: LlvmValue<EmergeWordType>,
 ) {

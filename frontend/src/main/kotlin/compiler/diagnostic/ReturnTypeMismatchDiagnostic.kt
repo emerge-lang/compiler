@@ -29,17 +29,19 @@ class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnosti
     base.message,
     base.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderMessage() {
-        text(message)
-        horizontalLayout {
-            column {
-                text("declared return type is")
-                text("got a value of type")
-            }
-            column {
-                text(base.targetType.toString())
-                text(base.sourceType.toString())
+        with(builder) {
+            text(message)
+            horizontalLayout {
+                column {
+                    text("declared return type is")
+                    text("got a value of type")
+                }
+                column {
+                    text(base.targetType.toString())
+                    text(base.sourceType.toString())
+                }
             }
         }
     }

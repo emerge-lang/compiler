@@ -13,7 +13,7 @@ class PhiBucket<E : LlvmType>(val type: E) {
 
     private var built = false
 
-    context(BasicBlockBuilder<*, *>)
+    context(builder: BasicBlockBuilder<*, *>)
     fun setBranchResult(result: LlvmValue<E>) {
         check(!built) {
             // is that actually true? Could be that just calling LLVMAddIncoming again will do the trick
@@ -23,11 +23,11 @@ class PhiBucket<E : LlvmType>(val type: E) {
         check(result.isLlvmAssignableTo(this.type)) {
             "cannot store an ${result.type} into a phi-bucket of type ${this.type}"
         }
-        branches.add(Llvm.LLVMGetInsertBlock(builder))
+        branches.add(Llvm.LLVMGetInsertBlock(builder.llvmRef))
         results.add(result.raw)
     }
 
-    context(BasicBlockBuilder<*, *>)
+    context(builder: BasicBlockBuilder<*, *>)
     fun buildPhi(): LlvmValue<E> {
         check(!built) {
             // that is likely possible, but not needed as of now
@@ -44,7 +44,7 @@ class PhiBucket<E : LlvmType>(val type: E) {
             return LlvmValue(results.single(), type)
         }
 
-        val phiInst = Llvm.LLVMBuildPhi(builder, type.getRawInContext(context), "result")
+        val phiInst = Llvm.LLVMBuildPhi(builder.llvmRef, type.getRawInContext(builder.context), "result")
 
         NativePointerArray.fromJavaPointers(branches).use { incomingBranches ->
             NativePointerArray.fromJavaPointers(results).use { incomingValues ->

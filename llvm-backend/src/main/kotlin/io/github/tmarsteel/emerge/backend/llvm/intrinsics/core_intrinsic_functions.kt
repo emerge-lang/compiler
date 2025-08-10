@@ -295,7 +295,7 @@ private val afterReferenceCreatedNullable = KotlinLlvmFunction.define<EmergeLlvm
  * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
  * the reference is nullable. If true, a runtime null-check will be emitted.
  */
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceCreated(
     isNullable: Boolean,
 ) {
@@ -312,7 +312,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
  * Otherwise, increments the reference counter, potentially guarded by a null-check if [IrType.isNullable]
  * is `true`.
  */
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
@@ -385,7 +385,7 @@ private val dropNullableReferenceFunction = KotlinLlvmFunction.define<EmergeLlvm
  * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
  * the reference is nullable. If true, a runtime null-check will be emitted.
  */
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceDropped(
     isNullable: Boolean,
 ) {
@@ -402,7 +402,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
  * Otherwise, emits a call to [dropReferenceFunction], potentially guarded by a null-check if [IrType.isNullable]
  * is `true`.
  */
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {

@@ -10,8 +10,9 @@ class InconsistentReceiverPresenceInOverloadSetDiagnostic(
     "Receiver presence is inconsistent in ${overloadSet.canonicalName}. All functions in an overload-set must either declare a receiver or not declare one.",
     overloadSet.overloads.first().declaredAt,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(overloadSet.overloads.map {
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(overloadSet.overloads.map {
             SourceHint(it.parameters.declaredReceiver?.declaration?.span ?: it.declaredAt, null, nLinesContext = 0u, severity = severity)
         })
     }

@@ -13,24 +13,26 @@ class IncompatibleReturnTypeOnOverrideDiagnostic(
     "The return type of this override is not a subtype the overridden functions return type: ${base.simplifiedMessage ?: base.reason}",
     base.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        horizontalLayout {
-            column {
-                text("overridden function:")
-                text("overridden function returns:")
-                text("override returns:")
-            }
-            column {
-                append(superFunction.supertypeMemberFn.canonicalName.quote())
-                appendLineBreak()
+        with(builder) {
+            horizontalLayout {
+                column {
+                    text("overridden function:")
+                    text("overridden function returns:")
+                    text("override returns:")
+                }
+                column {
+                    append(superFunction.supertypeMemberFn.canonicalName.quote())
+                    appendLineBreak()
 
-                append(base.targetType.quote())
-                appendLineBreak()
+                    append(base.targetType.quote())
+                    appendLineBreak()
 
-                append(base.sourceType.quote())
+                    append(base.sourceType.quote())
+                }
             }
+            super.renderBody()
         }
-        super.renderBody()
     }
 }

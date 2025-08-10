@@ -31,15 +31,17 @@ data class PurityViolationDiagnostic(
     "${impurity.describe()} violates the purity of $boundary",
     impurity.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        val impurityHints = impurity.sourceHints
-        if (impurityHints.isEmpty()) {
-            super.renderBody()
-            return
-        }
+        with(builder) {
+            val impurityHints = impurity.sourceHints
+            if (impurityHints.isEmpty()) {
+                super.renderBody()
+                return
+            }
 
-        sourceHints(impurityHints)
+            sourceHints(impurityHints)
+        }
     }
 
     sealed class SideEffectBoundary {

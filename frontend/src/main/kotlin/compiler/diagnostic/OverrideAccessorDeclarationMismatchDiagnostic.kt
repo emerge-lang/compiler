@@ -14,9 +14,11 @@ class OverrideAccessorDeclarationMismatchDiagnostic private constructor(
     message,
     span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(sourceHints)
+        with(builder) {
+            sourceHints(sourceHints)
+        }
     }
 
     companion object {

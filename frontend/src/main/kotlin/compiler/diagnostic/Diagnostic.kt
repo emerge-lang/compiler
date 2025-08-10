@@ -36,14 +36,18 @@ abstract class Diagnostic internal constructor(
         return severity.compareTo(other.severity)
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)
     open fun renderMessage() {
-        text(message)
+        with(builder) {
+            text(message)
+        }
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)
     open fun renderBody() {
-        sourceHints(SourceHint(span, severity = severity))
+        with(builder) {
+            sourceHints(SourceHint(span, severity = severity))
+        }
     }
 
     final override fun render(canvas: MonospaceCanvas) = widget(canvas) {

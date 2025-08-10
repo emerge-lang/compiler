@@ -84,17 +84,19 @@ open class ValueNotAssignableDiagnostic(
 
     override val message: String get() = simplifiedMessage ?: super.message
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderMessage() {
-        text(message)
-        horizontalLayout {
-            column {
-                text("Required:")
-                text("Found:")
-            }
-            column {
-                text(targetType.toString())
-                text(sourceType.toString())
+        with(builder) {
+            text(message)
+            horizontalLayout {
+                column {
+                    text("Required:")
+                    text("Found:")
+                }
+                column {
+                    text(targetType.toString())
+                    text(sourceType.toString())
+                }
             }
         }
     }

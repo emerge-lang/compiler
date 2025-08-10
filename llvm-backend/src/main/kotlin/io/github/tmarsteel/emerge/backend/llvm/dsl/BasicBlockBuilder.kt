@@ -21,7 +21,7 @@ annotation class LlvmBasicBlockDsl
 @LlvmBasicBlockDsl
 interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     val context: C
-    val builder: LlvmBuilderRef
+    val llvmRef: LlvmBuilderRef
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
@@ -194,7 +194,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
             with(this as BasicBlockBuilderImpl<C, *>) {
                 this.scopeTracker.runAllFunctionDeferredCode()
             }
-            Llvm.LLVMBuildRetVoid(builder)
+            Llvm.LLVMBuildRetVoid(llvmRef)
             return TerminationImpl
         }
     }
@@ -205,7 +205,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override val llvmFunctionReturnType: R,
     val diBuilder: DiBuilder,
     val owningFunction: LlvmValueRef,
-    override val builder: LlvmBuilderRef,
+    override val llvmRef: LlvmBuilderRef,
     val tmpVars: NameScope,
     val scopeTracker: ScopeTracker<C>,
 ) : BasicBlockBuilder<C, R> {
@@ -220,7 +220,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val (basePointer, indices, resultPointeeType) = completeAndGetData()
         val indicesRaw = NativePointerArray.fromJavaPointers(indices)
         val instruction = Llvm.LLVMBuildGEP2(
-            builder,
+            llvmRef,
             basePointer.type.pointed.getRawInContext(context),
             basePointer.raw,
             indicesRaw,
@@ -231,7 +231,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(name: String?): LlvmValue<P> {
-        val loadResult = Llvm.LLVMBuildLoad2(builder, type.pointed.getRawInContext(context), raw, name ?: tmpVars.next())
+        val loadResult = Llvm.LLVMBuildLoad2(llvmRef, type.pointed.getRawInContext(context), raw, name ?: tmpVars.next())
         return LlvmValue(loadResult, type.pointed)
     }
 
@@ -240,7 +240,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         memberSelector: S.() -> LlvmStructType.Member<S, T>,
     ): LlvmValue<T> {
         val member = struct.type.memberSelector()
-        val extractInst = Llvm.LLVMBuildExtractValue(builder, struct.raw, member.indexInStruct, tmpVars.next())
+        val extractInst = Llvm.LLVMBuildExtractValue(llvmRef, struct.raw, member.indexInStruct, tmpVars.next())
         return LlvmValue(extractInst, member.type)
     }
 
@@ -250,27 +250,27 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         memberSelector: S.() -> LlvmStructType.Member<S, T>,
     ): LlvmValue<S> {
         val member = struct.type.memberSelector()
-        val insertInst = Llvm.LLVMBuildInsertValue(builder, struct.raw, value.raw, member.indexInStruct, tmpVars.next())
+        val insertInst = Llvm.LLVMBuildInsertValue(llvmRef, struct.raw, value.raw, member.indexInStruct, tmpVars.next())
         return LlvmValue(insertInst, struct.type)
     }
 
     override fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>) {
         check(value.type !is LlvmVoidType) // LLVM segfaults if this doesn't hold
-        Llvm.LLVMBuildStore(builder, value.raw, to.raw)
+        Llvm.LLVMBuildStore(llvmRef, value.raw, to.raw)
     }
 
     override fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val addInstr = Llvm.LLVMBuildAdd(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val addInstr = Llvm.LLVMBuildAdd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(addInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val subInstr = Llvm.LLVMBuildSub(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val subInstr = Llvm.LLVMBuildSub(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(subInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val mulInstr = Llvm.LLVMBuildMul(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val mulInstr = Llvm.LLVMBuildMul(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(mulInstr, lhs.type)
     }
 
@@ -280,9 +280,9 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         knownToBeExact: Boolean
     ): LlvmValue<T> {
         val inst = if (knownToBeExact) {
-            Llvm.LLVMBuildExactSDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+            Llvm.LLVMBuildExactSDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
-            Llvm.LLVMBuildSDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+            Llvm.LLVMBuildSDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         }
 
         return LlvmValue(inst, lhs.type)
@@ -294,56 +294,56 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         knownToBeExact: Boolean
     ): LlvmValue<T> {
         val inst = if (knownToBeExact) {
-            Llvm.LLVMBuildExactUDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+            Llvm.LLVMBuildExactUDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
-            Llvm.LLVMBuildUDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+            Llvm.LLVMBuildUDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         }
 
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> srem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val inst = Llvm.LLVMBuildSRem(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val inst = Llvm.LLVMBuildSRem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> urem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val inst = Llvm.LLVMBuildURem(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val inst = Llvm.LLVMBuildURem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType> {
-        val cmpInstr = Llvm.LLVMBuildICmp(builder, type, lhs.raw, rhs.raw, tmpVars.next())
+        val cmpInstr = Llvm.LLVMBuildICmp(llvmRef, type, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(cmpInstr, LlvmBooleanType)
     }
 
     override fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
-        val shiftInstr = Llvm.LLVMBuildShl(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        val shiftInstr = Llvm.LLVMBuildShl(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
-        val shiftInstr = Llvm.LLVMBuildLShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        val shiftInstr = Llvm.LLVMBuildLShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> ashr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
-        val shiftInstr = Llvm.LLVMBuildAShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        val shiftInstr = Llvm.LLVMBuildAShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val andInstr = Llvm.LLVMBuildAnd(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val andInstr = Llvm.LLVMBuildAnd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(andInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val orInstr = Llvm.LLVMBuildOr(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val orInstr = Llvm.LLVMBuildOr(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(orInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
-        val xorInst = Llvm.LLVMBuildXor(builder, lhs.raw, rhs.raw, tmpVars.next())
+        val xorInst = Llvm.LLVMBuildXor(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(xorInst, lhs.type)
     }
 
@@ -351,7 +351,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         value: LlvmValue<Small>,
         to: Large,
     ): LlvmValue<Large> {
-        val sextInstr = Llvm.LLVMBuildSExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        val sextInstr = Llvm.LLVMBuildSExt(llvmRef, value.raw, to.getRawInContext(context), tmpVars.next())
         return LlvmValue(sextInstr, to)
     }
 
@@ -360,7 +360,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         to: Large,
     ): LlvmValue<Large> {
         require(value.type.getNBitsInContext(context) <= to.getNBitsInContext(context))
-        val zextInstr = Llvm.LLVMBuildZExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        val zextInstr = Llvm.LLVMBuildZExt(llvmRef, value.raw, to.getRawInContext(context), tmpVars.next())
         return LlvmValue(zextInstr, to)
     }
 
@@ -368,27 +368,27 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         value: LlvmValue<Large>,
         to: Small,
     ): LlvmValue<Small> {
-        val truncInstr = Llvm.LLVMBuildTrunc(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        val truncInstr = Llvm.LLVMBuildTrunc(llvmRef, value.raw, to.getRawInContext(context), tmpVars.next())
         return LlvmValue(truncInstr, to)
     }
 
     override fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean, name: String?): LlvmValue<LlvmPointerType<T>> {
         val switchBackToBlockAfter: LlvmBasicBlockRef?
         if (forceEntryBlock) {
-            switchBackToBlockAfter = Llvm.LLVMGetInsertBlock(builder)
+            switchBackToBlockAfter = Llvm.LLVMGetInsertBlock(llvmRef)
             val entryBlock = Llvm.LLVMGetEntryBasicBlock(owningFunction)
             val firstInstruction = Llvm.LLVMGetFirstInstruction(entryBlock)
             if (firstInstruction != null) {
-                Llvm.LLVMPositionBuilderBefore(builder, firstInstruction)
+                Llvm.LLVMPositionBuilderBefore(llvmRef, firstInstruction)
             } else {
-                Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
+                Llvm.LLVMPositionBuilderAtEnd(llvmRef, entryBlock)
             }
         } else {
             switchBackToBlockAfter = null
         }
-        val ptr = Llvm.LLVMBuildAlloca(builder, type.getRawInContext(context), name ?: tmpVars.next())
+        val ptr = Llvm.LLVMBuildAlloca(llvmRef, type.getRawInContext(context), name ?: tmpVars.next())
         switchBackToBlockAfter?.let {
-            Llvm.LLVMPositionBuilderAtEnd(builder, it)
+            Llvm.LLVMPositionBuilderAtEnd(llvmRef, it)
         }
         return LlvmValue(ptr, pointerTo(type))
     }
@@ -407,7 +407,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
         val argsArray = NativePointerArray.fromJavaPointers(args.map { it.raw })
         val result = Llvm.LLVMBuildCall2(
-            builder,
+            llvmRef,
             function.type.getRawInContext(context),
             function.address.raw,
             argsArray,
@@ -425,7 +425,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     ): LlvmValue<R> {
         val callInst = NativePointerArray.fromJavaPointers(args.map { it.raw }).use { argsRaw ->
             Llvm.LLVMBuildCall2(
-                builder,
+                llvmRef,
                 functionType.getRawInContext(context),
                 function.raw,
                 argsRaw,
@@ -438,37 +438,37 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T> {
-        val inst = Llvm.LLVMBuildPtrToInt(builder, pointer.raw, integerType.getRawInContext(context), tmpVars.next())
+        val inst = Llvm.LLVMBuildPtrToInt(llvmRef, pointer.raw, integerType.getRawInContext(context), tmpVars.next())
         return LlvmValue(inst, integerType)
     }
 
     override fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
-        val inst = Llvm.LLVMBuildMemCpy(builder, destination.raw, 1, source.raw, 1, nBytes.raw)
+        val inst = Llvm.LLVMBuildMemCpy(llvmRef, destination.raw, 1, source.raw, 1, nBytes.raw)
     }
 
     override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
-        val inst = Llvm.LLVMBuildMemSet(builder, destination.raw, value.raw, nBytes.raw, 1)
+        val inst = Llvm.LLVMBuildMemSet(llvmRef, destination.raw, value.raw, nBytes.raw, 1)
     }
 
     override fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
-        val instr = Llvm.LLVMBuildIsNull(builder, pointer.raw, tmpVars.next())
+        val instr = Llvm.LLVMBuildIsNull(llvmRef, pointer.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
     }
 
     override fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
-        val instr = Llvm.LLVMBuildIsNotNull(builder, pointer.raw, tmpVars.next())
+        val instr = Llvm.LLVMBuildIsNotNull(llvmRef, pointer.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
     }
 
     override fun isZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType> {
-        val instr = Llvm.LLVMBuildIsNull(builder, int.raw, tmpVars.next())
+        val instr = Llvm.LLVMBuildIsNull(llvmRef, int.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
     }
 
     override fun isNotZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType> {
-        val instr = Llvm.LLVMBuildIsNotNull(builder, int.raw, tmpVars.next())
+        val instr = Llvm.LLVMBuildIsNotNull(llvmRef, int.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
     }
 
@@ -479,7 +479,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T> {
-        val inst = Llvm.LLVMBuildNot(builder, value.raw, tmpVars.next())
+        val inst = Llvm.LLVMBuildNot(llvmRef, value.raw, tmpVars.next())
         return LlvmValue(inst, value.type)
     }
 
@@ -487,7 +487,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         check(ifTrue.type == ifFalse.type)
 
         val inst = Llvm.LLVMBuildSelect(
-            builder,
+            llvmRef,
             condition.raw,
             ifTrue.raw,
             ifFalse.raw,
@@ -512,7 +512,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             line,
             column,
         )
-        Llvm.LLVMSetCurrentDebugLocation2(builder, location)
+        Llvm.LLVMSetCurrentDebugLocation2(llvmRef, location)
     }
 
     override fun currentDebugLocation(): String {
@@ -531,13 +531,13 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
     override fun ret(value: LlvmValue<R>): BasicBlockBuilder.Termination {
         scopeTracker.runAllFunctionDeferredCode()
-        Llvm.LLVMBuildRet(builder, value.raw)
+        Llvm.LLVMBuildRet(llvmRef, value.raw)
 
         return TerminationImpl
     }
 
     override fun unreachable(): BasicBlockBuilder.Termination {
-        Llvm.LLVMBuildUnreachable(builder)
+        Llvm.LLVMBuildUnreachable(llvmRef)
 
         return TerminationImpl
     }
@@ -558,22 +558,22 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val continueBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, "${branchName}_cont")
 
         if (ifFalse != null) {
-            Llvm.LLVMBuildCondBr(builder, condition.raw, thenBlock, elseBlock)
+            Llvm.LLVMBuildCondBr(llvmRef, condition.raw, thenBlock, elseBlock)
         } else {
-            Llvm.LLVMBuildCondBr(builder, condition.raw, thenBlock, continueBlock)
+            Llvm.LLVMBuildCondBr(llvmRef, condition.raw, thenBlock, continueBlock)
         }
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, thenBlock)
-        val thenBranchBuilder = BranchImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, thenBlock)
+        val thenBranchBuilder = BranchImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, llvmRef, tmpVars, scopeTracker.createSubScope(), continueBlock)
         thenBranchBuilder.ifTrue()
 
         if (ifFalse != null) {
-            val elseBranchBuilder = BranchImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
-            Llvm.LLVMPositionBuilderAtEnd(builder, elseBlock)
+            val elseBranchBuilder = BranchImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, llvmRef, tmpVars, scopeTracker.createSubScope(), continueBlock)
+            Llvm.LLVMPositionBuilderAtEnd(llvmRef, elseBlock)
             elseBranchBuilder.ifFalse()
         }
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, continueBlock)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, continueBlock)
         return
     }
 
@@ -584,13 +584,13 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val bodyBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, loopName)
         val continueBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, "${loopName}_cont")
 
-        Llvm.LLVMBuildBr(builder, bodyBlock)
+        Llvm.LLVMBuildBr(llvmRef, bodyBlock)
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, bodyBlock)
-        val bodyDslBuilder = LoopImpl(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), bodyBlock, continueBlock)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, bodyBlock)
+        val bodyDslBuilder = LoopImpl(context, llvmFunctionReturnType, diBuilder, owningFunction, llvmRef, tmpVars, scopeTracker.createSubScope(), bodyBlock, continueBlock)
         bodyDslBuilder.body()
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, continueBlock)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, continueBlock)
         return
     }
 
@@ -608,26 +608,26 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             llvmFunctionReturnType,
             diBuilder,
             owningFunction,
-            builder,
+            llvmRef,
             tmpVars,
             scopeTracker,
             branchBlockRef,
             resumeBlockRef,
         ))
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, branchBlockRef)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, branchBlockRef)
         branch(BranchImpl(
             context,
             llvmFunctionReturnType,
             diBuilder,
             owningFunction,
-            builder,
+            llvmRef,
             tmpVars,
             scopeTracker.createSubScope(),
             resumeBlockRef,
         ))
 
-        Llvm.LLVMPositionBuilderAtEnd(builder, resumeBlockRef)
+        Llvm.LLVMPositionBuilderAtEnd(llvmRef, resumeBlockRef)
     }
 }
 
@@ -643,7 +643,7 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, continueBlock)
+        Llvm.LLVMBuildBr(llvmRef, continueBlock)
         return TerminationImpl
     }
 }
@@ -661,13 +661,13 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, continueBlock)
+        Llvm.LLVMBuildBr(llvmRef, continueBlock)
         return TerminationImpl
     }
 
     override fun loopContinue(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, bodyBlockRef)
+        Llvm.LLVMBuildBr(llvmRef, bodyBlockRef)
         return TerminationImpl
     }
 }
@@ -685,13 +685,13 @@ private class UnsafeBranchPrepareImpl<C : LlvmContext, R : LlvmType>(
 ) : BasicBlockBuilder.UnsafeBranchPrepare<C, R>, BasicBlockBuilderImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker) {
     override fun jumpToUnsafeBranch(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, branchBlockRef)
+        Llvm.LLVMBuildBr(llvmRef, branchBlockRef)
         return TerminationImpl
     }
 
     override fun skipUnsafeBranch(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, resumeBlockRef)
+        Llvm.LLVMBuildBr(llvmRef, resumeBlockRef)
         return TerminationImpl
     }
 }
@@ -716,14 +716,14 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
 
     fun createSubScope(): ScopeTracker<C> = ScopeTracker(this)
 
-    context(BasicBlockBuilder<C, *>)
+    context(builder: BasicBlockBuilder<C, *>)
     fun runLocalDeferredCode() {
         deferredCode.forEach {
-            it(this@BasicBlockBuilder)
+            it(builder)
         }
     }
 
-    context(BasicBlockBuilder<C, *>)
+    context(builder: BasicBlockBuilder<C, *>)
     fun runAllFunctionDeferredCode() {
         parent?.runAllFunctionDeferredCode()
         runLocalDeferredCode()
