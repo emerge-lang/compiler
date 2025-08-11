@@ -50,8 +50,8 @@ private val noopBackendConfig = NoopBackend.Config(
 )
 private val defaultModulesParsed: List<Pair<ConfigModuleDefinition, List<ASTSourceFile>>> by lazy {
     (NoopBackend().getTargetSpecificModules(noopBackendConfig, Unit) + listOf(
-        ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, Paths.get(System.getProperty("emerge.frontend.core.sources"))),
-        ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, Paths.get(System.getProperty("emerge.frontend.std.sources"))),
+        ConfigModuleDefinition(EmergeConstants.CoreModule.NAME, Paths.get(System.getProperty("emerge.frontend.core.sources"))),
+        ConfigModuleDefinition(EmergeConstants.StdModule.NAME, Paths.get(System.getProperty("emerge.frontend.std.sources"))),
     ))
         .map { module ->
             val sourceFiles = SourceSet.load(module.sourceDirectory, module.name)
@@ -104,7 +104,7 @@ fun emptySoftwareContext(validate: Boolean = true, noStd: Boolean = false): Soft
     val swCtxt = SoftwareContext()
     defaultModulesParsed
         .filter {
-            return@filter !(noStd && it.first.name == EmergeConstants.STD_MODULE_NAME)
+            return@filter !(noStd && it.first.name == EmergeConstants.StdModule.NAME)
         }
         .forEach { (module, sources) ->
             val moduleCtx = swCtxt.registerModule(module.name, module.uses)

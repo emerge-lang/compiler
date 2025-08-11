@@ -60,8 +60,8 @@ object CompileCommand : CliktCommand() {
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
 
-        val coreModuleDef = ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, toolchainConfig.frontend.coreModuleSources)
-        val stdModuleDef = ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, toolchainConfig.frontend.stdModuleSources, uses = setOf(coreModuleDef.name))
+        val coreModuleDef = ConfigModuleDefinition(EmergeConstants.CoreModule.NAME, toolchainConfig.frontend.coreModuleSources)
+        val stdModuleDef = ConfigModuleDefinition(EmergeConstants.StdModule.NAME, toolchainConfig.frontend.stdModuleSources, uses = setOf(coreModuleDef.name))
         val targetModuleDefs = typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
         val modulesToLoad = try {
             (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs).sortedByDependency()

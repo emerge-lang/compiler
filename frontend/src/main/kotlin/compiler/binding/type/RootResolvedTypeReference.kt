@@ -344,8 +344,8 @@ class RootResolvedTypeReference private constructor(
         str += " "
 
         str += when {
-            baseType.canonicalName.packageName == EmergeConstants.CORE_MODULE_NAME ||
-            baseType.canonicalName.packageName == EmergeConstants.STD_MODULE_NAME -> baseType.simpleName
+            baseType.canonicalName.packageName == EmergeConstants.CoreModule.NAME ||
+            baseType.canonicalName.packageName == EmergeConstants.StdModule.NAME -> baseType.simpleName
             else -> baseType.canonicalName.toString()
         }
 
