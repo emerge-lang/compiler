@@ -64,9 +64,9 @@ internal abstract class EmergeWordBaseType(
             },
             getNBitsInContext(diBuilder.context).toULong(),
             if (isSigned) {
-                DwarfBaseTypeEncoding.SIGNED_FIXED
+                DwarfBaseTypeEncoding.SIGNED
             } else {
-                DwarfBaseTypeEncoding.UNSIGNED_FIXED
+                DwarfBaseTypeEncoding.UNSIGNED
             },
         )
     }
