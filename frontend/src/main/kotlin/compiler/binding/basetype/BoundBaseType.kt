@@ -597,4 +597,6 @@ private class IrClassImpl(
     override fun hashCode(): Int {
         return canonicalName.hashCode()
     }
+
+    override fun toString() = "IrClassImpl[$canonicalName]"
 }

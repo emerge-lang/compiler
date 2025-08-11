@@ -56,6 +56,7 @@ class VTableAlgorithmTest : FreeSpec({
                                         override val isReAssignable = false
                                         override val isSSA = true
                                         override val declaredAt = MockSourceLocation
+                                        override val scope = mockk<IrVariableDeclaration.Scope>()
                                     })
                                     override val declaresReceiver = true
                                     override val returnType = IrSimpleTypeImpl(MockIrUnit, IrTypeMutability.READONLY, false)
@@ -104,6 +105,7 @@ class VTableAlgorithmTest : FreeSpec({
                                             override val isReAssignable = parameter.isReAssignable
                                             override val isSSA = parameter.isSSA
                                             override val declaredAt = MockSourceLocation
+                                            override val scope = mockk<IrVariableDeclaration.Scope>()
                                         }
                                     }
                                     override val declaresReceiver = true

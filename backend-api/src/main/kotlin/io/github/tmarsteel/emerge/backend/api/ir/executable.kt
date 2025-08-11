@@ -29,7 +29,7 @@ interface IrCreateTemporaryValue : IrExecutable {
  *   that the mutation of the reference counter cannot be observed by the input program.
  */
 interface IrCreateStrongReferenceStatement : IrExecutable {
-    /** the temporary holding the reference to the object whichs reference count needs to increased */
+    /** the temporary holding the reference to the object whose reference count needs to be increased */
     val reference: IrCreateTemporaryValue
 }
 
@@ -67,6 +67,38 @@ interface IrVariableDeclaration : IrExecutable {
      * [isSSA] implies [isReAssignable] `== false`.
      */
     val isSSA: Boolean
+
+    val declaredAt: IrSourceLocation
+
+    /**
+     * The [Scope] in which this variable is valid.
+     */
+    val scope: Scope
+
+    interface Scope {
+        interface Lexical : Scope {
+            val beginMarker: BeginMarker
+            val endMarker: EndMarker
+
+            /**
+             * No-op executable that just marks the start of a [Scope].
+             */
+            interface BeginMarker : IrExecutable {
+                val scope: Scope
+            }
+
+            /**
+             * No-op executable that just marks the end of a [Scope].
+             */
+            interface EndMarker : IrExecutable {
+                val scope: Scope
+            }
+        }
+
+        interface File : Scope {
+            val file: IrSourceFile
+        }
+    }
 }
 
 interface IrAssignmentStatement : IrExecutable {
