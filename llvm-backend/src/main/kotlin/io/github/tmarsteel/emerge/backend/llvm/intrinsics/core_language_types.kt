@@ -266,6 +266,7 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
                         }
                     } else {
                         when (valueType.nBits) {
+                            1u -> return ofBool as WithValue<Value>
                             8u -> return ofU8 as WithValue<Value>
                             16u -> return ofU16 as WithValue<Value>
                             32u -> return ofU32 as WithValue<Value>
