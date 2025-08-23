@@ -80,6 +80,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.s64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.u64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u8
 import io.github.tmarsteel.emerge.backend.llvm.emitBreak
 import io.github.tmarsteel.emerge.backend.llvm.emitContinue
@@ -644,17 +645,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(autoboxedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
-        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
-            "emerge.core.S8" -> context.s8(expression.value.byteValueExact())
-            "emerge.core.U8" -> context.u8(expression.value.shortValueExact().toUByte())
-            "emerge.core.S16" -> context.s16(expression.value.shortValueExact())
-            "emerge.core.U16" -> context.u16(expression.value.intValueExact().toUShort())
-            "emerge.core.S32" -> context.s32(expression.value.intValueExact())
-            "emerge.core.U32" -> context.u32(expression.value.longValueExact().toUInt())
-            "emerge.core.S64" -> context.s64(expression.value.longValueExact())
-            "emerge.core.U64" -> context.s64(expression.value.toLong())
-            "emerge.core.SWord" -> context.sWord(expression.value.longValueExact())
-            "emerge.core.UWord" -> context.uWord(expression.value.toLong().toULong())
+        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName) {
+            EmergeConstants.CoreModule.S8_TYPE_NAME -> context.s8(expression.value.byteValueExact())
+            EmergeConstants.CoreModule.U8_TYPE_NAME -> context.u8(expression.value.shortValueExact().toUByte())
+            EmergeConstants.CoreModule.S16_TYPE_NAME -> context.s16(expression.value.shortValueExact())
+            EmergeConstants.CoreModule.U16_TYPE_NAME -> context.u16(expression.value.intValueExact().toUShort())
+            EmergeConstants.CoreModule.S32_TYPE_NAME -> context.s32(expression.value.intValueExact())
+            EmergeConstants.CoreModule.U32_TYPE_NAME -> context.u32(expression.value.longValueExact().toUInt())
+            EmergeConstants.CoreModule.S64_TYPE_NAME -> context.s64(expression.value.longValueExact())
+            EmergeConstants.CoreModule.U64_TYPE_NAME -> context.u64(expression.value.toLong().toULong())
+            EmergeConstants.CoreModule.SWORD_TYPE_NAME -> context.sWord(expression.value.longValueExact())
+            EmergeConstants.CoreModule.UWORD_TYPE_NAME -> context.uWord(expression.value.toLong().toULong())
             else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
         })
         is IrBooleanLiteralExpression -> return ExpressionResult.Value(context.i1(expression.value))

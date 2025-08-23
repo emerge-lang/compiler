@@ -516,23 +516,27 @@ private fun <T : LlvmIntegerType> buildSignedCompareFn(
     }
 }
 
-private fun <T : LlvmIntegerType> buildUnsignedCompareFn(
+private fun <R : LlvmIntegerType> buildUnsignedCompareFn(
     emergeUnsignedTypeSimpleName: String,
-    llvmType: T,
-    constantFactory: EmergeLlvmContext.(Long) -> LlvmValue<T>,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
-    assert(!llvmType.isSigned)
+    subjectLlvmType: LlvmIntegerType,
+    signedReturnType: R,
+    constantFactory: EmergeLlvmContext.(Long) -> LlvmValue<R>,
+) : KotlinLlvmFunction<EmergeLlvmContext, R> {
+    assert(!subjectLlvmType.isSigned)
+    assert(signedReturnType.isSigned)
 
     return KotlinLlvmFunction.define(
         "emerge.core.${emergeUnsignedTypeSimpleName}::compareTo",
-        llvmType,
+        signedReturnType,
     ) {
         instructionAliasAttributes()
 
-        val lhs by param(llvmType)
-        val rhs by param(llvmType)
+        val lhs by param(subjectLlvmType)
+        val rhs by param(subjectLlvmType)
 
         body {
+            assert(signedReturnType.getNBitsInContext(context) == subjectLlvmType.getNBitsInContext(context))
+
             conditionalBranch(
                 condition = icmp(lhs, LlvmIntPredicate.EQUAL, rhs),
                 ifTrue = {
@@ -551,15 +555,15 @@ private fun <T : LlvmIntegerType> buildUnsignedCompareFn(
 }
 
 private val compareTo_s8 = buildSignedCompareFn("S8", LlvmS8Type)
-private val compareTo_u8 = buildUnsignedCompareFn("U8", LlvmU8Type) { s8(it.toByte()) }
+private val compareTo_u8 = buildUnsignedCompareFn("U8", LlvmU8Type, LlvmS8Type) { s8(it.toByte()) }
 private val compareTo_s16 = buildSignedCompareFn("S16", LlvmS16Type)
-private val compareTo_u16 = buildUnsignedCompareFn("U16", LlvmU16Type) { s16(it.toShort()) }
+private val compareTo_u16 = buildUnsignedCompareFn("U16", LlvmU16Type, LlvmS16Type) { s16(it.toShort()) }
 private val compareTo_s32 = buildSignedCompareFn("S32", LlvmS32Type)
-private val compareTo_u32 = buildUnsignedCompareFn("U32", LlvmU32Type) { s32(it.toInt()) }
+private val compareTo_u32 = buildUnsignedCompareFn("U32", LlvmU32Type, LlvmS32Type) { s32(it.toInt()) }
 private val compareTo_s64 = buildSignedCompareFn("S64", LlvmS64Type)
-private val compareTo_u64 = buildUnsignedCompareFn("U64", LlvmU64Type) { s64(it) }
+private val compareTo_u64 = buildUnsignedCompareFn("U64", LlvmU64Type, LlvmS64Type) { s64(it) }
 private val compareTo_sWord = buildSignedCompareFn("SWord", EmergeSWordType)
-private val compareTo_uWord = buildUnsignedCompareFn("UWord", EmergeUWordType) { sWord(it) }
+private val compareTo_uWord = buildUnsignedCompareFn("UWord", EmergeUWordType, EmergeSWordType) { sWord(it) }
 
 private fun buildEqualsFn(emergeTypeSimpleName: String, llvmType: LlvmIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
     "emerge.core.${emergeTypeSimpleName}::equals",
