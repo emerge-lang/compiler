@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
@@ -29,7 +30,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.toBigInteger
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -55,7 +55,7 @@ internal abstract class EmergeWordBaseType(
         return target is LlvmIntegerType
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createBasicType(
             if (isSigned) {
                 EmergeConstants.CoreModule.SWORD_TYPE_NAME.toString()
@@ -128,6 +128,10 @@ internal object EmergeWeakReferenceCollectionType : LlvmNamedStructType("weakref
         LlvmArrayType(10, pointerTo(PointerToAnyEmergeValue)),
     )
     val next by structMember(pointerTo(this@EmergeWeakReferenceCollectionType))
+
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return diBuilder.createUnspecifiedType(name)
+    }
 }
 
 /**
@@ -293,7 +297,7 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
             return PointerToAnyEmergeValue.getRawInContext(context)
         }
 
-        override fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+        override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
             return PointerToAnyEmergeValue.getDiType(diBuilder)
         }
 

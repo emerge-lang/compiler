@@ -11,7 +11,6 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
-import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 
 class DiBuilder(
@@ -23,8 +22,8 @@ class DiBuilder(
 ) : AutoCloseable {
     private val ref = Llvm.LLVMCreateDIBuilder(moduleRef)
 
-    val file: DebugInfoScope.File
-    val compileUnit: DebugInfoScope.CompileUnit
+    val file: LlvmDebugInfo.Scope.File
+    val compileUnit: LlvmDebugInfo.Scope.CompileUnit
 
     init {
         val dirBytes = (filePath.parent?.toString() ?: "").toByteArray(Charsets.UTF_8)
@@ -36,7 +35,7 @@ class DiBuilder(
             dirBytes,
             NativeLong(dirBytes.size.toLong()),
         )
-        file = DebugInfoScope.File(fileRef, filePath)
+        file = LlvmDebugInfo.Scope.File(fileRef, filePath)
 
         val compileUnitRef = Llvm.LLVMDIBuilderCreateCompileUnit(
             ref,
@@ -54,16 +53,17 @@ class DiBuilder(
             null, ZERO_WORD,
             null, ZERO_WORD,
         )
-        compileUnit = DebugInfoScope.CompileUnit(compileUnitRef, filePath.toString())
+        compileUnit = LlvmDebugInfo.Scope.CompileUnit(compileUnitRef, filePath.toString())
     }
 
-    private val structTypeTags = HashMap<CanonicalElementName.BaseType, UInt>()
-    fun getStructTypeTag(name: CanonicalElementName.BaseType): UInt {
+    private val structTypeTags = HashMap<String, UInt>()
+    fun getStructTypeTag(uniqueId: String): UInt {
         val next = (structTypeTags.size + 1).toUInt()
-        return structTypeTags.putIfAbsent(name, next) ?: next
+        return structTypeTags.putIfAbsent(uniqueId, next) ?: next
     }
 
     fun createSubroutineParameter(
+        scope: LlvmDebugInfo.Scope.Function,
         name: String,
         index: UInt,
         lineNumber: UInt,
@@ -75,9 +75,10 @@ class DiBuilder(
 
         val nameBytes = name.toByteArray(Charsets.UTF_8)
 
-        return Llvm.LLVMDIBuilderCreateParameterVariable(
+        println("before subroutine param")
+        val ref = Llvm.LLVMDIBuilderCreateParameterVariable(
             ref,
-            file.ref, // TODO: this doesn't work, needs to be a DILocalScope
+            scope.ref,
             nameBytes,
             NativeLong(nameBytes.size.toLong()),
             (index + 1u).toInt(),
@@ -87,21 +88,23 @@ class DiBuilder(
             if (alwaysPreserve) 1 else 0,
             flags,
         )
+        println("after subroutine param")
+        return ref
     }
 
     fun createSubroutineType(
-        parameters: Collection<LlvmMetadataRef>,
-    ): LlvmMetadataRef {
+        parameterTypes: Collection<LlvmDebugInfo.Type>,
+    ): LlvmDebugInfo.SubroutineType {
         check(!closed)
 
-        NativePointerArray.fromJavaPointers(parameters).use { parametersArray ->
-            return Llvm.LLVMDIBuilderCreateSubroutineType(
+        NativePointerArray.fromJavaPointers(parameterTypes.map { it.ref }).use { parameterTypesArray ->
+            return LlvmDebugInfo.SubroutineType(Llvm.LLVMDIBuilderCreateSubroutineType(
                 ref,
                 file.ref,
-                parametersArray,
-                parametersArray.length,
+                parameterTypesArray,
+                parameterTypesArray.length,
                 0,
-            )
+            ))
         }
     }
 
@@ -109,8 +112,8 @@ class DiBuilder(
         name: String,
         linkageName: String = name,
         onLineNumber: UInt,
-        subroutineType: LlvmMetadataRef,
-    ): DebugInfoScope.Function {
+        subroutineType: LlvmDebugInfo.SubroutineType,
+    ): LlvmDebugInfo.Scope.Function {
         check(!closed)
 
         val nameBytes = name.toByteArray(Charsets.UTF_8)
@@ -125,7 +128,7 @@ class DiBuilder(
             NativeLong(linkageNameBytes.size.toLong()),
             file.ref,
             onLineNumber.toInt(),
-            subroutineType,
+            subroutineType.ref,
             1, // TODO: defer from visibility
             1,
             0,
@@ -133,42 +136,72 @@ class DiBuilder(
             0,
         )
 
-        return DebugInfoScope.Function(ref, name.toString())
+        return LlvmDebugInfo.Scope.Function(ref, name.toString())
     }
 
     fun createDebugLocation(
-        scope: DebugInfoScope,
+        scope: LlvmDebugInfo.Scope,
         line: UInt,
         column: UInt,
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.Location {
         check(!closed)
 
-        return Llvm.LLVMDIBuilderCreateDebugLocation(
+        return LlvmDebugInfo.Location(Llvm.LLVMDIBuilderCreateDebugLocation(
             context.ref,
             line.toInt(),
             column.toInt(),
             scope.ref,
             null,
+        ))
+    }
+
+    fun createLexicalScope(
+        parentScope: LlvmDebugInfo.Scope?,
+        line: UInt,
+        column: UInt,
+    ): LlvmDebugInfo.Scope.LexicalBlock {
+        check(!closed)
+
+        val blockRef = Llvm.LLVMDIBuilderCreateLexicalBlock(
+            ref,
+            parentScope?.ref ?: file.ref,
+            file.ref,
+            line.toInt(),
+            column.toInt(),
         )
+
+        return LlvmDebugInfo.Scope.LexicalBlock(blockRef)
     }
 
     fun createBasicType(
         name: String,
         sizeInBits: ULong,
         encoding: DwarfBaseTypeEncoding,
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.Type {
         check(!closed)
 
         val nameBytes = name.toByteArray(Charsets.UTF_8)
 
-        return Llvm.LLVMDIBuilderCreateBasicType(
+        return LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreateBasicType(
             ref,
             nameBytes,
             NativeLong(nameBytes.size.toLong()),
             sizeInBits.toLong(),
             encoding,
             NativeI32FlagGroup(),
-        );
+        ));
+    }
+
+    fun createUnspecifiedType(name: String): LlvmDebugInfo.Type {
+        check(!closed)
+
+        val nameBytes = name.toByteArray(Charsets.UTF_8)
+
+        return LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreateUnspecifiedType(
+            ref,
+            nameBytes,
+            NativeLong(nameBytes.size.toLong())
+        ))
     }
 
     fun createStructMember(
@@ -176,15 +209,15 @@ class DiBuilder(
         sizeInBits: ULong,
         alignInBits: UInt,
         offsetInBits: ULong,
-        type: LlvmMetadataRef,
+        type: LlvmDebugInfo.Type,
         flags: NativeI32FlagGroup<LlvmDiFlags>,
         declaredAt: IrSourceLocation,
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.StructMember {
         check(!closed)
 
         val nameBytes = name.toByteArray(Charsets.UTF_8)
 
-        return Llvm.LLVMDIBuilderCreateMemberType(
+        return LlvmDebugInfo.StructMember(Llvm.LLVMDIBuilderCreateMemberType(
             ref,
             file.ref,
             nameBytes,
@@ -195,8 +228,8 @@ class DiBuilder(
             alignInBits.toLong(),
             offsetInBits.toLong(),
             flags,
-            type,
-        )
+            type.ref,
+        ))
     }
 
     fun createStructType(
@@ -204,16 +237,16 @@ class DiBuilder(
         sizeInBits: ULong,
         alignInBits: UInt,
         flags: NativeI32FlagGroup<LlvmDiFlags>,
-        elements: List<LlvmMetadataRef>,
+        elements: List<LlvmDebugInfo.StructMember>?,
         declaredAt: IrSourceLocation?,
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.Type {
         check(!closed)
 
-        val nameBytes = name.toString().toByteArray(Charsets.UTF_8)
+        val nameBytes = name.toByteArray(Charsets.UTF_8)
         val nameBytesLen = NativeLong(nameBytes.size.toLong())
 
-        return NativePointerArray.fromJavaPointers(elements).use { elementsArray ->
-            Llvm.LLVMDIBuilderCreateStructType(
+        return NativePointerArray.fromJavaPointers(elements?.map { it.ref } ?: emptyList()).use { elementsArray ->
+            LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreateStructType(
                 ref,
                 file.ref,
                 nameBytes,
@@ -230,23 +263,33 @@ class DiBuilder(
                 null,
                 nameBytes,
                 nameBytesLen,
-            )
+            ))
         }
     }
 
-    fun createForwardDeclarationOfStructType(
-        name: CanonicalElementName.BaseType,
+    fun createTemporaryForwardDeclarationOfStructType(
+        name: String,
+        uniqueId: String = name,
         sizeInBits: ULong,
         alignInBits: UInt,
         flags: NativeI32FlagGroup<LlvmDiFlags>,
         declaredAt: IrSourceLocation,
-    ): LlvmMetadataRef {
-        val nameBytes = name.toString().toByteArray(Charsets.UTF_8)
+    ): LlvmDebugInfo.Type {
+        val nameBytes = name.toByteArray(Charsets.UTF_8)
         val nameBytesLen = NativeLong(nameBytes.size.toLong())
+        val uniqueIdBytes: ByteArray
+        val uniqueIdLen: NativeLong
+        if (uniqueId == name) {
+            uniqueIdBytes = nameBytes
+            uniqueIdLen = nameBytesLen
+        } else {
+            uniqueIdBytes = uniqueId.toByteArray(Charsets.UTF_8)
+            uniqueIdLen = NativeLong(uniqueIdBytes.size.toLong())
+        }
 
-        return Llvm.LLVMDIBuilderCreateReplaceableCompositeType(
+        return LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreateReplaceableCompositeType(
             ref,
-            getStructTypeTag(name).toInt(),
+            getStructTypeTag(uniqueId).toInt(),
             nameBytes,
             nameBytesLen,
             file.ref,
@@ -256,42 +299,42 @@ class DiBuilder(
             sizeInBits.toLong(),
             alignInBits.toInt(),
             flags,
-            nameBytes,
-            nameBytesLen,
-        )
+            uniqueIdBytes,
+            uniqueIdLen,
+        ))
     }
 
     fun createPointerType(
-        pointeeType: LlvmMetadataRef,
-    ): LlvmMetadataRef {
+        pointeeType: LlvmDebugInfo.Type,
+    ): LlvmDebugInfo.Type {
         check(!closed)
 
-        return Llvm.LLVMDIBuilderCreatePointerType(
+        return LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreatePointerType(
             ref,
-            pointeeType,
+            pointeeType.ref,
             context.targetData.pointerSizeInBits.toLong(),
             0,
             0,
             null,
             null,
-        )
+        ))
     }
 
     fun createArrayType(
-        elementType: LlvmMetadataRef,
+        elementType: LlvmDebugInfo.Type,
         size: ULong,
         alignInBits: UInt
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.Type {
         check(!closed)
 
-        return Llvm.LLVMDIBuilderCreateArrayType(
+        return LlvmDebugInfo.Type(Llvm.LLVMDIBuilderCreateArrayType(
             ref,
             size.toLong(),
             alignInBits.toInt(),
-            elementType,
+            elementType.ref,
             null,
             0,
-        )
+        ))
     }
 
     private var finalized = false

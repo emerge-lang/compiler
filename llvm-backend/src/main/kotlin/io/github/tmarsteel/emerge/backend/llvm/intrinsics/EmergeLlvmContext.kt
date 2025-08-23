@@ -238,7 +238,7 @@ class EmergeLlvmContext(
             EmergeConstants.CoreModule.F64_TYPE_NAME -> rawF64Clazz = clazz
             EmergeConstants.CoreModule.SWORD_TYPE_NAME -> rawSWordClazz = clazz
             EmergeConstants.CoreModule.UWORD_TYPE_NAME -> rawUWordClazz = clazz
-            EmergeConstants.CoreModule.BOOLEAN_TYPE_NAME -> rawBoolClazz = clazz
+            EmergeConstants.CoreModule.BOOL_TYPE_NAME -> rawBoolClazz = clazz
             EmergeConstants.CoreModule.ARITHMETIC_ERROR_TYPE_NAME -> arithmeticErrorClazz = clazz
             EmergeConstants.ReflectionModule.REFLECTION_BASE_TYPE_TYPE_NAME -> rawReflectionBaseTypeClazz = clazz
         }
@@ -282,12 +282,12 @@ class EmergeLlvmContext(
             }
         }
 
-        emergeClassType.fillDiStructType(clazz.declaredAt.file.diBuilder)
         emergeStructs.add(emergeClassType)
     }
 
     fun defineClassStructure(clazz: IrClass) {
         clazz.llvmType.assureLlvmStructMembersDefined()
+        clazz.llvmType.fillDiStructType(clazz.declaredAt.file.diBuilder)
     }
 
     private val emergeClassesByIrTypeCache: MutableMap<CanonicalElementName.BaseType, EmergeClassType> = MapMaker().weakValues().makeMap()
@@ -391,13 +391,8 @@ class EmergeLlvmContext(
             name = fn.canonicalName.toString(),
             linkageName = fn.llvmName,
             fn.declaredAt.lineNumber,
-            diBuilder.createSubroutineType(fn.parameters.zip(llvmParameterTypes).mapIndexed { index, (param, paramLlvmType) ->
-                diBuilder.createSubroutineParameter(
-                    param.name,
-                    index.toUInt(),
-                    param.declaredAt.lineNumber,
-                    paramLlvmType.getDiType(diBuilder),
-                )
+            diBuilder.createSubroutineType((listOf(coreReturnValueLlvmType) + llvmParameterTypes).mapIndexed { index, paramLlvmType ->
+                paramLlvmType.getDiType(diBuilder)
             })
         )
 
@@ -659,7 +654,7 @@ class EmergeLlvmContext(
                         EmergeConstants.CoreModule.U64_TYPE_NAME -> EmergeU64ArrayType
                         EmergeConstants.CoreModule.SWORD_TYPE_NAME -> EmergeSWordArrayType
                         EmergeConstants.CoreModule.UWORD_TYPE_NAME -> EmergeUWordArrayType
-                        EmergeConstants.CoreModule.BOOLEAN_TYPE_NAME -> EmergeBooleanArrayType
+                        EmergeConstants.CoreModule.BOOL_TYPE_NAME -> EmergeBooleanArrayType
                         EmergeConstants.CoreModule.ANY_TYPE_NAME -> if (component.variance == IrTypeVariance.OUT) EmergeArrayBaseType else EmergeReferenceArrayType
                         else -> EmergeReferenceArrayType
                     }

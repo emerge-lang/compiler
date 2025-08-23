@@ -12,9 +12,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF64Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -139,6 +141,8 @@ internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
 
     isNothrow
 }
+
+internal var IrVariableDeclaration.Scope.diScope: LlvmDebugInfo.Scope.LexicalBlock? by tackState { null }
 
 internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }

@@ -60,6 +60,7 @@ import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.baseBaseType
+import io.github.tmarsteel.emerge.backend.llvm.diScope
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
@@ -467,6 +468,16 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrUpdateSourceLocationStatement -> {
             markSourceLocation(code.lineNumber, code.columnNumber)
+            return ExecutableResult.ExecutionOngoing
+        }
+        is IrVariableDeclaration.Scope.Lexical.BeginMarker -> {
+            check(code.scope.diScope == null)
+            code.scope.diScope = createAndEnterLexicalScope()
+            return ExecutableResult.ExecutionOngoing
+        }
+        is IrVariableDeclaration.Scope.Lexical.EndMarker -> {
+            val scope = code.scope.diScope ?: throw CodeGenerationException("diScope not set for lexical block ${code.scope}")
+            leaveLexicalScope(scope)
             return ExecutableResult.ExecutionOngoing
         }
         is IrUnreachableStatement -> {

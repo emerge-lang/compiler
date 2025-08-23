@@ -2,11 +2,10 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
-object LlvmBooleanType : LlvmFixedIntegerType(1u, false, EmergeConstants.CoreModule.BOOLEAN_TYPE_NAME.toString())
+object LlvmBooleanType : LlvmFixedIntegerType(1u, false, EmergeConstants.CoreModule.BOOL_TYPE_NAME.toString())
 object LlvmS8Type : LlvmFixedIntegerType(8u, true, EmergeConstants.CoreModule.S8_TYPE_NAME.toString())
 object LlvmU8Type : LlvmFixedIntegerType(8u, false, EmergeConstants.CoreModule.U8_TYPE_NAME.toString())
 object LlvmS16Type : LlvmFixedIntegerType(16u, true, EmergeConstants.CoreModule.S16_TYPE_NAME.toString())
@@ -20,7 +19,7 @@ object LlvmF32Type : LlvmCachedType() {
         return Llvm.LLVMFloatTypeInContext(context.ref)
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createBasicType(EmergeConstants.CoreModule.F32_TYPE_NAME.toString(), 32u, DwarfBaseTypeEncoding.FLOAT)
     }
 }
@@ -29,7 +28,7 @@ object LlvmF64Type : LlvmCachedType() {
         return Llvm.LLVMDoubleTypeInContext(context.ref)
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createBasicType(EmergeConstants.CoreModule.F64_TYPE_NAME.toString(), 64u, DwarfBaseTypeEncoding.FLOAT)
     }
 }

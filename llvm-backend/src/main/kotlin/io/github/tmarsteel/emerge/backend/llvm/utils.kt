@@ -24,7 +24,7 @@ fun <T, K> Sequence<Pair<K, T>>.associateErrorOnDuplicate(): Map<K, T> {
 }
 
 fun UInt.toBigInteger(): BigInteger = BigInteger(
-    0,
+    if (this == 0u) 0 else 1,
     byteArrayOf(
         ( this shr 24           ).toByte(),
         ((this shr 16) and 0xFFu).toByte(),
@@ -34,7 +34,7 @@ fun UInt.toBigInteger(): BigInteger = BigInteger(
 )
 
 fun ULong.toBigInteger(): BigInteger = BigInteger(
-    0,
+    if (this == 0uL) 0 else 1,
     byteArrayOf(
         ( this shr 56           ).toByte(),
         ((this shr 48) and 0xFFu).toByte(),

@@ -1,11 +1,17 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 
-import com.sun.jna.*;
-import org.jetbrains.annotations.*;
+import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.PointerType;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.function.Function;
 
 public class NativePointerArray<T extends PointerType> extends PointerType implements AutoCloseable {
@@ -59,18 +65,37 @@ public class NativePointerArray<T extends PointerType> extends PointerType imple
     private Function<Pointer, T> getComponentTypeFactory() {
         Function<Pointer, T> factory;
         try {
-            var ctor = tClazz.getConstructor(Pointer.class);
+            var pointerCtor = tClazz.getConstructor(Pointer.class);
             factory = (p) -> {
                 try {
-                    return (T) ctor.newInstance(p);
+                    return (T) pointerCtor.newInstance(p);
                 }
                 catch (InstantiationException | IllegalAccessException | InvocationTargetException ex) {
                     throw new RuntimeException(ex);
                 }
             };
         } catch (NoSuchMethodException ex) {
-            throw new RuntimeException(ex);
+            try {
+                var noArgsCtor = tClazz.getConstructor();
+                factory = (p) -> {
+                    T instance;
+                    try {
+                        instance = (T) noArgsCtor.newInstance();
+                    }
+                    catch (InstantiationException | IllegalAccessException | InvocationTargetException ex2) {
+                        ex.addSuppressed(ex2);
+                        throw new RuntimeException(ex);
+                    }
+                    instance.setPointer(p);
+                    return instance;
+                };
+            }
+            catch (NoSuchMethodException ex2) {
+                ex.addSuppressed(ex2);
+                throw new RuntimeException(ex);
+            }
         }
+
         return factory;
     }
 

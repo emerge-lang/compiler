@@ -628,6 +628,15 @@ public class Llvm {
     /** see Core.h */
     public static native @NotNull LlvmMetadataRef LLVMValueAsMetadata(@NotNull LlvmValueRef value);
 
+    /** see Core.h */
+    public static native @Unsigned int LLVMGetMDNodeNumOperands(LlvmValueRef metadataAsValue);
+
+    /** see Core.h */
+    public static native void LLVMGetMDNodeOperands(
+            @NotNull LlvmValueRef metadataAsValue,
+            @NotNull NativePointerArray<LlvmValueRef> dest
+    );
+
     /** see DebugInfo.h */
     public static native @Unsigned int LLVMDebugMetadataVersion();
 
@@ -691,7 +700,7 @@ public class Llvm {
             @NotNull @ArraySizeOf("name") NativeLong linkageNameLen,
             @NotNull LlvmMetadataRef file,
             @Unsigned int lineNo,
-            @NotNull LlvmMetadataRef type,
+            @Nullable LlvmMetadataRef type,
             @LlvmBool int isLocalToUnit,
             @LlvmBool int isDefinition,
             @Unsigned int scopeLine,
@@ -709,6 +718,16 @@ public class Llvm {
     );
 
     /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMTemporaryMDNode(
+            @NotNull LlvmContextRef context,
+            @NotNull NativePointerArray<LlvmMetadataRef> elements,
+            @Unsigned @ArraySizeOf("elements") int numElements
+    );
+
+    /** see DebugInfo.h */
+    public static native void LLVMDisposeTemporaryMDNode(@NotNull LlvmMetadataRef temporaryNode);
+
+    /** see DebugInfo.h */
     public static native void LLVMMetadataReplaceAllUsesWith(LlvmMetadataRef TempTargetMetadata, LlvmMetadataRef Replacement);
 
     /** see DebugInfo.h */
@@ -722,12 +741,12 @@ public class Llvm {
             @Unsigned long sizeInBits,
             @Unsigned int alignInBits,
             @NotNull NativeI32FlagGroup<LlvmDiFlags> Flags,
-            LlvmMetadataRef DerivedFrom,
-            @NotNull NativePointerArray<LlvmMetadataRef> elements,
-            @Unsigned int NumElements,
+            @Nullable LlvmMetadataRef DerivedFrom,
+            @Nullable NativePointerArray<LlvmMetadataRef> elements,
+            int NumElements,
             @Unsigned int objectiveCRuntimeVersion,
             LlvmMetadataRef VTableHolder,
-            @NotNull byte[] uniqueId,
+            @Nullable byte[] uniqueId,
             @NotNull @ArraySizeOf("uniqueId") NativeLong uniqueIdLen
     );
 
@@ -770,6 +789,13 @@ public class Llvm {
     );
 
     /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateUnspecifiedType(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull byte[] name,
+            @NotNull @ArraySizeOf("name") NativeLong nameLen
+    );
+
+    /** see DebugInfo.h */
     public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateMemberType(
             @NotNull LlvmDiBuilderRef builder,
             @NotNull LlvmMetadataRef scope,
@@ -784,6 +810,7 @@ public class Llvm {
             @NotNull LlvmMetadataRef type
     );
 
+    /** see DebugInfo.h */
     public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateArrayType(
             @NotNull LlvmDiBuilderRef builder,
             @Unsigned long size,
@@ -793,6 +820,7 @@ public class Llvm {
             @Unsigned int numSubscripts
     );
 
+    /** see DebugInfo.h */
     public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateParameterVariable(
             @NotNull LlvmDiBuilderRef builder,
             @NotNull LlvmMetadataRef scope,
@@ -807,7 +835,19 @@ public class Llvm {
     );
 
     /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateLexicalBlock(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmMetadataRef parentScope,
+            @NotNull LlvmMetadataRef file,
+            @Unsigned int line,
+            @Unsigned int column
+    );
+
+    /** see DebugInfo.h */
     public static native void LLVMSetSubprogram(@NotNull LlvmValueRef func, @Nullable LlvmMetadataRef subprogram);
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataKind LLVMGetMetadataKind(@NotNull LlvmMetadataRef metadataRef);
 
     /** see DebugInfo.h */
     public static native @Unsigned long LLVMDITypeGetSizeInBits(LlvmMetadataRef diType);

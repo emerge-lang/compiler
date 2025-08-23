@@ -9,7 +9,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedVal
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDiFlags
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
@@ -30,7 +29,7 @@ interface LlvmType {
      */
     fun isLlvmAssignableTo(target: LlvmType) = this == target
 
-    fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef
+    fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type
 }
 
 abstract class LlvmCachedType : LlvmType {
@@ -41,12 +40,29 @@ abstract class LlvmCachedType : LlvmType {
 
     protected abstract fun computeRaw(context: LlvmContext): LlvmTypeRef
 
-    private val diTypeByBuilder: MutableMap<DiBuilder, LlvmMetadataRef> = MapMaker().weakKeys().makeMap()
-    final override fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef {
-        return diTypeByBuilder.computeIfAbsent(diBuilder, this::computeDiType)
+    private val diTypeByBuilder: MutableMap<DiBuilder, LlvmDebugInfo.Type> = MapMaker().weakKeys().makeMap()
+    final override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        diTypeByBuilder[diBuilder]?.let { return it }
+
+        if (this is ForwardDeclared) {
+            val fwDcl = createTemporaryForwardDeclaration(diBuilder)
+            diTypeByBuilder[diBuilder] = fwDcl
+            val properDeclared = computeDiType(diBuilder)
+            diTypeByBuilder[diBuilder] = properDeclared
+            Llvm.LLVMMetadataReplaceAllUsesWith(fwDcl.ref, properDeclared.ref)
+            return properDeclared
+        } else {
+            val properDeclared = computeDiType(diBuilder)
+            diTypeByBuilder[diBuilder] = properDeclared
+            return properDeclared
+        }
     }
 
-    protected abstract fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef
+    protected abstract fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type
+
+    interface ForwardDeclared {
+        fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type
+    }
 }
 
 object LlvmVoidType : LlvmCachedType() {
@@ -56,8 +72,8 @@ object LlvmVoidType : LlvmCachedType() {
 
     override fun toString() = "void"
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
-        throw CodeGenerationException("Cannot get DIType for void")
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return diBuilder.createUnspecifiedType("void")
     }
 }
 
@@ -106,14 +122,14 @@ abstract class LlvmFixedIntegerType(
         return Llvm.LLVMIntTypeInContext(context.ref, nBits.toInt())
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createBasicType(
             name,
             nBits.toULong(),
             if (isSigned) {
-                DwarfBaseTypeEncoding.SIGNED_FIXED
+                DwarfBaseTypeEncoding.SIGNED
             } else {
-                DwarfBaseTypeEncoding.UNSIGNED_FIXED
+                DwarfBaseTypeEncoding.UNSIGNED
             }
         )
     }
@@ -167,7 +183,7 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
         return target is LlvmPointerType<*> || target is EmergeFallibleCallResult.OfVoid
     }
 
-    override fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createPointerType(pointed.getDiType(diBuilder))
     }
 
@@ -261,7 +277,7 @@ abstract class LlvmNamedStructType(
         return structType
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         val rawStructType = getRawInContext(diBuilder.context)
         val flags = NativeI32FlagGroup<LlvmDiFlags>()
         return diBuilder.createStructType(
@@ -269,7 +285,7 @@ abstract class LlvmNamedStructType(
             Llvm.LLVMSizeOfTypeInBits(diBuilder.context.targetData.ref, rawStructType).toULong(),
             Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, rawStructType).toUInt(),
             flags,
-            membersInOrder.map { it.type.getDiType(diBuilder) },
+            null,
             declaredAt,
         )
     }
@@ -299,7 +315,7 @@ open class LlvmInlineStructType(
         }
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         throw CodeGenerationException("Cannot emit DWARF for inline struct types")
     }
 
@@ -358,7 +374,7 @@ class LlvmArrayType<Element : LlvmType>(
         return Llvm.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
     }
 
-    override fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createArrayType(
             elementType.getDiType(diBuilder),
             elementCount.toULong(),
@@ -409,7 +425,7 @@ object LlvmFunctionAddressType : LlvmCachedType() {
         throw UnsupportedOperationException("not used, getRawInContext is overridden")
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createBasicType(toString(), diBuilder.context.targetData.pointerSizeInBits, DwarfBaseTypeEncoding.ADDRESS)
     }
 }
@@ -436,7 +452,7 @@ data class LlvmFunctionType<out R : LlvmType>(
         }
     }
 
-    override fun computeDiType(diBuilder: DiBuilder): LlvmMetadataRef {
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         throw CodeGenerationException("Cannot emit DWARF for function types (only declared/defined functions)")
     }
 }

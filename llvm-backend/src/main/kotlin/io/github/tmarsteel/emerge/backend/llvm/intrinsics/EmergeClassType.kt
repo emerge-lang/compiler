@@ -15,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -27,7 +28,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
@@ -125,10 +125,10 @@ internal class EmergeClassType private constructor(
         return heapAllocation
     }
 
-    private lateinit var diStructType: LlvmMetadataRef
-    private var temporaryRefs: MutableList<LlvmMetadataRef>? = null
+    private var diStructType: LlvmDebugInfo.Type? = null
+    private var temporaryRefs: MutableList<LlvmDebugInfo.Type>? = null
     fun fillDiStructType(diBuilder: DiBuilder) {
-        if (this::diStructType.isInitialized) {
+        if (this.diStructType != null) {
             return
         }
 
@@ -150,8 +150,8 @@ internal class EmergeClassType private constructor(
                     val memberDiType = memberLlvmType.getDiType(diBuilder)
                     diBuilder.createStructMember(
                         irMember.name,
-                        Llvm.LLVMDITypeGetSizeInBits(memberDiType).toULong(),
-                        Llvm.LLVMDITypeGetAlignInBits(memberDiType).toUInt(),
+                        memberDiType.sizeInBits,
+                        memberDiType.alignInBits,
                         Llvm.LLVMOffsetOfElement(diBuilder.context.targetData.ref, structRef, field.indexInLlvmStruct!!).toULong(),
                         memberDiType,
                         NativeI32FlagGroup(),
@@ -162,21 +162,19 @@ internal class EmergeClassType private constructor(
         )
 
         temporaryRefs?.forEach {
-            Llvm.LLVMMetadataReplaceAllUsesWith(it, diStructType)
+            Llvm.LLVMMetadataReplaceAllUsesWith(it.ref, diStructType!!.ref)
         }
     }
 
-    override fun getDiType(diBuilder: DiBuilder): LlvmMetadataRef {
-        if (this::diStructType.isInitialized) {
-            return diStructType
-        }
+    override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        diStructType?.let { return it }
 
-        val tmpRef = diBuilder.createForwardDeclarationOfStructType(
-            irClass.canonicalName,
-            Llvm.LLVMSizeOfTypeInBits(context.targetData.ref, structRef).toULong(),
-            Llvm.LLVMABIAlignmentOfType(context.targetData.ref, structRef).toUInt(),
-            NativeI32FlagGroup(),
-            irClass.declaredAt,
+        val tmpRef = diBuilder.createTemporaryForwardDeclarationOfStructType(
+            name = irClass.canonicalName.toString(),
+            sizeInBits = 0u,
+            alignInBits = 0u,
+            flags = NativeI32FlagGroup(),
+            declaredAt = irClass.declaredAt,
         )
         if (temporaryRefs == null) {
             temporaryRefs = ArrayList()

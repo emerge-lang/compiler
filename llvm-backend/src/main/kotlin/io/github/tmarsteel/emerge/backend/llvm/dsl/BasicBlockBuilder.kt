@@ -75,10 +75,12 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
 
     fun <R : LlvmType> select(condition: LlvmValue<LlvmBooleanType>, ifTrue: LlvmValue<R>, ifFalse: LlvmValue<R>): LlvmValue<R>
 
-    fun enterDebugScope(scope: DebugInfoScope)
-    fun leaveDebugScope()
+    fun enterScope(scope: LlvmDebugInfo.Scope)
+    fun leaveScope()
     fun markSourceLocation(line: UInt, column: UInt)
     fun currentDebugLocation(): String
+    fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock
+    fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock)
 }
 
 /**
@@ -171,7 +173,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
             context: C,
             function: LlvmFunction<R>,
             diBuilder: DiBuilder,
-            diFunction: DebugInfoScope.Function,
+            diFunction: LlvmDebugInfo.Scope.Function,
             code: CodeGenerator<C, R>
         ) {
             val rawFn = function.address.raw
@@ -182,7 +184,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
             Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
                 val dslBuilder = BasicBlockBuilderImpl<C, R>(context, function.type.returnType, diBuilder, rawFn, builder, NameScope("tmp"), scopeTracker)
-                dslBuilder.enterDebugScope(diFunction)
+                dslBuilder.enterScope(diFunction)
                 dslBuilder.code()
             }
             finally {
@@ -496,28 +498,48 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(inst, ifTrue.type)
     }
 
-    override fun enterDebugScope(scope: DebugInfoScope) {
-        scopeTracker.enterDebugScope(scope)
+    override fun enterScope(scope: LlvmDebugInfo.Scope) {
+        scopeTracker.enterScope(scope)
     }
 
-    override fun leaveDebugScope() {
-        scopeTracker.leaveDebugScope()
+    override fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock {
+        val scope = diBuilder.createLexicalScope(
+            parentScope = try {
+                scopeTracker.currentScope
+            } catch (ex: NoSuchElementException) {
+                null
+            },
+            lastKnownLine,
+            0u,
+        )
+        scopeTracker.enterScope(scope)
+        return scope
+    }
+
+    override fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock) {
+        check(scopeTracker.currentScope == scope) { "Trying to leave scope $scope, but we are in ${scopeTracker.currentScope}" }
+
+        scopeTracker.leaveScope()
+    }
+
+    override fun leaveScope() {
+        scopeTracker.leaveScope()
     }
 
     private var lastKnownLine: UInt = 0u
     override fun markSourceLocation(line: UInt, column: UInt) {
         lastKnownLine = line
         val location = diBuilder.createDebugLocation(
-            scopeTracker.currentDebugScope,
+            scopeTracker.currentScope,
             line,
             column,
         )
-        Llvm.LLVMSetCurrentDebugLocation2(llvmRef, location)
+        Llvm.LLVMSetCurrentDebugLocation2(llvmRef, location.ref)
     }
 
     override fun currentDebugLocation(): String {
         val scope = try {
-            scopeTracker.currentDebugScope
+            scopeTracker.currentScope
         } catch (ex: NoSuchElementException) {
             return "unknown"
         }
@@ -729,17 +751,17 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
         runLocalDeferredCode()
     }
 
-    private val debugScopes = Stack<DebugInfoScope>()
+    private val debugScopes = Stack<LlvmDebugInfo.Scope>()
 
-    fun enterDebugScope(scope: DebugInfoScope) {
+    fun enterScope(scope: LlvmDebugInfo.Scope) {
         debugScopes.push(scope)
     }
 
-    fun leaveDebugScope() {
+    fun leaveScope() {
         debugScopes.pop()
     }
 
-    val currentDebugScope: DebugInfoScope get() {
+    val currentScope: LlvmDebugInfo.Scope get() {
         if (debugScopes.isNotEmpty()) {
             return debugScopes.peek()
         }
@@ -748,6 +770,6 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
             throw NoSuchElementException()
         }
 
-        return parent.currentDebugScope
+        return parent.currentScope
     }
 }

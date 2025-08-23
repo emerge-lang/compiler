@@ -2,15 +2,20 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
@@ -30,8 +35,11 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
+import java.nio.file.Path
+import java.nio.file.Paths
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.finalizeStaticObject",
@@ -59,10 +67,10 @@ internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStr
     }
 }
 
-internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmNamedStructType("typeinfo$nVTableEntries") {
+internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmNamedStructType("typeinfo$nVTableEntries"), LlvmCachedType.ForwardDeclared {
     /**
      * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here (or even
-     * [PointerToAnyEmergeValueo] would create a cyclic reference on JVM classload time.
+     * [PointerToAnyEmergeValue] would create a cyclic reference on JVM classload time.
      */
     val supertypes by structMember(pointerTo(LlvmVoidType))
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
@@ -88,12 +96,38 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
         return other is TypeinfoType && other.nVTableEntries <= this.nVTableEntries
     }
 
+    override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return diBuilder.createTemporaryForwardDeclarationOfStructType(
+            name,
+            /*
+             * approximation:
+             * supertypes: pointer
+             * anyValueVirtuals: { pointer to dtor }
+             * dynamicTypeInfoPtr: pointer
+             * canonicalNamePtr: pointer to emerge string
+             * vtable: [pointer x size]
+             */
+            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (4u + vtable.type.nEntries.toUInt()),
+            alignInBits = diBuilder.context.targetData.pointerSizeInBits.toUInt(),
+            flags = NativeI32FlagGroup(),
+            declaredAt = Companion.declaredAt,
+        )
+    }
+
     companion object {
         private val cache = MapMaker().weakValues().makeMap<Long, TypeinfoType>()
         operator fun invoke(nVTableEntries: Long): TypeinfoType {
             return cache.computeIfAbsent(nVTableEntries, ::TypeinfoType)
         }
         val GENERIC = TypeinfoType(0)
+
+        val declaredAt = object : IrSourceLocation {
+            override val file = object : IrSourceFile {
+                override val path: Path = Paths.get(Thread.currentThread().stackTrace[1].fileName)
+            }
+            override val lineNumber = 1u
+            override val columnNumber = 1u
+        }
     }
 }
 
@@ -442,9 +476,9 @@ internal fun buildVTable(
         entries[section] = fn
     }
 
-    val addressesArrayType = LlvmArrayType(entries.size.toLong(), LlvmFunctionAddressType)
-
     val vtableType = VTableType(entries.size.toLong())
+    val addressesArrayType = vtableType.addresses.type
+
     return vtableType.buildConstantIn(context) {
         setValue(vtableType.shiftLeftAmount, context.u32(shiftLeftAmount.toUInt()))
         setValue(vtableType.shiftRightAmount, context.u32(shiftRightAmount.toUInt()))
