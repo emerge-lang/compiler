@@ -262,16 +262,19 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val addInstr = Llvm.LLVMBuildAdd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(addInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val subInstr = Llvm.LLVMBuildSub(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(subInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val mulInstr = Llvm.LLVMBuildMul(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(mulInstr, lhs.type)
     }
@@ -281,6 +284,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         rhs: LlvmValue<T>,
         knownToBeExact: Boolean
     ): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = if (knownToBeExact) {
             Llvm.LLVMBuildExactSDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
@@ -295,6 +300,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         rhs: LlvmValue<T>,
         knownToBeExact: Boolean
     ): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = if (knownToBeExact) {
             Llvm.LLVMBuildExactUDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
@@ -305,16 +312,22 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> srem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = Llvm.LLVMBuildSRem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> urem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = Llvm.LLVMBuildURem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType> {
+        assert(lhs.type == rhs.type)
+
         val cmpInstr = Llvm.LLVMBuildICmp(llvmRef, type, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(cmpInstr, LlvmBooleanType)
     }
@@ -335,16 +348,22 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val andInstr = Llvm.LLVMBuildAnd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(andInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val orInstr = Llvm.LLVMBuildOr(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(orInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val xorInst = Llvm.LLVMBuildXor(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(xorInst, lhs.type)
     }
