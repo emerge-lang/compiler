@@ -16,7 +16,7 @@ data object EmergeConstants {
         val CAST_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "CastError")
         val ARITHMETIC_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ArithmeticError")
 
-        val BOOLEAN_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Boolean")
+        val BOOL_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Bool")
         val S8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S8")
         val U8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U8")
         val S16_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S16")
