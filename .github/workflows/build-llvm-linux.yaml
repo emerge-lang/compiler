@@ -11,7 +11,7 @@ on:
 jobs:
   build-llvm-windows:
     name: "Build LLVM x86_64-unknown-linux-gnu"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       LLVM_INSTALL_PATH: ${{ github.workspace }}/llvm-install
       LLVM_BUILD_PATH: ${{ github.workspace }}/llvm-build
@@ -32,6 +32,7 @@ jobs:
           fetch-depth: 2
       - name: install build tools
         id: setup
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install clang-19
