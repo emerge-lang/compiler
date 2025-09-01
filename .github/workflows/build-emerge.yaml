@@ -238,6 +238,8 @@ jobs:
           path: "${{ steps.tarball.outputs.tarball_path }}"
   llvm-build-for-windows:
     uses: ./.github/workflows/build-llvm-windows.yaml
+  llvm-build-for-linux:
+    uses: ./.github/workflows/build-llvm-linux.yaml
   windows-distributables:
     name: Windows distributable archive
     runs-on: windows-2022
