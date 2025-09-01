@@ -30,9 +30,11 @@ jobs:
           repository: llvm/llvm-project
           ref: ${{ env.LLVM_REF }}
           fetch-depth: 2
-      - name: install llvm-19
+      - name: install build tools
         id: setup
-        run: sudo apt install clang-19 llvm-19-linker-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-19
       - name: Configure LLVM
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
