@@ -8,7 +8,7 @@ backends:
     ffi-c-sources: backends/native/emerge-ffi-c
     libc-sources: backends/linux-gnu/emerge-linux-libc
     platform-sources: backends/linux-gnu/emerge-platform-linux
-    llvm-installation-directory: ~
+    llvm-installation-directory: llvm
     static-libs:
       crtbeginS: backends/x86_64-pc-linux-gnu/lib/crtbeginS.o
       crtendS: backends/x86_64-pc-linux-gnu/lib/crtendS.o
