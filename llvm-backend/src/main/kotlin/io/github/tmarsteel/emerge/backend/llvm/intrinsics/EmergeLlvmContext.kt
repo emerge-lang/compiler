@@ -386,15 +386,17 @@ class EmergeLlvmContext(
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.NoUnwind) // emerge doesn't use unwinding as of now
 
-        val diBuilder = fn.declaredAt.file.diBuilder
-        fn.llvmRef!!.diFunction = diBuilder.createFunction(
-            name = fn.canonicalName.toString(),
-            linkageName = fn.llvmName,
-            fn.declaredAt.lineNumber,
-            diBuilder.createSubroutineType((listOf(coreReturnValueLlvmType) + llvmParameterTypes).mapIndexed { index, paramLlvmType ->
-                paramLlvmType.getDiType(diBuilder)
-            })
-        )
+        if (!fn.isExternalC) {
+            val diBuilder = fn.declaredAt.file.diBuilder
+            fn.llvmRef!!.diFunction = diBuilder.createFunction(
+                name = fn.canonicalName.toString(),
+                linkageName = fn.llvmName,
+                fn.declaredAt.lineNumber,
+                diBuilder.createSubroutineType((listOf(coreReturnValueLlvmType) + llvmParameterTypes).mapIndexed { index, paramLlvmType ->
+                    paramLlvmType.getDiType(diBuilder)
+                })
+            )
+        }
 
         fn.parameters.zip(llvmParameterTypes).forEachIndexed { index, (param, llvmParamType) ->
             val paramLlvmRawValue = Llvm.LLVMGetParam(rawRef, index)
