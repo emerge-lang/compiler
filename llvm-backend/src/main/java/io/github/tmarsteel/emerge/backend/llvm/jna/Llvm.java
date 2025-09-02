@@ -836,6 +836,20 @@ public class Llvm {
     );
 
     /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateAutoVariable(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmMetadataRef scope,
+            @NotNull byte[] name,
+            @NotNull @ArraySizeOf("name") NativeLong nameLen,
+            @NotNull LlvmMetadataRef file,
+            @Unsigned int lineNo,
+            @NotNull LlvmMetadataRef type,
+            @LlvmBool int alwaysPreserve,
+            @NotNull NativeI32FlagGroup<LlvmDiFlags> flags,
+            @Unsigned int alignInBits
+    );
+
+    /** see DebugInfo.h */
     public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateLexicalBlock(
             @NotNull LlvmDiBuilderRef builder,
             @NotNull LlvmMetadataRef parentScope,

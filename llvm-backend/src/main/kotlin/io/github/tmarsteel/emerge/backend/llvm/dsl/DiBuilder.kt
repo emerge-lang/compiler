@@ -90,6 +90,34 @@ class DiBuilder(
         return LlvmDebugInfo.LocalVariable(ref)
     }
 
+    fun createLocalVariable(
+        scope: LlvmDebugInfo.Scope,
+        name: String,
+        lineNumber: UInt,
+        type: LlvmDebugInfo.Type,
+        alignInBits: UInt = 0u,
+        alwaysPreserve: Boolean = false,
+        flags: NativeI32FlagGroup<LlvmDiFlags> = NativeI32FlagGroup(),
+    ): LlvmDebugInfo.LocalVariable {
+        check(!closed)
+
+        val nameBytes = name.toByteArray(Charsets.UTF_8)
+
+        val ref = Llvm.LLVMDIBuilderCreateAutoVariable(
+            ref,
+            scope.ref,
+            nameBytes,
+            NativeLong(nameBytes.size.toLong()),
+            file.ref,
+            lineNumber.toInt(),
+            type.ref,
+            if (alwaysPreserve) 1 else 0,
+            flags,
+            alignInBits.toInt(),
+        )
+        return LlvmDebugInfo.LocalVariable(ref)
+    }
+
     fun createSubroutineType(
         parameterTypes: Collection<LlvmDebugInfo.Type>,
     ): LlvmDebugInfo.SubroutineType {

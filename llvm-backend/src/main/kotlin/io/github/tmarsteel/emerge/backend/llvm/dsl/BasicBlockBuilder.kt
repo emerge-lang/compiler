@@ -22,6 +22,7 @@ annotation class LlvmBasicBlockDsl
 interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     val context: C
     val llvmRef: LlvmBuilderRef
+    val diBuilder: DiBuilder
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
@@ -82,6 +83,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock
     fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock)
 
+    fun createLocalVariableInCurrentScope(name: String, type: LlvmDebugInfo.Type): LlvmDebugInfo.LocalVariable
     fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
     fun dbg_value(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
 }
@@ -208,7 +210,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
 private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override val context: C,
     override val llvmFunctionReturnType: R,
-    val diBuilder: DiBuilder,
+    override val diBuilder: DiBuilder,
     val owningFunction: LlvmValueRef,
     override val llvmRef: LlvmBuilderRef,
     val tmpVars: NameScope,
@@ -573,6 +575,15 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         return "$scope, line $lastKnownLine"
+    }
+
+    override fun createLocalVariableInCurrentScope(name: String, type: LlvmDebugInfo.Type): LlvmDebugInfo.LocalVariable {
+        return diBuilder.createLocalVariable(
+            scopeTracker.currentScope,
+            name,
+            lastKnownLine,
+            type,
+        )
     }
 
     override fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression) {
