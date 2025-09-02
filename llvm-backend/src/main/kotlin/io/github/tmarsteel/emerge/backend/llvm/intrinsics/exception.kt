@@ -240,12 +240,12 @@ internal val writeMemoryAddress = KotlinLlvmFunction.define<EmergeLlvmContext, L
 
         val nibbleCharsGlobal = context.constantString("0123456789abcdef")
 
-        IntProgression.fromClosedRange(
-            rangeStart = EmergeUWordType.getNBitsInContext(context).toInt() - 4,
-            rangeEnd = 0,
+        UIntProgression.fromClosedRange(
+            rangeStart = EmergeUWordType.getNBitsInContext(context).toUInt() - 4u,
+            rangeEnd = 0u,
             step = -4
         ).forEach { shrAmount ->
-            val nibble = and(lshr(address, context.s32(shrAmount)), context.uWord(0b1111u))
+            val nibble = and(lshr(address, context.uWord(shrAmount)), context.uWord(0b1111u))
             writer(
                 getelementptr(nibbleCharsGlobal).index(nibble).get(),
                 context.uWord(1u),

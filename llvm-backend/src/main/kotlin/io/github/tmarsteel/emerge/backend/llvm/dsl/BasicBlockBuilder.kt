@@ -333,16 +333,22 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildShl(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildLShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> ashr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildAShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
