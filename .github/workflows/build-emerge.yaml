@@ -28,6 +28,7 @@ env:
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
   LLVM_MAJOR_VERSION: "20"
+  LLVM_MINOR_VERSION: "1"
   ZULU_JRE_URL: https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jre21.0.4-win_x64.zip
 
 jobs:
@@ -138,6 +139,8 @@ jobs:
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B clean verify
+  llvm-build-for-linux:
+    uses: ./.github/workflows/build-llvm-linux.yaml
   linux-distributables:
     name: Linux distributable archives
     runs-on: ubuntu-22.04
@@ -148,11 +151,18 @@ jobs:
       - build-glibc-x86_64
       - build-libunwind-x86_64
       - emerge-toolchain-maven
+      - llvm-build-for-linux
     steps:
       - name: checkout
         uses: actions/checkout@v4
         with:
           ref: "${{ inputs.ref || github.sha }}"
+      - name: get LLVM binaries
+        uses: actions/download-artifact@v4.1.8
+        with:
+          run-id: "${{ needs.llvm-build-for-linux.run-id }}"
+          name: llvm-linux-gnu-x86_64
+          path: ${{ github.workspace }}/llvm-install
       - name: get C-runtime binaries from glibc
         uses: actions/cache/restore@v4.2.2
         with:
@@ -193,6 +203,7 @@ jobs:
             mkdir bin && pushd $_
               cp "${{ github.workspace }}/toolchain/target/toolchain.jar" .
             popd
+          
             cp -r "${{ github.workspace }}/stdlib" .
             cp -ar "${{ github.workspace }}/dist/linux/all/." .
             
@@ -217,7 +228,22 @@ jobs:
                 cp "${{ github.workspace }}/glibc-build/csu/Scrt1.o" .
                 cp "${{ github.workspace }}/glibc-build/libc.so" .
               popd  
+            popd  
+          
+            mkdir -p llvm/bin && pushd $_
+              cp "${{ github.workspace }}/llvm-install/bin/lld" .
             popd
+            mkdir llvm/lib && pushd $_
+              cp "${{ github.workspace }}/llvm-install/lib/libLLVM.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" .
+              ln -s "libLLVM.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" "libLLVM-$LLVM_MAJOR_VERSION.so"
+              ln -s "libLLVM.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" "libLLVM.so"
+              cp "${{ github.workspace }}/llvm-install/lib/libLTO.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" .
+              ln -s "libLTO.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" "libLTO-$LLVM_MAJOR_VERSION.so"
+              ln -s "libLTO.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" "libLTO.so"
+              cp "${{ github.workspace }}/llvm-install/lib/libRemarks.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" .
+              ln -s "libRemarks.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" "libRemarks.so"
+            popd
+            cp -r "${{ github.workspace }}/llvm-install/share" llvm/share
           popd
           tar --create \
             --directory=tarball-root \
@@ -269,15 +295,19 @@ jobs:
           run-id: "${{ needs.llvm-build-for-windows.run-id }}"
           name: llvm-windows-x86_64
           path: ${{ github.workspace }}/llvm-install
-      - name: prepare zip
+      - name: build distributable archive
+        id: pack-zip
         shell: pwsh
         run: |
           New-Item -Type Directory -Name "archive-root"
           
           # first extract the linux tarball. It doesn't come with much linux-specific stuff, so we can reuse all the
           # code for building it
-          tar --directory archive-root -xf "${{ needs.linux-distributables.outputs.tarball-filename }}"
+          tar --no-same-owner --no-same-permissions --directory archive-root -xf "${{ needs.linux-distributables.outputs.tarball-filename }}"
+          chown -R archive-root
+          chmod -R u+w archive-root
           Remove-Item "archive-root/configure.sh" # this one is linux specific
+          Remove-Item "archive-root/llvm" -Recurse # this one is linux specific
           
           New-Item -Type Directory -Path "archive-root/llvm" -Name "bin"
           # the LLVM distribution for windows builds THE WHOLE thing. This is needed for development.
@@ -286,15 +316,10 @@ jobs:
           Move-Item -Path "llvm-install/bin/ld.lld.exe" "archive-root/llvm/bin/ld.lld.exe"
           Move-Item -Path "llvm-install/bin/llc.exe" "archive-root/llvm/bin/llc.exe"
           Move-Item -Path "llvm-install/bin/LLVM-C.dll" "archive-root/llvm/bin/LLVM-C.dll"
-          # fix the reference to the LLVM installation directiory
-          (Get-Content archive-root/toolchain-config.yml) -replace '(?<=\s*llvm-installation-directory: ).+','llvm' | Set-Content archive-root/toolchain-config.yml
 
           # redistribute JRE
           Move-Item -Path "zulu-jre/jre" "archive-root/jre"
-      - name: pack zip
-        id: pack-zip
-        shell: pwsh
-        run: |
+
           Get-ChildItem -Path "archive-root" | Compress-Archive -DestinationPath "emerge-toolchain.zip"
           $hash = (Get-FileHash -Algorithm SHA256 "emerge-toolchain.zip").Hash
           Add-Content -Path "$Env:GITHUB_OUTPUT" -Value "sha256=$hash"

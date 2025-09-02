@@ -1,7 +1,7 @@
 Package: ${DEB_NAME}
 Version: ${DEB_VERSION}
 Maintainer: Tobias Marstaller
-Depends: llvm-20, lld-20, java-runtime-headless (>= 21)
+Depends: java-runtime-headless (>= 21)
 Section: devel
 Priority: optional
 Homepage: https://github.com/emerge-lang/compiler
