@@ -67,6 +67,7 @@ import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -386,8 +387,8 @@ class EmergeLlvmContext(
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.NoUnwind) // emerge doesn't use unwinding as of now
 
+        val diBuilder = fn.declaredAt.file.diBuilder
         if (!fn.isExternalC) {
-            val diBuilder = fn.declaredAt.file.diBuilder
             fn.llvmRef!!.diFunction = diBuilder.createFunction(
                 name = fn.canonicalName.toString(),
                 linkageName = fn.llvmName,
@@ -401,9 +402,8 @@ class EmergeLlvmContext(
         fn.parameters.zip(llvmParameterTypes).forEachIndexed { index, (param, llvmParamType) ->
             val paramLlvmRawValue = Llvm.LLVMGetParam(rawRef, index)
             LlvmValue.setName(paramLlvmRawValue, param.name)
-            param.emitRead = {
-                LlvmValue(paramLlvmRawValue, llvmParamType)
-            }
+            val asDslValue = LlvmValue(paramLlvmRawValue, llvmParamType)
+            param.emitRead = { asDslValue }
             param.emitWrite = {
                 throw CodeGenerationException("illegal IR - cannot write to function parameters")
             }
@@ -505,7 +505,20 @@ class EmergeLlvmContext(
                 }
         }
 
-        BasicBlockBuilder.fillBody(this, llvmFunction, fn.declaredAt.file.diBuilder, llvmFunction.diFunction!!) {
+        val diBuilder = fn.declaredAt.file.diBuilder
+        BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, llvmFunction.diFunction!!) {
+            fn.parameters.zip(llvmFunction.type.parameterTypes).forEachIndexed { index, (param, llvmParamType) ->
+                val diParam = diBuilder.createSubroutineParameter(
+                    fn.llvmRef!!.diFunction!!,
+                    param.name,
+                    (index + 1).toUInt(),
+                    param.declaredAt.lineNumber,
+                    llvmParamType.getDiType(diBuilder),
+                    false,
+                    NativeI32FlagGroup(),
+                )
+                dbg_value(param.emitRead!!(), diParam, diBuilder.createExpression())
+            }
             when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false, null)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {

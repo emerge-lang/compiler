@@ -36,4 +36,10 @@ interface LlvmDebugInfo {
 
     @JvmInline
     value class Location(val ref: LlvmMetadataRef)
+
+    @JvmInline
+    value class LocalVariable(val ref: LlvmMetadataRef)
+
+    @JvmInline
+    value class Expression(val ref: LlvmMetadataRef)
 }

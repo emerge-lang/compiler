@@ -4,10 +4,10 @@ import com.sun.jna.NativeLong
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBasicBlockRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDiFlags
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfEmissionKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfSourceLanguage
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
@@ -67,15 +67,14 @@ class DiBuilder(
         name: String,
         index: UInt,
         lineNumber: UInt,
-        type: LlvmMetadataRef,
+        type: LlvmDebugInfo.Type,
         alwaysPreserve: Boolean = false,
         flags: NativeI32FlagGroup<LlvmDiFlags> = NativeI32FlagGroup(),
-    ): LlvmMetadataRef {
+    ): LlvmDebugInfo.LocalVariable {
         check(!closed)
 
         val nameBytes = name.toByteArray(Charsets.UTF_8)
 
-        println("before subroutine param")
         val ref = Llvm.LLVMDIBuilderCreateParameterVariable(
             ref,
             scope.ref,
@@ -84,12 +83,11 @@ class DiBuilder(
             (index + 1u).toInt(),
             file.ref,
             lineNumber.toInt(),
-            type,
+            type.ref,
             if (alwaysPreserve) 1 else 0,
             flags,
         )
-        println("after subroutine param")
-        return ref
+        return LlvmDebugInfo.LocalVariable(ref)
     }
 
     fun createSubroutineType(
@@ -335,6 +333,56 @@ class DiBuilder(
             null,
             0,
         ))
+    }
+
+    fun createExpression(): LlvmDebugInfo.Expression {
+        return LlvmDebugInfo.Expression(
+            Llvm.LLVMDIBuilderCreateExpression(ref, null, NativeLong(0))
+        )
+    }
+
+    fun createConstantValueExpression(value: ULong): LlvmDebugInfo.Expression {
+        return LlvmDebugInfo.Expression(
+            Llvm.LLVMDIBuilderCreateConstantValueExpression(ref, value.toLong())
+        )
+    }
+
+    fun insertDeclareRecordAtEndOfBasicBlock(
+        storage: LlvmValue<*>,
+        varInfo: LlvmDebugInfo.LocalVariable,
+        expression: LlvmDebugInfo.Expression,
+        declaredAt: LlvmDebugInfo.Location,
+        block: LlvmBasicBlockRef,
+    ) {
+        check(!closed)
+
+        Llvm.LLVMDIBuilderInsertDeclareRecordAtEnd(
+            ref,
+            storage.raw,
+            varInfo.ref,
+            expression.ref,
+            declaredAt.ref,
+            block,
+        )
+    }
+
+    fun insertValueRecordAtEndOfBasicBlock(
+        storage: LlvmValue<*>,
+        varInfo: LlvmDebugInfo.LocalVariable,
+        expression: LlvmDebugInfo.Expression,
+        declaredAt: LlvmDebugInfo.Location,
+        block: LlvmBasicBlockRef,
+    ) {
+        check(!closed)
+
+        Llvm.LLVMDIBuilderInsertDbgValueRecordAtEnd(
+            ref,
+            storage.raw,
+            varInfo.ref,
+            expression.ref,
+            declaredAt.ref,
+            block,
+        )
     }
 
     private var finalized = false

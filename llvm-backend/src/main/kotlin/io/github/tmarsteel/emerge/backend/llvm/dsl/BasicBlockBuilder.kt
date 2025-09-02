@@ -81,6 +81,9 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     fun currentDebugLocation(): String
     fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock
     fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock)
+
+    fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
+    fun dbg_value(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
 }
 
 /**
@@ -570,6 +573,36 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         return "$scope, line $lastKnownLine"
+    }
+
+    override fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression) {
+        val location = Llvm.LLVMGetCurrentDebugLocation2(llvmRef)
+            ?.let { LlvmDebugInfo.Location(it) }
+            ?: diBuilder.createDebugLocation(scopeTracker.currentScope, 0u, 0u)
+        val block = Llvm.LLVMGetInsertBlock(llvmRef)
+
+        diBuilder.insertDeclareRecordAtEndOfBasicBlock(
+            storage,
+            varInfo,
+            expression,
+            location,
+            block,
+        )
+    }
+
+    override fun dbg_value(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression) {
+        val location = Llvm.LLVMGetCurrentDebugLocation2(llvmRef)
+            ?.let { LlvmDebugInfo.Location(it) }
+            ?: diBuilder.createDebugLocation(scopeTracker.currentScope, 0u, 0u)
+        val block = Llvm.LLVMGetInsertBlock(llvmRef)
+
+        diBuilder.insertValueRecordAtEndOfBasicBlock(
+            storage,
+            varInfo,
+            expression,
+            location,
+            block,
+        )
     }
 
     override fun defer(code: DeferredCodeGenerator<C>) {

@@ -1,14 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.NativeLongByReference;
-import com.sun.jna.ptr.PointerByReference;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.sun.jna.ptr.*;
+import org.jetbrains.annotations.*;
 
-import java.nio.file.Path;
-import java.util.Map;
+import java.nio.file.*;
+import java.util.*;
 
 /**
  * LLVM C interface functions mapped for LLVM-20 using JNA.
@@ -483,6 +480,10 @@ public class Llvm {
     /** see Core.h */
     public static native void LLVMSetCurrentDebugLocation2(@NotNull LlvmBuilderRef builder, LlvmMetadataRef location);
 
+    /** see Core.h */
+    public static native @Nullable LlvmMetadataRef LLVMGetCurrentDebugLocation2(@NotNull LlvmBuilderRef builder);
+
+    /** see Core.h */
     public static native void LLVMSetInstDebugLocation(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef instruction);
 
     /** see Core.h */
@@ -854,4 +855,37 @@ public class Llvm {
 
     /** see DebugInfo.h */
     public static native @Unsigned int LLVMDITypeGetAlignInBits(LlvmMetadataRef diType);
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateExpression(
+            @NotNull LlvmDiBuilderRef builder,
+            @Nullable @Unsigned long[] addr,
+            @NotNull @ArraySizeOf("addr") NativeLong length
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateConstantValueExpression(
+            @NotNull LlvmDiBuilderRef builder,
+            @Unsigned long value
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmDbgRecordRef LLVMDIBuilderInsertDeclareRecordAtEnd(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmValueRef storage,
+            @NotNull LlvmMetadataRef varInfo,
+            @NotNull LlvmMetadataRef expression,
+            @NotNull LlvmMetadataRef debugLocation,
+            @NotNull LlvmBasicBlockRef block
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmDbgRecordRef LLVMDIBuilderInsertDbgValueRecordAtEnd(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmValueRef storage,
+            @NotNull LlvmMetadataRef varInfo,
+            @NotNull LlvmMetadataRef expression,
+            @NotNull LlvmMetadataRef debugLocation,
+            @NotNull LlvmBasicBlockRef block
+    );
 }
