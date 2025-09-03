@@ -271,7 +271,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrVariableDeclaration -> {
             val type = context.getReferenceSiteType(code.type)
-            val diVariable = createLocalVariableInCurrentScope(code.name, type.getDiType(diBuilder))
+            val diVariable = if (context.emitDebugInfo) createLocalVariableInCurrentScope(code.name, type.getDiType(diBuilder)) else null
             if (code.isSSA) {
                 code.emitRead = {
                     throw CodeGenerationException("invalid IR - accessing SSA variable `${code.name}` before its assignment at ${currentDebugLocation()}")
@@ -282,7 +282,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     }
                     code.emitRead = { value }
                     value.name = code.name
-                    dbg_value(value, diVariable, diBuilder.createExpression())
+                    if (context.emitDebugInfo) {
+                        check(diVariable != null)
+                        dbg_value(value, diVariable, diBuilder.createExpression())
+                    }
                 }
             } else {
                 val stackAllocation = alloca(
@@ -290,7 +293,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     forceEntryBlock = !code.isReAssignable,
                     code.name + "Ptr",
                 )
-                dbg_declare(stackAllocation, diVariable, diBuilder.createExpression())
+                if (context.emitDebugInfo) {
+                    check(diVariable != null)
+                    dbg_declare(stackAllocation, diVariable, diBuilder.createExpression())
+                }
                 code.emitRead = {
                     stackAllocation.dereference(code.name)
                 }

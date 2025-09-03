@@ -55,7 +55,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         projectConfig.outputDirectory.createDirectories()
 
         val bitcodeFilePath = projectConfig.outputDirectory.resolve("out.bc").toAbsolutePath()
-        writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath)
+        writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath, projectConfig.emitDebugInfo)
 
         /* we cannot use LLVMTargetMachineEmitToFile because:
         it insists on using .ctor sections for static initializers, but these are LONG deprecated
@@ -96,7 +96,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         )
     }
 
-    private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path) {
+    private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path, emitDebugInfo: Boolean) {
         Llvm.LLVMInitializeX86TargetInfo()
         Llvm.LLVMInitializeX86Target()
         Llvm.LLVMInitializeX86TargetMC()
@@ -105,7 +105,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
 
         softwareContext.assignVirtualFunctionHashes()
 
-        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
+        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu"), emitDebugInfo) { llvmContext ->
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
                 .forEach(llvmContext::registerBaseType)
@@ -334,6 +334,8 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
     data class ProjectConfig(
         @param:JsonDeserialize(using = DirectoryDeserializer::class)
         val outputDirectory: Path,
+
+        val emitDebugInfo: Boolean,
     )
 }
 

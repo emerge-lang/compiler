@@ -145,7 +145,7 @@ class VTableAlgorithmTest : FreeSpec({
                         })
                     }
 
-                    EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmCtx ->
+                    EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu"), false) { llvmCtx ->
                         irSoftwareContext.assignVirtualFunctionHashes()
                         llvmCtx.registerBaseType(MockIrUnit)
                         virtualTypes.forEach(llvmCtx::registerBaseType)

@@ -79,7 +79,8 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 class EmergeLlvmContext(
-    target: LlvmTarget
+    target: LlvmTarget,
+    val emitDebugInfo: Boolean,
 ) : LlvmContext(target) {
     /**
      * The function that allocates heap memory. Semantically equivalent to libcs
@@ -389,13 +390,21 @@ class EmergeLlvmContext(
 
         val diBuilder = fn.declaredAt.file.diBuilder
         if (!fn.isExternalC) {
+            // this is necessary even without full debuginfo because the source locations need a scope to attach to
+            // however, the subroutine type is unnecessary for that
+            val subroutinetype = if (emitDebugInfo) {
+                diBuilder.createSubroutineType((listOf(coreReturnValueLlvmType) + llvmParameterTypes).mapIndexed { index, paramLlvmType ->
+                    paramLlvmType.getDiType(diBuilder)
+                })
+            } else {
+                diBuilder.createSubroutineType(emptyList())
+            }
+
             fn.llvmRef!!.diFunction = diBuilder.createFunction(
                 name = fn.canonicalName.toString(),
                 linkageName = fn.llvmName,
                 fn.declaredAt.lineNumber,
-                diBuilder.createSubroutineType((listOf(coreReturnValueLlvmType) + llvmParameterTypes).mapIndexed { index, paramLlvmType ->
-                    paramLlvmType.getDiType(diBuilder)
-                })
+                subroutinetype,
             )
         }
 
@@ -507,18 +516,21 @@ class EmergeLlvmContext(
 
         val diBuilder = fn.declaredAt.file.diBuilder
         BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, llvmFunction.diFunction!!) {
-            fn.parameters.zip(llvmFunction.type.parameterTypes).forEachIndexed { index, (param, llvmParamType) ->
-                val diParam = diBuilder.createSubroutineParameter(
-                    fn.llvmRef!!.diFunction!!,
-                    param.name,
-                    (index + 1).toUInt(),
-                    param.declaredAt.lineNumber,
-                    llvmParamType.getDiType(diBuilder),
-                    false,
-                    NativeI32FlagGroup(),
-                )
-                dbg_value(param.emitRead!!(), diParam, diBuilder.createExpression())
+            if (emitDebugInfo) {
+                fn.parameters.zip(llvmFunction.type.parameterTypes).forEachIndexed { index, (param, llvmParamType) ->
+                    val diParam = diBuilder.createSubroutineParameter(
+                        fn.llvmRef!!.diFunction!!,
+                        param.name,
+                        (index + 1).toUInt(),
+                        param.declaredAt.lineNumber,
+                        llvmParamType.getDiType(diBuilder),
+                        false,
+                        NativeI32FlagGroup(),
+                    )
+                    dbg_value(param.emitRead!!(), diParam, diBuilder.createExpression())
+                }
             }
+
             when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false, null)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
@@ -749,8 +761,8 @@ class EmergeLlvmContext(
     }
 
     companion object {
-        fun createDoAndDispose(target: LlvmTarget, action: (EmergeLlvmContext) -> Unit) {
-            return EmergeLlvmContext(target).use(action)
+        fun createDoAndDispose(target: LlvmTarget, emitDebugInfo: Boolean, action: (EmergeLlvmContext) -> Unit) {
+            return EmergeLlvmContext(target, emitDebugInfo).use(action)
         }
     }
 }
