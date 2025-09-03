@@ -3,12 +3,12 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.uWord
 
-internal val unwindContextSize = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeWordType>(
+internal val unwindContextSize = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>(
     "emerge.platform.unwind_context_size",
-    EmergeWordType,
+    EmergeUWordType,
 ) {
     body {
         when (context.target.triple) {
@@ -20,16 +20,16 @@ internal val unwindContextSize = KotlinLlvmFunction.define<EmergeLlvmContext, Em
 
                 running on this target: sprintf("%lu", sizeof(ucontext_t)) prints 968
                 */
-                ret(context.word(968))
+                ret(context.uWord(968u))
             }
             else -> throw CodeGenerationException("unsupported target")
         }
     }
 }
 
-internal val unwindCursorSize = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeWordType>(
+internal val unwindCursorSize = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>(
     "emerge.platform.unwind_cursor_size",
-    EmergeWordType,
+    EmergeUWordType,
 ) {
     body {
         when (context.target.triple) {
@@ -39,7 +39,7 @@ internal val unwindCursorSize = KotlinLlvmFunction.define<EmergeLlvmContext, Eme
                 unw_word_t is uint64_t
                 UNW_TDEP_CURSOR_LEN is 127
                 */
-                ret(context.word(127 * 8))
+                ret(context.uWord(127u * 8u))
             }
             else -> throw CodeGenerationException("unsupported target")
         }

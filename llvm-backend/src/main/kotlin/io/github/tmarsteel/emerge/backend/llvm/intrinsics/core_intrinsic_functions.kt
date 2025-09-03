@@ -17,16 +17,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -57,8 +57,8 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
     KotlinLlvmFunction.define("emerge.platform.nullAndFreeWeakReferenceCollection", LlvmVoidType) {
         val collectionPtr by param(pointerTo(EmergeWeakReferenceCollectionType))
         body {
-            val currentColIndexPtr = alloca(EmergeWordType)
-            store(context.word(0), currentColIndexPtr)
+            val currentColIndexPtr = alloca(EmergeUWordType)
+            store(context.uWord(0u), currentColIndexPtr)
             val nextCollPtr = getelementptr(collectionPtr)
                 .member { next }
                 .get()
@@ -74,7 +74,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                 val currentColIndex = currentColIndexPtr.dereference()
 
                 conditionalBranch(
-                    condition = icmp(currentColIndex, LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                    condition = icmp(currentColIndex, LlvmIntPredicate.EQUAL, context.uWord(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount.toULong())),
                     ifTrue = {
                         this@loop.breakLoop()
                     }
@@ -90,7 +90,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                     store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), referringReferencePtrPtr)
                     concludeBranch()
                 })
-                store(add(currentColIndex, context.word(1)), currentColIndexPtr)
+                store(add(currentColIndex, context.uWord(1u)), currentColIndexPtr)
                 loopContinue()
             }
             call(context.freeFunction, listOf(collectionPtr))
@@ -109,7 +109,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
     val objectBeingReferred by param(PointerToAnyEmergeValue)
     body registerWeakRefFn@{
         val currentWeakRefCollPtrPtrPtr = alloca(pointerTo(pointerTo(EmergeWeakReferenceCollectionType)))
-        val currentCollIndexPtr = alloca(EmergeWordType)
+        val currentCollIndexPtr = alloca(EmergeUWordType)
         store(
             objectBeingReferred
                 .anyValueBase()
@@ -125,11 +125,11 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
                 }
             )
 
-            store(context.word(0), to = currentCollIndexPtr)
+            store(context.uWord(0u), to = currentCollIndexPtr)
             loop iterateCollectionEntries@{
                 val currentColIndexValue = currentCollIndexPtr.dereference()
                 conditionalBranch(
-                    condition = icmp(currentColIndexValue, LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                    condition = icmp(currentColIndexValue, LlvmIntPredicate.EQUAL, context.uWord(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount.toULong())),
                     ifTrue = {
                         this@iterateCollectionEntries.breakLoop()
                     }
@@ -148,7 +148,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
                     }
                 )
                 store(
-                    add(currentColIndexValue, context.word(1)),
+                    add(currentColIndexValue, context.uWord(1u)),
                     to = currentCollIndexPtr
                 )
                 loopContinue()
@@ -167,7 +167,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
             pointerToWeakReference,
             to = getelementptr(newCollPtr)
                 .member { pointersToWeakReferences }
-                .index(context.word(0))
+                .index(context.uWord(0u))
                 .get()
         )
         store(newCollPtr, to = currentWeakRefCollPtrPtrPtr.dereference())
@@ -197,8 +197,8 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
                 this@iterateCollections.breakLoop()
             })
 
-            val currentCollIndexPtr = alloca(EmergeWordType, forceEntryBlock = true)
-            store(context.word(0), to = currentCollIndexPtr)
+            val currentCollIndexPtr = alloca(EmergeUWordType, forceEntryBlock = true)
+            store(context.uWord(0u), to = currentCollIndexPtr)
             loop iterateCollectionEntries@{
                 val currentColIndexValue = currentCollIndexPtr.dereference()
 
@@ -206,7 +206,7 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
                     condition = icmp(
                         currentColIndexValue,
                         LlvmIntPredicate.EQUAL,
-                        context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)
+                        context.uWord(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount.toULong())
                     ),
                     ifTrue = {
                         this@iterateCollectionEntries.breakLoop()
@@ -226,7 +226,7 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
                     }
                 )
                 store(
-                    add(currentColIndexValue, context.word(1)),
+                    add(currentColIndexValue, context.uWord(1u)),
                     to = currentCollIndexPtr
                 )
                 loopContinue()
@@ -263,7 +263,7 @@ private val afterReferenceCreatedNonNullable = KotlinLlvmFunction.define<EmergeL
             .get()
 
         store(
-            add(referenceCountPtr.dereference(), context.word(1)),
+            add(referenceCountPtr.dereference(), context.uWord(1u)),
             referenceCountPtr,
         )
         retVoid()
@@ -334,8 +334,8 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
 
     body {
         val referenceCountPtr = objectPtr.anyValueBase().member { strongReferenceCount }.get()
-        val decremented = sub(referenceCountPtr.dereference(), context.word(1))
-        val isZero = icmp(decremented, LlvmIntPredicate.EQUAL, context.word(0))
+        val decremented = sub(referenceCountPtr.dereference(), context.uWord(1u))
+        val isZero = icmp(decremented, LlvmIntPredicate.EQUAL, context.uWord(0u))
         conditionalBranch(isZero, ifTrue = {
             callIntrinsic(nullWeakReferences, listOf(objectPtr))
             val typeinfoPtr = objectPtr.anyValueBase()
@@ -433,7 +433,7 @@ internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>
     functionAttribute(LlvmFunctionAttribute.NoRecurse)
     functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
-    val nFrames by param(LlvmI32Type)
+    val nFrames by param(LlvmU32Type)
     val includeRuntimeFrames by param(LlvmBooleanType)
 
     body {
@@ -447,19 +447,19 @@ internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>
 internal fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
     val writeFnValue = Llvm.LLVMGetNamedFunction(context.module, "write") ?: throw CodeGenerationException("Function write not defined in module")
     val writeFn = LlvmFunction(LlvmConstant(writeFnValue, LlvmFunctionAddressType), LlvmFunctionType(LlvmVoidType, listOf(
-        LlvmI32Type,
-        LlvmPointerType(LlvmI8Type),
-        EmergeWordType,
+        LlvmU32Type,
+        LlvmPointerType(LlvmS8Type),
+        EmergeUWordType,
     )))
     val msgBytes = (msg + "\n").toByteArray()
-    val dataConstant = LlvmArrayType(msgBytes.size.toLong(), LlvmI8Type).buildConstantIn(context, msgBytes.map { context.i8(it) })
+    val dataConstant = LlvmArrayType(msgBytes.size.toLong(), LlvmS8Type).buildConstantIn(context, msgBytes.map { context.s8(it) })
     val dataGlobal = context.addGlobal(dataConstant, LlvmThreadLocalMode.LOCAL_EXEC)
     call(writeFn, listOf(
-        context.i32(1),
+        context.s32(1),
         getelementptr(dataGlobal)
-            .index(context.word(0))
+            .index(context.uWord(0u))
             .get(),
-        context.word(msgBytes.size),
+        context.uWord(msgBytes.size.toULong()),
     ))
 }
 

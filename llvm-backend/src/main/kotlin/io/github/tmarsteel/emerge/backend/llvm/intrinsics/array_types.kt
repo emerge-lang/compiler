@@ -16,22 +16,26 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS64Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU16Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU64Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.UnsignedWordAddWithOverflow
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
@@ -43,7 +47,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
 internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
-    val elementCount by structMember(EmergeWordType)
+    val elementCount by structMember(EmergeUWordType)
 
     override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
@@ -157,7 +161,7 @@ internal class EmergeArrayType<Element : LlvmType>(
             super.name + "__ctor",
             pointerTo(this),
         ) {
-            val elementCount by param(EmergeWordType)
+            val elementCount by param(EmergeUWordType)
             body {
                 val allocationSizeForContiguousElements = mul(elementType.sizeof(), elementCount)
                 val allocationSize = add(this@EmergeArrayType.sizeof(), allocationSizeForContiguousElements)
@@ -170,7 +174,7 @@ internal class EmergeArrayType<Element : LlvmType>(
                     .member { base }
                     .member { anyBase }
                     .get()
-                store(context.word(1), getelementptr(anyBasePtr).member { strongReferenceCount }.get())
+                store(context.uWord(1u), getelementptr(anyBasePtr).member { strongReferenceCount }.get())
                 store(typeinfo.provide(context).dynamic, getelementptr(anyBasePtr).member { typeinfo }.get())
                 store(context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)), getelementptr(anyBasePtr).member { weakReferenceCollection }.get())
 
@@ -185,9 +189,9 @@ internal class EmergeArrayType<Element : LlvmType>(
                 memset(
                     getelementptr(allocation)
                         .member { elements }
-                        .index(context.word(0))
+                        .index(context.uWord(0u))
                         .get(),
-                    context.i8(0),
+                    context.s8(0),
                     allocationSizeForContiguousElements,
                 )
 
@@ -250,14 +254,14 @@ internal class EmergeArrayType<Element : LlvmType>(
 
         val anyArrayBaseConstant = EmergeArrayBaseType.buildConstantIn(context) {
             setValue(EmergeArrayBaseType.anyBase, EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
-                setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+                setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.uWord(1u))
                 setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.provide(context).static)
                 setValue(
                     EmergeHeapAllocatedValueBaseType.weakReferenceCollection,
                     context.nullValue(pointerTo(EmergeWeakReferenceCollectionType))
                 )
             })
-            setValue(EmergeArrayBaseType.elementCount, context.word(data.size))
+            setValue(EmergeArrayBaseType.elementCount, context.uWord(data.size.toULong()))
         }
         val payload = LlvmArrayType(data.size.toLong(), elementType).buildConstantIn(
             context,
@@ -324,7 +328,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithFallibleB
         EmergeFallibleCallResult.ofEmergeReference,
     ) {
         val self by param(pointerTo(getValueArrayType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         body {
             inlineFallibleBoundsCheck(self, index)
 
@@ -352,7 +356,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithPanicBoun
         PointerToAnyEmergeValue,
     ) {
         val self by param(pointerTo(getValueArrayType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         body {
             inlinePanicBoundsCheck(self, index)
 
@@ -382,7 +386,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithFallibleB
     ) {
         val arrayType = getValueArrayType()
         val self by param(pointerTo(arrayType))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
@@ -419,7 +423,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithPanicBoun
     ) {
         val arrayType = getValueArrayType()
         val self by param(pointerTo(arrayType))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
@@ -459,7 +463,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithoutBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
 
         body {
             ret(
@@ -487,7 +491,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithFallibleBoundsCheck
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
 
         body {
             inlineFallibleBoundsCheck(arrayPtr, index)
@@ -511,7 +515,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithPanicBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
 
         body {
             inlinePanicBoundsCheck(arrayPtr, index)
@@ -535,7 +539,7 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithoutBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val value by param(elementType)
 
         body {
@@ -565,7 +569,7 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithFallibleBoundsCheck
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val value by param(elementType)
 
         body {
@@ -590,7 +594,7 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithPanicBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
         val arrayPtr by param(pointerTo(getSelfType()))
-        val index by param(EmergeWordType)
+        val index by param(EmergeUWordType)
         val value by param(elementType)
 
         body {
@@ -610,14 +614,14 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
         "emerge.core.array_${elementTypeName}_defaultValueCtor",
         PointerToAnyEmergeValue,
     ) {
-        val size by param(EmergeWordType)
+        val size by param(EmergeUWordType)
         val defaultValue by param(elementType)
 
         body {
             val rawSetterNoBoundsCheck = context.registerIntrinsic(getSelfType().rawSetterWithoutBoundsCheck)
             val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
-            val indexStack = alloca(EmergeWordType)
-            store(context.word(0), indexStack)
+            val indexStack = alloca(EmergeUWordType)
+            store(context.uWord(0u), indexStack)
             loop {
                 val index = indexStack.dereference()
 
@@ -627,7 +631,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
                 )
 
                 call(rawSetterNoBoundsCheck, listOf(arrayPtr, index, defaultValue))
-                store(add(index, context.word(1)), indexStack)
+                store(add(index, context.uWord(1u)), indexStack)
                 loopContinue()
             }
             ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
@@ -679,8 +683,9 @@ private fun <Element : LlvmIntegerType> buildValueArrayCopy(
     getSelfType: () -> EmergeArrayType<Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
     val typename = when (elementType) {
-        is EmergeWordType -> "word"
-        is LlvmFixedIntegerType -> "i" + elementType.nBits.toString()
+        is EmergeSWordType -> "sword"
+        is EmergeUWordType -> "uword"
+        is LlvmFixedIntegerType -> (if (elementType.isSigned) "s" else "u") + elementType.nBits.toString()
         else -> error("Should never happen")
     }
     return KotlinLlvmFunction.define<_, _>(
@@ -688,10 +693,10 @@ private fun <Element : LlvmIntegerType> buildValueArrayCopy(
         LlvmVoidType,
     ) {
         val sourceArrUntypedPtr by param(PointerToAnyEmergeValue)
-        val sourceOffset by param(EmergeWordType)
+        val sourceOffset by param(EmergeUWordType)
         val destArrayUntypedPtr by param(PointerToAnyEmergeValue)
-        val destOffset by param(EmergeWordType)
-        val length by param(EmergeWordType)
+        val destOffset by param(EmergeUWordType)
+        val length by param(EmergeUWordType)
 
         body {
             conditionalBranch(
@@ -756,18 +761,23 @@ private fun <Element : LlvmIntegerType> buildValueArrayCopy(
 }
 
 val EmergeBoolArrayCopyFn = buildValueArrayCopy(LlvmBooleanType) { EmergeBooleanArrayType }
-val EmergeI8ArrayCopyFn = buildValueArrayCopy(LlvmI8Type) { EmergeU8ArrayType }
-val EmergeI16ArrayCopyFn = buildValueArrayCopy(LlvmI16Type) { EmergeU16ArrayType }
-val EmergeI32ArrayCopyFn = buildValueArrayCopy(LlvmI32Type) { EmergeU32ArrayType }
-val EmergeI64ArrayCopyFn = buildValueArrayCopy(LlvmI64Type) { EmergeU64ArrayType }
-val EmergeWordArrayCopyFn = buildValueArrayCopy(EmergeWordType) { EmergeUWordArrayType }
+val EmergeS8ArrayCopyFn = buildValueArrayCopy(LlvmS8Type) { EmergeS8ArrayType }
+val EmergeU8ArrayCopyFn = buildValueArrayCopy(LlvmU8Type) { EmergeU8ArrayType }
+val EmergeS16ArrayCopyFn = buildValueArrayCopy(LlvmS16Type) { EmergeS16ArrayType }
+val EmergeU16ArrayCopyFn = buildValueArrayCopy(LlvmU16Type) { EmergeU16ArrayType }
+val EmergeS32ArrayCopyFn = buildValueArrayCopy(LlvmS32Type) { EmergeS32ArrayType }
+val EmergeU32ArrayCopyFn = buildValueArrayCopy(LlvmU32Type) { EmergeU32ArrayType }
+val EmergeS64ArrayCopyFn = buildValueArrayCopy(LlvmS64Type) { EmergeS64ArrayType }
+val EmergeU64ArrayCopyFn = buildValueArrayCopy(LlvmU64Type) { EmergeU64ArrayType }
+val EmergeSWordArrayCopyFn = buildValueArrayCopy(EmergeSWordType) { EmergeSWordArrayType }
+val EmergeUWordArrayCopyFn = buildValueArrayCopy(EmergeUWordType) { EmergeUWordArrayType }
 
 private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_get_noBoundsCheck",
     PointerToAnyEmergeValue,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
 
     instructionAliasAttributes()
 
@@ -787,7 +797,7 @@ private val referenceArrayElementGetterFallibleBoundsCheck: KotlinLlvmFunction<E
     EmergeFallibleCallResult.ofEmergeReference,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
     body {
         inlineFallibleBoundsCheck(self, index)
         ret(fallibleSuccess(
@@ -801,7 +811,7 @@ private val referenceArrayElementGetterPanicBoundsCheck: KotlinLlvmFunction<Emer
     PointerToAnyEmergeValue,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
     body {
         inlinePanicBoundsCheck(self, index)
         ret(
@@ -815,7 +825,7 @@ private val referenceArrayElementSetterNoBoundsCheck: KotlinLlvmFunction<EmergeL
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
         val pointerToSlotInArray = getelementptr(self)
@@ -836,7 +846,7 @@ private val referenceArrayElementSetterFallibleBoundsCheck: KotlinLlvmFunction<E
     EmergeFallibleCallResult.OfVoid,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
         inlineFallibleBoundsCheck(self, index)
@@ -850,7 +860,7 @@ private val referenceArrayElementSetterPanicBoundsCheck: KotlinLlvmFunction<Emer
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
+    val index by param(EmergeUWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
         inlinePanicBoundsCheck(self, index)
@@ -865,8 +875,8 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
     body {
-        val indexStackSlot = alloca(EmergeWordType)
-        store(context.word(0), indexStackSlot)
+        val indexStackSlot = alloca(EmergeUWordType)
+        store(context.uWord(0u), indexStackSlot)
         val size = getelementptr(self)
             .member { base }
             .member { elementCount }
@@ -886,7 +896,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
                 .dereference()
             element.afterReferenceDropped(isNullable = true)
 
-            val nextIndex = add(currentIndex, context.word(1))
+            val nextIndex = add(currentIndex, context.uWord(1u))
             store(nextIndex, indexStackSlot)
             loopContinue()
         }
@@ -902,7 +912,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         "emerge.platform.ref_array_defaultValueCtor",
         PointerToAnyEmergeValue,
     ) {
-        val size by param(EmergeWordType)
+        val size by param(EmergeUWordType)
         val defaultValue by param(PointerToAnyEmergeValue)
 
         body {
@@ -919,8 +929,8 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                 }
             )
             val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
-            val indexStack = alloca(EmergeWordType, forceEntryBlock = true)
-            store(context.word(0), indexStack)
+            val indexStack = alloca(EmergeUWordType, forceEntryBlock = true)
+            store(context.uWord(0u), indexStack)
             loop {
                 val index = indexStack.dereference()
                 conditionalBranch(
@@ -935,7 +945,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                         .index(index)
                         .get()
                 )
-                store(add(index, context.word(1)), indexStack)
+                store(add(index, context.uWord(1u)), indexStack)
                 loopContinue()
             }
 
@@ -987,7 +997,7 @@ internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     val arrayPointer by param(pointerTo(EmergeArrayBaseType))
 
     body {
-        val ptr = getelementptr(arrayPointer, context.i32(1))
+        val ptr = getelementptr(arrayPointer, context.s32(1))
             .get()
             .reinterpretAs(pointerTo(LlvmVoidType))
 
@@ -997,7 +1007,7 @@ internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
 
 internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.Array::size",
-    EmergeWordType,
+    EmergeUWordType,
 ) {
     functionAttribute(LlvmFunctionAttribute.NoUnwind)
     functionAttribute(LlvmFunctionAttribute.WillReturn)
@@ -1026,7 +1036,7 @@ internal val arrayAbstractFallibleGet = KotlinLlvmFunction.define<EmergeLlvmCont
     EmergeFallibleCallResult.ofEmergeReference,
 ) {
     param(pointerTo(EmergeArrayBaseType))
-    param(EmergeWordType)
+    param(EmergeUWordType)
     body {
         inlinePanic("abstract array getter invoked")
     }
@@ -1038,7 +1048,7 @@ internal val arrayAbstractPanicGet = KotlinLlvmFunction.define<EmergeLlvmContext
     PointerToAnyEmergeValue,
 ) {
     param(pointerTo(EmergeArrayBaseType))
-    param(EmergeWordType)
+    param(EmergeUWordType)
     body {
         inlinePanic("abstract array getter invoked")
     }
@@ -1057,7 +1067,7 @@ internal val arrayAbstractFallibleSet = KotlinLlvmFunction.define<EmergeLlvmCont
     EmergeFallibleCallResult.OfVoid,
 ) {
     param(pointerTo(EmergeArrayBaseType))
-    param(EmergeWordType)
+    param(EmergeUWordType)
     param(PointerToAnyEmergeValue)
     body {
         inlinePanic("abstract array setter invoked")
@@ -1070,14 +1080,14 @@ internal val arrayAbstractPanicSet = KotlinLlvmFunction.define<EmergeLlvmContext
     LlvmVoidType,
 ) {
     param(pointerTo(EmergeArrayBaseType))
-    param(EmergeWordType)
+    param(EmergeUWordType)
     param(PointerToAnyEmergeValue)
     body {
         inlinePanic("abstract array setter invoked")
     }
 }
 
-internal fun BasicBlockBuilder<*, *>.indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
+internal fun BasicBlockBuilder<*, *>.indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeUWordType>): LlvmValue<LlvmBooleanType> {
     val size = getelementptr(arrayPtr)
         .member { base }
         .member { elementCount }
@@ -1089,7 +1099,7 @@ internal fun BasicBlockBuilder<*, *>.indexIsOutOfBounds(arrayPtr: LlvmValue<Llvm
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>.inlineFallibleBoundsCheck(
     arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
-    index: LlvmValue<EmergeWordType>,
+    index: LlvmValue<EmergeUWordType>,
 ) {
     conditionalBranch(
         condition = indexIsOutOfBounds(arrayPtr, index),
@@ -1101,7 +1111,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, *>.inlinePanicBoundsCheck(
     arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
-    index: LlvmValue<EmergeWordType>,
+    index: LlvmValue<EmergeUWordType>,
 ) {
     conditionalBranch(
         condition = indexIsOutOfBounds(arrayPtr, index),
@@ -1111,14 +1121,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, *>.inlinePanicBoundsCheck(
     )
 }
 
-internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
-internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
-internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI16Type, EmergeLlvmContext::boxTypeS16)
-internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI16Type, EmergeLlvmContext::boxTypeU16)
-internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI32Type, EmergeLlvmContext::boxTypeS32)
-internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI32Type, EmergeLlvmContext::boxTypeU32)
-internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI64Type, EmergeLlvmContext::boxTypeS64)
-internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI64Type, EmergeLlvmContext::boxTypeU64)
-internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeWordType, EmergeLlvmContext::boxTypeSWord)
-internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeWordType, EmergeLlvmContext::boxTypeUWord)
+internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmS8Type, EmergeLlvmContext::boxTypeS8)
+internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmU8Type, EmergeLlvmContext::boxTypeU8)
+internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmS16Type, EmergeLlvmContext::boxTypeS16)
+internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmU16Type, EmergeLlvmContext::boxTypeU16)
+internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmS32Type, EmergeLlvmContext::boxTypeS32)
+internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmU32Type, EmergeLlvmContext::boxTypeU32)
+internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmS64Type, EmergeLlvmContext::boxTypeS64)
+internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmU64Type, EmergeLlvmContext::boxTypeU64)
+internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeSWordType, EmergeLlvmContext::boxTypeSWord)
+internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeUWordType, EmergeLlvmContext::boxTypeUWord)
 internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)

@@ -15,6 +15,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.util.takeWhileIsInstance
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import java.util.IdentityHashMap
 import java.util.SequencedSet
 
@@ -73,6 +74,11 @@ interface ExecutionScopedCTContext : CTContext {
     val parentLoop: BoundLoop<*>?
 
     /**
+     * If [isScopeBoundary], `this`, otherwise the closest parent that [isScopeBoundary].
+     */
+    val parentScopeContext: ExecutionScopedCTContext?
+
+    /**
      * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
      * of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
@@ -128,6 +134,12 @@ interface ExecutionScopedCTContext : CTContext {
     fun addDeferredCode(code: DeferrableExecutable)
 
     /**
+     * The IR object resembling this scope; throws an exception unless [isScopeBoundary].
+     * This object is included into IR by [compiler.binding.BoundCodeChunk].
+     */
+    val irScope: IrVariableDeclaration.Scope
+
+    /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
      */
     enum class Repetition(
@@ -177,7 +189,7 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
     }
 
-    private val parentScopeContext: ExecutionScopedCTContext? by lazy {
+    override val parentScopeContext: ExecutionScopedCTContext? by lazy {
         val parent = hierarchy.drop(1)
             .filterIsInstance<ExecutionScopedCTContext>()
             .firstOrNull { it.isScopeBoundary }
@@ -274,6 +286,12 @@ open class MutableExecutionScopedCTContext protected constructor(
 
     override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
         return getDeferredCodeUpToIncluding(parentFunctionContext ?: this)
+    }
+
+    override val irScope: IrVariableDeclaration.Scope by lazy {
+        check(isScopeBoundary)
+
+        IrLexicalVariableScopeImpl()
     }
 
     fun addVariable(boundVariable: BoundVariable) {

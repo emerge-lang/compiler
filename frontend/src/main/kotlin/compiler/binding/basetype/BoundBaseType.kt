@@ -583,6 +583,7 @@ private class IrClassImpl(
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
     override val destructor by lazy { typeDef.destructor!!.toBackendIr() }
+    override val declaredAt by lazy { typeDef.declaration.declaredAt }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -596,4 +597,6 @@ private class IrClassImpl(
     override fun hashCode(): Int {
         return canonicalName.hashCode()
     }
+
+    override fun toString() = "IrClassImpl[$canonicalName]"
 }

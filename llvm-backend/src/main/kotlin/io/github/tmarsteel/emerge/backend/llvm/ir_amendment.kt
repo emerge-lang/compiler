@@ -12,22 +12,31 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF64Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS64Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU16Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU64Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeInterfaceTypeinfoHolder
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -39,18 +48,18 @@ Once the LLVM backend is somewhat stable all of this should move into a new set 
 
 internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
     when (this.canonicalName.toString()) {
-        "emerge.core.S8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS8, "value", EmergeLlvmContext::rawS8Clazz, LlvmI8Type)
-        "emerge.core.U8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU8, "value", EmergeLlvmContext::rawU8Clazz, LlvmI8Type)
-        "emerge.core.S16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS16, "value", EmergeLlvmContext::rawS16Clazz, LlvmI16Type)
-        "emerge.core.U16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU16, "value", EmergeLlvmContext::rawU16Clazz, LlvmI16Type)
-        "emerge.core.S32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS32, "value", EmergeLlvmContext::rawS32Clazz, LlvmI32Type)
-        "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, "value", EmergeLlvmContext::rawU32Clazz, LlvmI32Type)
-        "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, "value", EmergeLlvmContext::rawS64Clazz, LlvmI64Type)
-        "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, "value", EmergeLlvmContext::rawU64Clazz, LlvmI64Type)
-        "emerge.core.F32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF32, "value", EmergeLlvmContext::rawF32Clazz, LlvmI64Type)
-        "emerge.core.F64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF64, "value", EmergeLlvmContext::rawF64Clazz, LlvmI64Type)
-        "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, "value", EmergeLlvmContext::rawSWordClazz, EmergeWordType)
-        "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, "value", EmergeLlvmContext::rawUWordClazz, EmergeWordType)
+        "emerge.core.S8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS8, "value", EmergeLlvmContext::rawS8Clazz, LlvmS8Type)
+        "emerge.core.U8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU8, "value", EmergeLlvmContext::rawU8Clazz, LlvmU8Type)
+        "emerge.core.S16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS16, "value", EmergeLlvmContext::rawS16Clazz, LlvmS16Type)
+        "emerge.core.U16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU16, "value", EmergeLlvmContext::rawU16Clazz, LlvmU16Type)
+        "emerge.core.S32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS32, "value", EmergeLlvmContext::rawS32Clazz, LlvmS32Type)
+        "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, "value", EmergeLlvmContext::rawU32Clazz, LlvmU32Type)
+        "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, "value", EmergeLlvmContext::rawS64Clazz, LlvmS64Type)
+        "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, "value", EmergeLlvmContext::rawU64Clazz, LlvmU64Type)
+        "emerge.core.F32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF32, "value", EmergeLlvmContext::rawF32Clazz, LlvmF32Type)
+        "emerge.core.F64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF64, "value", EmergeLlvmContext::rawF64Clazz, LlvmF64Type)
+        "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, "value", EmergeLlvmContext::rawSWordClazz, EmergeSWordType)
+        "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, "value", EmergeLlvmContext::rawUWordClazz, EmergeUWordType)
         "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, "value", EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
         "emerge.core.reflection.ReflectionBaseType" -> Autoboxer.ReflectionBaseType
         "emerge.ffi.c.CPointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
@@ -132,6 +141,8 @@ internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
 
     isNothrow
 }
+
+internal var IrVariableDeclaration.Scope.diScope: LlvmDebugInfo.Scope.LexicalBlock? by tackState { null }
 
 internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }

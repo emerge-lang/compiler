@@ -37,8 +37,8 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
 val DEFAULT_IMPORT_PACKAGES = listOf(
-    EmergeConstants.CORE_MODULE_NAME,
-    EmergeConstants.STD_MODULE_NAME,
+    EmergeConstants.CoreModule.NAME,
+    EmergeConstants.StdModule.NAME,
 )
 
 /**

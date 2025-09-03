@@ -27,7 +27,7 @@ class AstCatchBlockExpression(
             ownership = null,
             name = throwableVariableNameToken,
             type = AstAbsoluteTypeReference(
-                EmergeConstants.THROWABLE_TYPE_NAME,
+                EmergeConstants.CoreModule.THROWABLE_TYPE_NAME,
                 mutability = TypeMutability.MUTABLE,
                 span = throwableVariableNameToken.span,
             ),

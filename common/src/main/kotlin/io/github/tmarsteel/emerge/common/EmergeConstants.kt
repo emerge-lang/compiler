@@ -7,14 +7,42 @@ import io.github.tmarsteel.emerge.common.EmergeConstants.IterableContract.RANGE_
  * Necessary, "magic" constants that are chosen arbitrarily
  */
 data object EmergeConstants {
-    val CORE_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "core"))
-    val STD_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "std"))
-    val PLATFORM_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "platform"))
+    data object CoreModule {
+        val NAME = CanonicalElementName.Package(listOf("emerge", "core"))
+        val ANY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Any")
+        val UNIT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Unit")
+        val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Throwable")
+        val ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Error")
+        val CAST_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "CastError")
+        val ARITHMETIC_ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ArithmeticError")
 
-    val UNIT_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Unit")
-    val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Throwable")
-    val ERROR_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "Error")
-    val CAST_ERROR_TYPE_NAME = CanonicalElementName.BaseType(CORE_MODULE_NAME, "CastError")
+        val BOOL_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Bool")
+        val S8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S8")
+        val U8_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U8")
+        val S16_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S16")
+        val U16_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U16")
+        val S32_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S32")
+        val U32_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U32")
+        val S64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "S64")
+        val U64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "U64")
+        val F32_TYPE_NAME = CanonicalElementName.BaseType(NAME, "F32")
+        val F64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "F64")
+        val SWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "SWord")
+        val UWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UWord")
+    }
+
+    data object ReflectionModule {
+        val NAME = CoreModule.NAME + "reflection"
+        val REFLECTION_BASE_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ReflectionBaseType")
+    }
+
+    data object StdModule {
+        val NAME = CanonicalElementName.Package(listOf("emerge", "std"))
+    }
+
+    data object PlatformModule {
+        val NAME = CanonicalElementName.Package(listOf("emerge", "platform"))
+    }
 
     /**
      * the identifier to use in the initialization expression for member variables to indicate that the
@@ -51,7 +79,7 @@ data object EmergeConstants {
          * range is empty.
          */
         val EMPTY_RANGE_EXCEPTION_NAME = CanonicalElementName.BaseType(
-            CORE_MODULE_NAME.plus("range"),
+            CoreModule.NAME.plus("range"),
             "EmptyRangeException",
         )
 
@@ -60,7 +88,7 @@ data object EmergeConstants {
          * one type parameter: `T : Any?` which denotes the type of the elements that can be iterated over.
          */
         val ITERABLE_TYPE_NAME = CanonicalElementName.BaseType(
-            CORE_MODULE_NAME.plus("range"),
+            CoreModule.NAME.plus("range"),
             "Iterable",
         )
     }

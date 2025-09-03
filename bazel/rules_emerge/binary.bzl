@@ -5,7 +5,8 @@ def _build_project_config_json(
         path_from_project_config_toolchain_cwd,
         target_triple,
         output_directory,
-        all_modules):
+        all_modules,
+        emit_debug_info):
     return {
         "modules": [{
             "name": module.name,
@@ -15,6 +16,7 @@ def _build_project_config_json(
         "targets": {
             target_triple: {
                 "output-directory": path_from_project_config_toolchain_cwd + output_directory,
+                "emit-debug-info": emit_debug_info,
             },
         },
     }
@@ -65,6 +67,7 @@ emerge_binary = rule(
     implementation = _emerge_binary_impl,
     attrs = {
         "root_module": attr.label(mandatory = True, allow_files = False, allow_rules = ["emerge_module_internal"]),
+        "emit_debug_info": attr.bool(default = True, doc = "If true, the executable will contain debugging symbols (variable names and types). Line numbers and function names are always included."),
         "_triple": attr.label(
             default = "//target:selected_target_triple",
         ),

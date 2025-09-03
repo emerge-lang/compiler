@@ -10,10 +10,12 @@ import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -22,12 +24,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
@@ -100,7 +103,7 @@ internal class EmergeClassType private constructor(
             heapAllocation = heapAllocate(this@EmergeClassType)
             val basePointer = getelementptr(heapAllocation).anyValueBase().get()
             store(
-                context.word(1),
+                context.uWord(1u),
                 getelementptr(basePointer)
                     .member { this.strongReferenceCount }
                     .get()
@@ -122,6 +125,64 @@ internal class EmergeClassType private constructor(
         return heapAllocation
     }
 
+    private var diStructType: LlvmDebugInfo.Type? = null
+    private var temporaryRefs: MutableList<LlvmDebugInfo.Type>? = null
+    fun fillDiStructType(diBuilder: DiBuilder) {
+        if (this.diStructType != null) {
+            return
+        }
+
+        assureLlvmStructMembersDefined()
+
+        diStructType = diBuilder.createStructType(
+            irClass.canonicalName.toString(),
+            Llvm.LLVMSizeOfTypeInBits(context.targetData.ref, structRef).toULong(),
+            Llvm.LLVMABIAlignmentOfType(context.targetData.ref, structRef).toUInt(),
+            NativeI32FlagGroup(),
+            irClass.memberVariables
+                .filter { it.readStrategy is IrClass.MemberVariable.AccessStrategy.BareField && it.writeStrategy is IrClass.MemberVariable.AccessStrategy.BareField }
+                .associateWith {
+                    val fieldId = (it.readStrategy as IrClass.MemberVariable.AccessStrategy.BareField).fieldId
+                    irClass.fields.single { it.id == fieldId }
+                }
+                .map { (irMember, field) ->
+                    val memberLlvmType = context.getReferenceSiteType(irMember.type)
+                    val memberDiType = memberLlvmType.getDiType(diBuilder)
+                    diBuilder.createStructMember(
+                        irMember.name,
+                        memberDiType.sizeInBits,
+                        memberDiType.alignInBits,
+                        Llvm.LLVMOffsetOfElement(diBuilder.context.targetData.ref, structRef, field.indexInLlvmStruct!!).toULong(),
+                        memberDiType,
+                        NativeI32FlagGroup(),
+                        irMember.declaredAt,
+                    )
+                },
+            irClass.declaredAt,
+        )
+
+        temporaryRefs?.forEach {
+            Llvm.LLVMMetadataReplaceAllUsesWith(it.ref, diStructType!!.ref)
+        }
+    }
+
+    override fun getDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        diStructType?.let { return it }
+
+        val tmpRef = diBuilder.createTemporaryForwardDeclarationOfStructType(
+            name = irClass.canonicalName.toString(),
+            sizeInBits = 0u,
+            alignInBits = 0u,
+            flags = NativeI32FlagGroup(),
+            declaredAt = irClass.declaredAt,
+        )
+        if (temporaryRefs == null) {
+            temporaryRefs = ArrayList()
+        }
+        temporaryRefs!!.add(tmpRef)
+        return tmpRef
+    }
+
     /**
      * Builds an LLVM constant of the same shape as [allocateUninitializedDynamicObject] would build at runtime.
      * Initializes all fields as per [fieldValues], **entirely ignoring any initializer expressions or constructors
@@ -136,7 +197,7 @@ internal class EmergeClassType private constructor(
 
         val typeinfo = getTypeinfoInContext(context)
         val baseValue = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
-            setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+            setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.uWord(1u))
             setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.static)
             setNull(EmergeHeapAllocatedValueBaseType.weakReferenceCollection)
         }
@@ -194,7 +255,7 @@ internal class EmergeClassType private constructor(
         require(value.type.pointed is EmergeClassType)
         @Suppress("UNCHECKED_CAST")
         return builder.getelementptr(value as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>)
-            .stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
+            .stepUnsafe(builder.context.s32(0), EmergeHeapAllocatedValueBaseType)
     }
 
     override fun toString(): String {
@@ -212,7 +273,7 @@ internal class EmergeClassType private constructor(
 
         context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         internal fun GetElementPointerStep<EmergeClassType>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
-            return stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
+            return stepUnsafe(builder.context.s32(0), EmergeHeapAllocatedValueBaseType)
         }
 
         context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
@@ -222,7 +283,7 @@ internal class EmergeClassType private constructor(
             }
 
             check(field in this@member.pointeeType.irClass.fields)
-            return stepUnsafe(builder.context.i32(field.indexInLlvmStruct!!), builder.context.getReferenceSiteType(field.type))
+            return stepUnsafe(builder.context.s32(field.indexInLlvmStruct!!), builder.context.getReferenceSiteType(field.type))
         }
     }
 }

@@ -54,6 +54,7 @@ import compiler.diagnostic.visibilityNotAllowedOnVariable
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
@@ -269,12 +270,16 @@ class BoundVariable(
                 isExternallyInitialized
             }
         }
+        val scope = context.parentScopeContext
+            ?: throw InternalCompilerError("No parent scope context for variable $name at ${declaration.span.fileLineColumnText}")
         IrVariableDeclarationImpl(
             name,
             typeAtDeclarationTime!!.toBackendIr(),
             isBorrowed = ownershipAtDeclarationTime == VariableOwnership.BORROWED,
             isReAssignable = isReAssignable,
             isSSA = isSSA,
+            declaredAt = declaration.declaredAt,
+            scope = scope.irScope,
         )
     }
 
@@ -618,4 +623,6 @@ private class IrVariableDeclarationImpl(
     override val isBorrowed: Boolean,
     override val isReAssignable: Boolean,
     override val isSSA: Boolean,
+    override val declaredAt: IrSourceLocation,
+    override val scope: IrVariableDeclaration.Scope
 ) : IrVariableDeclaration

@@ -1,7 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBasicBlockRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBuilderRef
@@ -22,10 +22,11 @@ annotation class LlvmBasicBlockDsl
 interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     val context: C
     val llvmRef: LlvmBuilderRef
+    val diBuilder: DiBuilder
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
-        index: LlvmValue<LlvmIntegerType> = context.i32(0)
+        index: LlvmValue<LlvmIntegerType> = context.s32(0)
     ): GetElementPointerStep<BasePointee>
 
     fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>>
@@ -65,7 +66,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     }
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
-    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>)
+    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType>
@@ -75,10 +76,16 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
 
     fun <R : LlvmType> select(condition: LlvmValue<LlvmBooleanType>, ifTrue: LlvmValue<R>, ifFalse: LlvmValue<R>): LlvmValue<R>
 
-    fun enterDebugScope(scope: DebugInfoScope)
-    fun leaveDebugScope()
+    fun enterScope(scope: LlvmDebugInfo.Scope)
+    fun leaveScope()
     fun markSourceLocation(line: UInt, column: UInt)
     fun currentDebugLocation(): String
+    fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock
+    fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock)
+
+    fun createLocalVariableInCurrentScope(name: String, type: LlvmDebugInfo.Type): LlvmDebugInfo.LocalVariable
+    fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
+    fun dbg_value(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression)
 }
 
 /**
@@ -171,7 +178,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
             context: C,
             function: LlvmFunction<R>,
             diBuilder: DiBuilder,
-            diFunction: DebugInfoScope.Function,
+            diFunction: LlvmDebugInfo.Scope.Function,
             code: CodeGenerator<C, R>
         ) {
             val rawFn = function.address.raw
@@ -182,7 +189,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
             Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
                 val dslBuilder = BasicBlockBuilderImpl<C, R>(context, function.type.returnType, diBuilder, rawFn, builder, NameScope("tmp"), scopeTracker)
-                dslBuilder.enterDebugScope(diFunction)
+                dslBuilder.enterScope(diFunction)
                 dslBuilder.code()
             }
             finally {
@@ -203,7 +210,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
 private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override val context: C,
     override val llvmFunctionReturnType: R,
-    val diBuilder: DiBuilder,
+    override val diBuilder: DiBuilder,
     val owningFunction: LlvmValueRef,
     override val llvmRef: LlvmBuilderRef,
     val tmpVars: NameScope,
@@ -260,16 +267,19 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val addInstr = Llvm.LLVMBuildAdd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(addInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val subInstr = Llvm.LLVMBuildSub(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(subInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
         val mulInstr = Llvm.LLVMBuildMul(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(mulInstr, lhs.type)
     }
@@ -279,6 +289,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         rhs: LlvmValue<T>,
         knownToBeExact: Boolean
     ): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = if (knownToBeExact) {
             Llvm.LLVMBuildExactSDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
@@ -293,6 +305,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         rhs: LlvmValue<T>,
         knownToBeExact: Boolean
     ): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = if (knownToBeExact) {
             Llvm.LLVMBuildExactUDiv(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         } else {
@@ -303,46 +317,64 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T : LlvmIntegerType> srem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = Llvm.LLVMBuildSRem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> urem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val inst = Llvm.LLVMBuildURem(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType> {
+        assert(lhs.type == rhs.type)
+
         val cmpInstr = Llvm.LLVMBuildICmp(llvmRef, type, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(cmpInstr, LlvmBooleanType)
     }
 
     override fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildShl(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildLShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> ashr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        assert(value.type == shiftAmount.type)
+
         val shiftInstr = Llvm.LLVMBuildAShr(llvmRef, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val andInstr = Llvm.LLVMBuildAnd(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(andInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val orInstr = Llvm.LLVMBuildOr(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(orInstr, lhs.type)
     }
 
     override fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        assert(lhs.type == rhs.type)
+
         val xorInst = Llvm.LLVMBuildXor(llvmRef, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(xorInst, lhs.type)
     }
@@ -447,7 +479,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val inst = Llvm.LLVMBuildMemCpy(llvmRef, destination.raw, 1, source.raw, 1, nBytes.raw)
     }
 
-    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
+    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
         val inst = Llvm.LLVMBuildMemSet(llvmRef, destination.raw, value.raw, nBytes.raw, 1)
     }
@@ -473,8 +505,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
-        val aAsInt = ptrtoint(pointerA, EmergeWordType)
-        val bAsInt = ptrtoint(pointerB, EmergeWordType)
+        val aAsInt = ptrtoint(pointerA, EmergeUWordType)
+        val bAsInt = ptrtoint(pointerB, EmergeUWordType)
         return icmp(aAsInt, LlvmIntPredicate.EQUAL, bAsInt)
     }
 
@@ -496,33 +528,92 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(inst, ifTrue.type)
     }
 
-    override fun enterDebugScope(scope: DebugInfoScope) {
-        scopeTracker.enterDebugScope(scope)
+    override fun enterScope(scope: LlvmDebugInfo.Scope) {
+        scopeTracker.enterScope(scope)
     }
 
-    override fun leaveDebugScope() {
-        scopeTracker.leaveDebugScope()
+    override fun createAndEnterLexicalScope(): LlvmDebugInfo.Scope.LexicalBlock {
+        val scope = diBuilder.createLexicalScope(
+            parentScope = try {
+                scopeTracker.currentScope
+            } catch (ex: NoSuchElementException) {
+                null
+            },
+            lastKnownLine,
+            0u,
+        )
+        scopeTracker.enterScope(scope)
+        return scope
+    }
+
+    override fun leaveLexicalScope(scope: LlvmDebugInfo.Scope.LexicalBlock) {
+        check(scopeTracker.currentScope == scope) { "Trying to leave scope $scope, but we are in ${scopeTracker.currentScope}" }
+
+        scopeTracker.leaveScope()
+    }
+
+    override fun leaveScope() {
+        scopeTracker.leaveScope()
     }
 
     private var lastKnownLine: UInt = 0u
     override fun markSourceLocation(line: UInt, column: UInt) {
         lastKnownLine = line
         val location = diBuilder.createDebugLocation(
-            scopeTracker.currentDebugScope,
+            scopeTracker.currentScope,
             line,
             column,
         )
-        Llvm.LLVMSetCurrentDebugLocation2(llvmRef, location)
+        Llvm.LLVMSetCurrentDebugLocation2(llvmRef, location.ref)
     }
 
     override fun currentDebugLocation(): String {
         val scope = try {
-            scopeTracker.currentDebugScope
+            scopeTracker.currentScope
         } catch (ex: NoSuchElementException) {
             return "unknown"
         }
 
         return "$scope, line $lastKnownLine"
+    }
+
+    override fun createLocalVariableInCurrentScope(name: String, type: LlvmDebugInfo.Type): LlvmDebugInfo.LocalVariable {
+        return diBuilder.createLocalVariable(
+            scopeTracker.currentScope,
+            name,
+            lastKnownLine,
+            type,
+        )
+    }
+
+    override fun dbg_declare(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression) {
+        val location = Llvm.LLVMGetCurrentDebugLocation2(llvmRef)
+            ?.let { LlvmDebugInfo.Location(it) }
+            ?: diBuilder.createDebugLocation(scopeTracker.currentScope, 0u, 0u)
+        val block = Llvm.LLVMGetInsertBlock(llvmRef)
+
+        diBuilder.insertDeclareRecordAtEndOfBasicBlock(
+            storage,
+            varInfo,
+            expression,
+            location,
+            block,
+        )
+    }
+
+    override fun dbg_value(storage: LlvmValue<*>, varInfo: LlvmDebugInfo.LocalVariable, expression: LlvmDebugInfo.Expression) {
+        val location = Llvm.LLVMGetCurrentDebugLocation2(llvmRef)
+            ?.let { LlvmDebugInfo.Location(it) }
+            ?: diBuilder.createDebugLocation(scopeTracker.currentScope, 0u, 0u)
+        val block = Llvm.LLVMGetInsertBlock(llvmRef)
+
+        diBuilder.insertValueRecordAtEndOfBasicBlock(
+            storage,
+            varInfo,
+            expression,
+            location,
+            block,
+        )
     }
 
     override fun defer(code: DeferredCodeGenerator<C>) {
@@ -729,17 +820,17 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
         runLocalDeferredCode()
     }
 
-    private val debugScopes = Stack<DebugInfoScope>()
+    private val debugScopes = Stack<LlvmDebugInfo.Scope>()
 
-    fun enterDebugScope(scope: DebugInfoScope) {
+    fun enterScope(scope: LlvmDebugInfo.Scope) {
         debugScopes.push(scope)
     }
 
-    fun leaveDebugScope() {
+    fun leaveScope() {
         debugScopes.pop()
     }
 
-    val currentDebugScope: DebugInfoScope get() {
+    val currentScope: LlvmDebugInfo.Scope get() {
         if (debugScopes.isNotEmpty()) {
             return debugScopes.peek()
         }
@@ -748,6 +839,6 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
             throw NoSuchElementException()
         }
 
-        return parent.currentDebugScope
+        return parent.currentScope
     }
 }
