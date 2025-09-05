@@ -283,7 +283,7 @@ abstract class LlvmNamedStructType(
         return diBuilder.createStructType(
             name,
             Llvm.LLVMSizeOfTypeInBits(diBuilder.context.targetData.ref, rawStructType).toULong(),
-            Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, rawStructType).toUInt(),
+            Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, rawStructType).toUInt() * 8u,
             flags,
             null,
             declaredAt,
@@ -378,7 +378,7 @@ class LlvmArrayType<Element : LlvmType>(
         return diBuilder.createArrayType(
             elementType.getDiType(diBuilder),
             elementCount.toULong(),
-            Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, getRawInContext(diBuilder.context)).toUInt(),
+            Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, getRawInContext(diBuilder.context)).toUInt() * 8u,
         )
     }
 

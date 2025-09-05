@@ -137,7 +137,7 @@ internal class EmergeClassType private constructor(
         diStructType = diBuilder.createStructType(
             irClass.canonicalName.toString(),
             Llvm.LLVMSizeOfTypeInBits(context.targetData.ref, structRef).toULong(),
-            Llvm.LLVMABIAlignmentOfType(context.targetData.ref, structRef).toUInt(),
+            Llvm.LLVMABIAlignmentOfType(context.targetData.ref, structRef).toUInt() * 8u,
             NativeI32FlagGroup(),
             irClass.memberVariables
                 .filter { it.readStrategy is IrClass.MemberVariable.AccessStrategy.BareField && it.writeStrategy is IrClass.MemberVariable.AccessStrategy.BareField }
@@ -152,7 +152,7 @@ internal class EmergeClassType private constructor(
                         irMember.name,
                         memberDiType.sizeInBits,
                         memberDiType.alignInBits,
-                        Llvm.LLVMOffsetOfElement(diBuilder.context.targetData.ref, structRef, field.indexInLlvmStruct!!).toULong(),
+                        Llvm.LLVMOffsetOfElement(diBuilder.context.targetData.ref, structRef, field.indexInLlvmStruct!!).toULong() * 8u,
                         memberDiType,
                         NativeI32FlagGroup(),
                         irMember.declaredAt,
