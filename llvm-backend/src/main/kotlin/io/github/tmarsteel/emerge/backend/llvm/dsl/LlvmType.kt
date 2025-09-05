@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedValueBaseType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.JvmStackFrameIrSourceLocation
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDiFlags
@@ -13,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.math.BigInteger
+import kotlin.reflect.KProperty
 
 /**
  * A type-safe wrapper around [LLVMTypeRef]
@@ -223,6 +225,7 @@ abstract class LlvmStructType(
     inner class Member<S : LlvmStructType, T : LlvmType>(
         val indexInStruct: Int,
         val type: T,
+        val declaredAt: IrSourceLocation,
     ) {
         init {
             check(indexInStruct >= 0)
@@ -255,7 +258,8 @@ abstract class LlvmStructType(
             check(!observed) {
                 "You can only declare struct members at the creation time of your type, not later."
             }
-            val member = Member<S, T>(membersInOrder.size, type)
+            val declaredAt = JvmStackFrameIrSourceLocation(Thread.currentThread().stackTrace[2])
+            val member = Member<S, T>(membersInOrder.size, type, declaredAt)
             membersInOrder.add(member)
             return ImmediateDelegate(member)
         }
@@ -278,16 +282,7 @@ abstract class LlvmNamedStructType(
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        val rawStructType = getRawInContext(diBuilder.context)
-        val flags = NativeI32FlagGroup<LlvmDiFlags>()
-        return diBuilder.createStructType(
-            name,
-            Llvm.LLVMSizeOfTypeInBits(diBuilder.context.targetData.ref, rawStructType).toULong(),
-            Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, rawStructType).toUInt() * 8u,
-            flags,
-            null,
-            declaredAt,
-        )
+        return computeDiType(this, diBuilder, null, NativeI32FlagGroup())
     }
 
     override fun toString(): String = "%$name"
@@ -303,6 +298,37 @@ abstract class LlvmNamedStructType(
 
     final override fun hashCode(): Int {
         return name.hashCode()
+    }
+
+    companion object {
+        fun <S : LlvmNamedStructType> computeDiType(
+            structType: S,
+            diBuilder: DiBuilder,
+            elements: List<KProperty<Member<S, *>>>?,
+            flags: NativeI32FlagGroup<LlvmDiFlags> = NativeI32FlagGroup(),
+        ): LlvmDebugInfo.Type {
+            val rawStructType = structType.getRawInContext(diBuilder.context)
+            return diBuilder.createStructType(
+                structType.name,
+                Llvm.LLVMSizeOfTypeInBits(diBuilder.context.targetData.ref, rawStructType).toULong(),
+                Llvm.LLVMABIAlignmentOfType(diBuilder.context.targetData.ref, rawStructType).toUInt() * 8u,
+                flags,
+                elements?.map { memberProp ->
+                    val member = memberProp.getter.call()
+                    val memberDiType = member.type.getDiType(diBuilder)
+                    diBuilder.createStructMember(
+                        memberProp.name,
+                        memberDiType.sizeInBits,
+                        memberDiType.alignInBits,
+                        Llvm.LLVMOffsetOfElement(diBuilder.context.targetData.ref, rawStructType, member.indexInStruct).toULong() * 8u,
+                        memberDiType,
+                        flags,
+                        member.declaredAt,
+                    )
+                },
+                structType.declaredAt,
+            )
+        }
     }
 }
 

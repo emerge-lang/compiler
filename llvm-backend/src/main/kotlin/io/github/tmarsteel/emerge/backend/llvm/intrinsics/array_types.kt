@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -14,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
@@ -44,6 +46,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAlia
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 
 internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
@@ -61,6 +64,10 @@ internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHea
 
     override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
         check(Llvm.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
+    }
+
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return computeDiType(this, diBuilder, listOf(::anyBase, ::elementCount), NativeI32FlagGroup())
     }
 }
 
@@ -204,6 +211,10 @@ internal class EmergeArrayType<Element : LlvmType>(
         val raw = super.computeRaw(context)
         assureReinterpretableAsAnyValue(context, raw)
         return raw
+    }
+
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return computeDiType(this, diBuilder, listOf(::base, ::elements), NativeI32FlagGroup())
     }
 
     override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {

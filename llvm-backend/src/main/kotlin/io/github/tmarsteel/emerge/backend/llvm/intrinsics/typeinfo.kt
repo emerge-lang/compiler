@@ -2,8 +2,6 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
-import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -38,8 +36,6 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
-import java.nio.file.Path
-import java.nio.file.Paths
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.finalizeStaticObject",
@@ -58,6 +54,10 @@ internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStr
     val shiftLeftAmount by structMember(LlvmU32Type)
     val shiftRightAmount by structMember(LlvmU32Type)
     val addresses by structMember(LlvmArrayType(nEntries, LlvmFunctionAddressType))
+
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return computeDiType(this, diBuilder, listOf(::shiftLeftAmount, ::shiftRightAmount, ::addresses))
+    }
 
     companion object {
         private val cache = MapMaker().weakValues().makeMap<Long, VTableType>()
@@ -96,6 +96,10 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
         return other is TypeinfoType && other.nVTableEntries <= this.nVTableEntries
     }
 
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::vtable), NativeI32FlagGroup())
+    }
+
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
         return diBuilder.createTemporaryForwardDeclarationOfStructType(
             name,
@@ -121,13 +125,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
         }
         val GENERIC = TypeinfoType(0)
 
-        val declaredAt = object : IrSourceLocation {
-            override val file = object : IrSourceFile {
-                override val path: Path = Paths.get(Thread.currentThread().stackTrace[1].fileName)
-            }
-            override val lineNumber = 1u
-            override val columnNumber = 1u
-        }
+        val declaredAt = JvmStackFrameIrSourceLocation(Thread.currentThread().stackTrace[1])
     }
 }
 

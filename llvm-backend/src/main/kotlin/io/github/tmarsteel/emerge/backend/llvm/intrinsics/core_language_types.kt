@@ -31,6 +31,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.jna.DwarfBaseTypeEncoding
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 import io.github.tmarsteel.emerge.backend.llvm.toBigInteger
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import java.math.BigInteger
@@ -137,7 +138,7 @@ internal object EmergeWeakReferenceCollectionType : LlvmNamedStructType("weakref
 /**
  * The data common to all heap-allocated objects in emerge
  */
-internal object EmergeHeapAllocatedValueBaseType : LlvmNamedStructType("anyvalue"), EmergeHeapAllocated {
+internal object EmergeHeapAllocatedValueBaseType : LlvmNamedStructType("anyvalue", JvmStackFrameIrSourceLocation(Thread.currentThread().stackTrace[1])), LlvmCachedType.ForwardDeclared, EmergeHeapAllocated {
     val strongReferenceCount by structMember(EmergeUWordType)
     val typeinfo by structMember(pointerTo(TypeinfoType.GENERIC))
     val weakReferenceCollection by structMember(pointerTo(EmergeWeakReferenceCollectionType))
@@ -152,6 +153,26 @@ internal object EmergeHeapAllocatedValueBaseType : LlvmNamedStructType("anyvalue
 
     override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
         // this is AnyValue itself, noop
+    }
+
+    override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return computeDiType(this, diBuilder, listOf(::strongReferenceCount, ::typeinfo, ::weakReferenceCollection), NativeI32FlagGroup())
+    }
+
+    override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
+        return diBuilder.createTemporaryForwardDeclarationOfStructType(
+            name,
+            /*
+             * approximation:
+             * strongReferenceCount: word
+             * typeinfo: pointer
+             * weakRefColl: pointer
+             */
+            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * 3u,
+            alignInBits = diBuilder.context.targetData.pointerSizeInBits.toUInt(),
+            flags = NativeI32FlagGroup(),
+            declaredAt = declaredAt!!,
+        )
     }
 }
 
