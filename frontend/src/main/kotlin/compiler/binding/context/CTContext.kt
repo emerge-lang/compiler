@@ -128,28 +128,20 @@ interface CTContext {
      * @return a variable name that is guaranteed to not be occupied ([resolveVariable] will return `null`),
      * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
      */
-    fun findInternalVariableName(namePayload: String): String {
-        var i = 0
-        var name: String
-        do {
-            name = "__${namePayload}$i"
-            i++
-        } while (resolveVariable(name) != null)
-
-        return name
-    }
+    fun getInternalVariableName(namePayload: String): String
 
     /**
      * @return a type parameter name that is guaranteed to not be occupied ([resolveTypeParameter] and [resolveBaseType] will return `null`),
-     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
+     * contains markers as an internal variable (prefix of `$`) and contains [namePayload]
      */
     fun findInternalTypeParameterName(namePayload: String): String {
+        // the counter doesn't need to be stored because looking up type parameters is pure
         var i = 0
         var name: String
         do {
-            name = "__${namePayload}$i"
+            name = "$${namePayload}$i"
             i++
-        } while (resolveTypeParameter(name) != null || resolveBaseType(name).any())
+        } while (resolveTypeParameter(name) != null)
 
         return name
     }

@@ -119,7 +119,7 @@ internal fun buildIrThrow(
     // calling fillStackTrace can throw an exception; that should be ignored. But it needs to be properly dropped/refcounted,
     // so that is more elaborate here; might make sense to look into addSuppressed like Java has
     val varDeclExceptionFromFillStackTrace = object : IrVariableDeclaration {
-        override val name = context.findInternalVariableName("fillStackTraceException")
+        override val name = context.getInternalVariableName("fillStackTraceException")
         override val type: IrType = context.swCtx.throwable.irReadNotNullReference
         override val isBorrowed = false
         override val isReAssignable = false

@@ -23,7 +23,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class SourceFileRootContext(
-    packageContext: PackageContext,
+    private val packageContext: PackageContext,
     declaredOrInferredPackageName: CanonicalElementName.Package,
 ) : MutableExecutionScopedCTContext(
     SourceFileParentContext(packageContext),
@@ -65,6 +65,13 @@ class SourceFileRootContext(
     }
     override fun hasAmbiguousImportOrDeclarationsForSimpleName(simpleName: String): Boolean {
         return simpleName in ambiguousSimpleNamesByImport || parentContext.hasAmbiguousImportOrDeclarationsForSimpleName(simpleName)
+    }
+
+    override fun getInternalVariableName(namePayload: String): String {
+        // unique on package-level because, for the names to cross package boundaries, they need to be imported, which the compiler won't do
+        // if the user imports such an internal variable they'll get a proper diagnostic about fucking with language internals
+        // instead of a weird import conflict or type error
+        return packageContext.getInternalVariableName(namePayload)
     }
 
     private companion object {
@@ -153,6 +160,10 @@ class SourceFileRootContext(
             ): ExecutionScopedCTContext.MixinRegistration? {
                 diagnosis.mixinNotAllowed(mixinStatement)
                 return null
+            }
+
+            override fun getInternalVariableName(namePayload: String): String {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
 
             override fun toString() = "SourceFileRootContext[${sourceFile.lexerFile}]"

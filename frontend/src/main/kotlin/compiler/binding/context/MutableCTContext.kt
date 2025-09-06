@@ -177,4 +177,8 @@ open class MutableCTContext(
         val imported = _imports.flatMap { it.getOverloadSetsBySimpleName(name) }
         return imported + parentContext.getToplevelFunctionOverloadSetsBySimpleName(name)
     }
+
+    override fun getInternalVariableName(namePayload: String): String {
+        return parentContext.getInternalVariableName(namePayload)
+    }
 }

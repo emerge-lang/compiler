@@ -728,7 +728,7 @@ internal fun buildGenericInvocationLikeIr(
                     null,
                     null,
                     IdentifierToken(
-                        landingpadContext.findInternalVariableName("t"),
+                        landingpadContext.getInternalVariableName("t"),
                         invocationLocation
                     ),
                     NamedTypeReference(IdentifierToken(context.swCtx.throwable.simpleName, invocationLocation)),

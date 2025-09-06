@@ -52,6 +52,14 @@ class PackageContext(
             .firstOrNull()
     }
 
+    private var internalVariableCounter: ULong = 0u
+    /**
+     * see [CTContext.getInternalVariableName]
+     */
+    internal fun getInternalVariableName(namePayload: String): String {
+        return "$$namePayload${internalVariableCounter++}"
+    }
+
     private val overloadSetsBySimpleName: Map<String, Collection<BoundOverloadSet<*>>> by lazy {
         /*
         this HAS to be lazy, because:
