@@ -59,7 +59,6 @@ import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.baseBaseType
 import io.github.tmarsteel.emerge.backend.llvm.diScope
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
@@ -354,7 +353,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 if (functionHasNothrowAbi) {
                     // verify that the catch can even do something about the exception
                     val isStaticallyASubtypeOfError = code.throwable.type
-                        .findSimpleTypeBound().baseType
+                        .concreteUpperBound
                         .allDistinctSupertypesExceptAny
                         .any { it.canonicalName == EmergeConstants.CoreModule.ERROR_TYPE_NAME }
                     if (isStaticallyASubtypeOfError) {
@@ -517,7 +516,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrClassFieldAccessExpression -> {
-            if (expression.baseBaseType.canonicalName.toString() == "emerge.core.Array") {
+            if (expression.base.type.concreteUpperBound.canonicalName.toString() == "emerge.core.Array") {
                 if (expression.memberVariable?.name == "size") {
                     val memberValue = callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
                     return ExpressionResult.Value(
@@ -730,7 +729,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             }
         }
         is IrNumericComparisonExpression -> {
-            val operandType = expression.lhs.type.findSimpleTypeBound().baseType
+            val operandType = expression.lhs.type.concreteUpperBound
             if (operandType.canonicalName.simpleName in setOf("F32", "F64")) {
                 TODO("floating point comparison not implemented yet")
             }
@@ -978,20 +977,6 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
         .get()
 }
 
-// todo: move to utils package
-internal fun IrType.findSimpleTypeBound(): IrSimpleType {
-    var carry: IrType = this
-    while (carry !is IrSimpleType) {
-        carry = when (carry) {
-            is IrParameterizedType -> carry.simpleType
-            is IrGenericTypeReference -> carry.effectiveBound
-            else -> error("how the hell did this happen??")
-        }
-    }
-
-    return carry
-}
-
 private sealed interface ArrayDispatchOverride {
     /** there is no override, the regular approach works */
     object None : ArrayDispatchOverride
@@ -1016,7 +1001,7 @@ private sealed interface ArrayDispatchOverride {
         private fun findForInstanceFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
             val elementTypeArg = (invocation.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
 
-            val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
+            val elementTypeBound = elementTypeArg.type.concreteUpperBound
             val accessType = if (elementTypeBound.canonicalName.toString() == "emerge.core.Any") {
                 if (elementTypeArg.type !is IrGenericTypeReference && elementTypeArg.variance == IrTypeVariance.INVARIANT) {
                     ArrayAccessType.REFERENCE_TYPE_DIRECT
@@ -1149,7 +1134,7 @@ private sealed interface ArrayDispatchOverride {
         private fun findForStaticFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
             if (invocation.function.canonicalName.simpleName == "new" && invocation.function.parameters.size == 2) {
                 val elementTypeArg = (invocation.evaluatesTo as IrParameterizedType).arguments.getValue("Element")
-                val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
+                val elementTypeBound = elementTypeArg.type.concreteUpperBound
                 return InvokeIntrinsic(when (elementTypeBound) {
                     context.rawS8Clazz -> EmergeS8ArrayType.defaultValueConstructor
                     context.rawU8Clazz -> EmergeU8ArrayType.defaultValueConstructor
@@ -1167,7 +1152,7 @@ private sealed interface ArrayDispatchOverride {
             }
 
             if (invocation.function.canonicalName.simpleName == "copy" && invocation.function.parameters.size == 5) {
-                val elementType = (invocation.typeArgumentsAtCallSite.getValue("T")).findSimpleTypeBound().baseType
+                val elementType = (invocation.typeArgumentsAtCallSite.getValue("T")).concreteUpperBound
                 return when (elementType) {
                     context.rawS8Clazz -> InvokeIntrinsic(EmergeS8ArrayCopyFn)
                     context.rawU8Clazz -> InvokeIntrinsic(EmergeU8ArrayCopyFn)

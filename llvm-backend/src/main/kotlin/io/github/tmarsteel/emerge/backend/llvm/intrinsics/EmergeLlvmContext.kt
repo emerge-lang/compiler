@@ -30,7 +30,6 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -722,13 +721,13 @@ class EmergeLlvmContext(
 
         if (intrinsic == null && fn.canonicalName.parent == CanonicalElementName.Package(listOf("emerge", "core", "safemath")) && fn.parameters.size == 2) {
             intrinsic = safemathFns[fn.canonicalName.simpleName]
-                ?.get(fn.parameters.first().type.findSimpleTypeBound().baseType.canonicalName.simpleName)
+                ?.get(fn.parameters.first().type.concreteUpperBound.canonicalName.simpleName)
                 ?.let { registerIntrinsic(it) }
         }
 
         if (intrinsic == null && fn.canonicalName.parent == CanonicalElementName.Package(listOf("emerge", "platform")) && fn.canonicalName.simpleName == "panic") {
             if (fn.parameters.size == 1) {
-                val paramType = fn.parameters.single().type.findSimpleTypeBound().baseType
+                val paramType = fn.parameters.single().type.concreteUpperBound
                 if (paramType.canonicalName.simpleName == "String") {
                     intrinsic = registerIntrinsic(panicOnString)
                 }

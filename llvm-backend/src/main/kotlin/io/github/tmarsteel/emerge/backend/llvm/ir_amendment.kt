@@ -13,7 +13,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
@@ -147,11 +146,8 @@ internal var IrVariableDeclaration.Scope.diScope: LlvmDebugInfo.Scope.LexicalBlo
 internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 
-internal val IrClassFieldAccessExpression.baseBaseType: IrBaseType by tackLazyVal {
-    base.type.findSimpleTypeBound().baseType
-}
 internal val IrClassFieldAccessExpression.memberVariable: IrClass.MemberVariable? by tackLazyVal {
-    val localBaseBaseType = baseBaseType
+    val localBaseBaseType = base.type.concreteUpperBound
     if (localBaseBaseType !is IrClass) {
         return@tackLazyVal null
     }

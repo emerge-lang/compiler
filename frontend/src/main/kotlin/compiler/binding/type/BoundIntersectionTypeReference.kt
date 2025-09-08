@@ -18,6 +18,7 @@ import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
 import compiler.util.twoElementPermutationsUnordered
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
@@ -280,6 +281,7 @@ class BoundIntersectionTypeReference private constructor(
             components.map { it.toBackendIr() },
             this.isNullable,
             this.mutability.toBackendIr(),
+            baseTypeOfLowerBound.toBackendIr(),
         )
     }
     override fun toBackendIr(): IrType {
@@ -541,15 +543,18 @@ private class IrIntersectionTypeImpl(
     override val components: List<IrType>,
     override val isNullable: Boolean,
     override val mutability: IrTypeMutability,
+    override val concreteUpperBound: IrBaseType,
 ) : IrIntersectionType {
     override fun asNullable(): IrType {
         if (isNullable) {
             return this
         }
+
         return IrIntersectionTypeImpl(
             components.map { it.asNullable() },
             true,
             mutability,
+            concreteUpperBound,
         )
     }
 }

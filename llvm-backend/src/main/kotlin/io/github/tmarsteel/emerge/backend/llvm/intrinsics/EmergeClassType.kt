@@ -8,7 +8,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
@@ -61,7 +60,7 @@ internal class EmergeClassType private constructor(
         }
 
         // boxing types have only one field, holding the boxed value. We use the name of that
-        return irClass.fields.single().type.findSimpleTypeBound().baseType.canonicalName
+        return irClass.fields.single().type.concreteUpperBound.canonicalName
     }
 
     private val typeinfoProvider by lazy {

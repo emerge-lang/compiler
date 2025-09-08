@@ -8,7 +8,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.independentEquals
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.autoBoxOrUnbox
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.llvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -120,8 +119,7 @@ internal sealed interface Autoboxer {
                 return true
             }
 
-            val valueTypeBound = type.findSimpleTypeBound()
-            if (valueTypeBound.baseType != primitiveTypeGetter(context)) {
+            if (type.concreteUpperBound != primitiveTypeGetter(context)) {
                 return true
             }
 
@@ -220,8 +218,7 @@ internal sealed interface Autoboxer {
                 return true
             }
 
-            val valueTypeBound = type.findSimpleTypeBound()
-            if (valueTypeBound.baseType != context.rawReflectionBaseTypeClazz) {
+            if (type.concreteUpperBound != context.rawReflectionBaseTypeClazz) {
                 return true
             }
 
