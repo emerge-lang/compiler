@@ -39,6 +39,7 @@ enum class Keyword(val text: String)
     READONLY("read"),
     IMMUTABLE("const"),
     EXCLUSIVE("exclusive"),
+    READCONST("readconst"),
 
     NOTHROW("nothrow"),
     PURE("pure"),

@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -174,6 +175,75 @@ class MutabilityErrors : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "An exclusive value is needed here, this one is const."
                 }
+        }
+    }
+
+    "transitive constness" - {
+        "cannot traverse a read field through a const reference" {
+            validateModule("""
+                class Box {
+                    f: const S32 = 0
+                }
+                class Subject {
+                    box: read Box = Box()                
+                }
+                
+                fn test() -> const S32 {
+                    o = Subject()
+                    return o.box.f
+                }
+            """.trimIndent())
+                .shouldFind<AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic> {
+                    it.nonConstMember.name.value shouldBe "box"
+                }
+        }
+
+        "cannot traverse a mut field through a const reference" {
+            validateModule("""
+                class Box {
+                    f: const S32 = 0
+                }
+                class Subject {
+                    box: mut Box = Box()         
+                }
+                
+                fn test() -> const S32 {
+                    o = Subject()
+                    return o.box.f
+                }
+            """.trimIndent())
+                .shouldFind<AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic> {
+                    it.nonConstMember.name.value shouldBe "box"
+                }
+        }
+
+        "accessing a const field on a read reference obtained from a const reference is ok (const.read.const)" {
+            validateModule("""
+                class A {
+                    f: const S32 = 0
+                }
+            """.trimIndent())
+        }
+
+        for (fieldMutability in listOf("read", "mut")) {
+            for (refMutability in listOf("read", "mut")) {
+                "traversing a $fieldMutability field through a $refMutability reference is ok" {
+                    validateModule("""
+                        class Box {
+                            f: const S32 = 0
+                        }
+                        class Subject {
+                            box: $fieldMutability _ = Box()                
+                        }
+                        
+                        fn test() -> Box {
+                            o: $refMutability _ = Subject()
+                            return o.box
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
         }
     }
 })

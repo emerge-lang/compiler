@@ -46,10 +46,10 @@ sealed interface AccessorKind {
 
                 parameters.declaredReceiver?.let { receiverParam ->
                     receiverParam.typeAtDeclarationTime?.mutability?.let { receiverMutability ->
-                        if (receiverMutability != TypeMutability.READONLY) {
+                        if (receiverMutability !in setOf(TypeMutability.READONLY, TypeMutability.READCONST)) {
                             diagnosis.accessorContractViolation(
                                 declaration,
-                                "Getters must act on ${TypeMutability.READONLY.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
+                                "Getters must act on ${TypeMutability.READONLY.keyword.text} or ${TypeMutability.READCONST.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
                                 receiverParam.declaration.span,
                             )
                         }

@@ -32,12 +32,13 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
  */
 enum class TypeMutability(
     val keyword: Keyword,
-    val isMutable: Boolean,
+    val allowsMutation: Boolean,
 ) {
-    MUTABLE(Keyword.MUTABLE, isMutable = true),
-    READONLY(Keyword.READONLY, isMutable = false),
-    IMMUTABLE(Keyword.IMMUTABLE, isMutable = false),
-    EXCLUSIVE(Keyword.EXCLUSIVE, isMutable = true),
+    MUTABLE(Keyword.MUTABLE, allowsMutation = true),
+    READONLY(Keyword.READONLY, allowsMutation = false),
+    IMMUTABLE(Keyword.IMMUTABLE, allowsMutation = false),
+    EXCLUSIVE(Keyword.EXCLUSIVE, allowsMutation = true),
+    READCONST(Keyword.READCONST, allowsMutation = false),
     ;
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
@@ -45,35 +46,45 @@ enum class TypeMutability(
             ||
         when (this) {
             EXCLUSIVE -> true
-            MUTABLE, IMMUTABLE -> targetMutability == READONLY
-            READONLY -> false
+            READCONST -> false // only assignable to itself, checked above
+            MUTABLE, IMMUTABLE -> targetMutability == READONLY || targetMutability == READCONST
+            READONLY -> targetMutability == READCONST
         }
 
     /**
      * When multiple values can be assigned to one location, that multitude of options
      * can be reasoned about by [Iterable.fold]ing the [TypeMutability] with this method.
      *
-     * If both are identical, the same value will be returned. Otherwise, the return value is [READONLY],
+     * If both are identical, the same value will be returned. Otherwise, the return value is [READCONST],
      * as it is makes the least guarantees about the value. Hence, this method is associative.
      *
-     * |`this`     |[other]    |result     |
-     * |-----------|-----------|-----------|
-     * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
-     * |`MUTABLE`  |`READONLY` |`READONLY` |
-     * |`MUTABLE`  |`IMMUTABLE`|`READONLY` |
-     * |`MUTABLE`  |`EXCLUSIVE`|`MUTABLE`  |
-     * |`READONLY` |`MUTABLE`  |`READONLY` |
-     * |`READONLY` |`READONLY` |`READONLY` |
-     * |`READONLY` |`IMMUTABLE`|`READONLY` |
-     * |`READONLY` |`EXCLUSIVE`|`READONLY` |
-     * |`IMMUTABLE`|`MUTABLE`  |`READONLY` |
-     * |`IMMUTABLE`|`READONLY` |`READONLY` |
-     * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
-     * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE`|
-     * |`EXCLUSIVE`|`MUTABLE`  |`MUTABLE`  |
-     * |`EXCLUSIVE`|`READONLY` |`READONLY` |
-     * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
-     * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`this`     |[other]    |result      |
+     * |-----------|-----------|------------|
+     * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`   |
+     * |`MUTABLE`  |`READONLY` |`READONLY`  |
+     * |`MUTABLE`  |`IMMUTABLE`|`READONLY`  |
+     * |`MUTABLE`  |`EXCLUSIVE`|`MUTABLE`   |
+     * |`MUTABLE`  |`READCONST`|`READDCONST`|
+     * |`READONLY` |`MUTABLE`  |`READONLY`  |
+     * |`READONLY` |`READONLY` |`READONLY`  |
+     * |`READONLY` |`IMMUTABLE`|`READONLY`  |
+     * |`READONLY` |`EXCLUSIVE`|`READONLY`  |
+     * |`READONLY` |`READCONST`|`READDCONST`|
+     * |`IMMUTABLE`|`MUTABLE`  |`READONLY`  |
+     * |`IMMUTABLE`|`READONLY` |`READONLY`  |
+     * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE` |
+     * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE` |
+     * |`IMMUTABLE`|`READCONST`|`READDCONST`|
+     * |`EXCLUSIVE`|`MUTABLE`  |`MUTABLE`   |
+     * |`EXCLUSIVE`|`READONLY` |`READONLY`  |
+     * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE` |
+     * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE` |
+     * |`EXCLUSIVE`|`READCONST`|`READDCONST`|
+     * |`READCONST`|`MUTABLE`  |`READCONST` |
+     * |`READCONST`|`READONLY` |`READCONST` |
+     * |`READCONST`|`IMMUTABLE`|`READCONST` |
+     * |`READCONST`|`EXCLUSIVE`|`READDCONST`|
+     * |`READCONST`|`READCONST`|`READDCONST`|
      *
      * @return The [TypeMutability] that applies to the union of the sets of objects being described
      * by `this` and [other]. In other words: returns the mutability that expresses all abilities & guarantees that are
@@ -83,6 +94,7 @@ enum class TypeMutability(
         other == null || other == this -> this
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this
+        this == READCONST || other == READCONST -> READCONST
         else -> READONLY
     }
 
@@ -94,8 +106,9 @@ enum class TypeMutability(
     fun limitedTo(limitingMutability: TypeMutability?): TypeMutability {
         if (this == EXCLUSIVE) {
             // exclusive object members are not allowed, so this should never happen.
-            // If it does happen still, READONLY mutability will limit the damage.
-            return READONLY
+            // If it does happen still, READCONST mutability will limit the damage.
+            assert(false) { "exclusive object member!!" }
+            return READCONST
         }
 
         if (limitingMutability == null) {
@@ -106,11 +119,17 @@ enum class TypeMutability(
             MUTABLE -> when(limitingMutability) {
                 MUTABLE -> MUTABLE
                 READONLY -> READONLY
-                IMMUTABLE -> READONLY
+                IMMUTABLE -> READCONST
                 EXCLUSIVE -> MUTABLE
+                READCONST -> READCONST
             }
-            READONLY -> READONLY
+            READONLY -> when (limitingMutability) {
+                READCONST,
+                IMMUTABLE -> READCONST
+                else -> READONLY
+            }
             IMMUTABLE -> IMMUTABLE
+            READCONST -> READCONST
             EXCLUSIVE -> error("unreachable")
         }
     }
@@ -120,22 +139,41 @@ enum class TypeMutability(
      * |-----------|-----------|-----------|
      * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
      * |`MUTABLE`  |`READONLY` |`MUTABLE`  |
-     * |`MUTABLE`  |`IMMUTABLE`|`MUTABLE`  |
+     * |`MUTABLE`  |`IMMUTABLE`|`EXCLUSIVE`|
+     * |`MUTABLE`  |`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`MUTABLE`  |`READCONST`|`READCONST`|
      * |`READONLY` |`MUTABLE`  |`MUTABLE`  |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`IMMUTABLE`|
-     * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
-     * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
+     * |`READONLY` |`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`READONLY` |`READCONST`|`READONLY` |
+     * |`IMMUTABLE`|`MUTABLE`  |??         |
+     * |`IMMUTABLE`|`READONLY` |??         |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`IMMUTABLE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`IMMUTABLE`|`READCONST`|`IMMUTABLE`|
+     * |`EXCLUSIVE`|`MUTABLE`  |`EXCLUSIVE`|
+     * |`EXCLUSIVE`|`READONLY` |`EXCLUSIVE`|
+     * |`EXCLUSIVE`|`IMMUTABLE`|`EXCLUSIVE`|
+     * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`EXCLUSIVE`|`READCONST`|`EXCLUSIVE`|
+     * |`READCONST`|`MUTABLE`  |`MUTABLE`  |
+     * |`READCONST`|`READONLY` |`READONLY` |
+     * |`READCONST`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`READCONST`|`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`READCONST`|`READCONST`|`READCONST`|
+     *
      * @return the [TypeMutability] that describes the intersection-set of `this` and [other]. In other words,
      * returns the mutability that describes the guarantees and constraints from both `this` and [other].
      */
     fun intersect(other: TypeMutability): TypeMutability = when(this) {
+        READCONST -> other
         MUTABLE -> when(other) {
             MUTABLE -> MUTABLE
             READONLY -> MUTABLE
             IMMUTABLE -> EXCLUSIVE
             EXCLUSIVE -> EXCLUSIVE
+            else -> other.intersect(this)
         }
         READONLY -> when(other) {
             READONLY -> READONLY
@@ -154,6 +192,7 @@ enum class TypeMutability(
         READONLY -> IrTypeMutability.READONLY
         MUTABLE -> IrTypeMutability.MUTABLE
         EXCLUSIVE -> IrTypeMutability.EXCLUSIVE
+        READCONST -> IrTypeMutability.READCONST
     }
 
     override fun toString() = keyword.text

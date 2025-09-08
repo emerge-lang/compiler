@@ -46,6 +46,7 @@ import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
+import compiler.diagnostic.accessingNonConstMemberVariableOnConstOrReadconstReference
 import compiler.diagnostic.ambiguousMemberVariableRead
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unresolvableMemberVariable
@@ -92,7 +93,7 @@ class BoundMemberVariableReadExpression(
             val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
             if (physicalMember!!.isConstructorParameterInitialized) {
-                instantiatedType.withMutability(valueExpression.type?.mutability?.limitedTo(TypeMutability.MUTABLE))
+                instantiatedType.withMutability(TypeMutability.MUTABLE.limitedTo(valueExpression.type?.mutability ?: TypeMutability.MUTABLE))
             } else {
                 instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)
             }
@@ -162,6 +163,16 @@ class BoundMemberVariableReadExpression(
 
                 if (!isInitialized) {
                     diagnosis.useOfUninitializedMember(physicalMember!!, declaration)
+                }
+
+                valueExpression.type?.let { valueType ->
+                    if (valueType.mutability in setOf(TypeMutability.READCONST, TypeMutability.IMMUTABLE)) {
+                        physicalMember!!.type?.instantiateAllParameters(valueType.inherentTypeBindings)?.let { memberType ->
+                            if (memberType.mutability != TypeMutability.IMMUTABLE) {
+                                diagnosis.accessingNonConstMemberVariableOnConstOrReadconstReference(this, physicalMember!!)
+                            }
+                        }
+                    }
                 }
             }
 

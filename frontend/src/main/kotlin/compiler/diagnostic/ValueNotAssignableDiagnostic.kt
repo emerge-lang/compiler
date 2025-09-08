@@ -63,22 +63,32 @@ open class ValueNotAssignableDiagnostic(
             TypeMutability.MUTABLE -> when (targetType.mutability) {
                 TypeMutability.IMMUTABLE -> return "A const value is needed here, this one is mut."
                 TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is mut."
+                TypeMutability.READCONST,
                 TypeMutability.READONLY,
                 TypeMutability.MUTABLE -> throw InternalCompilerError("This should not have happened")
             }
             TypeMutability.READONLY -> when (targetType.mutability) {
                 TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a read reference."
                 TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here; this is a read reference."
-                TypeMutability.READONLY -> throw InternalCompilerError("This should not have happened")
+                TypeMutability.READCONST,
+                TypeMutability.READONLY, -> throw InternalCompilerError("This should not have happened")
                 TypeMutability.IMMUTABLE -> return "A const value is needed here. This is a read reference, immutability is not guaranteed."
             }
             TypeMutability.IMMUTABLE -> when (targetType.mutability) {
                 TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an const value."
                 TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is const."
+                TypeMutability.READCONST,
                 TypeMutability.READONLY,
                 TypeMutability.IMMUTABLE -> throw InternalCompilerError("This should not have happened")
             }
             TypeMutability.EXCLUSIVE -> throw InternalCompilerError("This should not have happened")
+            TypeMutability.READCONST -> when (targetType.mutability) {
+                TypeMutability.READCONST -> throw InternalCompilerError("This should not have happened")
+                TypeMutability.READONLY -> return "A read value is needed here, this one is readconst. readconst forbids accessing certain member variables that read allows."
+                TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a readconst reference."
+                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here; this is a readconst reference"
+                TypeMutability.IMMUTABLE -> return "A const value is needed here. This is a readconst reference, immutability is not guaranteed."
+            }
         }
     }
 

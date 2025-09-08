@@ -242,7 +242,7 @@ class BoundIdentifierExpression(
             if (context.containsWithinBoundary(variable, boundary)) {
                 return
             }
-            if (usage?.usedAsType?.mutability?.isMutable == true) {
+            if (usage?.usedAsType?.mutability?.allowsMutation == true) {
                 visitor.visit(VariableUsedAsMutable(this, this.usage!!))
             }
         }

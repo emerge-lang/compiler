@@ -50,6 +50,7 @@ fun IrType.independentToString(): String {
         IrTypeMutability.READONLY -> "read"
         IrTypeMutability.MUTABLE -> "mut"
         IrTypeMutability.EXCLUSIVE -> "exclusive"
+        IrTypeMutability.READCONST -> "readconst"
     }
     return when (this) {
         is IrSimpleType -> "$mutabilityStr ${baseType.canonicalName}${if (isNullable) "?" else ""}"

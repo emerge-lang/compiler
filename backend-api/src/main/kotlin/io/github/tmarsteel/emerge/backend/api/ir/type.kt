@@ -45,6 +45,7 @@ enum class IrTypeMutability {
     IMMUTABLE,
     READONLY,
     EXCLUSIVE,
+    READCONST,
 }
 
 enum class IrTypeVariance {
