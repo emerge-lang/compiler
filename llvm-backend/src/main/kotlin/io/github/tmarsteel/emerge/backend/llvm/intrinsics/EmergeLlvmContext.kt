@@ -302,7 +302,6 @@ class EmergeLlvmContext(
         return instance
     }
 
-    private val mockFilesForInstrinsicDiBuilders: MutableMap<String, IrSourceFile> = MapMaker().weakValues().makeMap()
     fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {
         val rawFn = this.kotlinLlvmFunctions
             .computeIfAbsent(fn) {

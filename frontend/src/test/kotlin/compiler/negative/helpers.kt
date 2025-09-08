@@ -12,6 +12,7 @@ import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.util.partitionIsInstanceOf
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -59,10 +60,10 @@ private val defaultModulesParsed: List<Pair<ConfigModuleDefinition, List<ASTSour
                     val tokens = lex(it)
                     SourceFileRule.match(tokens, tokens.first().span.sourceFile)
                 }
-                .partition { it is MatchingResult.Error }
-                .let { (errors, successes) ->
+                .partitionIsInstanceOf<_, MatchingResult.Success<ASTSourceFile>>()
+                .let { (successes, errors) ->
                     require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).diagnostic }}" }
-                    successes as List<MatchingResult.Success<ASTSourceFile>>
+                    successes
                 }
                 .map { it.item }
 

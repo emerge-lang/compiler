@@ -158,6 +158,10 @@ internal sealed interface Autoboxer {
                     .dereference()
             }
         }
+
+        override fun toString(): String {
+            return "${javaClass.simpleName}[$unboxedType]"
+        }
     }
 
     /**
@@ -275,6 +279,10 @@ internal sealed interface Autoboxer {
                     .dereference()
             }
         }
+
+        override fun toString(): String {
+            return javaClass.simpleName
+        }
     }
 
     /**
@@ -378,6 +386,10 @@ internal sealed interface Autoboxer {
         override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             throw UnsupportedOperationException("Cannot unbox a C FFI pointer")
         }
+
+        override fun toString(): String {
+            return javaClass.simpleName
+        }
     }
 
     companion object {
@@ -423,7 +435,9 @@ internal sealed interface Autoboxer {
             if (valueAutoboxer == null) {
                 // the source type doesn't have autoboxing semantics
                 check(targetAutoboxer != null) { "assured by previous check" }
-                check(targetAutoboxer.isBox(builder.context, irTypeOfValue))
+                check(targetAutoboxer.isBox(builder.context, irTypeOfValue)) {
+                    "cannot unbox `$targetIrType` from `$irTypeOfValue`: the source type is not the boxed type of the target according to targetAutoboxer $targetAutoboxer (${builder.currentDebugLocation()})"
+                }
                 return when {
                     targetAutoboxer.isBox(builder.context, targetIrType) -> llvmValue
                     llvmValue.type == targetAutoboxer.unboxedType -> llvmValue
