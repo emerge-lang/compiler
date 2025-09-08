@@ -184,13 +184,10 @@ class BaseTypeMemberVariableDeclaration(
         false
     }
 
-    val isDecorated = attributes.any { it.keyword == Keyword.DECORATES }
-
     inner class Binder(val typeRootContext: CTContext) {
         val isConstructorParameterInitialized: Boolean = this@BaseTypeMemberVariableDeclaration.isConstructorParameterInitialized
-        val isDecorated: Boolean = this@BaseTypeMemberVariableDeclaration.isDecorated
 
-        private var needsCtorTypeParameter: Boolean? = if (!isDecorated || !isConstructorParameterInitialized) false else null
+        private var needsCtorTypeParameter: Boolean? = if (!isConstructorParameterInitialized || variableDeclaration.type?.mutability != null) false else null
         private var ctorTypeParameter: BoundTypeParameter? = null
 
         fun generateTypeParameterForConstructor(
@@ -207,6 +204,8 @@ class BaseTypeMemberVariableDeclaration(
                 needsCtorTypeParameter = false
                 return null
             }
+            needsCtorTypeParameter = true
+
             val declaredTypeOrAny = declaredType ?: AstAbsoluteTypeReference(typeRootContext.swCtx.any.canonicalName, span = variableDeclaration.declaredAt)
 
             val typeParamBound = declaredTypeOrAny.intersect(referenceToTypeParameterForDecoratorMutability.asAstReference())
@@ -313,6 +312,40 @@ class BaseTypeConstructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val span = constructorKeyword.span
 
+    private fun createDecorationCtorTypeParameters(
+        typeRootContext: CTContext,
+        memberVariableBinders: List<BaseTypeMemberVariableDeclaration.Binder>,
+        ctorGeneratedSpan: Span,
+    ): Triple<List<BoundTypeParameter>, BoundTypeParameter?, CTContext> {
+        val additionalTypeParamsForDecoratedMembers = mutableListOf<BoundTypeParameter>()
+        val typeParameterForDecoratorMutability = BoundTypeParameter(
+            TypeParameter(
+                TypeVariance.UNSPECIFIED,
+                IdentifierToken(typeRootContext.findInternalTypeParameterName("M"), ctorGeneratedSpan),
+                null,
+                ctorGeneratedSpan,
+            ),
+            typeRootContext,
+        )
+        val refToTypeParameterForDecoratorMutability = GenericTypeReference(
+            NamedTypeReference(IdentifierToken(typeParameterForDecoratorMutability.name, ctorGeneratedSpan)),
+            typeParameterForDecoratorMutability
+        )
+        var contextCarry = typeParameterForDecoratorMutability.modifiedContext
+        for (binder in memberVariableBinders) {
+            val typeParam = binder.generateTypeParameterForConstructor(contextCarry, refToTypeParameterForDecoratorMutability)
+                ?: continue
+            contextCarry = typeParam.modifiedContext
+            additionalTypeParamsForDecoratedMembers.add(typeParam)
+        }
+
+        if (additionalTypeParamsForDecoratedMembers.isEmpty()) {
+            return Triple(additionalTypeParamsForDecoratedMembers, null, typeRootContext)
+        } else {
+            return Triple(additionalTypeParamsForDecoratedMembers, typeParameterForDecoratorMutability, contextCarry)
+        }
+    }
+
     fun bindConstructorAndMemberVariables(
         fileContextWithDeclaredTypeParams: CTContext,
         boundTypeParameters: List<BoundTypeParameter>,
@@ -324,36 +357,11 @@ class BaseTypeConstructorDeclaration(
         val ctorGeneratedSpan = span.deriveGenerated()
         val memberVariableBinders = memberVarDecls.map { it.Binder(typeRootContext) }
 
-        val typeParameterForDecoratorMutability: BoundTypeParameter?
-        val additionalTypeParamsForDecoratedMembers = mutableListOf<BoundTypeParameter>()
-        val typeRootContextWithAllCtorTypeParameters: CTContext
-        if (memberVariableBinders.any { it.isDecorated }) {
-            typeParameterForDecoratorMutability = BoundTypeParameter(
-                TypeParameter(
-                    TypeVariance.UNSPECIFIED,
-                    IdentifierToken(typeRootContext.findInternalTypeParameterName("M"), ctorGeneratedSpan),
-                    null,
-                    ctorGeneratedSpan,
-                ),
-                typeRootContext,
-            )
-            val refToTypeParameterForDecoratorMutability = GenericTypeReference(
-                NamedTypeReference(IdentifierToken(typeParameterForDecoratorMutability.name, ctorGeneratedSpan)),
-                typeParameterForDecoratorMutability
-            )
-            var contextCarry = typeParameterForDecoratorMutability.modifiedContext
-            for (binder in memberVariableBinders) {
-                val typeParam = binder.generateTypeParameterForConstructor(contextCarry, refToTypeParameterForDecoratorMutability)
-                    ?: continue
-                contextCarry = typeParam.modifiedContext
-                additionalTypeParamsForDecoratedMembers.add(typeParam)
-            }
-            typeRootContextWithAllCtorTypeParameters = contextCarry
-        } else {
-            typeParameterForDecoratorMutability = null
-            typeRootContextWithAllCtorTypeParameters = typeRootContext
-        }
-
+        val (additionalTypeParamsForDecoratedMembers, typeParameterForDecoratorMutability, typeRootContextWithAllCtorTypeParameters) = createDecorationCtorTypeParameters(
+            typeRootContext,
+            memberVariableBinders,
+            ctorGeneratedSpan,
+        )
         val constructorFunctionRootContext = BoundClassConstructor.ConstructorRootContext(typeRootContextWithAllCtorTypeParameters, typeDefAccessor)
         val selfVariableForInitCode = VariableDeclaration(
             declaredAt = ctorGeneratedSpan,

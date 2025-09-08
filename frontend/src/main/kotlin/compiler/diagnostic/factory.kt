@@ -241,17 +241,6 @@ fun Diagnosis.duplicateMemberVariableAttributes(firstMention: KeywordToken, dupl
     add(DuplicateMemberVariableAttributeDiagnostic(duplicates))
 }
 
-fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar: BoundBaseTypeMemberVariable) {
-    add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.entryDeclaration, memberVar.attributes.firstDecoratesAttribute!!))
-}
-
-fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
-    add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
-        memberVar.entryDeclaration,
-        actualMutability,
-    ))
-}
-
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
     add(ToplevelFunctionWithOverrideAttributeDiagnostic(attr.attributeName))
 }

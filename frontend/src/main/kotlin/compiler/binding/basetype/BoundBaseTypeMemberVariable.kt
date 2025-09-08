@@ -20,7 +20,6 @@ package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -29,8 +28,6 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.decoratingMemberVariableWithNonReadType
-import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
 import compiler.diagnostic.quoteIdentifier
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -53,7 +50,6 @@ class BoundBaseTypeMemberVariable(
     val name = entryDeclaration.name.value
     override val declaredAt = entryDeclaration.span
     val isReAssignable = entryDeclaration.variableDeclaration.isReAssignable
-    val isDecorated: Boolean = attributes.firstDecoratesAttribute != null
     val isConstructorParameterInitialized: Boolean = entryDeclaration.isConstructorParameterInitialized
 
     private val seanHelper = SeanHelper()
@@ -72,9 +68,6 @@ class BoundBaseTypeMemberVariable(
         seanHelper.phase1(diagnosis) {
             visibility.validateOnElement(this, diagnosis)
             attributes.validate(diagnosis)
-            if (isDecorated && !entryDeclaration.isConstructorParameterInitialized) {
-                diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
-            }
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase1(diagnosis)
         }
     }
@@ -91,14 +84,6 @@ class BoundBaseTypeMemberVariable(
                 TypeUseSite.OutUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
             }
             type?.validate(typeUseSite, diagnosis)
-
-            if (isDecorated) {
-                type?.mutability?.let { typeMutability ->
-                    if (typeMutability != TypeMutability.READONLY) {
-                        diagnosis.decoratingMemberVariableWithNonReadType(this, typeMutability)
-                    }
-                }
-            }
         }
     }
 

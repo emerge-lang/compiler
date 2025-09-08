@@ -7,9 +7,7 @@ import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
-import compiler.diagnostic.DecoratingMemberVariableWithoutConstructorInitializationDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
-import compiler.diagnostic.DuplicateMemberVariableAttributeDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.ExternalMemberFunctionDiagnostic
@@ -38,7 +36,6 @@ import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
 import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -153,72 +150,14 @@ class ClassErrors : FreeSpec({
         }
 
         "decorated members".config(enabled = false) - {
-            "duplicate decorates keyword" {
+            "mutability not mentioned explicitly is okay (inferred to read, not const)" {
                 validateModule("""
-                    interface A {}
-                    class Test {
-                        decorates decorates n: A = init
+                    interface N {}
+                    class W {
+                        decorates n: N = init
                     }
                 """.trimIndent())
-                    .shouldFind<DuplicateMemberVariableAttributeDiagnostic> {
-                        it.duplicates.forAll {
-                            it.keyword shouldBe Keyword.DECORATES
-                        }
-                    }
-            }
-
-            "decorates on non-constructor-initialized member" {
-                validateModule("""
-                    class A {}
-                    class Test {
-                        decorates n: A = A()
-                    }
-                """.trimIndent())
-                    .shouldFind<DecoratingMemberVariableWithoutConstructorInitializationDiagnostic> {
-                        it.memberVariable.name.value shouldBe "n"
-                    }
-            }
-
-            "decorates combined with non-read type".config(enabled = false) - {
-                "with mut" {
-                    validateModule("""
-                        class A {}
-                        class Test {
-                            decorates n: mut A = init
-                        }
-                    """.trimIndent())
-                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
-                }
-
-                "with const" {
-                    validateModule("""
-                        class A {}
-                        class Test {
-                            decorates n: mut A = init
-                        }
-                    """.trimIndent())
-                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
-                }
-
-                "with exclusive" {
-                    validateModule("""
-                        class A {}
-                        class Test {
-                            decorates n: exclusive A = init
-                        }
-                    """.trimIndent())
-                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
-                }
-
-                "mutability not mentioned explicitly is okay (inferred to read, not const)" {
-                    validateModule("""
-                        interface N {}
-                        class W {
-                            decorates n: N = init
-                        }
-                    """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                }
+                    .shouldHaveNoDiagnostics()
             }
 
             "cannot use decorated member as mut nor const in constructor" {

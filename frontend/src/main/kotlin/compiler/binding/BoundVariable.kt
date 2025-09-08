@@ -334,15 +334,6 @@ class BoundVariable(
              */
             allowsShadowingGlobals = true,
         ),
-        DECORATED_MEMBER_VARIABLE(
-            readableKindName = "member variable",
-            implicitMutabilityWhenNotReAssignable = TypeMutability.READONLY,
-            allowsExplicitOwnership = MEMBER_VARIABLE.allowsExplicitOwnership,
-            isInitializedByDefault = MEMBER_VARIABLE.isInitializedByDefault,
-            allowsVisibility = MEMBER_VARIABLE.allowsVisibility,
-            runInitializerInSubScope = MEMBER_VARIABLE.runInitializerInSubScope,
-            allowsShadowingGlobals = MEMBER_VARIABLE.allowsShadowingGlobals,
-        ),
         GLOBAL_VARIABLE(
             readableKindName = "global variable",
             implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
