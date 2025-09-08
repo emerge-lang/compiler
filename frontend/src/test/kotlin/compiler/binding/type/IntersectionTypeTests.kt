@@ -21,8 +21,10 @@ class IntersectionTypeTests : FreeSpec({
         interface B {}
         interface C {}
         
-        class ConcreteA {}
-        class ConcreteB {}
+        interface I {}
+        
+        class ConcreteA : I {}
+        class ConcreteB : I {}
     """.trimIndent())
         .first
 
@@ -46,6 +48,33 @@ class IntersectionTypeTests : FreeSpec({
             val type = swCtx.parseType("read T? & mut Any")
             val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
             simplified.toString() shouldBe "mut testmodule.T"
+        }
+
+        "intersection of class type and interface" - {
+            "the class implements the interface" {
+                val type = swCtx.parseType("ConcreteA & I")
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "read testmodule.ConcreteA"
+            }
+
+            "the class doesn't implement the interface" {
+                val type = swCtx.parseType("ConcreteB & T")
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "read Nothing"
+            }
+        }
+
+        "intersection of class type and type parameter" - {
+            "the class implements the bound of the type parameter" - {
+                val type = swCtx.parseType(
+                    parameters = mapOf(
+                        "P" to "read I"
+                    ),
+                    type = "const ConcreteA & P"
+                )
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "const testmodule.ConcreteA & P"
+            }
         }
 
         "intersection of two class types is nothing" - {

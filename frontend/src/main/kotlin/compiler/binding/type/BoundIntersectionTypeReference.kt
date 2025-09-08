@@ -409,9 +409,10 @@ class BoundIntersectionTypeReference private constructor(
 
         private fun simplifyIsEffectivelyBottomType(components: List<BoundTypeReference>): Boolean {
             return components
-                .filterNot { it.baseTypeOfLowerBound.kind.allowsSubtypes }
                 .twoElementPermutationsUnordered()
-                .filter { (a, b) -> !a.hasSameBaseTypeAs(b) }
+                .map { (a, b) -> a.baseTypeOfLowerBound to b.baseTypeOfLowerBound }
+                .filter { (a, b) -> !a.kind.allowsSubtypes || !b.kind.allowsSubtypes }
+                .filter { (a, b) -> !a.isSubtypeOf(b) && !b.isSubtypeOf(a) }
                 .any()
         }
 

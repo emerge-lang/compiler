@@ -1,5 +1,7 @@
 package compiler.compiler.binding.type
 
+import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -8,6 +10,7 @@ import compiler.compiler.negative.lexCode
 import compiler.lexer.Span
 import compiler.parser.grammar.BracedTypeArguments
 import compiler.parser.grammar.Type
+import compiler.parser.grammar.TypeParameter
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.Rule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -42,10 +45,18 @@ private fun <T : Any> SoftwareContext.parse(
 internal fun SoftwareContext.parseType(
     type: String,
     module: String = "testmodule",
+    parameters: Map<String, String> = emptyMap(),
 ): BoundTypeReference {
     val astType = parse(type, Type)
     val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
-    val boundType = moduleCtx.sourceFiles.first().context.resolveType(astType)
+    var carryContext: CTContext = moduleCtx.sourceFiles.first().context
+    for ((paramName, boundStr) in parameters) {
+        val parsedTypeParam = parse("$paramName : $boundStr", TypeParameter)
+        carryContext = MutableCTContext(carryContext).also {
+            it.addTypeParameter(parsedTypeParam.bindTo(it))
+        }
+    }
+    val boundType = carryContext.resolveType(astType)
     return boundType
 }
 
