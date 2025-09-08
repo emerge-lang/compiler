@@ -271,11 +271,11 @@ mut fn printStackTraceToStandardError() -> Bool {
 // not used right now, but might come in handy when implementing actual unwinding/resume
 
 private class UnwindProcedureInfo {
-    private addressOfFirstInstruction: UWord = init
-    private addressBehindLastInstruction: UWord = init
-    private addressOfLanguageSpecificDataArea: UWord = init
-    private addressOfPersonalityFunction: UWord = init
-    private globalPointer: UWord = init
+    private addressOfFirstInstruction: const UWord = init
+    private addressBehindLastInstruction: const UWord = init
+    private addressOfLanguageSpecificDataArea: const UWord = init
+    private addressOfPersonalityFunction: const UWord = init
+    private globalPointer: const UWord = init
 
     private fn fromCursor(cursorPtr: read COpaquePointer) -> exclusive UnwindProcedureInfo {
         // there are additional members in the struct that are not mapped here

@@ -3,57 +3,57 @@ package emerge.platform
 import emerge.core.reflection.ReflectionBaseType
 
 class S8Box {
-    value: S8 = init
+    value: const S8 = init
 }
 
 class U8Box {
-    value: U8 = init
+    value: const U8 = init
 }
 
 class S16Box {
-    value: S16 = init
+    value: const S16 = init
 }
 
 class U16Box {
-    value: U16 = init
+    value: const U16 = init
 }
 
 class S32Box {
-    value: S32 = init
+    value: const S32 = init
 }
 
 class U32Box {
-    value: U32 = init
+    value: const U32 = init
 }
 
 class S64Box {
-    value: S64 = init
+    value: const S64 = init
 }
 
 class U64Box {
-    value: U64 = init
+    value: const U64 = init
 }
 
 class F32Box {
-    value: F32 = init
+    value: const F32 = init
 }
 
 class F64Box {
-    value: F64 = init
+    value: const F64 = init
 }
 
 class SWordBox {
-    value: SWord = init
+    value: const SWord = init
 }
 
 class UWordBox {
-    value: UWord = init
+    value: const UWord = init
 }
 
 class BoolBox {
-    value: Bool = init
+    value: const Bool = init
 }
 
 class ReflectionBaseTypeBox {
-    value: ReflectionBaseType = init
+    value: const ReflectionBaseType = init
 }

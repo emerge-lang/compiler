@@ -73,7 +73,7 @@ export fn rejectInvalidUtf8(borrow bytes: Array<S8>) {
 }
 
 export class InvalidUtf8Exception : Throwable {
-    private _message: String = init
+    private _message: const String = init
     constructor {
         mixin ThrowableTrait(self._message)
     }

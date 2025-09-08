@@ -8,7 +8,7 @@ export class ReflectionBaseType {
     // points to all the DYNAMIC ReflectionBaseType infos, except Any
     private supertypes: const Array<ReflectionBaseType> = init
 
-    export canonicalName: String = init
+    export canonicalName: const String = init
 
     // for static typeinfos: points at the dynamic version; for dynamic ones: is null
     private dynamicInstance: ReflectionBaseType? = init
