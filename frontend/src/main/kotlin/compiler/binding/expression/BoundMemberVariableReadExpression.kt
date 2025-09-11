@@ -92,7 +92,7 @@ class BoundMemberVariableReadExpression(
             val rawMemberType = physicalMember!!.type ?: return null
             val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
-            if (physicalMember!!.isConstructorParameterInitialized) {
+            if (physicalMember!!.isDecorated) {
                 instantiatedType.withMutability(TypeMutability.MUTABLE.limitedTo(valueExpression.type?.mutability ?: TypeMutability.MUTABLE))
             } else {
                 instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)
