@@ -431,7 +431,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
         args.zip(function.type.parameterTypes).forEachIndexed { index, (arg, paramType) ->
             require(arg.isLlvmAssignableTo(paramType)) {
-                "argument #$index to ${function.name}: ${arg.type} is not llvm-assignable to $paramType"
+                "argument #$index to ${function.name}: ${arg.type} is not llvm-assignable to $paramType (${currentDebugLocation()}"
             }
         }
 
