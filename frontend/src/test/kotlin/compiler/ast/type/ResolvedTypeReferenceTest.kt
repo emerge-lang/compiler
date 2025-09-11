@@ -45,18 +45,22 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
         val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
         val exclusiveA = readonlyA.withMutability(TypeMutability.EXCLUSIVE)
+        val readconstA = readonlyA.withMutability(TypeMutability.READCONST)
 
         val mutableB = swCtx.parseType("mut B")
         val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
         val immutableB = readonlyB.withMutability(TypeMutability.IMMUTABLE)
+        val readconstB = readonlyB.withMutability(TypeMutability.READCONST)
 
         val mutableC = swCtx.parseType("mut C")
         val readonlyC = mutableC.withMutability(TypeMutability.READONLY)
         val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
+        val readconstC = readonlyC.withMutability(TypeMutability.READCONST)
 
         val readonlyNothing = swCtx.parseType("read Nothing")
         val mutableNothing = swCtx.parseType("mut Nothing")
         val immutableNothing = swCtx.parseType("const Nothing")
+        val readconstNothing = swCtx.parseType("readconst Nothing")
 
         "the closest common ancestor of" - {
             "mut B and mut A is mut A" {
@@ -74,6 +78,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 mutableB.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
             }
 
+            "mut B and readconst A is readconst A" {
+                readconstA.closestCommonSupertypeWith(mutableB) shouldBe readconstA
+                mutableB.closestCommonSupertypeWith(readconstA) shouldBe readconstA
+            }
+
             "read B and mut A is read A" {
                 mutableA.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
@@ -89,6 +98,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 readonlyB.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
             }
 
+            "read B and readconst A is readconst A" {
+                readconstA.closestCommonSupertypeWith(readonlyB) shouldBe readconstA
+                readonlyB.closestCommonSupertypeWith(readconstA) shouldBe readconstA
+            }
+
             "const B and mut A is read A" {
                 mutableA.closestCommonSupertypeWith(immutableB) shouldBe readonlyA
                 immutableB.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
@@ -102,6 +116,31 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "const B and const A is const A" {
                 immutableA.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableA) shouldBe immutableA
+            }
+
+            "const B and readconst A is readconst A" {
+                readconstA.closestCommonSupertypeWith(immutableB) shouldBe readconstA
+                immutableB.closestCommonSupertypeWith(readconstA) shouldBe readconstA
+            }
+
+            "readconst B and mut A is readconst A" {
+                mutableA.closestCommonSupertypeWith(readconstB) shouldBe readconstA
+                readconstB.closestCommonSupertypeWith(mutableA) shouldBe readconstA
+            }
+
+            "readconst B and read A is readconst A" {
+                readonlyA.closestCommonSupertypeWith(readconstB) shouldBe readconstA
+                readconstB.closestCommonSupertypeWith(readonlyA) shouldBe readconstA
+            }
+
+            "readconst B and const A is readconst A" {
+                immutableA.closestCommonSupertypeWith(readconstB) shouldBe readconstA
+                readconstB.closestCommonSupertypeWith(immutableA) shouldBe readconstA
+            }
+
+            "readconst B and readconst A is readconst A" {
+                readconstA.closestCommonSupertypeWith(readconstB) shouldBe readconstA
+                readconstB.closestCommonSupertypeWith(readconstA) shouldBe readconstA
             }
 
             //----
@@ -121,6 +160,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 mutableB.closestCommonSupertypeWith(immutableC) shouldBe readonlyA
             }
 
+            "mut B and readconst C is readconst A" {
+                readconstC.closestCommonSupertypeWith(mutableB) shouldBe readconstA
+                mutableB.closestCommonSupertypeWith(readconstC) shouldBe readconstA
+            }
+
             "read B and mut C is read A" {
                 mutableC.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(mutableC) shouldBe readonlyA
@@ -134,6 +178,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "read B and const C is read A" {
                 immutableC.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(immutableC) shouldBe readonlyA
+            }
+
+            "read B and readconst C is readconst A" {
+                readconstC.closestCommonSupertypeWith(readonlyB) shouldBe readconstA
+                readonlyB.closestCommonSupertypeWith(readconstC) shouldBe readconstA
             }
 
             "const B and mut C is read A" {
@@ -150,7 +199,12 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 immutableC.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableC) shouldBe immutableA
             }
-            
+
+            "const B and readconst C is readconst A" {
+                readconstC.closestCommonSupertypeWith(immutableB) shouldBe readconstA
+                immutableB.closestCommonSupertypeWith(readconstC) shouldBe readconstA
+            }
+
             // ----
             "mut A and read Nothing is read A" {
                 mutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA

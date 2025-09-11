@@ -223,6 +223,16 @@ fun Diagnosis.accessingNonConstMemberVariableOnConstOrReadconstReference(
     ))
 }
 
+fun Diagnosis.accessingReAssignableMemberVariableOnReadconstReference(
+    access: BoundMemberVariableReadExpression,
+    member: BoundBaseTypeMemberVariable,
+) {
+    add(AccessingReAsssignableMemberVariableOnReadconstReference(
+        member.entryDeclaration,
+        access.declaration.memberName.span,
+    ))
+}
+
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement<*>) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }

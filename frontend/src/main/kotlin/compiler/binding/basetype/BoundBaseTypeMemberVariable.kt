@@ -41,6 +41,7 @@ class BoundBaseTypeMemberVariable(
     val attributes: BoundBaseTypeMemberVariableAttributes,
     private val getTypeDef: () -> BoundBaseType,
     override val entryDeclaration: BaseTypeMemberVariableDeclaration,
+    val isDecorated: Boolean,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     init {
         if (boundLocalVariableInConstructorCode == null) {

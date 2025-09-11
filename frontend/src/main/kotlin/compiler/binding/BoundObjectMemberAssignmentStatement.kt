@@ -172,6 +172,7 @@ class BoundObjectMemberAssignmentStatement(
             }
 
             member.validateAccessFrom(declaration.span, diagnosis)
+            // TODO: validate access of var member through const or readconst reference
         }
     }
 

@@ -46,6 +46,7 @@ val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.READONLY)
     keyword(Keyword.IMMUTABLE)
     keyword(Keyword.EXCLUSIVE)
+    keyword(Keyword.READCONST)
 }
 
 private val TypeArgument = sequence {
@@ -215,6 +216,7 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
             Keyword.READONLY  -> compiler.ast.type.TypeMutability.READONLY
             Keyword.IMMUTABLE -> compiler.ast.type.TypeMutability.IMMUTABLE
             Keyword.EXCLUSIVE -> compiler.ast.type.TypeMutability.EXCLUSIVE
+            Keyword.READCONST -> compiler.ast.type.TypeMutability.READCONST
             null -> null
             else -> throw InternalCompilerError("Invalid type mutability token: $typeMutabilityKeyword")
         }

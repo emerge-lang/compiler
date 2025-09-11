@@ -47,6 +47,7 @@ import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.accessingNonConstMemberVariableOnConstOrReadconstReference
+import compiler.diagnostic.accessingReAssignableMemberVariableOnReadconstReference
 import compiler.diagnostic.ambiguousMemberVariableRead
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unresolvableMemberVariable
@@ -172,6 +173,10 @@ class BoundMemberVariableReadExpression(
                                 diagnosis.accessingNonConstMemberVariableOnConstOrReadconstReference(this, physicalMember!!)
                             }
                         }
+                    }
+
+                    if (valueType.mutability == TypeMutability.READCONST && physicalMember!!.isReAssignable) {
+                        diagnosis.accessingReAssignableMemberVariableOnReadconstReference(this, physicalMember!!)
                     }
                 }
             }

@@ -297,6 +297,7 @@ class BaseTypeMemberVariableDeclaration(
                     BoundBaseTypeMemberVariableAttributes(attributes),
                     getTypeDef,
                     this@BaseTypeMemberVariableDeclaration,
+                    needsCtorTypeParameter!!,
                 )
             }
 

@@ -4,6 +4,7 @@ import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.binding.impurity.VariableUsedAsMutable
+import compiler.diagnostic.AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -623,6 +624,75 @@ class PurityErrors : FreeSpec({
                 fn test(p: mut Holder) -> const Box = p.box
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "transitive constness" - {
+        "cannot traverse a read field through a const reference" {
+            validateModule("""
+                class Box {
+                    f: const S32 = 0
+                }
+                class Subject {
+                    box: read Box = Box()                
+                }
+                
+                fn test() -> const S32 {
+                    o = Subject()
+                    return o.box.f
+                }
+            """.trimIndent())
+                .shouldFind<AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic> {
+                    it.nonConstMember.name.value shouldBe "box"
+                }
+        }
+
+        "cannot traverse a mut field through a const reference" {
+            validateModule("""
+                class Box {
+                    f: const S32 = 0
+                }
+                class Subject {
+                    box: mut Box = Box()         
+                }
+                
+                fn test() -> const S32 {
+                    o = Subject()
+                    return o.box.f
+                }
+            """.trimIndent())
+                .shouldFind<AccessingNonConstMemberVariableOnConstOrReadconstReferenceDiagnostic> {
+                    it.nonConstMember.name.value shouldBe "box"
+                }
+        }
+
+        "accessing a const field on a read reference obtained from a const reference is ok (const.read.const)" {
+            validateModule("""
+                class A {
+                    f: const S32 = 0
+                }
+            """.trimIndent())
+        }
+
+        for (fieldMutability in listOf("read", "mut")) {
+            for (refMutability in listOf("read", "mut")) {
+                "traversing a $fieldMutability field through a $refMutability reference is ok" {
+                    validateModule("""
+                        class Box {
+                            f: const S32 = 0
+                        }
+                        class Subject {
+                            box: $fieldMutability _ = Box()                
+                        }
+                        
+                        fn test() -> Box {
+                            o: $refMutability _ = Subject()
+                            return o.box
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
         }
     }
 })

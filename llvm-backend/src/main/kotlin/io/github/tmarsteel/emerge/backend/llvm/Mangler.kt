@@ -103,116 +103,26 @@ object Mangler {
                 variance: IrTypeVariance?,
                 mutability: IrTypeMutability
             ): Char {
-                return when (isReference) {
-                    true -> when (isGeneric) {
-                        true -> when (variance) {
-                            IrTypeVariance.IN -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'a'
-                                IrTypeMutability.READONLY  -> 'b'
-                                IrTypeMutability.MUTABLE -> 'c'
-                                IrTypeMutability.EXCLUSIVE -> 'd'
-                            }
-                            IrTypeVariance.OUT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'e'
-                                IrTypeMutability.READONLY  -> 'f'
-                                IrTypeMutability.MUTABLE -> 'g'
-                                IrTypeMutability.EXCLUSIVE -> 'h'
-                            }
-                            IrTypeVariance.INVARIANT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'i'
-                                IrTypeMutability.READONLY  -> 'j'
-                                IrTypeMutability.MUTABLE -> 'k'
-                                IrTypeMutability.EXCLUSIVE -> 'l'
-                            }
-                            null -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'm'
-                                IrTypeMutability.READONLY  -> 'n'
-                                IrTypeMutability.MUTABLE -> 'o'
-                                IrTypeMutability.EXCLUSIVE -> 'p'
-                            }
-                        }
-                        false -> when (variance) {
-                            IrTypeVariance.IN -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'q'
-                                IrTypeMutability.READONLY  -> 'r'
-                                IrTypeMutability.MUTABLE -> 's'
-                                IrTypeMutability.EXCLUSIVE -> 't'
-                            }
-                            IrTypeVariance.OUT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'u'
-                                IrTypeMutability.READONLY  -> 'v'
-                                IrTypeMutability.MUTABLE -> 'w'
-                                IrTypeMutability.EXCLUSIVE -> 'x'
-                            }
-                            IrTypeVariance.INVARIANT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'y'
-                                IrTypeMutability.READONLY  -> 'z'
-                                IrTypeMutability.MUTABLE -> '0'
-                                IrTypeMutability.EXCLUSIVE -> '1'
-                            }
-                            null -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> '2'
-                                IrTypeMutability.READONLY  -> '3'
-                                IrTypeMutability.MUTABLE -> '4'
-                                IrTypeMutability.EXCLUSIVE -> '5'
-                            }
-                        }
-                    }
-                    false -> when (isGeneric) {
-                        true -> when (variance) {
-                            IrTypeVariance.IN -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'A'
-                                IrTypeMutability.READONLY  -> 'B'
-                                IrTypeMutability.MUTABLE -> 'C'
-                                IrTypeMutability.EXCLUSIVE -> 'D'
-                            }
-                            IrTypeVariance.OUT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'E'
-                                IrTypeMutability.READONLY  -> 'F'
-                                IrTypeMutability.MUTABLE -> 'G'
-                                IrTypeMutability.EXCLUSIVE -> 'H'
-                            }
-                            IrTypeVariance.INVARIANT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'I'
-                                IrTypeMutability.READONLY  -> 'J'
-                                IrTypeMutability.MUTABLE -> 'K'
-                                IrTypeMutability.EXCLUSIVE -> 'L'
-                            }
-                            null -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'M'
-                                IrTypeMutability.READONLY  -> 'N'
-                                IrTypeMutability.MUTABLE -> 'O'
-                                IrTypeMutability.EXCLUSIVE -> 'P'
-                            }
-                        }
-                        false -> when (variance) {
-                            IrTypeVariance.IN -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'Q'
-                                IrTypeMutability.READONLY  -> 'R'
-                                IrTypeMutability.MUTABLE -> 'S'
-                                IrTypeMutability.EXCLUSIVE -> 'T'
-                            }
-                            IrTypeVariance.OUT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'U'
-                                IrTypeMutability.READONLY  -> 'V'
-                                IrTypeMutability.MUTABLE -> 'W'
-                                IrTypeMutability.EXCLUSIVE -> 'X'
-                            }
-                            IrTypeVariance.INVARIANT -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> 'Y'
-                                IrTypeMutability.READONLY  -> 'Z'
-                                IrTypeMutability.MUTABLE -> '6'
-                                IrTypeMutability.EXCLUSIVE -> '7'
-                            }
-                            null -> when(mutability) {
-                                IrTypeMutability.IMMUTABLE -> '8'
-                                IrTypeMutability.READONLY  -> '9'
-                                IrTypeMutability.MUTABLE -> '.'
-                                IrTypeMutability.EXCLUSIVE -> '_'
-                            }
-                        }
-                    }
+                val varianceCode = when (variance) {
+                    IrTypeVariance.IN -> 0
+                    IrTypeVariance.OUT -> 1
+                    IrTypeVariance.INVARIANT -> 2
+                    null -> 3
                 }
+                val mutabilityCode = when (mutability) {
+                    IrTypeMutability.IMMUTABLE -> 0
+                    IrTypeMutability.READONLY -> 1
+                    IrTypeMutability.MUTABLE -> 2
+                    IrTypeMutability.EXCLUSIVE -> 3
+                    IrTypeMutability.READCONST -> 4
+                }
+                var asciiCode = 1 // prevent 0 to avoid interpretation as nullterminator
+                asciiCode = asciiCode or (if (isReference) 1 else 0) shl 1
+                asciiCode = asciiCode or (if (isGeneric) 1 else 0 shl 2)
+                asciiCode = asciiCode or (varianceCode shl 3)
+                asciiCode = asciiCode or (mutabilityCode shl 7)
+
+                return Char(asciiCode)
             }
 
             fun StringBuilder.appendPackageName(context: Context, name: CanonicalElementName.Package) {
