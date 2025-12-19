@@ -41,15 +41,12 @@ enum class TypeMutability(
     READCONST(Keyword.READCONST, allowsMutation = false),
     ;
 
-    infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
-        this == targetMutability
-            ||
-        when (this) {
-            EXCLUSIVE -> true
-            READCONST -> false // only assignable to itself, checked above
-            MUTABLE, IMMUTABLE -> targetMutability == READONLY || targetMutability == READCONST
-            READONLY -> targetMutability == READCONST
-        }
+    infix fun isAssignableTo(targetMutability: TypeMutability): Boolean = when (this) {
+        EXCLUSIVE, targetMutability -> true
+        READCONST -> false // only assignable to itself, checked above
+        MUTABLE, IMMUTABLE -> targetMutability == READONLY || targetMutability == READCONST
+        READONLY -> targetMutability == READCONST
+    }
 
     /**
      * When multiple values can be assigned to one location, that multitude of options

@@ -42,7 +42,7 @@ fun main() {
             mutabilityHierarchy.getValue(it.referenceMutability)
                 .map { superM ->
                     val resultForReadRefMutability = data.single { c ->
-                        c.referenceMutability == READONLY && c.fieldOwnership == it.fieldOwnership && c.fieldMutability == it.fieldMutability && c.action == it.action
+                        c.referenceMutability == superM && c.fieldOwnership == it.fieldOwnership && c.fieldMutability == it.fieldMutability && c.action == it.action
                     }
 
                     it to resultForReadRefMutability
@@ -51,6 +51,17 @@ fun main() {
         .filter { (r, rForSuperM) -> !r.mutabilityAfterDeref!!.isAssignableTo(rForSuperM.mutabilityAfterDeref!!) }
         .forEach { (r, rForSuperM) ->
             println("Error: $r; yields ${r.mutabilityAfterDeref} but ${rForSuperM.referenceMutability.keyword.text} ref yields ${rForSuperM.mutabilityAfterDeref!!.keyword.text}")
+        }
+
+    data
+        .filter { it.action == READ && it.fieldOwnership == OWN }
+        .associateWith { data
+            .singleOrNull { c -> c != it && c.action == READ && c.referenceMutability == it.referenceMutability && c.fieldOwnership == REF && c.fieldMutability == it.fieldMutability }
+            ?: error("no match for $it")
+        }
+        .filter { (own, ref) -> own.mutabilityAfterDeref != ref.mutabilityAfterDeref }
+        .forEach { (own, ref) ->
+            println("Difference: $own <> $ref; own yields ${own.mutabilityAfterDeref}, ref yields ${ref.mutabilityAfterDeref}")
         }
 }
 
