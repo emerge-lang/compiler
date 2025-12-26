@@ -1,7 +1,5 @@
 package compiler
 
-import compiler.FOCMResult.Action.READ
-import compiler.FOCMResult.Action.WRITE
 import compiler.FieldOwnership.OWN
 import compiler.FieldOwnership.REF
 import compiler.ast.type.TypeMutability
@@ -11,123 +9,95 @@ import compiler.ast.type.TypeMutability.MUTABLE
 import compiler.ast.type.TypeMutability.READCONST
 import compiler.ast.type.TypeMutability.READONLY
 
+/**
+ * REF means the mutability after dereference is always as stated on the field, independent of the mutability of the holding object
+ * OWN means the mutability after dereference is inferred from the mutability of the holding object, no explicit
+ * mutability can be specified. Also, OWN fields must be initialized with an exclusive value either by init expr
+ * or by constructor parameter.
+ *
+ * If these semantics ([deriveMutabilityAfterDeref] and [deriveAllowWrite]) are taken into the compiler, the
+ * type system should be sound again. Constructors are the no longer a shortcut to create both a mut and a const
+ * reference to the same object
+ */
+
 enum class FieldOwnership {
     REF,
     OWN,
     ;
 }
 
-data class FOCMResult(
+data class FieldSpec(
     val referenceMutability: TypeMutability,
     val fieldOwnership: FieldOwnership,
     val fieldMutability: TypeMutability,
-    val action: Action,
-    val isAllowed: Boolean,
-    val mutabilityAfterDeref: TypeMutability?,
 ) {
-    override fun toString() = "${referenceMutability.keyword.text} ref, ${fieldOwnership.name.lowercase()} ${fieldMutability.keyword.text} field"
-
-    enum class Action {
-        READ,
-        WRITE,
-        ;
-    }
+    override fun toString() = "${referenceMutability.keyword.text} Holder; ${fieldOwnership.name.lowercase()} m: ${fieldMutability.keyword.text} Any;"
 }
+
 
 fun main() {
-    data
-        .filter { it.action == READ && it.referenceMutability != READONLY }
-        .onEach { check(it.mutabilityAfterDeref != null) }
-        .flatMap {
-            mutabilityHierarchy.getValue(it.referenceMutability)
-                .map { superM ->
-                    val resultForReadRefMutability = data.single { c ->
-                        c.referenceMutability == superM && c.fieldOwnership == it.fieldOwnership && c.fieldMutability == it.fieldMutability && c.action == it.action
-                    }
-
-                    it to resultForReadRefMutability
+    val fieldSpecs = sequence {
+        enumValues<TypeMutability>().forEach { referenceMutability ->
+            enumValues<FieldOwnership>().forEach { fieldOwnership ->
+                enumValues<TypeMutability>().filter { it != EXCLUSIVE }.forEach { fieldMutability ->
+                    yield(FieldSpec(referenceMutability, fieldOwnership, fieldMutability))
                 }
+            }
         }
-        .filter { (r, rForSuperM) -> !r.mutabilityAfterDeref!!.isAssignableTo(rForSuperM.mutabilityAfterDeref!!) }
-        .forEach { (r, rForSuperM) ->
-            println("Error: $r; yields ${r.mutabilityAfterDeref} but ${rForSuperM.referenceMutability.keyword.text} ref yields ${rForSuperM.mutabilityAfterDeref!!.keyword.text}")
+    }
+
+    fieldSpecs
+        .filter { it.referenceMutability != EXCLUSIVE }
+        .forEach { fieldSpec ->
+            mutabilityHierarchy.getValue(fieldSpec.referenceMutability).forEach { superM ->
+                val superSpec = fieldSpec.copy(referenceMutability = superM)
+                val selfDeref = fieldSpec.deriveMutabilityAfterDeref()
+                val superDeref = superSpec.deriveMutabilityAfterDeref()
+                check(selfDeref.isAssignableTo(superDeref)) {
+                    "$fieldSpec -> $selfDeref, $superSpec -> $superDeref ; $superDeref is not assignable to $selfDeref"
+                }
+            }
         }
 
-    data
-        .filter { it.action == READ && it.fieldOwnership == OWN }
-        .associateWith { data
-            .singleOrNull { c -> c != it && c.action == READ && c.referenceMutability == it.referenceMutability && c.fieldOwnership == REF && c.fieldMutability == it.fieldMutability }
-            ?: error("no match for $it")
+    fieldSpecs
+        .filter { it.referenceMutability == EXCLUSIVE }
+        .filter { it.fieldOwnership == OWN }
+        .forEach { fieldSpec ->
+            listOf(READCONST, READONLY, MUTABLE, IMMUTABLE).forEach { mutability ->
+                check(fieldSpec.deriveAllowWrite(mutability) == false) {
+                    "it should be impossible to assign ${mutability.keyword.text} to $fieldSpec"
+                }
+            }
+            check(fieldSpec.deriveAllowWrite(EXCLUSIVE) == true)
         }
-        .filter { (own, ref) -> own.mutabilityAfterDeref != ref.mutabilityAfterDeref }
-        .forEach { (own, ref) ->
-            println("Difference: $own <> $ref; own yields ${own.mutabilityAfterDeref}, ref yields ${ref.mutabilityAfterDeref}")
+
+    fieldSpecs
+        .filter { it.deriveMutabilityAfterDeref() == EXCLUSIVE }
+        .forEach {
+            error("This should be impossible: $it")
         }
 }
 
-private val mutabilityHierarchy: Map<TypeMutability, Set<TypeMutability>> = enumValues<TypeMutability>().associateWith { subM ->
+private val mutabilityHierarchy: Map<TypeMutability, 
+    Set<TypeMutability>> = enumValues<TypeMutability>().associateWith { subM ->
     enumValues<TypeMutability>().filter { superM -> subM.isAssignableTo(superM) }.toSet() - setOf(subM)
 }
 
-private val data = listOf<FOCMResult>(
-    FOCMResult(MUTABLE, OWN, MUTABLE, READ, true, MUTABLE),
-    FOCMResult(MUTABLE, OWN, MUTABLE, WRITE, true, null),
-    FOCMResult(MUTABLE, OWN, READONLY, READ, true, READONLY),
-    FOCMResult(MUTABLE, OWN, READONLY, WRITE, true, null),
-    FOCMResult(MUTABLE, OWN, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(MUTABLE, OWN, IMMUTABLE, WRITE, true, null),
-    FOCMResult(READONLY, OWN, MUTABLE, READ, true, READCONST),
-    FOCMResult(READONLY, OWN, MUTABLE, WRITE, false, null),
-    FOCMResult(READONLY, OWN, READONLY, READ, true, READCONST),
-    FOCMResult(READONLY, OWN, READONLY, WRITE, false, null),
-    FOCMResult(READONLY, OWN, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(READONLY, OWN, IMMUTABLE, WRITE, false, null),
-    FOCMResult(IMMUTABLE, OWN, MUTABLE, READ, true, READCONST),
-    FOCMResult(IMMUTABLE, OWN, MUTABLE, WRITE, false, null),
-    FOCMResult(IMMUTABLE, OWN, READONLY, READ, true, READCONST),
-    FOCMResult(IMMUTABLE, OWN, READONLY, WRITE, false, null),
-    FOCMResult(IMMUTABLE, OWN, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(IMMUTABLE, OWN, IMMUTABLE, WRITE, false, null),
-    FOCMResult(EXCLUSIVE, OWN, MUTABLE, READ, true, MUTABLE),
-    FOCMResult(EXCLUSIVE, OWN, MUTABLE, WRITE, true, null),
-    FOCMResult(EXCLUSIVE, OWN, READONLY, READ, true, READONLY),
-    FOCMResult(EXCLUSIVE, OWN, READONLY, WRITE, true, null),
-    FOCMResult(EXCLUSIVE, OWN, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(EXCLUSIVE, OWN, IMMUTABLE, WRITE, true, null),
-    FOCMResult(READCONST, OWN, MUTABLE, READ, true, READCONST),
-    FOCMResult(READCONST, OWN, MUTABLE, WRITE, false, null),
-    FOCMResult(READCONST, OWN, READONLY, READ, true, READCONST),
-    FOCMResult(READCONST, OWN, READONLY, WRITE, false, null),
-    FOCMResult(READCONST, OWN, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(READCONST, OWN, IMMUTABLE, WRITE, false, null),
-    FOCMResult(READCONST, REF, MUTABLE, READ, true, READCONST),
-    FOCMResult(READCONST, REF, MUTABLE, WRITE, false, null),
-    FOCMResult(READCONST, REF, READONLY, READ, true, READCONST),
-    FOCMResult(READCONST, REF, READONLY, WRITE, false, null),
-    FOCMResult(READCONST, REF, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(READCONST, REF, IMMUTABLE, WRITE, false, null),
-    FOCMResult(MUTABLE, REF, MUTABLE, READ, true, MUTABLE),
-    FOCMResult(MUTABLE, REF, MUTABLE, WRITE, true, null),
-    FOCMResult(MUTABLE, REF, READONLY, READ, true, READONLY),
-    FOCMResult(MUTABLE, REF, READONLY, WRITE, true, null),
-    FOCMResult(MUTABLE, REF, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(MUTABLE, REF, IMMUTABLE, WRITE, true, null),
-    FOCMResult(READONLY, REF, MUTABLE, READ, true, READONLY),
-    FOCMResult(READONLY, REF, MUTABLE, WRITE, false, null),
-    FOCMResult(READONLY, REF, READONLY, READ, true, READONLY),
-    FOCMResult(READONLY, REF, READONLY, WRITE, false, null),
-    FOCMResult(READONLY, REF, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(READONLY, REF, IMMUTABLE, WRITE, false, null),
-    FOCMResult(IMMUTABLE, REF, MUTABLE, READ, true, MUTABLE),
-    FOCMResult(IMMUTABLE, REF, MUTABLE, WRITE, false, null),
-    FOCMResult(IMMUTABLE, REF, READONLY, READ, true, READONLY),
-    FOCMResult(IMMUTABLE, REF, READONLY, WRITE, false, null),
-    FOCMResult(IMMUTABLE, REF, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(IMMUTABLE, REF, IMMUTABLE, WRITE, false, null),
-    FOCMResult(EXCLUSIVE, REF, MUTABLE, READ, true, MUTABLE),
-    FOCMResult(EXCLUSIVE, REF, MUTABLE, WRITE, true, null),
-    FOCMResult(EXCLUSIVE, REF, READONLY, READ, true, READONLY),
-    FOCMResult(EXCLUSIVE, REF, READONLY, WRITE, true, null),
-    FOCMResult(EXCLUSIVE, REF, IMMUTABLE, READ, true, IMMUTABLE),
-    FOCMResult(EXCLUSIVE, REF, IMMUTABLE, WRITE, true, null),
-)
+private fun FieldSpec.deriveMutabilityAfterDeref(): TypeMutability {
+    return when (fieldOwnership) {
+        OWN -> when (referenceMutability) {
+            EXCLUSIVE -> READCONST
+            else -> referenceMutability
+        }
+        REF -> fieldMutability
+    }
+}
+private fun FieldSpec.deriveAllowWrite(mutabilityOfValueToAssign: TypeMutability): Boolean {
+    when (fieldOwnership) {
+        OWN -> when (referenceMutability) {
+            EXCLUSIVE -> return mutabilityOfValueToAssign == EXCLUSIVE
+            else -> return mutabilityOfValueToAssign.isAssignableTo(deriveMutabilityAfterDeref())
+        }
+        REF -> return mutabilityOfValueToAssign.isAssignableTo(fieldMutability)
+    }
+}
