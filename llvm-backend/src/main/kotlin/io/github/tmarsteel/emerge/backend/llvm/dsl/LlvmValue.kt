@@ -29,6 +29,9 @@ open class LlvmValue<out Type : LlvmType>(
 
     fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> {
         check(isLlvmAssignableTo(type)) { "Cannot reinterpret ${this.type} as $type" }
+
+        @Suppress("UNCHECKED_CAST") // is checked in the conditional
+        if (type == this.type) return this as LlvmValue<NewT>
         return LlvmValue(raw, type)
     }
     fun toMetadata(): LlvmMetadataRef = Llvm.LLVMValueAsMetadata(raw)

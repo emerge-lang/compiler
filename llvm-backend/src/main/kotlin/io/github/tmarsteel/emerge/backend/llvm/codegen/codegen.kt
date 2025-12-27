@@ -537,7 +537,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 expression.field,
             )
             val memberValue = autoBoxOrUnbox(memberPointer.dereference(), expression.field.type, expression.evaluatesTo)
-            return ExpressionResult.Value(memberValue)
+            val adjustedForGenericType = memberValue.reinterpretAs(context.getReferenceSiteType(expression.evaluatesTo))
+            return ExpressionResult.Value(adjustedForGenericType)
         }
         is IrAllocateObjectExpression -> {
             expression.clazz.autoboxer?.let { autoboxer ->
