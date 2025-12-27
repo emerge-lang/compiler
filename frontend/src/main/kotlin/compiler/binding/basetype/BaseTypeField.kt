@@ -22,7 +22,7 @@ class BaseTypeField(
     }
 }
 
-private class IrClassFieldImpl(
+private data class IrClassFieldImpl(
     override val id: Int,
     override val type: IrType,
 ) : IrClass.Field

@@ -287,7 +287,9 @@ class BoundObjectMemberAssignmentStatement(
     }
 }
 
-internal class IrAssignmentStatementTargetClassFieldImpl(
+internal data class IrAssignmentStatementTargetClassFieldImpl(
     override val field: IrClass.Field,
     override val objectValue: IrTemporaryValueReference,
-) : IrAssignmentStatement.Target.ClassField
+) : IrAssignmentStatement.Target.ClassField {
+    override fun toString() = "field #${field.id} on ${objectValue.type}"
+}

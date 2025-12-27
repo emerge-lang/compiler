@@ -138,6 +138,8 @@ class BoundVariableAssignmentStatement(
     }
 }
 
-internal class IrAssignmentStatementTargetVariableImpl(
+internal data class IrAssignmentStatementTargetVariableImpl(
     override val declaration: IrVariableDeclaration,
-): IrAssignmentStatement.Target.Variable
+): IrAssignmentStatement.Target.Variable {
+    override fun toString() = "variable ${declaration.name}"
+}

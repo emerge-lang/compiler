@@ -277,7 +277,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 }
                 code.emitWrite = { value ->
                     check(value.isLlvmAssignableTo(type)) {
-                        "Cannot write a value of type ${value.type} into a variable of type $type"
+                        "Cannot write a value of type ${value.type} into a variable of type $type at ${currentDebugLocation()}"
                     }
                     code.emitRead = { value }
                     value.name = code.name
@@ -301,7 +301,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 }
                 code.emitWrite = { newValue ->
                     check(newValue.isLlvmAssignableTo(type)) {
-                        "Cannot write a value of type ${newValue.type} into a variable of type $type"
+                        "Cannot write a value of type ${newValue.type} into a variable of type $type at ${currentDebugLocation()}"
                     }
                     store(newValue, stackAllocation)
                 }
@@ -650,7 +650,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             val autoboxedReturnValue = autoBoxOrUnbox(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
 
-            return ExpressionResult.Value(autoboxedReturnValue)
+            val unwrapAdjustedReturnValue = when {
+                callInstruction.type is EmergeFallibleCallResult<*> -> {
+                    autoboxedReturnValue.reinterpretAs(context.getReferenceSiteType(expression.evaluatesTo))
+                }
+                else -> autoboxedReturnValue
+            }
+
+            return ExpressionResult.Value(unwrapAdjustedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName) {
@@ -970,7 +977,9 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
     @Suppress("UNCHECKED_CAST")
     structPointer as LlvmValue<LlvmPointerType<LlvmType>>
 
-    check(structPointer.type.pointed is EmergeClassType)
+    check(structPointer.type.pointed is EmergeClassType) {
+        "dereferencing $member on a non-struct type: ${structPointer.type.pointed}; in ${currentDebugLocation()}"
+    }
     @Suppress("UNCHECKED_CAST")
     return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeClassType>>)
         .member(member)
