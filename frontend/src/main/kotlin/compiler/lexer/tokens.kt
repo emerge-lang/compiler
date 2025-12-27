@@ -40,6 +40,16 @@ enum class Keyword(val text: String)
     IMMUTABLE("const"),
     EXCLUSIVE("exclusive"),
 
+    OWN("own"),
+    REF("ref"),
+
+    SHARED("shared"),
+    STATIC("static"),
+    ABSTRACT("abstract"),
+    FINAL("final"),
+    SEALED("sealed"),
+    VIRTUAL("virtual"),
+
     NOTHROW("nothrow"),
     PURE("pure"),
     OPERATOR("operator"),

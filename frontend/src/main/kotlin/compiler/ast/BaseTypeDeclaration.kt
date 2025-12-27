@@ -172,7 +172,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 }
 
 class BaseTypeMemberVariableDeclaration(
-    val attributes: List<KeywordToken>,
+    val attributes: BoundBaseTypeMemberVariableAttributes,
     val variableDeclaration: VariableDeclaration,
 ) : BaseTypeMemberDeclaration() {
     override val span = variableDeclaration.declaredAt
@@ -294,7 +294,7 @@ class BaseTypeMemberVariableDeclaration(
                     boundLocalVariableInCtor,
                     variableDeclaration.visibility?.bindTo(typeRootContext)
                         ?: BoundVisibility.default(typeRootContext),
-                    BoundBaseTypeMemberVariableAttributes(attributes),
+                    attributes,
                     getTypeDef,
                     this@BaseTypeMemberVariableDeclaration,
                 )

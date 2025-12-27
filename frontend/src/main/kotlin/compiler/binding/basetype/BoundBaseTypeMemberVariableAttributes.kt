@@ -1,25 +1,35 @@
 package compiler.binding.basetype
 
+import compiler.ast.AstBaseTypeMemberVariableAttribute
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.conflictingMemberVariableAttributes
 import compiler.diagnostic.duplicateMemberVariableAttributes
-import compiler.diagnostic.invalidMemberVariableAttribute
-import compiler.lexer.KeywordToken
+import compiler.util.twoElementPermutationsUnordered
 
 class BoundBaseTypeMemberVariableAttributes(
-    val astNodes: List<KeywordToken>,
+    val attributes: List<AstBaseTypeMemberVariableAttribute>,
 ) {
-    fun validate(diagnosis: Diagnosis) {
-        val (applicableAttrs, inapplicableAttrs) = astNodes.partition { false } /* no attributes known currently */
-        inapplicableAttrs.forEach {
-            diagnosis.invalidMemberVariableAttribute(it, "${it.keyword.text} is not a valid attribute on member variables")
-        }
+    val ownershipAttribute: AstBaseTypeMemberVariableAttribute.Ownership?
 
-        applicableAttrs
-            .groupBy { it.keyword }
+    init {
+        ownershipAttribute = attributes
+            .filterIsInstance<AstBaseTypeMemberVariableAttribute.Ownership>()
+            .firstOrNull()
+    }
+
+    fun validate(diagnosis: Diagnosis) {
+        attributes
+            .groupBy { it.attributeName.keyword }
             .values
             .filter { it.size > 1 }
             .forEach { dupes ->
                 diagnosis.duplicateMemberVariableAttributes(dupes.first(), dupes.drop(1))
+            }
+
+        attributes.twoElementPermutationsUnordered()
+            .filter { (a, b) -> a.conflictsWith(b) }
+            .forEach { (a, b) ->
+                diagnosis.conflictingMemberVariableAttributes(listOf(a, b))
             }
     }
 }

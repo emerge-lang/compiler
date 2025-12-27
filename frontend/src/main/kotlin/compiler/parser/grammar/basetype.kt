@@ -18,6 +18,7 @@
 
 package compiler.parser.grammar
 
+import compiler.ast.AstBaseTypeMemberVariableAttribute
 import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
@@ -32,7 +33,9 @@ import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.binding.basetype.BoundBaseTypeMemberVariableAttributes
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
 import compiler.lexer.Keyword.CLASS_DEFINITION
 import compiler.lexer.Keyword.CONSTRUCTOR
 import compiler.lexer.Keyword.DESTRUCTOR
@@ -46,14 +49,30 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
+val BaseTypeMemberVariableAttribute = eitherOf {
+    keyword(Keyword.OWN)
+    keyword(Keyword.REF)
+}
+    .astTransformation { tokens ->
+        val keywordToken = tokens.next() as KeywordToken
+        when (keywordToken.keyword) {
+            Keyword.OWN,
+            Keyword.REF -> AstBaseTypeMemberVariableAttribute.Ownership(keywordToken)
+            else -> error("unsupported grammar")
+        }
+    }
+
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
+    repeating {
+        ref(BaseTypeMemberVariableAttribute)
+    }
     ref(VariableDeclaration)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
-        val attributes = tokens.takeWhileIsInstanceOf<KeywordToken>()
+        val attributes = tokens.takeWhileIsInstanceOf<AstBaseTypeMemberVariableAttribute>()
         BaseTypeMemberVariableDeclaration(
-            attributes,
+            BoundBaseTypeMemberVariableAttributes(attributes),
             tokens.next() as VariableDeclaration,
         )
     }

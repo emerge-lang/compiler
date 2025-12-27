@@ -1,5 +1,6 @@
 package compiler.diagnostic
 
+import compiler.ast.AstBaseTypeMemberVariableAttribute
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
@@ -62,7 +63,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
-import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -229,16 +229,16 @@ fun Diagnosis.inefficientAttributes(message: String, attributes: Collection<AstF
     add(ModifierInefficiencyDiagnostic(message, attributes))
 }
 
-fun Diagnosis.conflictingAttributes(attributes: Collection<AstFunctionAttribute>) {
+fun Diagnosis.conflictingFunctionAttributes(attributes: Collection<AstFunctionAttribute>) {
     add(ConflictingFunctionAttributesDiagnostic(attributes))
 }
 
-fun Diagnosis.invalidMemberVariableAttribute(attribute: KeywordToken, reason: String) {
-    add(InvalidBaseTypeMemberVariableAttributeDiagnostic(reason, attribute.span))
+fun Diagnosis.duplicateMemberVariableAttributes(firstMention: AstBaseTypeMemberVariableAttribute, duplicates: List<AstBaseTypeMemberVariableAttribute>) {
+    add(DuplicateMemberVariableAttributeDiagnostic(duplicates))
 }
 
-fun Diagnosis.duplicateMemberVariableAttributes(firstMention: KeywordToken, duplicates: List<KeywordToken>) {
-    add(DuplicateMemberVariableAttributeDiagnostic(duplicates))
+fun Diagnosis.conflictingMemberVariableAttributes(attributesInConflict: List<AstBaseTypeMemberVariableAttribute>) {
+    add(ConflictingBaseTypeMemberVariableAttributesDiagnostic(attributesInConflict))
 }
 
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {

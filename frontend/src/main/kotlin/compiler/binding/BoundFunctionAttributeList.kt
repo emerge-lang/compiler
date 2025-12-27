@@ -4,7 +4,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.conflictingAttributes
+import compiler.diagnostic.conflictingFunctionAttributes
 import compiler.diagnostic.functionIsMissingAttribute
 import compiler.diagnostic.inefficientAttributes
 import compiler.diagnostic.unsupportedCallingConvention
@@ -80,7 +80,7 @@ class BoundFunctionAttributeList(
             attributes.twoElementPermutationsUnordered()
                 .filter { (a, b) -> conflictsWith(a, b) }
                 .forEach { (a, b) ->
-                    diagnosis.conflictingAttributes(listOf(a, b))
+                    diagnosis.conflictingFunctionAttributes(listOf(a, b))
                 }
 
             attributes
