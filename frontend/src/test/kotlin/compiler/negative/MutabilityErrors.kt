@@ -228,7 +228,7 @@ class MutabilityErrors : FreeSpec({
                         l: mut Box = p.box
                     }
                 """.trimIndent())
-                    .shouldFind< ValueNotAssignableDiagnostic>() {
+                    .shouldFind<ValueNotAssignableDiagnostic>() {
                         it.sourceType.toString() shouldBe "const testmodule.Box"
                         it.targetType.toString() shouldBe "mut testmodule.Box"
                     }
@@ -245,7 +245,7 @@ class MutabilityErrors : FreeSpec({
                         l: const Box = p.box
                     }
                 """.trimIndent())
-                    .shouldFind< ValueNotAssignableDiagnostic>() {
+                    .shouldFind<ValueNotAssignableDiagnostic>() {
                         it.sourceType.toString() shouldBe "mut testmodule.Box"
                         it.targetType.toString() shouldBe "const testmodule.Box"
                     }
@@ -283,7 +283,7 @@ class MutabilityErrors : FreeSpec({
                             l2: mut Box = l1
                         }
                     """.trimIndent())
-                        .shouldFind< ValueNotAssignableDiagnostic>() {
+                        .shouldFind<ValueNotAssignableDiagnostic>() {
                             it.sourceType.toString() shouldBe "read testmodule.Box"
                             it.targetType.toString() shouldBe "mut testmodule.Box"
                         }
@@ -301,7 +301,7 @@ class MutabilityErrors : FreeSpec({
                             l2: const Box = l1
                         }
                     """.trimIndent())
-                        .shouldFind< ValueNotAssignableDiagnostic>() {
+                        .shouldFind<ValueNotAssignableDiagnostic>() {
                             it.sourceType.toString() shouldBe "mut testmodule.Box"
                             it.targetType.toString() shouldBe "const testmodule.Box"
                         }
@@ -319,7 +319,7 @@ class MutabilityErrors : FreeSpec({
                             l2: mut Box = l1
                         }
                     """.trimIndent())
-                        .shouldFind< ValueNotAssignableDiagnostic>() {
+                        .shouldFind<ValueNotAssignableDiagnostic>() {
                             it.sourceType.toString() shouldBe "const testmodule.Box"
                             it.targetType.toString() shouldBe "mut testmodule.Box"
                         }

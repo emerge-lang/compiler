@@ -448,7 +448,7 @@ class TypeErrors : FreeSpec({
                 
                 fn trigger(p: read I & mut Any) {}
             """.trimIndent())
-                .shouldFind< SimplifiableIntersectionTypeDiagnostic> {
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "read I & mut Any"
                     it.simplerVersion.toString() shouldBe "mut testmodule.I"
                 }
@@ -545,7 +545,7 @@ class TypeErrors : FreeSpec({
                         interface C<TC, XC> : A<TC, XC> {}
                         fn trigger(p: B<S32, UWord> & C<S32, ThisTypeDoesntExist>) {}
                     """.trimIndent())
-                        .shouldFind< UnknownTypeDiagnostic> {
+                        .shouldFind<UnknownTypeDiagnostic> {
                             it.erroneousReference.simpleName shouldBe "ThisTypeDoesntExist"
                         }
                         .shouldFind<ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic> {

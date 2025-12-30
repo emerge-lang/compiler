@@ -467,7 +467,7 @@ class VirtualMemberVariableErrors : FreeSpec({
                     l = C().p
                 }
             """.trimIndent())
-                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
                     it.memberVariableName shouldBe "p"
                 }
         }
@@ -499,7 +499,7 @@ class VirtualMemberVariableErrors : FreeSpec({
                     l = C().p
                 }
             """.trimIndent())
-                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
                     it.memberVariableName shouldBe "p"
                 }
         }
