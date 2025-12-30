@@ -9,6 +9,7 @@ import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstruc
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
+import compiler.diagnostic.ExplicitMutabilityOnOwnedMemberVariableDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
@@ -140,58 +141,60 @@ class ClassErrors : FreeSpec({
             // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
         }
 
-        "cannot declare ownership" {
+        "cannot declare move semantics" {
             validateModule("""
                 class Foo {
                     borrow x: S32 = 0
                 }
             """.trimIndent())
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
+
+            validateModule("""
+                class Foo {
+                    capture x: S32 = 0
+                }
+            """.trimIndent())
+                .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
 
-        "decorated members".config(enabled = false) - {
-            "mutability not mentioned explicitly is okay (inferred to read, not const)" {
+        "ownership" - {
+            "owned member variables can be initialized from ctor parameters and integer literals" {
                 validateModule("""
-                    interface N {}
-                    class W {
-                        decorates n: N = init
+                    class Box {
+                        var x: S32 = 0
+                    }
+                    class Foo {
+                        own box: Box = init
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
 
-            "cannot use decorated member as mut nor const in constructor" {
+            "owned member variables can be initialized from expressions returning exclusive" {
                 validateModule("""
-                    interface N {}
-                    class W {
-                        decorates n: N = init
-                        
-                        constructor {
-                            useMut(self.n)
-                        }
+                    class Box {
+                        var x: S32 = 0
                     }
-                    intrinsic fn useMut(borrow n: mut N)
+                    
+                    fn newBox() -> exclusive Box = Box()
+                    
+                    class Foo {
+                        own box: Box = exclusiveBox()
+                    }
                 """.trimIndent())
-                    .shouldFind<ValueNotAssignableDiagnostic> {
-                        it.sourceType.toString() shouldBe "read testmodule.N"
-                        it.targetType.toString() shouldBe "mut testmodule.N"
-                    }
+                    .shouldHaveNoDiagnostics()
+            }
 
+            "owned member variables cannot have explicit mutability in the type" {
                 validateModule("""
-                    interface N {}
-                    class W {
-                        decorates n: N = init
-                        
-                        constructor {
-                            useConst(self.n)
-                        }
+                    class Box {
+                        var x: S32 = 0
                     }
-                    intrinsic fn useConst(borrow n: const N)
+                    class Foo {
+                        owned box: mut Box = init
+                    }
                 """.trimIndent())
-                    .shouldFind<ValueNotAssignableDiagnostic> {
-                        it.sourceType.toString() shouldBe "read testmodule.N"
-                        it.targetType.toString() shouldBe "const testmodule.N"
-                    }
+                    .shouldFind<ExplicitMutabilityOnOwnedMemberVariableDiagnostic>()
             }
         }
     }

@@ -92,6 +92,7 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override val assignmentTargetType: BoundTypeReference? get() {
+        // TODO: this is very likely not correct anymore after the new ref/own member vars
         val contextualType = if (physicalMembers.isNotEmpty() || !considerSetters) {
             physicalMembers.firstOrNull()?.type
         } else {
