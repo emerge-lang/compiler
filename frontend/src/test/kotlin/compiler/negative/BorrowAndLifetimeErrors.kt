@@ -297,12 +297,12 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
-        "simulateneous borrows of derived values" {
+        "simultaneous borrows of derived values" {
             validateModule("""
                 class A {}
                 class C {
-                    mA: mut A = A()
-                    cA: const A = A()
+                    ref mA: mut A = A()
+                    ref cA: const A = A()
                 }
                 fn test() {
                     c: exclusive C = C()

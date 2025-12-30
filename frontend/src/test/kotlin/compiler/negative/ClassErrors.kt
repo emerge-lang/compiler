@@ -46,31 +46,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ClassErrors : FreeSpec({
-    "duplicate member" {
-        validateModule("""
-            class X {
-                a: S32
-                b: S32
-                a: Bool
-            }
-        """.trimIndent())
-            .shouldFind<DuplicateBaseTypeMemberDiagnostic> {
-                it.duplicates should haveSize(2)
-                it.duplicates.forAll {
-                    it.name shouldBe "a"
-                }
-            }
-    }
-
-    "unknown declared member type" {
-        validateModule("""
-            class X {
-                a: Foo
-            }
-        """.trimIndent())
-            .shouldFind<UnknownTypeDiagnostic>()
-    }
-
     "calling a constructor with incorrect argument types" {
         validateModule("""
             class X {
@@ -91,6 +66,31 @@ class ClassErrors : FreeSpec({
     }
 
     "member variables" - {
+        "unknown declared member type" {
+            validateModule("""
+            class X {
+                a: Foo
+            }
+        """.trimIndent())
+                .shouldFind<UnknownTypeDiagnostic>()
+        }
+
+        "duplicate member variable name" {
+            validateModule("""
+            class X {
+                a: S32
+                b: S32
+                a: Bool
+            }
+        """.trimIndent())
+                .shouldFind<DuplicateBaseTypeMemberDiagnostic> {
+                    it.duplicates should haveSize(2)
+                    it.duplicates.forAll {
+                        it.name shouldBe "a"
+                    }
+                }
+        }
+
         "class member variables must be initialized" {
             validateModule("""
                 class Foo {
@@ -181,6 +181,7 @@ class ClassErrors : FreeSpec({
                     class Foo {
                         own box: Box = exclusiveBox()
                     }
+                    intrinsic fn exclusiveBox() -> exclusive Box
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
@@ -191,7 +192,7 @@ class ClassErrors : FreeSpec({
                         var x: S32 = 0
                     }
                     class Foo {
-                        owned box: mut Box = init
+                        own box: mut Box = init
                     }
                 """.trimIndent())
                     .shouldFind<ExplicitMutabilityOnOwnedMemberVariableDiagnostic>()

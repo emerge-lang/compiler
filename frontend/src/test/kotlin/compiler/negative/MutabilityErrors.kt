@@ -180,8 +180,7 @@ class MutabilityErrors : FreeSpec({
 
     "member variable access" - {
         "read" - {
-            "ref variable remains mut through read and const parent objs" {
-                // TODO: make const more strict, reintroduce readconst mutability??
+            "ref mut variable remains mut through read parent object" {
                 validateModule("""
                     class Box {
                         var x: S32 = 0
@@ -190,15 +189,30 @@ class MutabilityErrors : FreeSpec({
                         ref box: mut Box = Box()
                     }
                     
-                    fn test1(p: read Foo) {
-                        l: mut Box = p.box
-                    }
-                    
-                    fn test2(p: const Foo) {
+                    fn test(p: read Foo) {
                         l: mut Box = p.box
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+
+            "ref mut variable goes readconst when accessed through const parent object" {
+                validateModule("""
+                    class Box {
+                        var x: S32 = 0
+                    }
+                    class Foo {
+                        ref box: mut Box = Box()
+                    }
+                    
+                    fn test(p: const Foo) {
+                        l: mut Box = p.box
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "readconst testmodule.Foo"
+                        it.targetType.toString() shouldBe "mut testmodule.Box"
+                    }
             }
 
             "owned member variable is mut or const, depending on parent object" {

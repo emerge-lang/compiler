@@ -24,10 +24,13 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
+import compiler.binding.basetype.BoundBaseTypeMemberVariable.Ownership.OWNED
+import compiler.binding.basetype.BoundBaseTypeMemberVariable.Ownership.REFERENCED
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.explicitMutabilityOnOwnedMemberVariable
 import compiler.diagnostic.quoteIdentifier
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -69,6 +72,14 @@ class BoundBaseTypeMemberVariable(
             visibility.validateOnElement(this, diagnosis)
             attributes.validate(diagnosis)
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase1(diagnosis)
+            when (attributes.ownership) {
+                REFERENCED -> { /* nothing to do */ }
+                OWNED -> {
+                    if (entryDeclaration.variableDeclaration.type?.mutability != null) {
+                        diagnosis.explicitMutabilityOnOwnedMemberVariable(this)
+                    }
+                }
+            }
         }
     }
 
@@ -119,7 +130,11 @@ class BoundBaseTypeMemberVariable(
 
     override fun toString() = getTypeDef().canonicalName.toString() + "." + name
 
-    enum class Ownership { OWNED, REFERENCED }
+    enum class Ownership {
+        OWNED,
+        REFERENCED,
+        ;
+    }
 }
 
 private class IrClassMemberVariableImpl(

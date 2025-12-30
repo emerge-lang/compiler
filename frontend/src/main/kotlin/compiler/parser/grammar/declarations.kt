@@ -24,9 +24,18 @@ import compiler.ast.AstVisibility
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.*
+import compiler.lexer.Keyword.BORROW
+import compiler.lexer.Keyword.CAPTURE
+import compiler.lexer.Keyword.EXPORT
+import compiler.lexer.Keyword.MODULE
+import compiler.lexer.Keyword.PACKAGE
+import compiler.lexer.Keyword.PRIVATE
+import compiler.lexer.Keyword.VAR
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator.*
+import compiler.lexer.Operator.ASSIGNMENT
+import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.PARANT_CLOSE
+import compiler.lexer.Operator.PARANT_OPEN
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
@@ -82,6 +91,7 @@ val VariableOwnership = eitherOf {
     }
 
 private val ReAssignableVariableDeclaration = sequence("re-assignable variable declaration") {
+    // TODO: move visibility to outside of variable declaration, incorporating it into attributes
     optional {
         ref(Visibility)
     }

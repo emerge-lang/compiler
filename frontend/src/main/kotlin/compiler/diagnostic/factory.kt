@@ -241,6 +241,10 @@ fun Diagnosis.conflictingMemberVariableAttributes(attributesInConflict: List<Ast
     add(ConflictingBaseTypeMemberVariableAttributesDiagnostic(attributesInConflict))
 }
 
+fun Diagnosis.explicitMutabilityOnOwnedMemberVariable(memberVariable: BoundBaseTypeMemberVariable) {
+    add(ExplicitMutabilityOnOwnedMemberVariableDiagnostic(memberVariable.entryDeclaration))
+}
+
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
     add(ToplevelFunctionWithOverrideAttributeDiagnostic(attr.attributeName))
 }
