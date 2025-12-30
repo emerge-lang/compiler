@@ -1,6 +1,6 @@
 package emerge.core.unwind
 
 export class StackTraceElement {
-    export address: const UWord = init
-    export procedureName: const String = init
+    export address: UWord = init
+    ref export procedureName: const String = init
 }

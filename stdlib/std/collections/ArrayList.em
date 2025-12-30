@@ -48,7 +48,7 @@ export class ArrayList<X : Any> : Iterable<X> {
 }
 
 private class ArrayListRange<T : Any> : SizedRange<T> & RandomAccessRange<T> & BidirectionalRange<T> {
-    list: read ArrayList<T> = init
+    ref list: read ArrayList<T> = init
     var frontIndex: UWord = 0
     var backIndexPlus1: UWord = self.list.size
 

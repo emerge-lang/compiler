@@ -415,7 +415,7 @@ export class Bool {
 }
 
 export class Array<Element> : Iterable<Element> {
-    export size: const UWord = init
+    export size: UWord = init
 
     private constructor {}
 
@@ -458,7 +458,7 @@ export class Array<Element> : Iterable<Element> {
 }
 
 export class ArrayIndexOutOfBoundsError : Error {
-    export invalidIndex: const UWord = init
+    ref export invalidIndex: const UWord = init
     
     export constructor {
         mixin ThrowableTrait(null)

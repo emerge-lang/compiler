@@ -6,9 +6,9 @@ import emerge.core.safemath.plusModulo
 // TODO: parameterize on type it is reflection on, like java.lang.Class<T> ?
 export class ReflectionBaseType {
     // points to all the DYNAMIC ReflectionBaseType infos, except Any
-    private supertypes: const Array<ReflectionBaseType> = init
+    ref private supertypes: const Array<ReflectionBaseType> = init
 
-    export canonicalName: const String = init
+    export canonicalName: String = init
 
     // for static typeinfos: points at the dynamic version; for dynamic ones: is null
     private dynamicInstance: ReflectionBaseType? = init

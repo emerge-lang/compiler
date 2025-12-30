@@ -12,7 +12,7 @@ export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
 export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
 
 class FileDescriptorPrintStream : PrintStream {
-    private fd: const S32 = init
+    private fd: S32 = init
     
     override fn put(self: mut _, str: String) {
         var bufToWrite: read Array<S8> = str.utf8Data
@@ -42,7 +42,7 @@ class FileDescriptorPrintStream : PrintStream {
 private intrinsic nothrow fn pureWrite(fd: S32, buf: COpaquePointer, count: UWord) -> SWord
 
 private class WriteFailedException : IOException {
-    errno: const S32 = init
+    errno: S32 = init
     
     constructor {
         mixin ThrowableTrait("write(2) failed, errno = " + self.errno.toString())

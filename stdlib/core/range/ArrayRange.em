@@ -3,7 +3,7 @@ package emerge.core.range
 import emerge.platform.panic
 
 export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Element> & BidirectionalRange<Element> {
-    array: read Array<Element> = init
+    ref array: read Array<Element> = init
     var frontIndex: UWord = 0
     var backIndexPlus1: UWord = self.array.size
 

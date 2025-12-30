@@ -27,7 +27,7 @@ export interface Error : Throwable {}
 export class ThrowableTrait : Error {
 	private _message: String? = init
 
-    private var _stackTrace: const Iterable<const StackTraceElement>? = null
+    ref private var _stackTrace: const Iterable<const StackTraceElement>? = null
 
     export override read fn fillStackTrace(self: mut _) {
         set self._stackTrace = self._stackTrace ?: collectStackTrace(3 as U32, false)

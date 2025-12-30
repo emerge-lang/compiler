@@ -2,58 +2,61 @@ package emerge.platform
 
 import emerge.core.reflection.ReflectionBaseType
 
+// TODO: change all builtin numeric-types and the boxes to be subtypes of const Any
+// TODO: change all boxes to use owned member vars
+
 class S8Box {
-    value: const S8 = init
+    ref value: const S8 = init
 }
 
 class U8Box {
-    value: const U8 = init
+    ref value: const U8 = init
 }
 
 class S16Box {
-    value: const S16 = init
+    ref value: const S16 = init
 }
 
 class U16Box {
-    value: const U16 = init
+    ref value: const U16 = init
 }
 
 class S32Box {
-    value: const S32 = init
+    ref value: const S32 = init
 }
 
 class U32Box {
-    value: const U32 = init
+    ref value: const U32 = init
 }
 
 class S64Box {
-    value: const S64 = init
+    ref value: const S64 = init
 }
 
 class U64Box {
-    value: const U64 = init
+    ref value: const U64 = init
 }
 
 class F32Box {
-    value: const F32 = init
+    ref value: const F32 = init
 }
 
 class F64Box {
-    value: const F64 = init
+    ref value: const F64 = init
 }
 
 class SWordBox {
-    value: const SWord = init
+    ref value: const SWord = init
 }
 
 class UWordBox {
-    value: const UWord = init
+    ref value: const UWord = init
 }
 
 class BoolBox {
-    value: const Bool = init
+    ref value: const Bool = init
 }
 
 class ReflectionBaseTypeBox {
-    value: const ReflectionBaseType = init
+    ref value: const ReflectionBaseType = init
 }
