@@ -17,7 +17,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
            * into `borrow`: up to `exclusive`, because as long as the mutability of the parent is `exclusive`,
              so is the mutability of the owned fields
            * into `capture`: only `read`, because allowing anything more than `read` creates the aliasing problem 
-   3. find a way to propagate the parent-object-mutability-inference of ctors up the call chain so factory
+   3. reintroduce `readconst` mutability that allows only access to the immutable parts of the referred object.
+      Rationale: the purpose of `const` references (next to enabling small-impact optimizations)
+      is to give the programmer trust. When a programmer reads `const`, it must let them rest assured that this `const`
+      reference won't introduce new state into the program. In combination with `ref` this creates a problem:
+      a `ref mut` member variable stored in a `const` object can still introduce new and unpredictable state.
+      Hence: dereferencing a `ref mut` or `ref read` member variable through a `const` must yield a `readconst`
+      reference.
+   4. find a way to propagate the parent-object-mutability-inference of ctors up the call chain so factory
       functions/extended ctors can make use of it too.
 5. arrays slices; goal/target situation
    * there are array-base-objects, identical to what an Array<T> is before
