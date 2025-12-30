@@ -9,13 +9,11 @@ import compiler.util.twoElementPermutationsUnordered
 class BoundBaseTypeMemberVariableAttributes(
     val attributes: List<AstBaseTypeMemberVariableAttribute>,
 ) {
-    val ownershipAttribute: AstBaseTypeMemberVariableAttribute.Ownership?
+    val ownershipAttribute: AstBaseTypeMemberVariableAttribute.Ownership? = attributes
+        .filterIsInstance<AstBaseTypeMemberVariableAttribute.Ownership>()
+        .firstOrNull()
 
-    init {
-        ownershipAttribute = attributes
-            .filterIsInstance<AstBaseTypeMemberVariableAttribute.Ownership>()
-            .firstOrNull()
-    }
+    val ownership = ownershipAttribute?.ownership ?: BoundBaseTypeMemberVariable.Ownership.OWNED
 
     fun validate(diagnosis: Diagnosis) {
         attributes

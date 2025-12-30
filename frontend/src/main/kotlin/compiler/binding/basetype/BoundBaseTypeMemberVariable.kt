@@ -118,6 +118,8 @@ class BoundBaseTypeMemberVariable(
     fun toBackendIr(): IrClass.MemberVariable = _backendIr
 
     override fun toString() = getTypeDef().canonicalName.toString() + "." + name
+
+    enum class Ownership { OWNED, REFERENCED }
 }
 
 private class IrClassMemberVariableImpl(

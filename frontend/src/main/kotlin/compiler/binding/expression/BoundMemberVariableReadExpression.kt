@@ -91,7 +91,7 @@ class BoundMemberVariableReadExpression(
             val rawMemberType = physicalMember!!.type ?: return null
             val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
-            if (physicalMember!!.isConstructorParameterInitialized) {
+            if (TODO("is owned")) {
                 instantiatedType.withMutability(valueExpression.type?.mutability?.limitedTo(TypeMutability.MUTABLE))
             } else {
                 instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)

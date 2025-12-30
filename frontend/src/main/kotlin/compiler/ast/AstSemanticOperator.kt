@@ -11,7 +11,7 @@ import compiler.lexer.Token
  */
 class AstSemanticOperator private constructor(
     val token: Token,
-    /** The [Operator] or [Keyword] */
+    /** The [compiler.lexer.Operator] or [Keyword] */
     val operatorElement: Any,
     val name: String,
 ) {
