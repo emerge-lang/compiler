@@ -9,8 +9,9 @@ import emerge.core.range.EmptyRangeException
 import emerge.core.range.BidirectionalRange
 
 export class ArrayList<X : Any> : Iterable<X> {
-    private var storage: Array<X?> = Array.new::<X?>(20, null)
-    private var _size: UWord = 0
+    // TODO: change this to owned once the compiler can handle it
+    ref private var storage: Array<X?> = Array.new::<X?>(20, null)
+    ref private var _size: UWord = 0
 
     export get fn size(self) -> UWord = self._size
 
@@ -49,8 +50,8 @@ export class ArrayList<X : Any> : Iterable<X> {
 
 private class ArrayListRange<T : Any> : SizedRange<T> & RandomAccessRange<T> & BidirectionalRange<T> {
     ref list: read ArrayList<T> = init
-    var frontIndex: UWord = 0
-    var backIndexPlus1: UWord = self.list.size
+    ref var frontIndex: UWord = 0
+    ref var backIndexPlus1: UWord = self.list.size
 
     override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 

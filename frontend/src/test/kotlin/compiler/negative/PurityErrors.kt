@@ -571,7 +571,7 @@ class PurityErrors : FreeSpec({
         }
     }
 
-    "object traversal limits mutability" - {
+    "object traversal limits mutability".config(enabled = false) - { /* TODO: remove? covered in MutabilityErrors */
         // exclusive mutability on object members is currently not allowed, so no need to test
 
         "member declared mut, accessed through read reference to the object - mutability becomes read" {

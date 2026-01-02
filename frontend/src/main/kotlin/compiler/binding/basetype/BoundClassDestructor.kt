@@ -51,11 +51,10 @@ class BoundClassDestructor(
     override val parentContext: CTContext,
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
-    getClassDef: () -> BoundBaseType,
+    val classDef: BoundBaseType,
     override val attributes: BoundFunctionAttributeList,
     override val entryDeclaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
-    val classDef: BoundBaseType by lazy(getClassDef)
     override val declaredAt = entryDeclaration.span
     private val generatedSourceLocation = declaredAt.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
@@ -171,7 +170,7 @@ class BoundClassDestructor(
                         IrClassFieldAccessExpressionImpl(
                             IrTemporaryValueReferenceImpl(selfTemporary),
                             holderMemberVar.field.toBackendIr(),
-                            holderMemberVar.type!!.toBackendIr(),
+                            holderMemberVar.getTypeWhenAccessing(TypeMutability.EXCLUSIVE)!!.toBackendIr(),
                         )
                     )
                     IrCodeChunkImpl(listOf(
@@ -196,7 +195,7 @@ class BoundClassDestructor(
                     IrClassFieldAccessExpressionImpl(
                         IrTemporaryValueReferenceImpl(selfTemporary),
                         memberVar.field.toBackendIr(),
-                        memberVar.type!!.toBackendIr(),
+                        memberVar.getTypeWhenAccessing(TypeMutability.EXCLUSIVE)!!.toBackendIr(),
                     )
                 )
                 listOf(

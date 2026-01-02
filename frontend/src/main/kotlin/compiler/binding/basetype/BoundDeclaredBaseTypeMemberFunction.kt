@@ -44,7 +44,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     declaredTypeParameters: List<BoundTypeParameter>,
     parameters: BoundParameterList,
     body: Body?,
-    getTypeDef: () -> BoundBaseType,
+    override val declaredOnType: BoundBaseType,
     private val lazyImpliedReceiverType: () -> RootResolvedTypeReference,
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     parentContext,
@@ -57,8 +57,7 @@ class BoundDeclaredBaseTypeMemberFunction(
 ) {
     private val seanHelper = SeanHelper()
 
-    override val declaredOnType by lazy(getTypeDef)
-    override val ownerBaseType by lazy(getTypeDef)
+    override val ownerBaseType = declaredOnType
     override val canonicalName by lazy {
         CanonicalElementName.Function(
             declaredOnType.canonicalName,

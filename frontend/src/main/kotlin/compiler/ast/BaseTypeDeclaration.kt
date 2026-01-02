@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.AstAbsoluteTypeReference
-import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -31,17 +30,12 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
-import compiler.diagnostic.CollectingDiagnosis
-import compiler.diagnostic.entryNotAllowedOnBaseType
-import compiler.diagnostic.multipleClassConstructors
-import compiler.diagnostic.multipleClassDestructors
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
-import compiler.util.partitionIsInstanceOf
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
@@ -56,13 +50,6 @@ class BaseTypeDeclaration(
     override val declaredAt = name.span
 
     fun bindTo(fileContext: CTContext): BoundBaseType {
-        /*
-        this method is SERIOUSLY complex, because it does all the reordering of the syntactic elements in the
-        base type definition, including a bunch of code generation for the constructor
-         */
-
-        val bindTimeDiagnosis = CollectingDiagnosis()
-
         // declare this now to allow passing forward references to all children
         // TODO: maybe no longer needed after BoundBaseType.init has been added
         lateinit var boundTypeDef: BoundBaseType
@@ -78,86 +65,17 @@ class BaseTypeDeclaration(
         val (boundTypeParameters, fileContextWithDeclaredTypeParams) = typeParameters?.chain(fileContext) ?: Pair(null, fileContext)
         val typeRootContext = MutableCTContext(fileContextWithDeclaredTypeParams, typeVisibility)
         val boundSupertypeList = BoundSupertypeList.bindSingleSupertype(supertype, typeRootContext, typeDefAccessor)
-        val buildAstReceiverType: (Span) -> AstAbsoluteTypeReference = { span ->
-            AstAbsoluteTypeReference(
-                canonicalName,
-                typeParameters?.map { astTypeParam ->
-                    AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(astTypeParam.name.value, span = span))
-                },
-                span = span,
-            )
-        }
-
-        val givenConstructorDeclarations = entryDeclarations.filterIsInstance<BaseTypeConstructorDeclaration>()
-        val chosenConstructorDeclaration = givenConstructorDeclarations.firstOrNull()
-            ?: BaseTypeConstructorDeclaration.generateDefault(this)
-        val superfluousConstructorDeclarations = givenConstructorDeclarations.drop(1)
-
-        val (memberVariableEntryDecls, nonVarEntryDecls) = entryDeclarations.partitionIsInstanceOf<_, BaseTypeMemberVariableDeclaration>()
-        val (boundChosenCtor, boundMemberVars) = chosenConstructorDeclaration.bindConstructorAndMemberVariables(
-            fileContextWithDeclaredTypeParams,
-            boundTypeParameters ?: emptyList(),
-            typeRootContext,
-            memberVariableEntryDecls,
-            buildAstReceiverType,
-            typeDefAccessor,
-        )
 
         boundTypeDef = BoundBaseType(
             fileContext = fileContext,
+            fileContextWithDeclaredTypeParams,
             typeRootContext = typeRootContext,
             kind = kind,
             visibility = typeVisibility,
             typeParameters = boundTypeParameters,
             superTypes = boundSupertypeList,
             declaration = this,
-            bindTimeDiagnosis = bindTimeDiagnosis,
         )
-
-        val boundNonVarEntries = nonVarEntryDecls
-            .asSequence()
-            .filter { it !is BaseTypeConstructorDeclaration } // they are irrelevant here
-            .map { entry ->
-                when (entry) {
-                    is BaseTypeMemberFunctionDeclaration -> {
-                        entry.bindTo(
-                            typeRootContext,
-                            buildAstReceiverType(entry.functionDeclaration.parameters.parameters.firstOrNull()?.name?.span ?: entry.span),
-                            typeDefAccessor
-                        )
-                    }
-                    is BaseTypeDestructorDeclaration -> {
-                        entry.bindTo(fileContext, fileContextWithDeclaredTypeParams, boundTypeParameters, typeDefAccessor)
-                    }
-                    is BaseTypeMemberVariableDeclaration,
-                    is BaseTypeConstructorDeclaration -> error("unreachable, member vars and constructors are done above")
-                }
-            }
-            .toList()
-
-        boundTypeDef.init(boundChosenCtor, boundMemberVars, boundNonVarEntries)
-
-        if (kind.hasCtorsAndDtors) {
-            if (superfluousConstructorDeclarations.isNotEmpty()) {
-                bindTimeDiagnosis.multipleClassConstructors(superfluousConstructorDeclarations)
-            }
-            entryDeclarations
-                .asSequence()
-                .filterIsInstance<BaseTypeDestructorDeclaration>()
-                .drop(1)
-                .toList()
-                .takeIf { it.isNotEmpty() }
-                ?.let {
-                    bindTimeDiagnosis.multipleClassDestructors(it)
-                }
-        } else {
-            entryDeclarations
-                .asSequence()
-                .filter { it is BaseTypeConstructorDeclaration || it is BaseTypeDestructorDeclaration }
-                .forEach {
-                    bindTimeDiagnosis.entryNotAllowedOnBaseType(boundTypeDef, it)
-                }
-        }
 
         return boundTypeDef
     }
@@ -184,10 +102,16 @@ class BaseTypeMemberVariableDeclaration(
         false
     }
 
+    val isMutabilityTiedToParentObject: Boolean =
+        attributes.ownership == BoundBaseTypeMemberVariable.Ownership.OWNED &&
+        variableDeclaration.type?.mutability == null
+
     inner class Binder(val typeRootContext: CTContext) {
         val isConstructorParameterInitialized: Boolean = this@BaseTypeMemberVariableDeclaration.isConstructorParameterInitialized
+        val isMutabilityTiedToParentObject: Boolean = this@BaseTypeMemberVariableDeclaration.isMutabilityTiedToParentObject
+        val mayNeedConstructorTypeParameter: Boolean get()= needsCtorTypeParameter != false
 
-        private var needsCtorTypeParameter: Boolean? = if (!isConstructorParameterInitialized || variableDeclaration.type?.mutability != null) false else null
+        private var needsCtorTypeParameter: Boolean? = if (isConstructorParameterInitialized && isMutabilityTiedToParentObject) null /* not yet known*/ else false /* definitely not */
         private var ctorTypeParameter: BoundTypeParameter? = null
 
         fun generateTypeParameterForConstructor(
@@ -198,11 +122,22 @@ class BaseTypeMemberVariableDeclaration(
                 return null
             }
             val declaredType = variableDeclaration.type
+
+            // TODO: is this special case necessary? it may even be incorrect
+            // if this is removed, the Binder can be simplified significantly by making needsCtorTypeParameter non-nullable
             val isGenericOnBaseType = declaredType is NamedTypeReference && typeRootContext.resolveTypeParameter(declaredType.simpleName) != null
             if (isGenericOnBaseType) {
                 // already generic, there's no point to further parameterize this one
                 needsCtorTypeParameter = false
                 return null
+            }
+            if (declaredType != null) {
+                val resolvedType = typeRootContext.resolveType(declaredType)
+                if (resolvedType.mutability != TypeMutability.top()) {
+                    // mutability is pre-determined, no need to parameterize the constructor
+                    needsCtorTypeParameter = false
+                    return null
+                }
             }
             needsCtorTypeParameter = true
 
@@ -264,7 +199,14 @@ class BaseTypeMemberVariableDeclaration(
                     valueForAssignment = IdentifierExpression(IdentifierToken(ctorParam!!.name, generatedSourceLocation))
                 }
                 variableDeclaration.initializerExpression != null -> {
-                    boundLocalVariableInCtor = variableDeclaration.copy(visibility = null).bindTo(contextInCtor)
+                    boundLocalVariableInCtor = variableDeclaration.copy(visibility = null).bindToAsLocalVariable(
+                        context = contextInCtor,
+                        typeInferenceStrategy = if (isConstructorParameterInitialized && isMutabilityTiedToParentObject) {
+                            BoundVariable.TypeInferenceStrategy.OwnedMemberVariable
+                        } else {
+                            BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability
+                        }
+                    )
                     contextForAssignment = boundLocalVariableInCtor!!.modifiedContext
                     valueForAssignment = IdentifierExpression(variableDeclaration.name)
                 }
@@ -287,7 +229,7 @@ class BaseTypeMemberVariableDeclaration(
         }
 
         private lateinit var boundVar: BoundBaseTypeMemberVariable
-        fun bindMemberVariableFinal(getTypeDef: () -> BoundBaseType): BoundBaseTypeMemberVariable {
+        fun bindMemberVariableFinal(baseType: BoundBaseType): BoundBaseTypeMemberVariable {
             if (!this::boundVar.isInitialized) {
                 boundVar = BoundBaseTypeMemberVariable(
                     typeRootContext,
@@ -295,7 +237,7 @@ class BaseTypeMemberVariableDeclaration(
                     variableDeclaration.visibility?.bindTo(typeRootContext)
                         ?: BoundVisibility.default(typeRootContext),
                     attributes,
-                    getTypeDef,
+                    baseType,
                     this@BaseTypeMemberVariableDeclaration,
                 )
             }
@@ -317,6 +259,10 @@ class BaseTypeConstructorDeclaration(
         memberVariableBinders: List<BaseTypeMemberVariableDeclaration.Binder>,
         ctorGeneratedSpan: Span,
     ): Triple<List<BoundTypeParameter>, BoundTypeParameter?, CTContext> {
+        if (memberVariableBinders.none { it.mayNeedConstructorTypeParameter }) {
+            return Triple(emptyList(), null, typeRootContext)
+        }
+
         val additionalTypeParamsForDecoratedMembers = mutableListOf<BoundTypeParameter>()
         val typeParameterForDecoratorMutability = BoundTypeParameter(
             TypeParameter(
@@ -352,7 +298,7 @@ class BaseTypeConstructorDeclaration(
         typeRootContext: CTContext,
         memberVarDecls: List<BaseTypeMemberVariableDeclaration>,
         buildReceiverType: (Span) -> AstAbsoluteTypeReference,
-        typeDefAccessor: () -> BoundBaseType,
+        baseType: BoundBaseType,
     ): Pair<BoundClassConstructor, List<BoundBaseTypeMemberVariable>> {
         val ctorGeneratedSpan = span.deriveGenerated()
         val memberVariableBinders = memberVarDecls.map { it.Binder(typeRootContext) }
@@ -362,7 +308,7 @@ class BaseTypeConstructorDeclaration(
             memberVariableBinders,
             ctorGeneratedSpan,
         )
-        val constructorFunctionRootContext = BoundClassConstructor.ConstructorRootContext(typeRootContextWithAllCtorTypeParameters, typeDefAccessor)
+        val constructorFunctionRootContext = BoundClassConstructor.ConstructorRootContext(typeRootContextWithAllCtorTypeParameters, baseType)
         val selfVariableForInitCode = VariableDeclaration(
             declaredAt = ctorGeneratedSpan,
             visibility = null,
@@ -419,7 +365,7 @@ class BaseTypeConstructorDeclaration(
             }
 
         val boundMemberVariables = memberVariableBinders
-            .map { it.bindMemberVariableFinal(typeDefAccessor) }
+            .map { it.bindMemberVariableFinal(baseType) }
             .toList()
 
         userInitCode.add(code.bindTo(userInitCode.lastOrNull()?.modifiedContext ?: contextForUserInitCode))
@@ -430,7 +376,7 @@ class BaseTypeConstructorDeclaration(
         val boundCtor = BoundClassConstructor(
             fileContextWithDeclaredTypeParams,
             constructorFunctionRootContext,
-            boundTypeParameters ?: emptyList(),
+            boundTypeParameters,
             typeParameterForDecoratorMutability,
             additionalTypeParamsForDecoratedMembers,
             BoundParameterList(
@@ -445,7 +391,7 @@ class BaseTypeConstructorDeclaration(
             boundBody,
             this,
             buildReceiverType,
-            typeDefAccessor,
+            baseType,
         )
 
         return Pair(boundCtor, boundMemberVariables)
@@ -474,14 +420,14 @@ class BaseTypeDestructorDeclaration(
         parentContext: CTContext,
         parentContextWithTypeParameters: CTContext,
         typeParameters: List<BoundTypeParameter>?,
-        getClassDef: () -> BoundBaseType
+        baseType: BoundBaseType
     ): BoundClassDestructor {
         lateinit var dtor: BoundClassDestructor
         dtor = BoundClassDestructor(
             parentContext,
             parentContextWithTypeParameters,
             typeParameters ?: emptyList(),
-            getClassDef,
+            baseType,
             BoundFunctionAttributeList(parentContextWithTypeParameters, { dtor }, attributes),
             this
         )
@@ -498,13 +444,13 @@ class BaseTypeMemberFunctionDeclaration(
     fun bindTo(
         typeRootContext: CTContext,
         receiverType: AstAbsoluteTypeReference,
-        getTypeDef: () -> BoundBaseType,
+        baseType: BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(
             this,
             typeRootContext,
             receiverType,
-            getTypeDef,
+            baseType,
         )
     }
 }

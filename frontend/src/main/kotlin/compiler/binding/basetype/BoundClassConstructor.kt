@@ -76,11 +76,10 @@ class BoundClassConstructor(
     val boundBody: BoundCodeChunk,
     override val entryDeclaration: BaseTypeConstructorDeclaration,
     val buildReceiverType: (Span) -> AstAbsoluteTypeReference,
-    getClassDef: () -> BoundBaseType,
+    val classDef: BoundBaseType,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
     override val parentContext = fileContextWithDeclaredTypeParameters
 
-    val classDef: BoundBaseType by lazy(getClassDef)
     private val generatedSourceLocation = entryDeclaration.span.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
@@ -276,7 +275,7 @@ class BoundClassConstructor(
 
     class ConstructorRootContext(
         typeRootContextWithAllCtorTypeParameters: CTContext,
-        private val getClassDef: () -> BoundBaseType,
+        private val baseType: BoundBaseType,
     ) : MutableExecutionScopedCTContext(typeRootContextWithAllCtorTypeParameters, true, true, ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) {
         private val _mixins = mutableSetOf<BoundMixinStatement>()
         val mixins: Set<BoundMixinStatement> = Collections.unmodifiableSet(_mixins)
@@ -295,14 +294,14 @@ class BoundClassConstructor(
                 private lateinit var field: BaseTypeField
                 override fun obtainField(): BaseTypeField {
                     if (!this::field.isInitialized) {
-                        field = getClassDef().allocateField(type)
+                        field = baseType.allocateField(type)
                     }
 
                     return field
                 }
 
                 override fun addDestructingAction(action: DestructorCodeGenerator) {
-                    getClassDef().destructor?.addDestructingAction(action)
+                    baseType.destructor?.addDestructingAction(action)
                 }
             }
         }

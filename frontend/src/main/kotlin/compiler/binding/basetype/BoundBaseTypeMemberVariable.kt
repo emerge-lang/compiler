@@ -20,17 +20,15 @@ package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
+import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
-import compiler.binding.basetype.BoundBaseTypeMemberVariable.Ownership.OWNED
-import compiler.binding.basetype.BoundBaseTypeMemberVariable.Ownership.REFERENCED
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.explicitMutabilityOnOwnedMemberVariable
 import compiler.diagnostic.quoteIdentifier
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -42,18 +40,14 @@ class BoundBaseTypeMemberVariable(
     private val boundLocalVariableInConstructorCode: BoundVariable?,
     override val visibility: BoundVisibility,
     val attributes: BoundBaseTypeMemberVariableAttributes,
-    private val getTypeDef: () -> BoundBaseType,
+    private val baseType: BoundBaseType,
     override val entryDeclaration: BaseTypeMemberVariableDeclaration,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
-    init {
-        if (boundLocalVariableInConstructorCode == null) {
-            check(entryDeclaration.variableDeclaration.type != null)
-        }
-    }
     val name = entryDeclaration.name.value
     override val declaredAt = entryDeclaration.span
     val isReAssignable = entryDeclaration.variableDeclaration.isReAssignable
     val isConstructorParameterInitialized: Boolean = entryDeclaration.isConstructorParameterInitialized
+    val isMutabilityTiedToParentObject: Boolean = entryDeclaration.isMutabilityTiedToParentObject
 
     private val seanHelper = SeanHelper()
 
@@ -64,22 +58,31 @@ class BoundBaseTypeMemberVariable(
      *
      * available after [semanticAnalysisPhase2]
      */
-    var type: BoundTypeReference? by seanHelper.resultOfPhase2()
+    private var type: BoundTypeReference? by seanHelper.resultOfPhase2()
         private set
+
+    fun getTypeWhenAccessing(mutabilityOfHostingObject: TypeMutability): BoundTypeReference? {
+        if (!isMutabilityTiedToParentObject) {
+            return type
+        }
+
+        return type?.withMutabilityLimitedTo(mutabilityOfHostingObject)
+    }
+
+    fun getAssignmentTargetType(mutabilityOfHostingObject: TypeMutability): BoundTypeReference? {
+        if (!isMutabilityTiedToParentObject) {
+            return type
+        }
+
+        // TODO: if the type is inherently mut or const (e.g. S32), relax from exclusive
+        return type?.withMutability(mutabilityOfHostingObject)
+    }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         seanHelper.phase1(diagnosis) {
             visibility.validateOnElement(this, diagnosis)
             attributes.validate(diagnosis)
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase1(diagnosis)
-            when (attributes.ownership) {
-                REFERENCED -> { /* nothing to do */ }
-                OWNED -> {
-                    if (entryDeclaration.variableDeclaration.type?.mutability != null) {
-                        diagnosis.explicitMutabilityOnOwnedMemberVariable(this)
-                    }
-                }
-            }
         }
     }
 
@@ -113,7 +116,7 @@ class BoundBaseTypeMemberVariable(
      */
     fun assureFieldAllocated() {
         if (!this::field.isInitialized) {
-            field = getTypeDef().allocateField(this.type!!)
+            field = baseType.allocateField(this.type!!)
         }
     }
 
@@ -128,7 +131,7 @@ class BoundBaseTypeMemberVariable(
     }
     fun toBackendIr(): IrClass.MemberVariable = _backendIr
 
-    override fun toString() = getTypeDef().canonicalName.toString() + "." + name
+    override fun toString() = baseType.canonicalName.toString() + "." + name
 
     enum class Ownership {
         OWNED,

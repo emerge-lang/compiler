@@ -73,7 +73,7 @@ open class ValueNotAssignableDiagnostic(
                 TypeMutability.IMMUTABLE -> return "A const value is needed here. This is a read reference, immutability is not guaranteed."
             }
             TypeMutability.IMMUTABLE -> when (targetType.mutability) {
-                TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an const value."
+                TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is a const value."
                 TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is const."
                 TypeMutability.READONLY,
                 TypeMutability.IMMUTABLE -> throw InternalCompilerError("This should not have happened")

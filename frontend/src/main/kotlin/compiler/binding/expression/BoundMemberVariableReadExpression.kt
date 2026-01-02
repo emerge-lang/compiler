@@ -88,7 +88,7 @@ class BoundMemberVariableReadExpression(
         val nonNullableType = if (physicalMember == null) {
             getterInvocation.type
         } else {
-            val rawMemberType = physicalMember!!.type ?: return null
+            val rawMemberType = physicalMember!!.getTypeWhenAccessing(valueType.mutability) ?: return null
             val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
             when (physicalMember!!.attributes.ownership) {
@@ -183,7 +183,7 @@ class BoundMemberVariableReadExpression(
         check(!usageContextSet)
         usageContextSet = true
 
-        if (physicalMember != null && physicalMember!!.type?.mutability in setOf(null, TypeMutability.READONLY, TypeMutability.IMMUTABLE)) {
+        if (physicalMember != null && type?.mutability in setOf(null, TypeMutability.READONLY, TypeMutability.IMMUTABLE)) {
             // using the derived value doesn't have an impact on the holder object because the invariants are guaranteed
             // by the member variable type alone, and don't depend on the type of the reference to the holder object
             valueExpression.setEvaluationResultUsage(TransientValueUsage(valueExpression.declaration.span))

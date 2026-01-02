@@ -11,7 +11,6 @@ import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
 import compiler.diagnostic.ExclusiveUpperBoundMutabilityDiagnostic
-import compiler.diagnostic.ExplicitMutabilityOnOwnedMemberVariableDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
@@ -190,16 +189,51 @@ class ClassErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
-            "owned member variables cannot have explicit mutability in the type" {
+            "owned member variables cannot be initialized from expressions evaluating to read, const or mut" {
                 validateModule("""
                     class Box {
                         var x: S32 = 0
                     }
                     class Foo {
-                        own box: mut Box = init
+                        own box: Box = readBox()
                     }
+                    
+                    fn readBox() -> read Box = Box()
                 """.trimIndent())
-                    .shouldFind<ExplicitMutabilityOnOwnedMemberVariableDiagnostic>()
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "read Box"
+                        it.targetType.toString() shouldBe "exclusive Any"
+                    }
+
+                validateModule("""
+                    class Box {
+                        var x: S32 = 0
+                    }
+                    class Foo {
+                        own box: Box = constBox()
+                    }
+                    
+                    fn constBox() -> const Box = Box()
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "const Box"
+                        it.targetType.toString() shouldBe "exclusive Any"
+                    }
+
+                validateModule("""
+                    class Box {
+                        var x: S32 = 0
+                    }
+                    class Foo {
+                        own box: Box = mutBox()
+                    }
+                    
+                    fn mutBox() -> mut Box = Box()
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "mut Box"
+                        it.targetType.toString() shouldBe "exclusive Any"
+                    }
             }
         }
     }

@@ -405,6 +405,7 @@ class BoundVariable(
         interface Sean2Stage {
             val typeAfterSean1: BoundTypeReference?
             val expectedInitializerEvaluationType: BoundTypeReference?
+            /** TODO: unused? -> remove */
             val utilizesInitializerType: Boolean
 
             fun doSean2WithInitializer(initializerExpression: BoundExpression<*>, diagnosis: Diagnosis): Sean3Stage
@@ -597,6 +598,81 @@ class BoundVariable(
                             override fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage {
                                 return object : Sean3Stage {
                                     override val typeAfterSean2 = typeAfterSean1
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * * forbids explicit mutability at the root level
+         * * the result in [Sean3Stage.typeAfterSean2] will always be [TypeMutability.READONLY]
+         * * the rest is inferred from the initializer
+         * * ignores [compiler.binding.BoundVariable.isReAssignable]
+         */
+        object OwnedMemberVariable : TypeInferenceStrategy {
+            override fun init(
+                context: CTContext,
+                kind: Kind,
+                isReAssignable: Boolean,
+                name: String,
+                declaredAt: Span
+            ): Sean1Stage {
+                return object : Sean1Stage {
+                    override fun doSean1(
+                        declaredType: TypeReference?,
+                        hasInitializer: Boolean,
+                        diagnosis: Diagnosis
+                    ): Sean2Stage {
+                        diagnosis.typeDeductionError(
+                            "Cannot determine type of ${kind.readableKindName} $name; neither type nor initializer is specified.",
+                            declaredAt,
+                        )
+
+                        return object : Sean2Stage {
+                            override val typeAfterSean1: BoundTypeReference? = declaredType
+                                ?.takeUnless { declaredType.requestsBaseTypeInference }
+                                ?.withMutability(TypeMutability.READONLY)
+                                ?.let(context::resolveType)
+
+                            override val expectedInitializerEvaluationType: BoundTypeReference? = typeAfterSean1
+                                ?.withMutability(TypeMutability.EXCLUSIVE)
+
+                            override val utilizesInitializerType: Boolean
+                                get() = declaredType != null && !declaredType.requestsBaseTypeInference
+
+                            override fun doSean2WithoutInitializer(diagnosis: Diagnosis): Sean3Stage {
+                                return object : Sean3Stage {
+                                    override val typeAfterSean2 = typeAfterSean1
+                                }
+                            }
+
+                            override fun doSean2WithInitializer(
+                                initializerExpression: BoundExpression<*>,
+                                diagnosis: Diagnosis
+                            ): Sean3Stage {
+                                val typeAfterSean2 = typeAfterSean1 ?: run {
+                                    initializerExpression.type
+                                        ?.withMutability(TypeMutability.READONLY)
+                                        ?.withCombinedNullability(declaredType?.nullability ?: TypeReference.Nullability.UNSPECIFIED)
+                                }
+
+                                if (typeAfterSean2 != null) {
+                                    initializerExpression.type?.let { initializerType ->
+                                        initializerType.evaluateAssignabilityTo(
+                                            typeAfterSean2,
+                                            initializerExpression.declaration.span
+                                        )
+                                            ?.let(diagnosis::add)
+                                    }
+                                }
+
+                                // TODO: incorporate inherent mutability of declared type, e.g. S32 always being const
+
+                                return object : Sean3Stage {
+                                    override val typeAfterSean2 = typeAfterSean2
                                 }
                             }
                         }

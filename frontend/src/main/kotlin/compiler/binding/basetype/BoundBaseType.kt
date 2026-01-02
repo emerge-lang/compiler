@@ -19,10 +19,15 @@
 package compiler.binding.basetype
 
 import compiler.ast.AstCodeChunk
+import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeMemberFunctionDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.AstWildcardTypeArgument
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
@@ -49,6 +54,8 @@ import compiler.diagnostic.exclusiveUpperBoundMutability
 import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
 import compiler.diagnostic.multipleAccessorsOnBaseType
+import compiler.diagnostic.multipleClassConstructors
+import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
 import compiler.diagnostic.unsupportedVarianceOnBaseTypeTypeParameter
 import compiler.diagnostic.unusedMixin
@@ -56,6 +63,7 @@ import compiler.diagnostic.virtualAndActualMemberVariableNameClash
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
+import compiler.util.partitionIsInstanceOf
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -70,13 +78,13 @@ import java.util.IdentityHashMap
 
 class BoundBaseType(
     private val fileContext: CTContext,
+    private val fileContextWithDeclaredTypeParams: CTContext,
     val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
     val typeParameters: List<BoundTypeParameter>?,
     val superTypes: BoundSupertypeList,
     override val declaration: BaseTypeDeclaration,
-    private val bindTimeDiagnosis: CollectingDiagnosis,
 ) : BoundElement<BaseTypeDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
@@ -102,16 +110,98 @@ class BoundBaseType(
      */
     val mutabilityUpperBound: TypeMutability get()= superTypes.mutabilityUpperBound
 
-    /**
-     * Late initialization so that references to this base-type can already be created in the entries
-     * (member variables and constructor code).
-     */
-    fun init(constructor: BoundClassConstructor, memberVariables: List<BoundBaseTypeMemberVariable>, nonVariableEntries: List<BoundBaseTypeEntry<*>>) {
-        this.constructor = constructor.takeIf { kind.hasCtorsAndDtors }
-        this.memberVariables = memberVariables
-        declaredDestructors = nonVariableEntries.filterIsInstance<BoundClassDestructor>().asSequence()
+    // TODO: ditch bindTimeDiagnosis and integrate late binding fully into sean1?
+    private var lateBindDone = false
+    private val bindTimeDiagnosis = CollectingDiagnosis()
+    private fun lateBindMembers() {
+        check(!lateBindDone)
+        lateBindDone = true
 
-        this.entries = listOf(constructor) + memberVariables + nonVariableEntries
+        /*
+        this method is SERIOUSLY complex, because it does all the reordering of the syntactic elements in the
+        base type definition, including a bunch of code generation for the constructor
+         */
+
+        val buildAstReceiverType: (Span) -> AstAbsoluteTypeReference = { span ->
+            AstAbsoluteTypeReference(
+                canonicalName,
+                typeParameters?.map { astTypeParam ->
+                    AstSpecificTypeArgument(
+                        TypeVariance.UNSPECIFIED,
+                        NamedTypeReference(astTypeParam.name, span = span)
+                    )
+                },
+                span = span,
+            )
+        }
+
+        val givenConstructorDeclarations =
+            declaration.entryDeclarations.filterIsInstance<BaseTypeConstructorDeclaration>()
+        val chosenConstructorDeclaration = givenConstructorDeclarations.firstOrNull()
+            ?: BaseTypeConstructorDeclaration.generateDefault(this.declaration)
+        val superfluousConstructorDeclarations = givenConstructorDeclarations.drop(1)
+
+        val (memberVariableEntryDecls, nonVarEntryDecls) = declaration.entryDeclarations.partitionIsInstanceOf<_, BaseTypeMemberVariableDeclaration>()
+        val (boundChosenCtor, boundMemberVars) = chosenConstructorDeclaration.bindConstructorAndMemberVariables(
+            fileContextWithDeclaredTypeParams,
+            typeParameters ?: emptyList(),
+            typeRootContext,
+            memberVariableEntryDecls,
+            buildAstReceiverType,
+            this,
+        )
+
+        val boundNonVarEntries = nonVarEntryDecls
+            .asSequence()
+            .filter { it !is BaseTypeConstructorDeclaration } // they are irrelevant here
+            .map { entry ->
+                when (entry) {
+                    is BaseTypeMemberFunctionDeclaration -> {
+                        entry.bindTo(
+                            typeRootContext,
+                            buildAstReceiverType(
+                                entry.functionDeclaration.parameters.parameters.firstOrNull()?.name?.span ?: entry.span
+                            ),
+                            this,
+                        )
+                    }
+
+                    is BaseTypeDestructorDeclaration -> {
+                        entry.bindTo(fileContext, fileContextWithDeclaredTypeParams, typeParameters, this)
+                    }
+
+                    is BaseTypeMemberVariableDeclaration,
+                    is BaseTypeConstructorDeclaration -> error("unreachable, member vars and constructors are done above")
+                }
+            }
+            .toList()
+
+        if (kind.hasCtorsAndDtors) {
+            if (superfluousConstructorDeclarations.isNotEmpty()) {
+                bindTimeDiagnosis.multipleClassConstructors(superfluousConstructorDeclarations)
+            }
+            declaration.entryDeclarations
+                .asSequence()
+                .filterIsInstance<BaseTypeDestructorDeclaration>()
+                .drop(1)
+                .toList()
+                .takeIf { it.isNotEmpty() }
+                ?.let {
+                    bindTimeDiagnosis.multipleClassDestructors(it)
+                }
+        } else {
+            declaration.entryDeclarations
+                .asSequence()
+                .filter { it is BaseTypeConstructorDeclaration || it is BaseTypeDestructorDeclaration }
+                .forEach {
+                    bindTimeDiagnosis.entryNotAllowedOnBaseType(this, it)
+                }
+        }
+
+        constructor = boundChosenCtor.takeIf { kind.hasCtorsAndDtors }
+        memberVariables = boundMemberVars
+        declaredDestructors = boundNonVarEntries.filterIsInstance<BoundClassDestructor>().asSequence()
+        entries = listOf(boundChosenCtor) + boundMemberVars + boundNonVarEntries
     }
 
     private fun buildBoundReference(arguments: List<BoundTypeArgument>?, span: Span): RootResolvedTypeReference {
@@ -180,6 +270,7 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            lateBindMembers()
             bindTimeDiagnosis.replayOnto(diagnosis)
 
             typeParameters?.forEach {
@@ -204,7 +295,7 @@ class BoundBaseType(
                         emptyList(),
                         AstCodeChunk(emptyList())
                     )
-                    destructor = defaultDtorAst.bindTo(context, typeRootContext, typeParameters) { this }
+                    destructor = defaultDtorAst.bindTo(context, typeRootContext, typeParameters, this)
                     destructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     destructor = declaredDestructors.first()

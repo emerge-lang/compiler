@@ -70,7 +70,7 @@ data class FunctionDeclaration(
         entryDeclaration: BaseTypeMemberFunctionDeclaration,
         context: CTContext,
         receiverType: AstAbsoluteTypeReference,
-        getTypeDef: () -> BoundBaseType
+        baseType: BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
@@ -88,7 +88,7 @@ data class FunctionDeclaration(
             boundTypeParams,
             boundParameterList,
             boundBody,
-            getTypeDef,
+            baseType,
             lazyReceiverType,
         )
         return boundFn

@@ -111,7 +111,7 @@ enum class TypeMutability(
             }
             READONLY -> READONLY
             IMMUTABLE -> IMMUTABLE
-            EXCLUSIVE -> error("unreachable")
+            EXCLUSIVE -> error("unreachable, covered above")
         }
     }
 

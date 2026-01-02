@@ -92,9 +92,8 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override val assignmentTargetType: BoundTypeReference? get() {
-        // TODO: this is very likely not correct anymore after the new ref/own member vars
         val contextualType = if (physicalMembers.isNotEmpty() || !considerSetters) {
-            physicalMembers.firstOrNull()?.type
+            physicalMembers.firstOrNull()?.getAssignmentTargetType(targetObjectExpression.type?.mutability ?: TypeMutability.READONLY)
         } else {
             setterInvocation.functionToInvoke?.parameterTypes?.getOrNull(1)
         }
@@ -243,7 +242,7 @@ class BoundObjectMemberAssignmentStatement(
             // this is the first assignment, no need to drop a previous reference
             dropPreviousReferenceCode = null
         } else {
-            var previousType = member.type!!.toBackendIr()
+            var previousType = member.getAssignmentTargetType(TypeMutability.READONLY)!!.toBackendIr()
             if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
                 // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
                 previousType = previousType.asNullable()

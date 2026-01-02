@@ -3,9 +3,10 @@ package emerge.core.range
 import emerge.platform.panic
 
 export class ArrayRange<Element> : SizedRange<Element> & RandomAccessRange<Element> & BidirectionalRange<Element> {
+    // TODO: change this to owned once the compiler can handle it
     ref array: read Array<Element> = init
-    var frontIndex: UWord = 0
-    var backIndexPlus1: UWord = self.array.size
+    ref var frontIndex: UWord = 0
+    ref var backIndexPlus1: UWord = self.array.size
 
     export override get fn size(self) = self.backIndexPlus1 - self.frontIndex
 

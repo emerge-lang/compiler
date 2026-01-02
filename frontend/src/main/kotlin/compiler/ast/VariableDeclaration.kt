@@ -55,18 +55,11 @@ data class VariableDeclaration(
         return bindTo(context, context, BoundVariable.TypeInferenceStrategy.NoInference, BoundVariable.Kind.CONSTRUCTOR_PARAMETER)
     }
 
-    fun bindToAsLocalVariable(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability, BoundVariable.Kind.LOCAL_VARIABLE)
-    }
-
-    fun bindToAsMemberVariable(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(
-            context,
-            context,
-            BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability,
-            BoundVariable.Kind.MEMBER_VARIABLE,
-            bindInitializer = false,
-        )
+    fun bindToAsLocalVariable(
+        context: ExecutionScopedCTContext,
+        typeInferenceStrategy: BoundVariable.TypeInferenceStrategy = BoundVariable.TypeInferenceStrategy.InferBaseTypeAndMutability
+    ): BoundVariable {
+        return bindTo(context, context, typeInferenceStrategy, BoundVariable.Kind.LOCAL_VARIABLE)
     }
 
     private fun bindTo(
