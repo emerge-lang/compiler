@@ -306,7 +306,7 @@ export class U64 : const Any & Printable {
         stream.put(self.toString(addMinusSign))
     }
     
-    private fn toString(self: U64, addMinusSign: Bool) -> const String {
+    private fn toString(self: U64, addMinusSign: Bool) -> String {
         if self == 0 {
             return "0"
         }
@@ -458,7 +458,7 @@ export class Array<Element> : Iterable<Element> {
 }
 
 export class ArrayIndexOutOfBoundsError : Error {
-    ref export invalidIndex: const UWord = init
+    export invalidIndex: UWord = init
     
     export constructor {
         mixin ThrowableTrait(null)

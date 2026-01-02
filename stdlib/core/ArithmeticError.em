@@ -1,7 +1,7 @@
 package emerge.core
 
 export class ArithmeticError : Error {
-    ref private _message: const String = init
+    private _message: String = init
     
     constructor {
         mixin ThrowableTrait(self._message)
