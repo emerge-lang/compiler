@@ -34,7 +34,7 @@ class RootResolvedTypeReference private constructor(
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val isNullable = false
-    override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val mutability = baseType.mutabilityUpperBound.intersect(explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType

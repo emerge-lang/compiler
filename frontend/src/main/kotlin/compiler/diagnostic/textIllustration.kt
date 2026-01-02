@@ -37,3 +37,20 @@ fun String.quoteIdentifier(): TextSpan = TextSpan("`$this`")
 fun IdentifierToken.quote(): TextSpan = TextSpan("`${this.value}`")
 fun CanonicalElementName.quote(): TextSpan = TextSpan("`$this`")
 fun BoundTypeReference.quote(): TextSpan = TextSpan("`$this`")
+
+fun Sequence<String>.enumerateNonEmpty(): String {
+    val iterator = iterator()
+    var str = iterator.next()
+    if (!iterator.hasNext()) return str
+
+    while (iterator.hasNext()) {
+        val next = iterator.next()
+        if (iterator.hasNext()) {
+            str += ", $next"
+        } else {
+            str += " and $next"
+        }
+    }
+
+    return str
+}

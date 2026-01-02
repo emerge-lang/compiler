@@ -4,6 +4,7 @@ import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeMutability.Companion.foldIntersect
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
@@ -434,7 +435,7 @@ class BoundIntersectionTypeReference private constructor(
 
             val anyMutability = anys.asSequence()
                 .map { it.mutability }
-                .fold(TypeMutability.READONLY, TypeMutability::intersect)
+                .foldIntersect()
 
             if (nonAnys.isEmpty()) {
                 return listOf(

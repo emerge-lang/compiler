@@ -4,7 +4,7 @@ import emerge.core.safemath.plusModulo
 
 // runtime type information / reflection data on a base type (class or interface)
 // TODO: parameterize on type it is reflection on, like java.lang.Class<T> ?
-export class ReflectionBaseType {
+export class ReflectionBaseType : const Any {
     // points to all the DYNAMIC ReflectionBaseType infos, except Any
     ref private supertypes: const Array<ReflectionBaseType> = init
 

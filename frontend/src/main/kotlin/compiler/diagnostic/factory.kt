@@ -273,6 +273,36 @@ fun Diagnosis.cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSu
     add(CyclicInheritanceDiagnostic(type.declaration, involvingSupertype))
 }
 
+fun Diagnosis.exclusiveUpperBoundMutability(type: BoundBaseType) {
+    var currentUpperBound = TypeMutability.top()
+    val contributingBounds = mutableListOf<Pair<Span, TypeMutability>>()
+    for (stClause in type.superTypes.clauses) {
+        val mutability = stClause.astNode.mutability
+            ?: stClause.resolvedReference?.baseType?.mutabilityUpperBound
+            ?: TypeMutability.top()
+
+        if (mutability == TypeMutability.EXCLUSIVE) {
+            add(ExclusiveUpperBoundMutabilityDiagnostic(type.canonicalName, listOf(Pair(stClause.astNode.span!!, mutability)), stClause.astNode.span!!))
+            return
+        }
+
+        val nextUpperBound = currentUpperBound.intersect(mutability)
+        if (nextUpperBound == currentUpperBound) {
+            continue
+        }
+
+        contributingBounds += Pair(stClause.astNode.span!!, mutability)
+        currentUpperBound = nextUpperBound
+    }
+
+    check(currentUpperBound == TypeMutability.EXCLUSIVE)
+    add(ExclusiveUpperBoundMutabilityDiagnostic(type.canonicalName, contributingBounds, type.declaration.declaredAt))
+}
+
+fun Diagnosis.superfluousMutabilityInSupertype(supertype: AstSimpleTypeReference) {
+    add(SuperfluousMutabilityInSupertypeDeclarationDiagnostic(supertype.span!!))
+}
+
 fun Diagnosis.duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseType>) {
     add(DuplicateBaseTypesDiagnostic(packageName, duplicates.map { it.declaration }))
 }

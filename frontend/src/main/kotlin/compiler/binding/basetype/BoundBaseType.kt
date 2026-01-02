@@ -23,6 +23,7 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstWildcardTypeArgument
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
@@ -44,6 +45,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
+import compiler.diagnostic.exclusiveUpperBoundMutability
 import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
 import compiler.diagnostic.multipleAccessorsOnBaseType
@@ -93,6 +95,12 @@ class BoundBaseType(
         private set
     var constructor: BoundClassConstructor? = null
         private set
+
+    /**
+     * An upper bound for the mutability of this type. E.g. `S32` is declared to inherit from `const Any`,
+     * so `const` is the upper bound for the mutability of all possible values for `S32`.
+     */
+    val mutabilityUpperBound: TypeMutability get()= superTypes.mutabilityUpperBound
 
     /**
      * Late initialization so that references to this base-type can already be created in the entries
@@ -181,6 +189,9 @@ class BoundBaseType(
                 }
             }
             superTypes.semanticAnalysisPhase1(diagnosis)
+            if (mutabilityUpperBound == TypeMutability.EXCLUSIVE) {
+                diagnosis.exclusiveUpperBoundMutability(this)
+            }
 
             entries.forEach {
                 it.semanticAnalysisPhase1(diagnosis)

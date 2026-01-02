@@ -120,13 +120,16 @@ enum class TypeMutability(
      * |-----------|-----------|-----------|
      * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
      * |`MUTABLE`  |`READONLY` |`MUTABLE`  |
-     * |`MUTABLE`  |`IMMUTABLE`|`MUTABLE`  |
+     * |`MUTABLE`  |`IMMUTABLE`|`EXCLUSIVE`|
+     * |`MUTABLE`  |`EXCLUSIVE`|`EXCLUSIVE`|
      * |`READONLY` |`MUTABLE`  |`MUTABLE`  |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`IMMUTABLE`|
+     * |`READONLY` |`EXCLUSIVE`|`EXCLUSIVE`|
      * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
      * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`IMMUTABLE`|`EXCLUSIVE`|`EXCLUSIVE`|
      * @return the [TypeMutability] that describes the intersection-set of `this` and [other]. In other words,
      * returns the mutability that describes the guarantees and constraints from both `this` and [other].
      */
@@ -157,4 +160,28 @@ enum class TypeMutability(
     }
 
     override fun toString() = keyword.text
+
+    companion object {
+        private val _top: TypeMutability = READONLY
+        init {
+            enumValues<TypeMutability>().forEach {
+                assert(it.isAssignableTo(_top)) {
+                    "${TypeMutability::_top} is not set correctly: cannot assign $_top to $it"
+                }
+            }
+        }
+        fun top(): TypeMutability = _top
+
+        fun Sequence<TypeMutability>.foldIntersect(initial: TypeMutability = TypeMutability.top()): TypeMutability {
+            var carry = initial
+            for (next in this) {
+                if (carry == EXCLUSIVE) {
+                    return carry
+                }
+                carry = carry.intersect(next)
+            }
+
+            return carry
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeMutability
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.ReassignmentBeyondBoundary
@@ -9,6 +10,7 @@ import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstruc
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
+import compiler.diagnostic.ExclusiveUpperBoundMutabilityDiagnostic
 import compiler.diagnostic.ExplicitMutabilityOnOwnedMemberVariableDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.ExternalMemberFunctionDiagnostic
@@ -29,6 +31,7 @@ import compiler.diagnostic.OverrideDropsNothrowDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.StaticFunctionDeclaredOverrideDiagnostic
 import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
+import compiler.diagnostic.SuperfluousMutabilityInSupertypeDeclarationDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeParameterNameConflictDiagnostic
 import compiler.diagnostic.UndeclaredOverrideDiagnostic
@@ -39,6 +42,7 @@ import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
+import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.should
@@ -842,6 +846,42 @@ class ClassErrors : FreeSpec({
                 .shouldFind<TypeArgumentOutOfBoundsDiagnostic> {
                     it.argument.simpleName shouldBe "String"
                 }
+        }
+
+        "supertypes with const and mut mutabilities" {
+            validateModule("""
+                interface Foo {}
+                interface Bar {}
+                class Test : mut Foo & const Bar {
+                }
+            """.trimIndent())
+                .shouldFind< ExclusiveUpperBoundMutabilityDiagnostic> {
+                    it.baseTypeName.toString() shouldBe "testmodule.Test"
+                    it.conflictingSupertypeMutabilities.forOne { m ->
+                        m.second shouldBe TypeMutability.MUTABLE
+                    }
+                    it.conflictingSupertypeMutabilities.forOne { m ->
+                        m.second shouldBe TypeMutability.IMMUTABLE
+                    }
+                }
+        }
+
+        "supertypes with exclusive mutability" {
+            validateModule("""
+                class Test : exclusive Any {
+                }
+            """.trimIndent())
+                .shouldFind< ExclusiveUpperBoundMutabilityDiagnostic> {
+                    it.baseTypeName.toString() shouldBe "testmodule.Test"
+                    it.conflictingSupertypeMutabilities.shouldBeSingleton().single().second shouldBe TypeMutability.EXCLUSIVE
+                }
+        }
+
+        "explicit read mutability in supertype declaration is superfluous" {
+            validateModule("""
+                class Test : read Any {}
+            """.trimIndent())
+                .shouldFind<SuperfluousMutabilityInSupertypeDeclarationDiagnostic>()
         }
     }
 

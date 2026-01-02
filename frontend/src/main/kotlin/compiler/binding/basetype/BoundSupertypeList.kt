@@ -3,6 +3,8 @@ package compiler.binding.basetype
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeMutability.Companion.foldIntersect
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
@@ -16,7 +18,10 @@ import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.duplicateSupertype
 import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
+import compiler.diagnostic.superfluousMutabilityInSupertype
+import compiler.handleCyclicInvocation
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import kotlinext.duplicatesBy
 
 class BoundSupertypeList(
@@ -49,6 +54,42 @@ class BoundSupertypeList(
      */
     var hasUnresolvedSupertypes: Boolean by seanHelper.resultOfPhase1(allowReassignment = false)
         private set
+
+    /**
+     * An upper bound for the mutability of this type. E.g. `S32` is declared to inherit from `const Any`,
+     * so `const` is the upper bound for the mutability of all possible values for `S32`.
+     */
+    val mutabilityUpperBound: TypeMutability by lazy {
+        if (typeDef.canonicalName == EmergeConstants.CoreModule.ANY_TYPE_NAME || typeDef.canonicalName == EmergeConstants.CoreModule.NOTHING_TYPE_NAME) {
+            return@lazy TypeMutability.top()
+        }
+
+        clauses
+            .asSequence()
+            .mapNotNull { it.astNode.mutability }
+            .foldIntersect()
+            .takeUnless { it == TypeMutability.top() }
+            ?.let {
+                // can be determined from AST alone without actually looking up the supertypes in the context
+                return@lazy it
+            }
+
+        clauses
+            .asSequence()
+            .map { it.astNode }
+            .map { astSuperType ->
+                astSuperType.mutability?.let { return@map it }
+                val superBaseType = context.resolveBaseType(astSuperType.simpleName).firstOrNull()
+                    ?: return@map TypeMutability.top()
+                handleCyclicInvocation(
+                    context = this@BoundSupertypeList,
+                    action = { superBaseType.mutabilityUpperBound },
+                    onCycle = { TypeMutability.top() /* ignore cyclic inheritance here, gets detected in phase 1 */ },
+                )
+
+            }
+            .foldIntersect()
+    }
 
     /**
      * For example, given:
@@ -86,6 +127,13 @@ class BoundSupertypeList(
                 .values
                 .forEach { duped ->
                     diagnosis.duplicateSupertype(duped.first().asAstReference())
+                }
+
+            clauses
+                .map { it.astNode }
+                .filter { it.mutability == TypeMutability.top() }
+                .forEach {
+                    diagnosis.superfluousMutabilityInSupertype(it)
                 }
 
             inheritedMemberFunctions = clauses

@@ -10,6 +10,7 @@ data object EmergeConstants {
     data object CoreModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "core"))
         val ANY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Any")
+        val NOTHING_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Nothing")
         val UNIT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Unit")
         val THROWABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Throwable")
         val ERROR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Error")
