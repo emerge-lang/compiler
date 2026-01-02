@@ -102,17 +102,17 @@ class BaseTypeMemberVariableDeclaration(
         false
     }
 
-    val isMutabilityTiedToParentObject: Boolean =
-        attributes.ownership == BoundBaseTypeMemberVariable.Ownership.OWNED &&
-        variableDeclaration.type?.mutability == null
-
     inner class Binder(val typeRootContext: CTContext) {
         val isConstructorParameterInitialized: Boolean = this@BaseTypeMemberVariableDeclaration.isConstructorParameterInitialized
-        val isMutabilityTiedToParentObject: Boolean = this@BaseTypeMemberVariableDeclaration.isMutabilityTiedToParentObject
-        val mayNeedConstructorTypeParameter: Boolean get()= needsCtorTypeParameter != false
 
-        private var needsCtorTypeParameter: Boolean? = if (isConstructorParameterInitialized && isMutabilityTiedToParentObject) null /* not yet known*/ else false /* definitely not */
+        private val isOwned: Boolean = attributes.ownership == BoundBaseTypeMemberVariable.Ownership.OWNED
+        private var needsCtorTypeParameter: Boolean? = if (isConstructorParameterInitialized && isOwned) null /* not yet known*/ else false /* definitely not */
         private var ctorTypeParameter: BoundTypeParameter? = null
+        val mayNeedConstructorTypeParameter: Boolean get()= needsCtorTypeParameter != false
+        private val resolvedType: BoundTypeReference? by lazy {
+            variableDeclaration.type?.let(typeRootContext::resolveType)
+        }
+        private val isMutabilityTiedToParentObject: Boolean get() = isOwned && resolvedType?.mutability in setOf(null, TypeMutability.top())
 
         fun generateTypeParameterForConstructor(
             contextBeforeCtorFunctionRoot: CTContext,
@@ -131,13 +131,10 @@ class BaseTypeMemberVariableDeclaration(
                 needsCtorTypeParameter = false
                 return null
             }
-            if (declaredType != null) {
-                val resolvedType = typeRootContext.resolveType(declaredType)
-                if (resolvedType.mutability != TypeMutability.top()) {
-                    // mutability is pre-determined, no need to parameterize the constructor
-                    needsCtorTypeParameter = false
-                    return null
-                }
+            if (resolvedType?.mutability !in setOf(null, TypeMutability.top())) {
+                // mutability is pre-determined, no need to parameterize the constructor
+                needsCtorTypeParameter = false
+                return null
             }
             needsCtorTypeParameter = true
 
@@ -239,6 +236,7 @@ class BaseTypeMemberVariableDeclaration(
                     attributes,
                     baseType,
                     this@BaseTypeMemberVariableDeclaration,
+                    isMutabilityTiedToParentObject,
                 )
             }
 

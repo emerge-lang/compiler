@@ -1,7 +1,7 @@
 package emerge.ffi.c
 
 export class COpaquePointer {
-    private pointed: Any = init
+    ref private pointed: Any = init
 }
 
 export class CPointer<T> {

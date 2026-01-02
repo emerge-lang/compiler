@@ -42,12 +42,12 @@ class BoundBaseTypeMemberVariable(
     val attributes: BoundBaseTypeMemberVariableAttributes,
     private val baseType: BoundBaseType,
     override val entryDeclaration: BaseTypeMemberVariableDeclaration,
+    val isMutabilityTiedToParentObject: Boolean,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = entryDeclaration.name.value
     override val declaredAt = entryDeclaration.span
     val isReAssignable = entryDeclaration.variableDeclaration.isReAssignable
     val isConstructorParameterInitialized: Boolean = entryDeclaration.isConstructorParameterInitialized
-    val isMutabilityTiedToParentObject: Boolean = entryDeclaration.isMutabilityTiedToParentObject
 
     private val seanHelper = SeanHelper()
 
