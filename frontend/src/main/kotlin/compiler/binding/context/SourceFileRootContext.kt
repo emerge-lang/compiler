@@ -150,6 +150,7 @@ class SourceFileRootContext(
             override val parentLoop = null
 
             override val parentScopeContext: ExecutionScopedCTContext? = null
+            override val parentFunctionContext: ExecutionScopedCTContext? = null
             override val irScope: IrVariableDeclaration.Scope
                 get() = throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
 

@@ -79,6 +79,11 @@ interface ExecutionScopedCTContext : CTContext {
     val parentScopeContext: ExecutionScopedCTContext?
 
     /**
+     * This context, or the closest parent that is [isFunctionRoot], or null if none.
+     */
+    val parentFunctionContext: ExecutionScopedCTContext?
+
+    /**
      * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
      * of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
@@ -202,8 +207,8 @@ open class MutableExecutionScopedCTContext protected constructor(
         parent
     }
 
-    private val parentFunctionContext: ExecutionScopedCTContext? by lazy {
-        val parent = hierarchy.drop(1)
+    override val parentFunctionContext: ExecutionScopedCTContext? by lazy {
+        val parent = hierarchy
             .filterIsInstance<ExecutionScopedCTContext>()
             .firstOrNull { it.isFunctionRoot }
 
@@ -285,7 +290,7 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
-        return getDeferredCodeUpToIncluding(parentFunctionContext ?: this)
+        return getDeferredCodeUpToIncluding((parentContext as? ExecutionScopedCTContext)?.parentFunctionContext ?: this)
     }
 
     override val irScope: IrVariableDeclaration.Scope by lazy {

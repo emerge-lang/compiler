@@ -313,7 +313,7 @@ class BaseTypeConstructorDeclaration(
             varToken = null,
             ownership = null,
             name = IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, ctorGeneratedSpan),
-            type = buildReceiverType(ctorGeneratedSpan).withMutability(TypeMutability.EXCLUSIVE),
+            type = buildReceiverType(ctorGeneratedSpan).withMutability(TypeMutability.top()),
             initializerExpression = null,
         ).bindTo(constructorFunctionRootContext)
         selfVariableForInitCode.defaultOwnership = VariableOwnership.BORROWED

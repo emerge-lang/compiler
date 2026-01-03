@@ -7,6 +7,7 @@ import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -181,14 +182,25 @@ class BoundObjectMemberAssignmentStatement(
         targetObjectExpression.semanticAnalysisPhase3(diagnosis)
 
         targetObjectExpression.type?.let { memberOwnerType ->
-            if (!memberOwnerType.mutability.isMutable) {
-                diagnosis.valueNotAssignable(
-                    memberOwnerType.withMutability(TypeMutability.MUTABLE),
-                    memberOwnerType,
-                    "Cannot mutate a value of type $memberOwnerType",
-                    targetObjectExpression.declaration.span,
-                )
+            if (memberOwnerType.mutability.isMutable) {
+                // mutation of the target object is allowed, all good
+                return@let
             }
+
+            if (initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED) {
+                // mutation of the target object is not allowed, but the target object is only partially initialized
+                // this only happens for the initial assignments in the auto-generated class constructor code, and it's okay
+                if (context.parentFunctionContext is BoundClassConstructor.ConstructorRootContext) {
+                    return@let
+                }
+            }
+
+            diagnosis.valueNotAssignable(
+                memberOwnerType.withMutability(TypeMutability.MUTABLE),
+                memberOwnerType,
+                "Cannot mutate a value of type $memberOwnerType",
+                targetObjectExpression.declaration.span,
+            )
         }
 
         if (physicalMembers.isEmpty() && considerSetters) {
