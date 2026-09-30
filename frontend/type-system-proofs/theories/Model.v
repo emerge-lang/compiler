@@ -1,5 +1,7 @@
 From Stdlib Require Import String Arith.
 
+Section Model.
+
 Inductive Mutability :=
     | exclusive
     | immutable
@@ -167,3 +169,5 @@ Record ClassDecl := {
     supertypes: list EType;
     fields: list Field;
 }.
+
+End Model.

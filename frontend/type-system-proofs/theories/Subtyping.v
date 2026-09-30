@@ -208,37 +208,35 @@ Record VariableState := mkVariableState {
     is_exact: bool;
 }.
 
+Definition VariableStates := list (TypeParameterId * VariableState).
+
 (*
  * TypeUnification. Its diagnostics are reduced to whether there are any: all the diagnostics unify
  * produces are errors, and what matters here is whether an assignment holds, not why it doesn't.
+ * The variable states of a failed unification don't matter either, so there are none.
  *)
-Record Unification := mkUnification {
-    variable_states: list (TypeParameterId * VariableState);
-    failed: bool;
-}.
+Inductive Unification :=
+    | Ongoing (variable_states: VariableStates)
+    | Failed
+    .
 
 (* TypeUnification.EMPTY *)
-Definition empty_unification: Unification := mkUnification [] false.
+Definition empty_unification: Unification := Ongoing [].
 
 (* TypeUnification.forInferenceOf; the bounds are expected with their type variables already in
    place (`it.bound.withTypeVariables(parameters)`) *)
 Definition for_inference_of (parameters: list (TypeParameterId * EType)): Unification :=
-    mkUnification
-        (map (fun '(p, bound) => (p, mkVariableState bound bound bottom_type false)) parameters)
-        false.
+    Ongoing (map (fun '(p, bound) => (p, mkVariableState bound bound bottom_type false)) parameters).
 
-Fixpoint lookup_state (states: list (TypeParameterId * VariableState)) (p: TypeParameterId): option VariableState :=
+Fixpoint lookup_state (states: VariableStates) (p: TypeParameterId): option VariableState :=
     match states with
     | [] => None
     | (p', s) :: rest => if param_eqb p p' then Some s else lookup_state rest p
     end.
 
 (* `states + mapOf(p to s)` *)
-Definition set_state (states: list (TypeParameterId * VariableState)) (p: TypeParameterId) (s: VariableState) :=
+Definition set_state (states: VariableStates) (p: TypeParameterId) (s: VariableState): VariableStates :=
     (p, s) :: filter (fun '(p', _) => negb (param_eqb p p')) states.
-
-(* TypeUnification.plusDiagnostic, with an error *)
-Definition fail (u: Unification): Unification := mkUnification (variable_states u) true.
 
 (*
  * unify gives no answer (None) when it runs out of fuel, and where the Kotlin code throws. Whatever
@@ -253,68 +251,72 @@ Local Notation "'let*' x ':=' e 'in' body" :=
 Definition UnifyFn := EType -> EType -> Unification -> option Unification.
 
 (*
- * The functions below are only ever given a carry that hasn't failed (see unify), so any failure
- * of a result is a new one: `failed result` stands for Kotlin's `result.getErrorsNotIn(carry).any()`.
+ * The functions below take the variable states of a unification that hasn't failed (see unify), so
+ * any failure of a result is a new one: a Failed result stands for Kotlin's
+ * `result.getErrorsNotIn(carry).any()`.
  *)
 
 (* TypeUnification.plusSubtypeConstraint: parameter must be assignable to upper *)
-Definition plus_subtype_constraint (unify: UnifyFn) (carry: Unification) (parameter: TypeParameterId) (upper: EType): option Unification :=
-    match lookup_state (variable_states carry) parameter with
+Definition plus_subtype_constraint (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (upper: EType): option Unification :=
+    match lookup_state states parameter with
     (* TypeVariableNotUnderInferenceException *)
     | None => None
     | Some state =>
-        if is_exact state then unify upper (upper_bound state) carry else
+        if is_exact state then unify upper (upper_bound state) (Ongoing states) else
         let new_upper_bound := intersect (upper_bound state) upper in
         (* Incompatible constraints. Kotlin also unifies with the static upper bound here, to tell
            whether that or another constraint is to blame; it fails either way. *)
-        if is_non_nullable_nothing new_upper_bound then Some (fail carry) else
-        let* with_lower_bound := unify new_upper_bound (lower_bound state) carry in
-        if failed with_lower_bound then Some (fail carry) else
-        Some (mkUnification
-            (set_state (variable_states with_lower_bound) parameter
-                (mkVariableState (static_upper_bound state) new_upper_bound (lower_bound state) false))
-            (failed carry))
+        if is_non_nullable_nothing new_upper_bound then Some Failed else
+        let* with_lower_bound := unify new_upper_bound (lower_bound state) (Ongoing states) in
+        match with_lower_bound with
+        | Failed => Some Failed
+        | Ongoing new_states => Some (Ongoing (set_state new_states parameter
+            (mkVariableState (static_upper_bound state) new_upper_bound (lower_bound state) false)))
+        end
     end.
 
 (* TypeUnification.plusSupertypeConstraint: lower must be assignable to parameter *)
-Definition plus_supertype_constraint (unify: UnifyFn) (carry: Unification) (parameter: TypeParameterId) (lower: EType): option Unification :=
-    match lookup_state (variable_states carry) parameter with
+Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (lower: EType): option Unification :=
+    match lookup_state states parameter with
     (* TypeVariableNotUnderInferenceException *)
     | None => None
     | Some state =>
-        if is_exact state then unify (lower_bound state) lower carry else
+        if is_exact state then unify (lower_bound state) lower (Ongoing states) else
         let new_lower_bound := closest_common_supertype_with (lower_bound state) lower in
-        let* with_upper_bound := unify (upper_bound state) new_lower_bound carry in
+        let* with_upper_bound := unify (upper_bound state) new_lower_bound (Ongoing states) in
+        match with_upper_bound with
         (* Incompatible constraints. Kotlin also unifies with the static upper bound here, to tell
            whether that or another constraint is to blame; it fails either way. *)
-        if failed with_upper_bound then Some (fail carry) else
-        Some (mkUnification
-            (set_state (variable_states with_upper_bound) parameter
-                (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false))
-            (failed carry))
+        | Failed => Some Failed
+        | Ongoing new_states => Some (Ongoing (set_state new_states parameter
+            (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false)))
+        end
     end.
 
 (* TypeVariable.flippedUnify: the variable is the assignee *)
-Definition type_variable_flipped_unify (unify: UnifyFn) (target: EType) (parameter: TypeParameterId) (carry: Unification): option Unification :=
-    plus_subtype_constraint unify carry parameter target.
+Definition type_variable_flipped_unify (unify: UnifyFn) (target: EType) (parameter: TypeParameterId) (states: VariableStates): option Unification :=
+    plus_subtype_constraint unify states parameter target.
 
-(* The first of the candidates for which attempt doesn't fail, and the result of the attempt;
-   Some None if there is none. Like Kotlin's firstOrNull on a sequence, it stops at that one. *)
-Fixpoint find_first (attempt: EType -> option Unification) (candidates: list EType): option (option (EType * Unification)) :=
+(* The first of the candidates for which attempt doesn't fail, and the variable states the attempt
+   ends with; Some None if there is none. Like Kotlin's firstOrNull on a sequence, it stops there. *)
+Fixpoint find_first (attempt: EType -> option Unification) (candidates: list EType): option (option (EType * VariableStates)) :=
     match candidates with
     | [] => Some None
     | candidate :: rest =>
         let* result := attempt candidate in
-        if failed result then find_first attempt rest else Some (Some (candidate, result))
+        match result with
+        | Failed => find_first attempt rest
+        | Ongoing states => Some (Some (candidate, states))
+        end
     end.
 
 (* BoundIntersectionTypeReference.flippedUnify: the intersection is the assignee; the first
    component that is assignable to target wins *)
-Definition intersection_flipped_unify (unify: UnifyFn) (target: EType) (components: list EType) (carry: Unification): option Unification :=
-    let* first := find_first (fun component => unify target component carry) components in
+Definition intersection_flipped_unify (unify: UnifyFn) (target: EType) (components: list EType) (states: VariableStates): option Unification :=
+    let* first := find_first (fun component => unify target component (Ongoing states)) components in
     match first with
-    | Some (_, success) => Some success
-    | None => Some (fail carry)
+    | Some (_, success) => Some (Ongoing success)
+    | None => Some Failed
     end.
 
 (* fold_left, for a function that may not give an answer *)
@@ -324,8 +326,8 @@ Fixpoint fold_unify {A: Type} (f: Unification -> A -> option Unification) (l: li
     | x :: rest => let* next := f carry x in fold_unify f rest next
     end.
 
-Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (carry: Unification): option Unification :=
-    fold_unify (fun inner '(target, assignee) => unify target assignee inner) (combine targets assignees) carry.
+Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (states: VariableStates): option Unification :=
+    fold_unify (fun inner '(target, assignee) => unify target assignee inner) (combine targets assignees) (Ongoing states).
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* The unify implementations of the subclasses of BoundTypeReference                              *)
@@ -333,39 +335,39 @@ Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (car
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* RootResolvedTypeReference.unify *)
-Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class) (arguments: list EType) (assignee: EType) (carry: Unification): option Unification :=
+Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class) (arguments: list EType) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | RootResolved _ assignee_base_type assignee_arguments =>
-        if negb (base_type_is_subtype_of assignee_base_type base_type) then Some (fail carry) else
-        if negb (Model.is_subtype_of (mutability_of assignee) (mutability_of self)) then Some (fail carry) else
+        if negb (base_type_is_subtype_of assignee_base_type base_type) then Some Failed else
+        if negb (Model.is_subtype_of (mutability_of assignee) (mutability_of self)) then Some Failed else
         (* Nothing is a subtype of every other possible type, which cannot be denoted in source code *)
-        if class_eqb assignee_base_type nothing then Some carry else
+        if class_eqb assignee_base_type nothing then Some (Ongoing states) else
         let normalized_assignee_arguments :=
             if class_eqb assignee_base_type base_type
             then assignee_arguments
             else parameterized_supertype_arguments assignee_base_type assignee_arguments base_type in
-        unify_arguments unify arguments normalized_assignee_arguments carry
-    | Error m _ => unify self (as_nothing (or_readonly m)) carry
-    | Generic (mkGenericRef _ _ bound) => unify self bound carry
-    | TypeArgument _ type => unify self type carry
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
+        unify_arguments unify arguments normalized_assignee_arguments states
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
+    | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)
+    | TypeArgument _ type => unify self type (Ongoing states)
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     (* a possibly null value to a non-null reference *)
-    | Nullable _ => Some (fail carry)
-    | Intersection components => intersection_flipped_unify unify self components carry
+    | Nullable _ => Some Failed
+    | Intersection components => intersection_flipped_unify unify self components states
     end.
 
 (* NullableTypeReference.unify *)
-Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (carry: Unification): option Unification :=
+Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
-    | Nullable assignee_nested => unify nested assignee_nested carry
-    | TypeArgument _ type => unify self type carry
+    | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
+    | TypeArgument _ type => unify self type (Ongoing states)
     | Generic (mkGenericRef _ _ bound) =>
         match nested with
-        | Generic _ | TypeArgument _ _ => unify nested assignee carry
-        | _ => unify self bound carry
+        | Generic _ | TypeArgument _ _ => unify nested assignee (Ongoing states)
+        | _ => unify self bound (Ongoing states)
         end
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
-    | _ => unify nested assignee carry
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | _ => unify nested assignee (Ongoing states)
     end.
 
 (* GenericTypeReference.isSubtypeOf: whether t, a Generic, is the generic `other`, or bounded by it *)
@@ -379,77 +381,77 @@ Fixpoint generic_is_subtype_of (t: EType) (other: TypeParameterId) (other_mutabi
     end.
 
 (* GenericTypeReference.unify *)
-Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (carry: Unification): option Unification :=
+Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     (* a possibly null value to a non-nullable reference *)
-    | Nullable _ => Some (fail carry)
-    | Error m _ => unify self (as_nothing (or_readonly m)) carry
+    | Nullable _ => Some Failed
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | RootResolved _ _ _ =>
-        if is_non_nullable_nothing assignee then Some carry else Some (fail carry)
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
+        if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance type =>
         match variance with
-        | output | invariant => unify self type carry
-        | input => unify self top_type carry
+        | output | invariant => unify self type (Ongoing states)
+        | input => unify self top_type (Ongoing states)
         end
     | Generic _ =>
-        if generic_is_subtype_of assignee parameter (mutability_of self) then Some carry else Some (fail carry)
-    | Intersection components => intersection_flipped_unify unify self components carry
+        if generic_is_subtype_of assignee parameter (mutability_of self) then Some (Ongoing states) else Some Failed
+    | Intersection components => intersection_flipped_unify unify self components states
     end.
 
 (* ErroneousType.unify: acts like Any *)
-Definition unify_erroneous (unify: UnifyFn) (self: EType) (m: Mutability) (assignee: EType) (carry: Unification): option Unification :=
+Definition unify_erroneous (unify: UnifyFn) (self: EType) (m: Mutability) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
-    | _ => unify (as_any m) assignee carry
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | _ => unify (as_any m) assignee (Ongoing states)
     end.
 
 (* BoundTypeArgument.unify *)
-Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Variance) (type assignee: EType) (carry: Unification): option Unification :=
+Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Variance) (type assignee: EType) (states: VariableStates): option Unification :=
     let assignee_is_type_argument := match assignee with TypeArgument _ _ => true | _ => false end in
     (* nothing but Nothing can be assigned to a reference of an out-variant type *)
     if negb assignee_is_type_argument && Variance_beq variance output then
-        if is_non_nullable_nothing assignee then Some carry else Some (fail carry)
+        if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
     else
     match assignee with
     | RootResolved _ _ _
-    | Nullable _ => unify type assignee carry
+    | Nullable _ => unify type assignee (Ongoing states)
     | TypeArgument assignee_variance assignee_type =>
         match variance, assignee_variance with
         (* the target uses the type both in IN and OUT fashion, the source must match exactly *)
         | invariant, invariant =>
-            let* carry2 := unify type assignee_type carry in
+            let* carry2 := unify type assignee_type (Ongoing states) in
             unify assignee_type type carry2
-        | invariant, _ => Some (fail carry)
+        | invariant, _ => Some Failed
         | output, output
-        | output, invariant => unify type assignee_type carry
-        | output, input => Some (fail carry)
+        | output, invariant => unify type assignee_type (Ongoing states)
+        | output, input => Some Failed
         (* IN variance reverses the hierarchy direction *)
         | input, input
-        | input, invariant => unify assignee_type type carry
-        | input, output => Some (fail carry)
+        | input, invariant => unify assignee_type type (Ongoing states)
+        | input, output => Some Failed
         end
-    | Generic _ => unify type assignee carry
-    | Intersection components => intersection_flipped_unify unify self components carry
-    | Error m _ => unify self (as_nothing (or_readonly m)) carry
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
+    | Generic _ => unify type assignee (Ongoing states)
+    | Intersection components => intersection_flipped_unify unify self components states
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     end.
 
 (* TypeVariable.unify *)
-Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (carry: Unification): option Unification :=
+Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | RootResolved _ _ _
     | Generic _
     | Intersection _
-    | TypeArgument _ _ => plus_supertype_constraint unify carry parameter assignee
-    | Error m _ => unify self (as_nothing (or_readonly m)) carry
+    | TypeArgument _ _ => plus_supertype_constraint unify states parameter assignee
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     (* Kotlin throws an InternalCompilerError *)
     | TypeVariable _ => None
     | Nullable nested =>
-        if is_nullable self then plus_supertype_constraint unify carry parameter assignee else
+        if is_nullable self then plus_supertype_constraint unify states parameter assignee else
         (* A possibly null value to a non-nullable reference. Kotlin carries on unifying without
            the null, for the sake of more diagnostics; it fails either way. *)
-        Some (fail carry)
+        Some Failed
     end.
 
 (*
@@ -458,44 +460,48 @@ Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypePa
  * other components are subtracted from the assignee, so as not to force the variables into a
  * needlessly narrow corner.
  *)
-Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list EType) (assignee: EType) (carry: Unification): option Unification :=
+Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | Nullable nested =>
         (* a possibly null value to a non-null reference *)
-        if negb (is_nullable self) then Some (fail carry) else unify self nested carry
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p carry
-    | Error m _ => unify self (as_nothing (or_readonly m)) carry
+        if negb (is_nullable self) then Some Failed else unify self nested (Ongoing states)
+    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | _ =>
         let var_components := filter is_type_variable components in
         let non_var_components := filter (fun c => negb (is_type_variable c)) components in
-        let* carry2 := fold_unify (fun inner component => unify component assignee inner) non_var_components carry in
-        let* covering := find_first (fun component => unify component assignee carry2) non_var_components in
-        let '(new_assignee, carry3) :=
-            match covering with
-            | None => (assignee, carry2)
-            | Some (covering, carry3) =>
-                let covered_any := RootResolved
-                    (Some (intersect_mutability (mutability_of assignee) (mutability_of covering)))
-                    any [] in
-                let new_assignee :=
-                    if negb (is_nullable covering) && is_nullable assignee
-                    then Nullable covered_any
-                    else covered_any in
-                (new_assignee, carry3)
-            end in
-        fold_unify (fun inner component => unify component new_assignee inner) var_components carry3
+        let* carry2 := fold_unify (fun inner component => unify component assignee inner) non_var_components (Ongoing states) in
+        match carry2 with
+        | Failed => Some Failed
+        | Ongoing states2 =>
+            let* covering := find_first (fun component => unify component assignee (Ongoing states2)) non_var_components in
+            let '(new_assignee, states3) :=
+                match covering with
+                | None => (assignee, states2)
+                | Some (covering, states3) =>
+                    let covered_any := RootResolved
+                        (Some (intersect_mutability (mutability_of assignee) (mutability_of covering)))
+                        any [] in
+                    let new_assignee :=
+                        if negb (is_nullable covering) && is_nullable assignee
+                        then Nullable covered_any
+                        else covered_any in
+                    (new_assignee, states3)
+                end in
+            fold_unify (fun inner component => unify component new_assignee inner) var_components (Ongoing states3)
+        end
     end.
 
 (* BoundTypeReference.unify, dispatching on the class of the target *)
-Definition unify_step (unify: UnifyFn) (target assignee: EType) (carry: Unification): option Unification :=
+Definition unify_step (unify: UnifyFn) (target assignee: EType) (states: VariableStates): option Unification :=
     match target with
-    | RootResolved _ base_type arguments => unify_root_resolved unify target base_type arguments assignee carry
-    | Nullable nested => unify_nullable unify target nested assignee carry
-    | Generic (mkGenericRef _ parameter _) => unify_generic unify target parameter assignee carry
-    | Error m _ => unify_erroneous unify target (or_readonly m) assignee carry
-    | TypeArgument variance type => unify_type_argument unify target variance type assignee carry
-    | TypeVariable (mkGenericRef _ parameter _) => unify_type_variable unify target parameter assignee carry
-    | Intersection components => unify_intersection unify target components assignee carry
+    | RootResolved _ base_type arguments => unify_root_resolved unify target base_type arguments assignee states
+    | Nullable nested => unify_nullable unify target nested assignee states
+    | Generic (mkGenericRef _ parameter _) => unify_generic unify target parameter assignee states
+    | Error m _ => unify_erroneous unify target (or_readonly m) assignee states
+    | TypeArgument variance type => unify_type_argument unify target variance type assignee states
+    | TypeVariable (mkGenericRef _ parameter _) => unify_type_variable unify target parameter assignee states
+    | Intersection components => unify_intersection unify target components assignee states
     end.
 
 (*
@@ -503,20 +509,25 @@ Definition unify_step (unify: UnifyFn) (target assignee: EType) (carry: Unificat
  * unify stops there, where Kotlin carries on collecting diagnostics.
  *)
 Fixpoint unify (fuel: nat) (target assignee: EType) (carry: Unification): option Unification :=
-    if failed carry then Some carry else
-    match fuel with
-    | O => None
-    | S fuel' => unify_step (unify fuel') target assignee carry
+    match carry with
+    | Failed => Some Failed
+    | Ongoing states =>
+        match fuel with
+        | O => None
+        | S fuel' => unify_step (unify fuel') target assignee states
+        end
     end.
 
 (* BoundTypeReference.isAssignableTo: whether a value of type `sub` can be assigned to a reference
    of type `super`, i.e. whether `sub` is a subtype of `super`. None if unify gives no answer. *)
 Definition is_assignable_to (fuel: nat) (sub super: EType): option bool :=
-    option_map (fun u => negb (failed u)) (unify fuel super sub empty_unification).
+    option_map
+        (fun u => match u with Ongoing _ => true | Failed => false end)
+        (unify fuel super sub empty_unification).
 
-Lemma unify_keeps_failure: forall fuel target assignee carry,
-    failed carry = true -> unify fuel target assignee carry = Some carry.
-Proof. intros [|fuel] target assignee carry H; simpl; rewrite H; reflexivity. Qed.
+Lemma unify_keeps_failure: forall fuel target assignee,
+    unify fuel target assignee Failed = Some Failed.
+Proof. intros [|fuel] target assignee; reflexivity. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* More fuel never changes an answer                                                               *)
@@ -545,7 +556,7 @@ Proof.
     intros h k candidates. induction candidates as [|x rest IH]; intros result Hhk H; simpl in *.
     - exact H.
     - destruct (h x) as [v|] eqn:E; [|discriminate].
-      rewrite (Hhk _ _ E). destruct (failed v); [apply IH|]; assumption.
+      rewrite (Hhk _ _ E). destruct v; [|apply IH]; assumption.
 Qed.
 
 (* The obligation of fold_unify_refines and find_first_refines: the function given to them calls f
@@ -592,36 +603,37 @@ Section StepRefines.
     Variables f g: UnifyFn.
     Hypothesis Hfg: refines f g.
 
-    Lemma plus_subtype_constraint_refines: forall carry p upper u,
-        plus_subtype_constraint f carry p upper = Some u -> plus_subtype_constraint g carry p upper = Some u.
+    Lemma plus_subtype_constraint_refines: forall states p upper u,
+        plus_subtype_constraint f states p upper = Some u -> plus_subtype_constraint g states p upper = Some u.
     Proof. intros * H. unfold plus_subtype_constraint in *. solve_refines Hfg H. Qed.
 
-    Lemma plus_supertype_constraint_refines: forall carry p lower u,
-        plus_supertype_constraint f carry p lower = Some u -> plus_supertype_constraint g carry p lower = Some u.
+    Lemma plus_supertype_constraint_refines: forall states p lower u,
+        plus_supertype_constraint f states p lower = Some u -> plus_supertype_constraint g states p lower = Some u.
     Proof. intros * H. unfold plus_supertype_constraint in *. solve_refines Hfg H. Qed.
 
-    Lemma intersection_flipped_unify_refines: forall target components carry u,
-        intersection_flipped_unify f target components carry = Some u -> intersection_flipped_unify g target components carry = Some u.
+    Lemma intersection_flipped_unify_refines: forall target components states u,
+        intersection_flipped_unify f target components states = Some u -> intersection_flipped_unify g target components states = Some u.
     Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
 
-    Lemma unify_arguments_refines: forall targets assignees carry u,
-        unify_arguments f targets assignees carry = Some u -> unify_arguments g targets assignees carry = Some u.
+    Lemma unify_arguments_refines: forall targets assignees states u,
+        unify_arguments f targets assignees states = Some u -> unify_arguments g targets assignees states = Some u.
     Proof. intros * H. unfold unify_arguments in *. solve_refines Hfg H. Qed.
 
     (* the helpers above, where the lockstep evaluation reaches them *)
     Ltac solve_step H :=
         solve_refines Hfg H;
         match type of H with
-        | plus_subtype_constraint f ?c ?p ?t = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
-        | plus_supertype_constraint f ?c ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
-        | type_variable_flipped_unify f ?t ?p ?c = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
-        | intersection_flipped_unify f ?t ?cs ?c = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
-        | unify_arguments f ?ts ?xs ?c = Some _ => exact (unify_arguments_refines _ _ _ _ H)
+        | plus_subtype_constraint f ?s ?p ?t = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | plus_supertype_constraint f ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
+        | type_variable_flipped_unify f ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | intersection_flipped_unify f ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
+        | unify_arguments f ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
         end.
 
-    Lemma unify_step_refines: refines (unify_step f) (unify_step g).
+    Lemma unify_step_refines: forall target assignee states u,
+        unify_step f target assignee states = Some u -> unify_step g target assignee states = Some u.
     Proof.
-        intros target assignee carry u H. unfold unify_step in *.
+        intros target assignee states u H. unfold unify_step in *.
         destruct target as [| |[]| | |[]|]; cbn beta iota zeta in H |- *.
         - unfold unify_root_resolved in *. solve_step H.
         - unfold unify_nullable in *. solve_step H.
@@ -635,11 +647,10 @@ End StepRefines.
 
 Lemma unify_refines_with_more_fuel: forall fuel, refines (unify fuel) (unify (S fuel)).
 Proof.
-    induction fuel as [|fuel IH]; intros target assignee carry u H.
-    - simpl in *. destruct (failed carry); [exact H | discriminate].
-    - change (unify (S (S fuel)) target assignee carry) with
-        (if failed carry then Some carry else unify_step (unify (S fuel)) target assignee carry).
-      simpl in H. destruct (failed carry); [exact H|].
+    induction fuel as [|fuel IH]; intros target assignee [states|] u H; try exact H.
+    - discriminate H.
+    - change (unify (S (S fuel)) target assignee (Ongoing states)) with
+        (unify_step (unify (S fuel)) target assignee states).
       exact (unify_step_refines _ _ IH _ _ _ _ H).
 Qed.
 
@@ -678,7 +689,7 @@ Proof. intros c. unfold class_eqb. destruct (Class_eq_dec c c); congruence. Qed.
 Theorem root_resolved_without_arguments_is_assignable_to_itself: forall fuel m c,
     is_assignable_to (S fuel) (RootResolved m c []) (RootResolved m c []) = Some true.
 Proof.
-    intros fuel m c. unfold is_assignable_to. simpl. unfold unify_root_resolved.
+    intros fuel m c. unfold is_assignable_to. simpl.
     unfold base_type_is_subtype_of. rewrite class_eqb_refl, mutability_is_subtype_of_refl. simpl.
     destruct (class_eqb c nothing); reflexivity.
 Qed.
