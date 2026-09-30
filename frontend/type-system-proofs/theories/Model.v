@@ -1,4 +1,4 @@
-From Stdlib Require Import String.
+From Stdlib Require Import String Arith.
 
 Inductive Mutability :=
     | exclusive
@@ -75,10 +75,35 @@ Record Field := {
     is_ref: bool;
 }.
 
-CoInductive Class :=
+(*
+ * Classes and type parameters are referenced by an id, which is their identity: two references mean
+ * the same declaration exactly when their ids are equal, like the identity comparison in Kotlin.
+ * Distinct declarations get distinct ids, even where their names are the same (the T of
+ * `class A<T>` and the T of `fun foo<T>`). There are deliberately no names: they are only needed for
+ * error messages, and they'd invite mistaking one declaration for another. nat makes a fresh id
+ * easy to come by: one more than the largest in use.
+ *)
+Definition ClassId := nat.
+Definition TypeParameterId := nat.
+
+(*
+ * BoundBaseType, as it is referenced. What is declared about a class, its supertypes and fields
+ * among it, is in its ClassDecl (below). A class can't carry that declaration itself: the
+ * supertypes are type references, with type arguments, back into Class.
+ *)
+Inductive Class :=
     | any
-    | some_class (superclasses: list Class) (fields: list Field)
+    | some_class (id: ClassId)
     | nothing
+    .
+
+Definition Class_eq_dec: forall a b: Class, {a = b} + {a <> b}.
+Proof. decide equality; apply Nat.eq_dec. Defined.
+
+(* BoundBaseType.Kind *)
+Inductive ClassKind :=
+    | class_kind
+    | interface_kind
     .
 
 Inductive Variance :=
@@ -102,14 +127,43 @@ Proof.
     intros [] [] []; reflexivity.
 Qed.
 
+(* EType nests list, for which Rocq would like a scheme that nothing here needs *)
+Local Set Warnings "-register-all".
+
+(* BoundTypeReference and its subclasses *)
 Inductive EType :=
-    | RootResolved (mutability: option Mutability) (class: Class)
+    (* RootResolvedTypeReference; the mutability is `explicitMutability ?: original?.mutability`.
+       The arguments are TypeArguments; no arguments and a null list are the same thing. *)
+    | RootResolved (mutability: option Mutability) (class: Class) (arguments: list EType)
     | Nullable (nested: EType)
-    | Generic (id: string) (param: TypeParameter)
-    | Error (message: string)
+    | Generic (generic: GenericRef)
+    (* ErroneousType; the mutability is `astNode.mutability` *)
+    | Error (mutability: option Mutability) (message: string)
+    (* BoundTypeArgument *)
     | TypeArgument (variance: Variance) (nested: EType)
-    | TypeVariable (generic: Generic)
+    (* a generic type under inference; wraps a GenericTypeReference, just like the Kotlin class *)
+    | TypeVariable (generic: GenericRef)
+    (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
     | Intersection (components: list EType)
-with TypeParameter :=
-    | mkTypeParameter (bound: EType)
+(* GenericTypeReference; the mutability is `original.mutability`. The effective bound is the bound
+   of the parameter, with the mutability and nullability of this reference applied. *)
+with GenericRef :=
+    | mkGenericRef (mutability: option Mutability) (param: TypeParameterId) (effective_bound: EType)
 .
+
+(* The declaration of a type parameter (BoundTypeParameter), the counterpart to a GenericRef. *)
+Record TypeParameterDecl := {
+    param_id: TypeParameterId;
+    bound: EType;
+}.
+
+(* The declaration of a class (BoundBaseType), the counterpart to a Class reference. *)
+Record ClassDecl := {
+    kind: ClassKind;
+    (* BoundBaseType.isCoreScalar: the numeric types and bool, whose references are always immutable *)
+    is_core_scalar: bool;
+    type_parameters: list TypeParameterDecl;
+    (* RootResolved references to the direct supertypes, their arguments in terms of type_parameters *)
+    supertypes: list EType;
+    fields: list Field;
+}.
