@@ -519,6 +519,152 @@ Lemma unify_keeps_failure: forall fuel target assignee carry,
 Proof. intros [|fuel] target assignee carry H; simpl; rewrite H; reflexivity. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
+(* More fuel never changes an answer                                                               *)
+(* So an answer unify gives with some fuel is the answer: the one it gives with any more fuel,    *)
+(* and hence the one of the unbounded Kotlin implementation.                                      *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* g gives every answer f gives, and maybe more *)
+Definition refines (f g: UnifyFn): Prop :=
+    forall target assignee carry u, f target assignee carry = Some u -> g target assignee carry = Some u.
+
+Lemma fold_unify_refines: forall {A: Type} (h k: Unification -> A -> option Unification) l carry u,
+    (forall inner x v, h inner x = Some v -> k inner x = Some v) ->
+    fold_unify h l carry = Some u -> fold_unify k l carry = Some u.
+Proof.
+    intros A h k l. induction l as [|x rest IH]; intros carry u Hhk H; simpl in *.
+    - exact H.
+    - destruct (h carry x) as [next|] eqn:E; [|discriminate].
+      rewrite (Hhk _ _ _ E). apply IH; assumption.
+Qed.
+
+Lemma find_first_refines: forall (h k: EType -> option Unification) candidates result,
+    (forall x v, h x = Some v -> k x = Some v) ->
+    find_first h candidates = Some result -> find_first k candidates = Some result.
+Proof.
+    intros h k candidates. induction candidates as [|x rest IH]; intros result Hhk H; simpl in *.
+    - exact H.
+    - destruct (h x) as [v|] eqn:E; [|discriminate].
+      rewrite (Hhk _ _ E). destruct (failed v); [apply IH|]; assumption.
+Qed.
+
+(* The obligation of fold_unify_refines and find_first_refines: the function given to them calls f
+   where the other calls g. *)
+Ltac solve_pointwise Hfg :=
+    intros; cbn beta in *;
+    first
+        [ apply Hfg; assumption
+        | match goal with x: _ * _ |- _ => destruct x end; apply Hfg; assumption ].
+
+(* Given `H: <expression calling f> = Some u`, shows `<the same expression calling g> = Some u`, by
+   following the evaluation of both in lockstep: the goal is the same expression, so every case
+   distinction made on H is made on the goal as well. Only ever reduces, never unfolds: unfolding
+   the conditions would multiply the case distinctions. *)
+Ltac solve_refines Hfg H :=
+    match type of Hfg with refines ?f ?g =>
+    repeat (cbn beta iota zeta in H |- *;
+        match type of H with
+        | Some _ = Some _ => injection H as <-
+        | None = Some _ => discriminate H
+        | f ?t ?a ?c = Some ?u => exact (Hfg _ _ _ _ H)
+        | context [f ?t ?a ?c] =>
+            let E := fresh "E" in
+            destruct (f t a c) eqn:E; [rewrite (Hfg _ _ _ _ E)|]
+        | context [fold_unify ?h ?l ?c] =>
+            match goal with |- context [fold_unify ?k l c] =>
+                let E := fresh "E" in
+                destruct (fold_unify h l c) eqn:E;
+                [rewrite (fold_unify_refines h k l c _ ltac:(solve_pointwise Hfg) E)|]
+            end
+        | context [find_first ?h ?l] =>
+            match goal with |- context [find_first ?k l] =>
+                let E := fresh "E" in
+                destruct (find_first h l) eqn:E;
+                [rewrite (find_first_refines h k l _ ltac:(solve_pointwise Hfg) E)|]
+            end
+        | context [if ?b then _ else _] => destruct b
+        | context [match ?x with _ => _ end] => destruct x
+        end);
+    try reflexivity
+    end.
+
+Section StepRefines.
+    Variables f g: UnifyFn.
+    Hypothesis Hfg: refines f g.
+
+    Lemma plus_subtype_constraint_refines: forall carry p upper u,
+        plus_subtype_constraint f carry p upper = Some u -> plus_subtype_constraint g carry p upper = Some u.
+    Proof. intros * H. unfold plus_subtype_constraint in *. solve_refines Hfg H. Qed.
+
+    Lemma plus_supertype_constraint_refines: forall carry p lower u,
+        plus_supertype_constraint f carry p lower = Some u -> plus_supertype_constraint g carry p lower = Some u.
+    Proof. intros * H. unfold plus_supertype_constraint in *. solve_refines Hfg H. Qed.
+
+    Lemma intersection_flipped_unify_refines: forall target components carry u,
+        intersection_flipped_unify f target components carry = Some u -> intersection_flipped_unify g target components carry = Some u.
+    Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
+
+    Lemma unify_arguments_refines: forall targets assignees carry u,
+        unify_arguments f targets assignees carry = Some u -> unify_arguments g targets assignees carry = Some u.
+    Proof. intros * H. unfold unify_arguments in *. solve_refines Hfg H. Qed.
+
+    (* the helpers above, where the lockstep evaluation reaches them *)
+    Ltac solve_step H :=
+        solve_refines Hfg H;
+        match type of H with
+        | plus_subtype_constraint f ?c ?p ?t = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | plus_supertype_constraint f ?c ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
+        | type_variable_flipped_unify f ?t ?p ?c = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | intersection_flipped_unify f ?t ?cs ?c = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
+        | unify_arguments f ?ts ?xs ?c = Some _ => exact (unify_arguments_refines _ _ _ _ H)
+        end.
+
+    Lemma unify_step_refines: refines (unify_step f) (unify_step g).
+    Proof.
+        intros target assignee carry u H. unfold unify_step in *.
+        destruct target as [| |[]| | |[]|]; cbn beta iota zeta in H |- *.
+        - unfold unify_root_resolved in *. solve_step H.
+        - unfold unify_nullable in *. solve_step H.
+        - unfold unify_generic in *. solve_step H.
+        - unfold unify_erroneous in *. solve_step H.
+        - unfold unify_type_argument in *. solve_step H.
+        - unfold unify_type_variable in *. solve_step H.
+        - unfold unify_intersection in *. solve_step H.
+    Qed.
+End StepRefines.
+
+Lemma unify_refines_with_more_fuel: forall fuel, refines (unify fuel) (unify (S fuel)).
+Proof.
+    induction fuel as [|fuel IH]; intros target assignee carry u H.
+    - simpl in *. destruct (failed carry); [exact H | discriminate].
+    - change (unify (S (S fuel)) target assignee carry) with
+        (if failed carry then Some carry else unify_step (unify (S fuel)) target assignee carry).
+      simpl in H. destruct (failed carry); [exact H|].
+      exact (unify_step_refines _ _ IH _ _ _ _ H).
+Qed.
+
+Theorem unify_fuel_monotone: forall fuel more_fuel target assignee carry u,
+    fuel <= more_fuel ->
+    unify fuel target assignee carry = Some u ->
+    unify more_fuel target assignee carry = Some u.
+Proof.
+    intros fuel more_fuel target assignee carry u Hle. induction Hle as [|more_fuel Hle IH]; intros H.
+    - exact H.
+    - apply unify_refines_with_more_fuel, IH, H.
+Qed.
+
+(* Once is_assignable_to answers, that's the answer for any amount of fuel from there on. *)
+Theorem is_assignable_to_fuel_monotone: forall fuel more_fuel sub super answer,
+    fuel <= more_fuel ->
+    is_assignable_to fuel sub super = Some answer ->
+    is_assignable_to more_fuel sub super = Some answer.
+Proof.
+    intros fuel more_fuel sub super answer Hle H. unfold is_assignable_to in *.
+    destruct (unify fuel super sub empty_unification) as [u|] eqn:E; [|discriminate].
+    rewrite (unify_fuel_monotone fuel more_fuel _ _ _ u Hle E). exact H.
+Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
 (* Sanity checks of the translation                                                                *)
 (* ---------------------------------------------------------------------------------------------- *)
 
