@@ -1,3 +1,5 @@
+From Stdlib Require Import String.
+
 Inductive Mutability :=
     | exclusive
     | immutable
@@ -74,14 +76,10 @@ Record Field := {
 }.
 
 CoInductive Class :=
-    | newClass (superclasses: list Class) (fields: list Field)
+    | any
+    | some_class (superclasses: list Class) (fields: list Field)
+    | nothing
     .
-
-Record EType := {
-    nullable: bool,
-    mutability: Mutability;
-    class: Class;
-}.
 
 Inductive Variance :=
     | invariant
@@ -104,3 +102,14 @@ Proof.
     intros [] [] []; reflexivity.
 Qed.
 
+Inductive EType :=
+    | RootResolved (mutability: option Mutability) (class: Class)
+    | Nullable (nested: EType)
+    | Generic (id: string) (param: TypeParameter)
+    | Error (message: string)
+    | TypeArgument (variance: Variance) (nested: EType)
+    | TypeVariable (generic: Generic)
+    | Intersection (components: list EType)
+with TypeParameter :=
+    | mkTypeParameter (bound: EType)
+.
