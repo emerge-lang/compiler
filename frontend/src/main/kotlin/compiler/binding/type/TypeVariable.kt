@@ -14,7 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * A generic type in the process of being inferred. To understand the difference between [TypeVariable]
  * and [GenericTypeReference], consider this function:
  *
- *     n <T> forEach(elements: List<out T>, action: (T) -> Unit) {
+ *     fun <T> forEach(elements: List<out T>, action: (T) -> Unit) {
  *
  *     }
  *
