@@ -45,7 +45,17 @@ v_files() {
   find "$THEORIES" -type f -name '*.v' | LC_ALL=C sort
 }
 
+# An editor with a local Rocq compiles in place, next to the sources. dune refuses to build while
+# any of its outputs also exists in the source tree, so those are removed first; the editor
+# recreates them the next time it compiles.
+remove_in_place_artifacts() {
+  find "$THEORIES" -type f \
+    \( -name '*.vo' -o -name '*.vok' -o -name '*.vos' -o -name '*.glob' -o -name '.*.aux' \) \
+    -exec rm -f {} +
+}
+
 do_build() {
+  remove_in_place_artifacts
   echo "> compiling with $(rocq --version | head -n 1), into $BUILD_DIR"
   if [ -n "${JOBS:-}" ]; then
     dune build -j "$JOBS"
@@ -111,6 +121,7 @@ case "$command" in
     ;;
   clean) do_clean ;;
   repl)
+    remove_in_place_artifacts
     dune build
     exec rocq repl -Q "$BUILD_DIR" "$(theory_name)" "$@"
     ;;
