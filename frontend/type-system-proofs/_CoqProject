@@ -1,0 +1,6 @@
+# This file exists for editors only: any Rocq IDE reads it to learn the load path, so that
+# theories/Foo/Bar.v is understood as the module EmergeTypeSystem.Foo.Bar.
+#
+# The build does NOT use it - dune does, via theories/dune - so the theory name appears in both
+# files and has to be changed in both. Keep them in sync.
+-Q theories EmergeTypeSystem

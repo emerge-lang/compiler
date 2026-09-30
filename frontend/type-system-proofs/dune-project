@@ -1,0 +1,5 @@
+(lang dune 3.21)
+
+; Rocq 9 dropped the coqc binary, so dune's older "Coq build language" (deprecated, and going
+; away in dune 3.24) cannot drive it. The rocq extension below is the successor.
+(using rocq 0.11)

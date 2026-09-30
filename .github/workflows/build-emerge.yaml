@@ -138,6 +138,19 @@ jobs:
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B clean verify
+  type-system-proofs:
+    name: verify type system proofs
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ inputs.kotlin-ref || github.sha }}"
+      # runs Rocq from the rocq/rocq-prover docker image, which the script pulls itself; nothing
+      # needs to be installed on the runner beyond the docker it already has. This is the very
+      # same script developers run locally, see frontend/type-system-proofs/readme.md
+      - name: verify type system proofs
+        run: frontend/type-system-proofs/rocq.sh verify
   linux-distributables:
     name: Linux distributable archives
     runs-on: ubuntu-22.04

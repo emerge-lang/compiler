@@ -1,0 +1,8 @@
+# The files that the Rocq container consumes (see frontend/type-system-proofs/readme.md) must keep
+# unix line endings regardless of the developer's core.autocrlf: CRLF would break the shell
+# interpreter inside the container, and the sed that reads the theory name out of theories/dune.
+*.sh text eol=lf
+*.v text eol=lf
+dune text eol=lf
+dune-project text eol=lf
+_CoqProject text eol=lf
