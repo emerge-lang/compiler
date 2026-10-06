@@ -149,13 +149,37 @@ Proof.
     - specialize (IH H). lia.
 Qed.
 
+(* The type parameters are all bound invariantly, so instantiating widens no type argument *)
+Lemma bound_invariantly: forall b k t,
+    udepth t <= k -> in_fragment t = true -> bound_in b t = true -> mentions_variantly_bound b t = false.
+Proof.
+    intros b k. induction k as [|k IH]; intros t Hd Hf Hb.
+    { destruct t; simpl in Hd; lia. }
+    destruct t as [m c args|n|[gm p bnd]|m msg|v o n|g|cs]; simpl in Hf; try discriminate Hf.
+    - destruct (root_in_fragment m c args Hf) as [_ Hargs].
+      apply not_true_iff_false. intros H. change (existsb (mentions_variantly_bound b) args = true) in H.
+      apply existsb_exists in H. destruct H as [a [Ha Hm]].
+      specialize (Hargs a Ha). pose proof (root_bound_in b m c args Hb a Ha) as Hba.
+      pose proof (argument_depth_below m c args a Ha) as Hda.
+      destruct a as [| | | |v o n| |]; simpl in Hargs, Hba; try discriminate Hargs. destruct v; try discriminate Hargs.
+      cbn [argument_depth] in Hda. simpl in Hm. rewrite (IH n) in Hm; [discriminate Hm|lia|exact Hargs|exact Hba].
+    - simpl in Hb |- *. destruct (lookup_binding b p) as [a|]; [|discriminate Hb].
+      destruct a as [| | | |v' o_p x| |]; try discriminate Hb. destruct v'; try discriminate Hb. reflexivity.
+Qed.
+
 Lemma instantiate_type_argument: forall b o n,
     in_fragment n = true -> bound_in b n = true ->
     instantiate env b (TypeArgument Model.invariant o n)
     = TypeArgument Model.invariant (instantiate_ownership b o) (instantiate_nested b n).
 Proof.
     intros b o [m c args|n|[gm p bnd]|m msg|v o' n|g|cs] Hf Hb; simpl in Hf; try discriminate Hf.
-    - reflexivity.
+    - assert (Hv: mentions_variantly_bound_in_arguments b (RootResolved m c args) = false)
+          by exact (bound_invariantly b _ (RootResolved m c args) (le_n _) Hf Hb).
+      change (instantiate env b (TypeArgument Model.invariant o (RootResolved m c args)))
+          with (if mentions_variantly_bound_in_arguments b (RootResolved m c args)
+                then TypeArgument output (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) args))
+                else TypeArgument Model.invariant (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) args))).
+      rewrite Hv. reflexivity.
     - destruct gm; [discriminate Hf|]. simpl in Hb.
       destruct (lookup_binding b p) as [a|] eqn:E; [|discriminate Hb].
       destruct a as [| | | |v' o_p x| |]; try discriminate Hb. destruct v'; try discriminate Hb.

@@ -222,6 +222,31 @@ Definition instantiate_ownership (bindings: Bindings) (o: Ownership): Ownership 
     | owned | ref | any_ownership => o
     end.
 
+(* Whether the type mentions a type parameter that is bound to an out- or in-variant type argument *)
+Fixpoint mentions_variantly_bound (bindings: Bindings) (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => existsb (mentions_variantly_bound bindings) arguments
+    | Nullable n => mentions_variantly_bound bindings n
+    | Generic (mkGenericRef _ p _)
+    | TypeVariable (mkGenericRef _ p _) =>
+        match lookup_binding bindings p with
+        | Some (TypeArgument v _ _) => negb (Variance_beq v invariant)
+        | _ => false
+        end
+    | Error _ _ => false
+    | TypeArgument _ _ n => mentions_variantly_bound bindings n
+    | Intersection components => existsb (mentions_variantly_bound bindings) components
+    end.
+
+(* The same, in the type arguments of the type, rather than as the type itself *)
+Fixpoint mentions_variantly_bound_in_arguments (bindings: Bindings) (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => existsb (mentions_variantly_bound bindings) arguments
+    | Nullable n => mentions_variantly_bound_in_arguments bindings n
+    | Intersection components => existsb (mentions_variantly_bound_in_arguments bindings) components
+    | _ => false
+    end.
+
 (*
  * BoundTypeReference.instantiateAllParameters, extended with ownership. Where it deviates:
  * - TypeUnification.getFinalValueFor instantiates the free variables in a binding. The bindings here
@@ -249,9 +274,13 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
         | None => final_value
         end
     | Error _ _ => t
-    (* BoundTypeArgument.instantiateAllParameters: when the nested type becomes a type argument of its
-       own (a type parameter replaced by its binding), their variances merge; `out T` with T bound to
-       `out X` is `out X`, and only opposite variances leave nothing but the top type *)
+    (* BoundTypeArgument.instantiateAllParameters. When the nested type becomes a type argument of its
+       own (a type parameter replaced by its binding), their variances merge: `out T` with T bound to
+       `out X` is `out X`. Of opposite variances, `out T` with T bound to `in X` is known no closer than
+       by the mutability of T, and `in T` with T bound to `out X` not at all.
+       A type parameter bound to an out- or in-variant type argument deeper down widens the type
+       argument: with T bound to `out X`, `Box<Box<T>>` is no `Box<Box<out X>>`, which would take any
+       `Box<out X>`, but a `Box<out Box<out X>>`. And `Consumer<in Box<T>>` takes nothing anymore. *)
     | TypeArgument v o n =>
         let o' := instantiate_ownership bindings o in
         let n_instantiated := instantiate bindings n in
@@ -264,9 +293,15 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
                 TypeArgument merged_variance o'
                     (if is_nullable_instantiated then Nullable nested_type else nested_type)
             else
-                let top := RootResolved (Some (intersect_mutability (mutability_of n) (mutability_of n_non_null))) any [] in
-                TypeArgument output o' (if is_nullable n || is_nullable_instantiated then Nullable top else top)
-        | _ => TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
+                let top_mutability := match v with output => mutability_of n | _ => readonly end in
+                TypeArgument output o' (Nullable (RootResolved (Some top_mutability) any []))
+        | _ =>
+            if mentions_variantly_bound_in_arguments bindings n then
+                match v with
+                | input => TypeArgument output o' top_type
+                | invariant | output => TypeArgument output o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
+                end
+            else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
     (* TypeVariable.instantiateAllParameters *)
     | TypeVariable (mkGenericRef _ p bound) =>
@@ -819,5 +854,22 @@ Qed.
 Theorem nullable_is_not_assignable_to_root_resolved: forall fuel t m c arguments,
     is_assignable_to (S fuel) (Nullable t) (RootResolved m c arguments) = Some false.
 Proof. reflexivity. Qed.
+
+(* With T bound to `out X`, `Box<Box<T>>` is a `Box<out Box<out X>>` *)
+Example instantiating_widens_nested_type_arguments: forall box x T bound,
+    instantiate [(T, TypeArgument output ref (RootResolved None x []))]
+        (RootResolved None box [TypeArgument invariant ref
+            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))])])
+    = RootResolved None box [TypeArgument output ref
+        (RootResolved None box [TypeArgument output ref (RootResolved None x [])])].
+Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
+
+(* With T bound to `out X`, `Consumer<in Box<T>>` takes nothing anymore *)
+Example instantiating_voids_nested_in_variant_type_arguments: forall consumer box x T bound,
+    instantiate [(T, TypeArgument output ref (RootResolved None x []))]
+        (RootResolved None consumer [TypeArgument input ref
+            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))])])
+    = RootResolved None consumer [TypeArgument output ref top_type].
+Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 
 End Subtyping.

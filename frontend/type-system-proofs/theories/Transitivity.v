@@ -307,15 +307,58 @@ Lemma instantiate_class: forall b m c arguments,
     instantiate env b (RootResolved m c arguments) = RootResolved m c (map (instantiate env b) arguments).
 Proof. reflexivity. Qed.
 
+(* The fragment has no type parameters, so instantiating widens none of its type arguments *)
+Lemma fragment_mentions_no_parameters: forall b k t,
+    depth t <= k -> in_fragment t = true -> mentions_variantly_bound b t = false.
+Proof.
+    intros b k. induction k as [|k IH]; intros t Hd Ht.
+    { exfalso. destruct (fragment_cases t Ht) as [[m [c [arguments ->]]]|[m [c [arguments [-> _]]]]]; simpl in Hd; lia. }
+    destruct (fragment_cases t Ht) as [[m [c [arguments ->]]]|[m [c [arguments [-> Ht']]]]].
+    - destruct (root_in_fragment m c arguments Ht) as [_ [_ Hargs]].
+      apply not_true_iff_false. intros H. change (existsb (mentions_variantly_bound b) arguments = true) in H.
+      apply existsb_exists in H. destruct H as [a [Ha Hm]].
+      pose proof (argument_depth_below m c arguments a Ha) as Hda. specialize (Hargs a Ha).
+      destruct a as [| | | |v o n| |]; simpl in Hargs; try discriminate Hargs.
+      cbn [argument_depth] in Hda. simpl in Hm. rewrite (IH n) in Hm; [discriminate Hm|lia|exact Hargs].
+    - rewrite depth_nullable in Hd. change (mentions_variantly_bound b (RootResolved m c arguments) = false).
+      apply IH; [lia|exact Ht'].
+Qed.
+
 Lemma instantiate_argument_class: forall b v o m c arguments,
+    in_fragment (RootResolved m c arguments) = true ->
     instantiate env b (TypeArgument v o (RootResolved m c arguments))
     = TypeArgument v (instantiate_ownership b o) (instantiate env b (RootResolved m c arguments)).
-Proof. reflexivity. Qed.
+Proof.
+    intros b v o m c arguments Ht.
+    pose proof (fragment_mentions_no_parameters b _ _ (le_n _) Ht) as Hv.
+    change (mentions_variantly_bound_in_arguments b (RootResolved m c arguments) = false) in Hv.
+    change (instantiate env b (TypeArgument v o (RootResolved m c arguments)))
+        with (if mentions_variantly_bound_in_arguments b (RootResolved m c arguments)
+              then match v with
+                   | input => TypeArgument output (instantiate_ownership b o) top_type
+                   | _ => TypeArgument output (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) arguments))
+                   end
+              else TypeArgument v (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) arguments))).
+    rewrite Hv. reflexivity.
+Qed.
 
 Lemma instantiate_argument_nullable: forall b v o m c arguments,
+    in_fragment (RootResolved m c arguments) = true ->
     instantiate env b (TypeArgument v o (Nullable (RootResolved m c arguments)))
     = TypeArgument v (instantiate_ownership b o) (Nullable (instantiate env b (RootResolved m c arguments))).
-Proof. reflexivity. Qed.
+Proof.
+    intros b v o m c arguments Ht.
+    pose proof (fragment_mentions_no_parameters b _ _ (le_n _) Ht) as Hv.
+    change (mentions_variantly_bound_in_arguments b (Nullable (RootResolved m c arguments)) = false) in Hv.
+    change (instantiate env b (TypeArgument v o (Nullable (RootResolved m c arguments))))
+        with (if mentions_variantly_bound_in_arguments b (Nullable (RootResolved m c arguments))
+              then match v with
+                   | input => TypeArgument output (instantiate_ownership b o) top_type
+                   | _ => TypeArgument output (instantiate_ownership b o) (Nullable (RootResolved m c (map (instantiate env b) arguments)))
+                   end
+              else TypeArgument v (instantiate_ownership b o) (Nullable (RootResolved m c (map (instantiate env b) arguments)))).
+    rewrite Hv. reflexivity.
+Qed.
 
 Lemma root_concrete: forall m c arguments,
     concrete (RootResolved m c arguments) = true -> forall a, In a arguments -> argument_concrete a = true.
@@ -349,8 +392,8 @@ Proof.
       apply andb_true_iff in Hc. destruct Hc as [Ho Hc].
       assert (Ho': instantiate_ownership b o = o) by (destruct o; try reflexivity; discriminate Ho).
       destruct (fragment_cases n Ha) as [[m [c [arguments ->]]]|[m [c [arguments [-> Hn']]]]].
-      + rewrite instantiate_argument_class, Ho', (Hroot m c arguments b Ha Hc); [reflexivity|lia].
-      + rewrite instantiate_argument_nullable, Ho', (Hroot m c arguments b Hn' Hc); [reflexivity|].
+      + rewrite (instantiate_argument_class b v o m c arguments Ha), Ho', (Hroot m c arguments b Ha Hc); [reflexivity|lia].
+      + rewrite (instantiate_argument_nullable b v o m c arguments Hn'), Ho', (Hroot m c arguments b Hn' Hc); [reflexivity|].
         rewrite depth_nullable in Hd. lia.
 Qed.
 

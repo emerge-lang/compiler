@@ -143,14 +143,20 @@ class BoundTypeArgument(
         }
         val resultVariance: TypeVariance
         if (nestedInstantiated is BoundTypeArgument) {
-            // out T with T = out X is out X, and in T with T = in X is in X
             if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED || nestedInstantiated.variance == this.variance) {
                 resultVariance = nestedInstantiated.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: variance
                 nestedInstantiated = nestedInstantiated.type
             } else {
                 resultVariance = TypeVariance.OUT
-                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(this.mutability.intersect(nestedInstantiated.mutability))
-                isNullable = this.isNullable || isNullable
+                val topMutability = if (this.variance == TypeVariance.OUT) this.mutability else TypeMutability.READONLY
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(topMutability)
+                isNullable = false
+            }
+        } else if (type.mentionsVariantlyBoundParameterInTypeArguments(context)) {
+            resultVariance = TypeVariance.OUT
+            if (this.variance == TypeVariance.IN) {
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(TypeMutability.READONLY)
+                isNullable = false
             }
         } else {
             resultVariance = variance
@@ -318,4 +324,35 @@ private class IrTypeArgumentImpl(
         result = 31 * result + type.hashCode()
         return result
     }
+}
+
+/**
+ * Whether this type mentions a type parameter that [context] binds to an out- or in-variant type argument
+ */
+private fun BoundTypeReference.mentionsVariantlyBoundParameter(context: TypeUnification): Boolean = when (this) {
+    is GenericTypeReference -> context.bindsVariantly(parameter)
+    is TypeVariable -> context.bindsVariantly(parameter)
+    is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
+    is NullableTypeReference -> nested.mentionsVariantlyBoundParameter(context)
+    is BoundTypeArgument -> type.mentionsVariantlyBoundParameter(context)
+    is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameter(context) }
+    else -> false
+}
+
+/**
+ * Like [mentionsVariantlyBoundParameter], but only in the type arguments of this type, not as this type itself
+ */
+private fun BoundTypeReference.mentionsVariantlyBoundParameterInTypeArguments(context: TypeUnification): Boolean = when (this) {
+    is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
+    is NullableTypeReference -> nested.mentionsVariantlyBoundParameterInTypeArguments(context)
+    is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameterInTypeArguments(context) }
+    else -> false
+}
+
+private fun TypeUnification.bindsVariantly(parameter: BoundTypeParameter): Boolean {
+    if (!binds(parameter)) {
+        return false
+    }
+    val binding = getFinalValueFor(parameter)
+    return binding is BoundTypeArgument && binding.variance != TypeVariance.UNSPECIFIED
 }

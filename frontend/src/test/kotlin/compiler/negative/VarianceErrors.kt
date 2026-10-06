@@ -5,6 +5,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.binding.type.parseTypeArgument
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentOnInvocationDiagnostic
 import compiler.lexer.Span
@@ -214,6 +215,110 @@ class VarianceErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "a type parameter bound to a variant type argument widens the type arguments it is nested in" - {
+        "an invariant one becomes out" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<Box<T>> = init
+                }
+                fn test(h: mut Holder<out A>) {
+                    x: mut Box<Box<out A>> = h.box
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "out read testmodule.Box<out read testmodule.A>"
+                }
+        }
+
+        "it can still be read" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: Box<Box<T>> = init
+                }
+                fn test(h: Holder<out A>) -> Box<out A> {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in supertypes" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                interface Source<T> {}
+                class Holder<T> : Source<Box<T>> {}
+                fn test(h: Holder<out A>) {
+                    x: Source<Box<out A>> = h
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "an in-variant one takes nothing anymore" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Consumer<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    consumer: mut Consumer<in Box<T>> = init
+                }
+                fn test(h: mut Holder<out A>, b: Box<A>) {
+                    set h.consumer.value = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "opposite variances" - {
+        "out T with T = in X is no more than the mutability of T" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<out T> = init
+                }
+                fn test(h: mut Holder<in mut A>) -> mut Any? {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "in T with T = out X is nothing" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<in T> = init
+                }
+                fn test(h: mut Holder<out mut A>) -> mut Any? {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
         }
     }
 
