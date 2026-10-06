@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.TypeMutability
 import compiler.diagnostic.BorrowedVariableCapturedDiagnostic
 import compiler.diagnostic.ExtendingOwnershipOverrideDiagnostic
 import compiler.diagnostic.LifetimeEndingCaptureInLoopDiagnostic
@@ -262,6 +263,33 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<BorrowedVariableCapturedDiagnostic> {
                     it.variable.name.value shouldBe "p2"
                 }
+        }
+
+        enumValues<TypeMutability>().forEach { mutability ->
+            "capture of a borrowed $mutability parameter by passing to a capturing function parameter" {
+                validateModule("""
+                    class Test {}
+                    fn captureValue(p1: ${mutability.keyword.text} Test) {}
+                    fn test(borrow p2: ${mutability.keyword.text} Test) {
+                        captureValue(p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<BorrowedVariableCapturedDiagnostic> {
+                        it.variable.name.value shouldBe "p2"
+                    }
+            }
+
+            "capture of a borrowed $mutability parameter by initializing a variable" {
+                validateModule("""
+                    class Test {}
+                    fn test(borrow p2: ${mutability.keyword.text} Test) {
+                        p3: ${mutability.keyword.text} Test = p2
+                    }
+                """.trimIndent())
+                    .shouldFind<BorrowedVariableCapturedDiagnostic> {
+                        it.variable.name.value shouldBe "p2"
+                    }
+            }
         }
     }
 

@@ -111,11 +111,32 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         }
     }
 
+    /**
+     * to be invoked by [BoundIdentifierExpression.ReferringVariable]; will verify whether the [usage] is
+     * semantically valid in the [stateBeforeUsage], and issue [compiler.diagnostic.Diagnostic]s as necessary.
+     * @see State.handleUsage
+     */
+    fun handleUsage(
+        stateBeforeUsage: State,
+        subject: BoundIdentifierExpression.ReferringVariable,
+        usage: ValueUsage,
+        repetition: ExecutionScopedCTContext.Repetition,
+        diagnosis: Diagnosis,
+    ): Effect? {
+        // a borrowed variable must never outlive the borrow, regardless of its mutability or lifetime state
+        if (subject.variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED && usage.usageOwnership == VariableOwnership.CAPTURED) {
+            diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
+            return null
+        }
+
+        return stateBeforeUsage.handleUsage(subject, usage, repetition, diagnosis)
+    }
+
     sealed interface State {
         fun maybe(): State = this
 
         /**
-         * to be invoked by [BoundIdentifierExpression.ReferringVariable]; will verify whether the [usage] is
+         * to be invoked by [VariableLifetime.handleUsage]; will verify whether the [usage] is
          * semantically valid in the current [State], and issue [compiler.diagnostic.Diagnostic]s as necessary.
          * @param repetition repetition of the usage relative to the variable declaration; see [compiler.binding.context.ExecutionScopedCTContext.getRepetitionBehaviorRelativeTo].
          * @return an effect that needs to be propagated to [compiler.binding.context.MutableExecutionScopedCTContext.trackSideEffect]
@@ -133,10 +154,6 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
          */
         data object Untracked : State {
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
-                if (subject.variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED && usage.usageOwnership != VariableOwnership.BORROWED) {
-                    diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
-                }
-
                 return null
             }
         }

@@ -213,7 +213,7 @@ class BoundIdentifierExpression(
             if (usage != null) {
                 val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
                 val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
-                val effect = lifeStateBeforeUsage.handleUsage(this, usage!!, repetitionRelativeToVariable, diagnosis)
+                val effect = VariableLifetime.handleUsage(lifeStateBeforeUsage, this, usage!!, repetitionRelativeToVariable, diagnosis)
                 effect?.let(_modifiedContext::trackSideEffect)
             }
 
