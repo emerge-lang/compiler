@@ -130,6 +130,12 @@ class TypeVariable private constructor(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
+        if (!context.binds(this.parameter)) {
+            // a variable of another inference, e.g. in the type arguments of a type whose supertype is being
+            // instantiated; it stays, so that the other inference can bind it
+            return this
+        }
+
         return context.getFinalValueFor(this.parameter)
     }
 

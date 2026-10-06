@@ -189,7 +189,11 @@ class RootResolvedTypeReference private constructor(
         return when (this.baseType) {
             superBaseType -> this
             context.swCtx.nothing -> superBaseType.getBoundReferenceAssertNoTypeParameters()
-            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
+            // not inherentTypeBindings: checking the arguments against their bounds, as that does, is up to validate(),
+            // and fails where the arguments contain TypeVariables of an ongoing inference
+            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(
+                TypeUnification.forSubstitution(baseType.typeParameters ?: emptyList(), arguments ?: emptyList())
+            )
         }
     }
 

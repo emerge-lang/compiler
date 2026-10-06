@@ -55,6 +55,21 @@ class OtherRegressions : FreeSpec({
                 .second
                 .shouldBeEmpty()
         }
+
+        "type variable in the arguments of a subtype that is an assignee" {
+            // the in-variance makes MyLst<T> the assignee of Lst<S32>, with T under inference;
+            // instantiating its supertype must keep T, so that the unification can infer it
+            validateModule("""
+                interface Lst<T> {}
+                class MyLst<T> : Lst<T> {}
+                class Consumer<T> {}
+                fn f<T>(c: Consumer<in MyLst<T>>, v: T) {}
+                fn test(c: Consumer<in Lst<S32>>) {
+                    f(c, 3)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "diamond inheritance" - {

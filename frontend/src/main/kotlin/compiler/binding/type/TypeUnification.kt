@@ -141,6 +141,11 @@ class TypeUnification private constructor(
         )
     }
 
+    /**
+     * @return whether [parameter] is bound by this [TypeUnification], or under inference in it
+     */
+    fun binds(parameter: BoundTypeParameter): Boolean = parameter in variableStates
+
     fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
         val state = variableStates[parameter] ?: return parameter.bound.instantiateAllParameters(this)
 
@@ -190,7 +195,22 @@ class TypeUnification private constructor(
                 emptySet(),
             )
         }
-        
+
+        /**
+         * Binds each of [parameters] to the argument in its place, as is: unlike [fromExplicit], this doesn't check the
+         * arguments against the bounds of the parameters, and so works with arguments that contain [TypeVariable]s of
+         * another inference. For instantiating types with the arguments of a type reference, whose bounds are checked
+         * when the reference is validated.
+         */
+        fun forSubstitution(parameters: List<BoundTypeParameter>, arguments: List<BoundTypeArgument>): TypeUnification {
+            return TypeUnification(
+                parameters.zip(arguments).associate { (parameter, argument) ->
+                    parameter to VariableState(argument, argument, argument, true)
+                },
+                emptySet(),
+            )
+        }
+
         /**
          * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments. E.g.:
          *
