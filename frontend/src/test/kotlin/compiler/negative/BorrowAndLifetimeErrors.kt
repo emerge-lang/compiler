@@ -563,5 +563,18 @@ class BorrowAndLifetimeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
+
+        "incompatible borrow using receiver" {
+            validateModule("""
+                class C {
+                    intrinsic fn trigger(borrow self: mut _, borrow alias: const C)
+                }
+                fn test() {
+                    c: exclusive _ = C()
+                    c.trigger(c)
+                }
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
     }
 })
