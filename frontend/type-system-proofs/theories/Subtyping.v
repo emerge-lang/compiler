@@ -13,10 +13,10 @@
  *   carries on to collect more diagnostics; and where Kotlin does extra work only to pick the more
  *   helpful diagnostic, this doesn't. TypeUnification.plusExactBinding, which only serves explicit
  *   type arguments and tells its diagnostics apart, is left out.
- * - Everything that unify only consumes, rather than decides, is a section variable: the class
- *   declarations, what is derived from them (the transitive supertypes, their type arguments), and
- *   the lattice operations the inference uses (closestCommonSupertypeWith, intersect). They are
- *   translations of their own.
+ * - Everything that unify only consumes, rather than decides, is a section variable, the
+ *   Environment: the class declarations, what is derived from them (the transitive supertypes,
+ *   their type arguments), and the lattice operations the inference uses
+ *   (closestCommonSupertypeWith, intersect). They are translations of their own.
  * - Termination. unify recurses into types it builds on the way (the instantiated supertype of
  *   the assignee, the bounds of type variables, `Any` standing in for a covered intersection
  *   component), so it isn't structurally recursive. It takes fuel, and gives no answer (None) when
@@ -34,36 +34,14 @@ Section Subtyping.
 Definition class_eqb (a b: Class): bool := if Class_eq_dec a b then true else false.
 Definition param_eqb (a b: TypeParameterId): bool := Nat.eqb a b.
 
-(* the declaration of every class *)
-Variable declaration_of: Class -> ClassDecl.
+Variable env: Environment.
 
 (* BoundBaseType.Kind.allowsSubtypes *)
 Definition allows_subtypes (c: Class): bool :=
-    match kind (declaration_of c) with
+    match kind (declaration_of env c) with
     | class_kind => false
     | interface_kind => true
     end.
-
-(* The keys of superTypes.preprocessedInheritanceTree.parameterizedSupertypes: all the transitive
-   supertypes of a class, following the supertypes of declaration_of, except Any. *)
-Variable supertypes_of: Class -> list Class.
-
-(* BoundBaseType.closestCommonSupertypeOf *)
-Variable closest_common_super_class: list Class -> Class.
-
-(*
- * Given a class `sub` with type arguments `sub_arguments` and one of its supertypes `super`
- * (never `sub` itself, nor `nothing`): the type arguments `super` has as a supertype of that
- * reference. That is RootResolvedTypeReference.getInstantiatedSupertype, i.e.
- * `baseType.superTypes.getParameterizedSupertype(super).instantiateAllParameters(inherentTypeBindings)`.
- *)
-Variable parameterized_supertype_arguments: Class -> list EType -> Class -> list EType.
-
-(* BoundTypeReference.closestCommonSupertypeWith *)
-Variable closest_common_supertype_with: EType -> EType -> EType.
-
-(* BoundIntersectionTypeReference.Companion.intersect *)
-Variable intersect: EType -> EType -> EType.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Properties of types that unify reads                                                           *)
@@ -75,7 +53,7 @@ Definition base_type_is_subtype_of (sub super: Class): bool :=
     if class_eqb super any then true else
     if class_eqb super nothing then false else
     if class_eqb sub nothing then true else
-    existsb (class_eqb super) (supertypes_of sub).
+    existsb (class_eqb super) (supertypes_of env sub).
 
 (* the default mutability of a reference, `mutability ?: READONLY` *)
 Definition or_readonly (m: option Mutability): Mutability :=
@@ -85,7 +63,7 @@ Definition or_readonly (m: option Mutability): Mutability :=
 Fixpoint mutability_of (t: EType): Mutability :=
     match t with
     | RootResolved m c _ =>
-        if is_core_scalar (declaration_of c) then immutable else or_readonly m
+        if is_core_scalar (declaration_of env c) then immutable else or_readonly m
     | Nullable n => mutability_of n
     | Generic (mkGenericRef given _ bound)
     | TypeVariable (mkGenericRef given _ bound) =>
@@ -121,7 +99,7 @@ Fixpoint base_type_of_lower_bound (t: EType): Class :=
     | TypeVariable (mkGenericRef _ _ bound) => base_type_of_lower_bound bound
     | Error _ _ => nothing
     | TypeArgument _ n => base_type_of_lower_bound n
-    | Intersection components => closest_common_super_class (map base_type_of_lower_bound components)
+    | Intersection components => closest_common_super_class env (map base_type_of_lower_bound components)
     end.
 
 (* RootResolvedTypeReference.hasSameBaseTypeAs *)
@@ -263,7 +241,7 @@ Definition plus_subtype_constraint (unify: UnifyFn) (states: VariableStates) (pa
     | None => None
     | Some state =>
         if is_exact state then unify upper (upper_bound state) (Ongoing states) else
-        let new_upper_bound := intersect (upper_bound state) upper in
+        let new_upper_bound := intersect env (upper_bound state) upper in
         (* Incompatible constraints. Kotlin also unifies with the static upper bound here, to tell
            whether that or another constraint is to blame; it fails either way. *)
         if is_non_nullable_nothing new_upper_bound then Some Failed else
@@ -282,7 +260,7 @@ Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (
     | None => None
     | Some state =>
         if is_exact state then unify (lower_bound state) lower (Ongoing states) else
-        let new_lower_bound := closest_common_supertype_with (lower_bound state) lower in
+        let new_lower_bound := closest_common_supertype_with env (lower_bound state) lower in
         let* with_upper_bound := unify (upper_bound state) new_lower_bound (Ongoing states) in
         match with_upper_bound with
         (* Incompatible constraints. Kotlin also unifies with the static upper bound here, to tell
@@ -345,7 +323,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
         let normalized_assignee_arguments :=
             if class_eqb assignee_base_type base_type
             then assignee_arguments
-            else parameterized_supertype_arguments assignee_base_type assignee_arguments base_type in
+            else parameterized_supertype_arguments env assignee_base_type assignee_arguments base_type in
         unify_arguments unify arguments normalized_assignee_arguments states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)
@@ -696,7 +674,7 @@ Qed.
 
 (* exclusive Nothing is a subtype of every non-nullable class type. *)
 Theorem bottom_type_is_assignable_to_root_resolved: forall fuel m c arguments,
-    is_core_scalar (declaration_of nothing) = false ->
+    is_core_scalar (declaration_of env nothing) = false ->
     is_assignable_to (S fuel) bottom_type (RootResolved m c arguments) = Some true.
 Proof.
     intros fuel m c arguments Hnothing. unfold is_assignable_to, bottom_type. simpl.

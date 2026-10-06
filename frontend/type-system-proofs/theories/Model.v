@@ -170,4 +170,31 @@ Record ClassDecl := {
     fields: list Field;
 }.
 
+(*
+ * Everything the type system only consumes, rather than decides: the class declarations, what is
+ * derived from them (the transitive supertypes, their type arguments), and the lattice operations
+ * the inference uses. They are translations of their own. Theorems that take an Environment hold
+ * for any program.
+ *)
+Record Environment := {
+    (* the declaration of every class *)
+    declaration_of: Class -> ClassDecl;
+    (* The keys of superTypes.preprocessedInheritanceTree.parameterizedSupertypes: all the transitive
+       supertypes of a class, following the supertypes of declaration_of, except Any. *)
+    supertypes_of: Class -> list Class;
+    (* BoundBaseType.closestCommonSupertypeOf *)
+    closest_common_super_class: list Class -> Class;
+    (*
+     * Given a class `sub` with type arguments `sub_arguments` and one of its supertypes `super`
+     * (never `sub` itself, nor `nothing`): the type arguments `super` has as a supertype of that
+     * reference. That is RootResolvedTypeReference.getInstantiatedSupertype, i.e.
+     * `baseType.superTypes.getParameterizedSupertype(super).instantiateAllParameters(inherentTypeBindings)`.
+     *)
+    parameterized_supertype_arguments: Class -> list EType -> Class -> list EType;
+    (* BoundTypeReference.closestCommonSupertypeWith *)
+    closest_common_supertype_with: EType -> EType -> EType;
+    (* BoundIntersectionTypeReference.Companion.intersect *)
+    intersect: EType -> EType -> EType;
+}.
+
 End Model.

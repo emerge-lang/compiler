@@ -45,23 +45,34 @@ v_files() {
   find "$THEORIES" -type f -name '*.v' | LC_ALL=C sort
 }
 
-# An editor with a local Rocq compiles in place, next to the sources. dune refuses to build while
-# any of its outputs also exists in the source tree, so those are removed first; the editor
-# recreates them the next time it compiles.
-remove_in_place_artifacts() {
-  find "$THEORIES" -type f \
-    \( -name '*.vo' -o -name '*.vok' -o -name '*.vos' -o -name '*.glob' -o -name '.*.aux' \) \
-    -exec rm -f {} +
+# An editor with a local Rocq compiles in place, next to the sources, and dune refuses to build
+# while any of its outputs also exists in the source tree. Deleting them is no option: the editor
+# only ever compiles the file that is open, never what that file requires, so they would stay
+# missing. dune builds a copy of the sources instead, one that holds nothing but what the build
+# reads, into the usual build directory, so that rebuilds stay incremental.
+dune_build() {
+  sources=$(mktemp -d)
+  trap 'rm -rf "$sources"' EXIT
+  cp dune-project "$sources/"
+  find "$THEORIES" -type f \( -name '*.v' -o -name dune \) | while IFS= read -r file; do
+    mkdir -p "$sources/$(dirname -- "$file")"
+    cp -p "$file" "$sources/$file"
+  done
+
+  if [ -n "${JOBS:-}" ]; then
+    set -- -j "$JOBS"
+  else
+    set --
+  fi
+  dune build --root "$sources" --build-dir "$PWD/_build" --no-print-directory "$@"
+
+  rm -rf "$sources"
+  trap - EXIT
 }
 
 do_build() {
-  remove_in_place_artifacts
   echo "> compiling with $(rocq --version | head -n 1), into $BUILD_DIR"
-  if [ -n "${JOBS:-}" ]; then
-    dune build -j "$JOBS"
-  else
-    dune build
-  fi
+  dune_build
 }
 
 do_validate() {
@@ -121,8 +132,7 @@ case "$command" in
     ;;
   clean) do_clean ;;
   repl)
-    remove_in_place_artifacts
-    dune build
+    dune_build
     exec rocq repl -Q "$BUILD_DIR" "$(theory_name)" "$@"
     ;;
   *)

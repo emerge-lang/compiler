@@ -89,8 +89,12 @@ to — the Docker image only serves the command line. For VS Code that is
 [VsRocq](https://marketplace.visualstudio.com/items?itemName=rocq-prover.vsrocq), which expects
 `rocq-language-server`; install Rocq 9.2 via opam to match the pinned image. Such an IDE compiles
 in place rather than into `_build/`, which is why `.gitignore` covers `.vo` files next to the
-sources as well. dune refuses to build while those exist, so `./rocq.sh` deletes them before
-compiling; the IDE recreates them as needed.
+sources as well. dune refuses to build while those exist, so `./rocq.sh` builds a copy of the
+sources and leaves them alone.
+
+The IDE only compiles the file that is open, though, never the files it requires: after changing
+`Foo.v`, compile it before working in a file that requires it, e.g. with
+`rocq compile -Q theories EmergeTypeSystem theories/Foo.v`.
 
 With a local Rocq and dune, `dune rocq top theories/Foo.v` opens a REPL set up for exactly that
 file, which `./rocq.sh repl` cannot do from inside the container.
