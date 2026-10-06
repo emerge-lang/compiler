@@ -133,8 +133,9 @@ Qed.
  * How a type argument holds the objects of its type, e.g. the elements of an Array (see Ownership.v).
  *)
 Inductive Ownership :=
-    (* `Array<owned Order>` owns them: they are part of the array's block of objects, and have no
-       mutability of their own *)
+    (* `Array<owned mut Order>` owns them: they are part of the array's block of objects, and are
+       accessed with the mutability of the reference to the array. That only matters for mutable
+       types: `Array<owned const Order>` holds immutable objects, just like `Array<ref const Order>`. *)
     | owned
     (* `Array<ref mut Order>` refers to them, with a mutability of its own *)
     | ref
@@ -158,7 +159,7 @@ Inductive EType :=
     | Generic (generic: GenericRef)
     (* ErroneousType; the mutability is `astNode.mutability` *)
     | Error (mutability: option Mutability) (message: string)
-    (* BoundTypeArgument. With owned ownership, the mutability of the nested type is meaningless. *)
+    (* BoundTypeArgument *)
     | TypeArgument (variance: Variance) (ownership: Ownership) (nested: EType)
     (* a generic type under inference; wraps a GenericTypeReference, just like the Kotlin class *)
     | TypeVariable (generic: GenericRef)

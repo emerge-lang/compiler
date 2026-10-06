@@ -514,16 +514,6 @@ Definition ownership_is_assignable_to (sub super: Ownership): bool :=
     | _, _ => false
     end.
 
-(* The type without its own mutability. Owned type arguments don't have one: their objects are
-   accessed with the mutability of the reference to their holder. *)
-Fixpoint without_mutability (t: EType): EType :=
-    match t with
-    | RootResolved _ c arguments => RootResolved None c arguments
-    | Nullable n => Nullable (without_mutability n)
-    | Generic (mkGenericRef _ p bound) => Generic (mkGenericRef None p bound)
-    | other => other
-    end.
-
 (* BoundTypeArgument.unify *)
 Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Variance) (ownership: Ownership) (type assignee: EType) (states: VariableStates): option Unification :=
     let assignee_is_type_argument := match assignee with TypeArgument _ _ _ => true | _ => false end in
@@ -534,15 +524,8 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
     match assignee with
     | RootResolved _ _ _
     | Nullable _ => unify type assignee (Ongoing states)
-    | TypeArgument assignee_variance assignee_ownership assignee_type_with_mutability =>
+    | TypeArgument assignee_variance assignee_ownership assignee_type =>
         if negb (ownership_is_assignable_to assignee_ownership ownership) then Some Failed else
-        (* for owned arguments, only the types matter, not their mutabilities *)
-        let ignore_mutability := match assignee_ownership with owned => true | _ => false end in
-        let type := if ignore_mutability then without_mutability type else type in
-        let assignee_type :=
-            if ignore_mutability
-            then without_mutability assignee_type_with_mutability
-            else assignee_type_with_mutability in
         match variance, assignee_variance with
         (* the target uses the type both in IN and OUT fashion, the source must match exactly *)
         | invariant, invariant =>
