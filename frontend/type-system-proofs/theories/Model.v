@@ -175,6 +175,9 @@ with GenericRef :=
 Record TypeParameterDecl := {
     param_id: TypeParameterId;
     bound: EType;
+    (* `class Vec<owned T>`: the ownership every type argument for it must have. Without one, a type
+       argument may have any. Not in the Kotlin frontend, yet. *)
+    prescribed_ownership: option Ownership;
 }.
 
 (* The declaration of a class (BoundBaseType), the counterpart to a Class reference. *)
