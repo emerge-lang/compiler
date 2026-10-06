@@ -202,6 +202,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 25. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
+26. member functions can't be invoked on receivers with variant type arguments. Inferring `T` from the receiver
+    fails, because the inferred `T` is exact, and an out-variant type argument isn't assignable to it:
+    ```
+    interface Holder<T> {
+        fn box(self) -> Box<out T>
+    }
+    fn test(h: Holder<out B>) {
+        h.box() // Type mismatch: cannot assign an in-variant value to an exact-variant reference
+                // Required: Var(T), Found: out read B
+    }
+    ```
+    The error message is wrong, too: the value is out-variant, not in-variant. This is a usability problem,
+    not a soundness one; it's sound to refuse the call.
 
 -----
 
