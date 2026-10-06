@@ -250,7 +250,8 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
         end
     | Error _ _ => t
     (* BoundTypeArgument.instantiateAllParameters: when the nested type becomes a type argument of its
-       own (a type parameter replaced by its binding), their variances merge *)
+       own (a type parameter replaced by its binding), their variances merge; `out T` with T bound to
+       `out X` is `out X`, and only opposite variances leave nothing but the top type *)
     | TypeArgument v o n =>
         let o' := instantiate_ownership bindings o in
         let n_instantiated := instantiate bindings n in
@@ -258,7 +259,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
         let n_non_null := match n_instantiated with Nullable x => x | _ => n_instantiated end in
         match n_non_null with
         | TypeArgument nested_variance _ nested_type =>
-            if Variance_beq nested_variance invariant || Variance_beq v invariant then
+            if Variance_beq nested_variance invariant || Variance_beq v invariant || Variance_beq nested_variance v then
                 let merged_variance := if Variance_beq nested_variance invariant then v else nested_variance in
                 TypeArgument merged_variance o'
                     (if is_nullable_instantiated then Nullable nested_type else nested_type)

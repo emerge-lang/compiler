@@ -185,6 +185,38 @@ class VarianceErrors : FreeSpec({
             }
     }
 
+    "instantiating a type argument with one of the same variance keeps the type" - {
+        "out" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                interface Box<T> {}
+                class Holder<T> {
+                    box: Box<out T> = init
+                }
+                fn test(h: Holder<out B>) -> Box<out B> {
+                    return h.box
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                interface Box<T> {}
+                class Holder<T> {
+                    box: Box<in T> = init
+                }
+                fn test(h: Holder<in B>) -> Box<in B> {
+                    return h.box
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
     "wildcard type arguments are not valid in function invocations" {
         validateModule("""
             interface B {}

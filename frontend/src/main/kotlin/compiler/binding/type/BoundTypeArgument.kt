@@ -143,7 +143,8 @@ class BoundTypeArgument(
         }
         val resultVariance: TypeVariance
         if (nestedInstantiated is BoundTypeArgument) {
-            if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED) {
+            // out T with T = out X is out X, and in T with T = in X is in X
+            if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED || nestedInstantiated.variance == this.variance) {
                 resultVariance = nestedInstantiated.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: variance
                 nestedInstantiated = nestedInstantiated.type
             } else {
