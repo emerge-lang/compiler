@@ -87,6 +87,7 @@
                 <configuration>
                     <!-- the continuation-passing in the parser eats lots of stack; TODO: refactor -->
                     <argLine>-Xss20M</argLine>
+                    <test>*Errors,*Lints,*Test,*Tests</test>
                 </configuration>
             </plugin>
         </plugins>
