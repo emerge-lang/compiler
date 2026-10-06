@@ -466,6 +466,54 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
 
+        "first exclusive, then mut borrow - ERROR" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: mut C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "first exclusive, then const borrow - ERROR" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: const C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "first exclusive, then read - OK" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: read C) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "read mut read mut - OK" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c, c, c)
+                }
+                fn trigger(borrow a: read C, borrow b: mut C, borrow c: read C, borrow d: mut C) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
         "start and complete a const borrow, then start and complete a mut borrow - OK" {
             validateModule("""
                 class C {}
@@ -487,6 +535,18 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     trigger(p, p)
                 }
                 fn trigger(borrow a: mut C, borrow b: const C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "triple borrow: read, mut, const" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c, c)
+                }
+                fn trigger(borrow a: read C, borrow b: mut C, borrow c: const C) {}
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }

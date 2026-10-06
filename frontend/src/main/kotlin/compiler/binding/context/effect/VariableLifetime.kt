@@ -42,7 +42,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     false,
                 )
                 is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusiveWithActiveBorrow(
-                    state.withMutability.union(effect.withMutability),
+                    state.withMutability.intersect(effect.withMutability),
                     state.borrowStartedAt,
                     false,
                 )
@@ -162,7 +162,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                         diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
                         null
                     }
-                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.isAssignableTo(this.withMutability) || this.withMutability.isAssignableTo(usage.usedWithMutability)) {
+                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.mayBeAliasedWith(this.withMutability)) {
                         Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
                     } else {
                         diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, usage.usedWithMutability)
