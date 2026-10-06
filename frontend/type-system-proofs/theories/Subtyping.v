@@ -73,7 +73,7 @@ Fixpoint mutability_of (t: EType): Mutability :=
         | None => bound_mutability
         end
     | Error m _ => or_readonly m
-    | TypeArgument _ n => mutability_of n
+    | TypeArgument _ _ n => mutability_of n
     (* readonly is the neutral element of intersect_mutability *)
     | Intersection components => fold_left intersect_mutability (map mutability_of components) readonly
     end.
@@ -86,7 +86,7 @@ Fixpoint is_nullable (t: EType): bool :=
     | Generic (mkGenericRef _ _ bound)
     | TypeVariable (mkGenericRef _ _ bound) => is_nullable bound
     | Error _ _ => false
-    | TypeArgument _ n => is_nullable n
+    | TypeArgument _ _ n => is_nullable n
     | Intersection _ => false
     end.
 
@@ -98,7 +98,7 @@ Fixpoint base_type_of_lower_bound (t: EType): Class :=
     | Generic (mkGenericRef _ _ bound)
     | TypeVariable (mkGenericRef _ _ bound) => base_type_of_lower_bound bound
     | Error _ _ => nothing
-    | TypeArgument _ n => base_type_of_lower_bound n
+    | TypeArgument _ _ n => base_type_of_lower_bound n
     | Intersection components => closest_common_super_class env (map base_type_of_lower_bound components)
     end.
 
@@ -107,7 +107,7 @@ Fixpoint has_base_type (c: Class) (other: EType): bool :=
     match other with
     | RootResolved _ c' _ => class_eqb c c'
     | Nullable n => has_base_type c n
-    | TypeArgument _ n => has_base_type c n
+    | TypeArgument _ _ n => has_base_type c n
     | _ => false
     end.
 
@@ -126,7 +126,7 @@ Fixpoint has_same_base_type_as (t other: EType): bool :=
     | Nullable n => has_same_base_type_as n other
     | Generic (mkGenericRef _ p _) => is_generic_of p other
     | Error _ _ => true
-    | TypeArgument _ n => has_same_base_type_as n other
+    | TypeArgument _ _ n => has_same_base_type_as n other
     (* Kotlin compares for equality; comparing the parameters is close enough for base types *)
     | TypeVariable (mkGenericRef _ p _) =>
         match other with TypeVariable (mkGenericRef _ p' _) => param_eqb p p' | _ => false end
@@ -155,7 +155,7 @@ Fixpoint is_non_nullable_nothing (t: EType): bool :=
     | Generic (mkGenericRef _ _ bound)
     | TypeVariable (mkGenericRef _ _ bound) => is_non_nullable_nothing bound
     | Error _ _ => false
-    | TypeArgument _ n => is_non_nullable_nothing n
+    | TypeArgument _ _ n => is_non_nullable_nothing n
     | Intersection components =>
         existsb is_non_nullable_nothing components || is_effectively_bottom_type components
     end.
@@ -327,7 +327,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
         unify_arguments unify arguments normalized_assignee_arguments states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)
-    | TypeArgument _ type => unify self type (Ongoing states)
+    | TypeArgument _ _ type => unify self type (Ongoing states)
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     (* a possibly null value to a non-null reference *)
     | Nullable _ => Some Failed
@@ -338,10 +338,10 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
 Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
-    | TypeArgument _ type => unify self type (Ongoing states)
+    | TypeArgument _ _ type => unify self type (Ongoing states)
     | Generic (mkGenericRef _ _ bound) =>
         match nested with
-        | Generic _ | TypeArgument _ _ => unify nested assignee (Ongoing states)
+        | Generic _ | TypeArgument _ _ _ => unify nested assignee (Ongoing states)
         | _ => unify self bound (Ongoing states)
         end
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
@@ -367,7 +367,7 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     | RootResolved _ _ _ =>
         if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
-    | TypeArgument variance type =>
+    | TypeArgument variance _ type =>
         match variance with
         | output | invariant => unify self type (Ongoing states)
         | input => unify self top_type (Ongoing states)
@@ -384,9 +384,30 @@ Definition unify_erroneous (unify: UnifyFn) (self: EType) (m: Mutability) (assig
     | _ => unify (as_any m) assignee (Ongoing states)
     end.
 
+(* Whether a type argument with ownership `sub` can stand in for one with ownership `super`: one with
+   any ownership takes all of them; the others only themselves. In particular, a type parameter's
+   ownership might be either owned or ref, so neither can stand in for it. *)
+Definition ownership_is_assignable_to (sub super: Ownership): bool :=
+    match super, sub with
+    | any_ownership, _ => true
+    | owned, owned | ref, ref => true
+    | parameter_ownership p, parameter_ownership p' => param_eqb p p'
+    | _, _ => false
+    end.
+
+(* The type without its own mutability. Owned type arguments don't have one: their objects are
+   accessed with the mutability of the reference to their holder. *)
+Fixpoint without_mutability (t: EType): EType :=
+    match t with
+    | RootResolved _ c arguments => RootResolved None c arguments
+    | Nullable n => Nullable (without_mutability n)
+    | Generic (mkGenericRef _ p bound) => Generic (mkGenericRef None p bound)
+    | other => other
+    end.
+
 (* BoundTypeArgument.unify *)
-Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Variance) (type assignee: EType) (states: VariableStates): option Unification :=
-    let assignee_is_type_argument := match assignee with TypeArgument _ _ => true | _ => false end in
+Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Variance) (ownership: Ownership) (type assignee: EType) (states: VariableStates): option Unification :=
+    let assignee_is_type_argument := match assignee with TypeArgument _ _ _ => true | _ => false end in
     (* nothing but Nothing can be assigned to a reference of an out-variant type *)
     if negb assignee_is_type_argument && Variance_beq variance output then
         if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
@@ -394,7 +415,15 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
     match assignee with
     | RootResolved _ _ _
     | Nullable _ => unify type assignee (Ongoing states)
-    | TypeArgument assignee_variance assignee_type =>
+    | TypeArgument assignee_variance assignee_ownership assignee_type_with_mutability =>
+        if negb (ownership_is_assignable_to assignee_ownership ownership) then Some Failed else
+        (* for owned arguments, only the types matter, not their mutabilities *)
+        let ignore_mutability := match assignee_ownership with owned => true | _ => false end in
+        let type := if ignore_mutability then without_mutability type else type in
+        let assignee_type :=
+            if ignore_mutability
+            then without_mutability assignee_type_with_mutability
+            else assignee_type_with_mutability in
         match variance, assignee_variance with
         (* the target uses the type both in IN and OUT fashion, the source must match exactly *)
         | invariant, invariant =>
@@ -421,7 +450,7 @@ Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypePa
     | RootResolved _ _ _
     | Generic _
     | Intersection _
-    | TypeArgument _ _ => plus_supertype_constraint unify states parameter assignee
+    | TypeArgument _ _ _ => plus_supertype_constraint unify states parameter assignee
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     (* Kotlin throws an InternalCompilerError *)
     | TypeVariable _ => None
@@ -477,7 +506,7 @@ Definition unify_step (unify: UnifyFn) (target assignee: EType) (states: Variabl
     | Nullable nested => unify_nullable unify target nested assignee states
     | Generic (mkGenericRef _ parameter _) => unify_generic unify target parameter assignee states
     | Error m _ => unify_erroneous unify target (or_readonly m) assignee states
-    | TypeArgument variance type => unify_type_argument unify target variance type assignee states
+    | TypeArgument variance ownership type => unify_type_argument unify target variance ownership type assignee states
     | TypeVariable (mkGenericRef _ parameter _) => unify_type_variable unify target parameter assignee states
     | Intersection components => unify_intersection unify target components assignee states
     end.

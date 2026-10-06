@@ -129,6 +129,23 @@ Proof.
     intros [] [] []; reflexivity.
 Qed.
 
+(*
+ * How a type argument holds the objects of its type, e.g. the elements of an Array (see Ownership.v).
+ *)
+Inductive Ownership :=
+    (* `Array<owned Order>` owns them: they are part of the array's block of objects, and have no
+       mutability of their own *)
+    | owned
+    (* `Array<ref mut Order>` refers to them, with a mutability of its own *)
+    | ref
+    (* `Array<any T>` may do either. It has to be treated as the weakest of the two, which makes it
+       a supertype of the others. *)
+    | any_ownership
+    (* `Array<T>`, for a type parameter T: the ownership T is instantiated with. Unknown to the
+       generic code, but the same wherever it says T, so a value of type T fits into it. *)
+    | parameter_ownership (param: TypeParameterId)
+    .
+
 (* EType nests list, for which Rocq would like a scheme that nothing here needs *)
 Local Set Warnings "-register-all".
 
@@ -141,8 +158,8 @@ Inductive EType :=
     | Generic (generic: GenericRef)
     (* ErroneousType; the mutability is `astNode.mutability` *)
     | Error (mutability: option Mutability) (message: string)
-    (* BoundTypeArgument *)
-    | TypeArgument (variance: Variance) (nested: EType)
+    (* BoundTypeArgument. With owned ownership, the mutability of the nested type is meaningless. *)
+    | TypeArgument (variance: Variance) (ownership: Ownership) (nested: EType)
     (* a generic type under inference; wraps a GenericTypeReference, just like the Kotlin class *)
     | TypeVariable (generic: GenericRef)
     (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
