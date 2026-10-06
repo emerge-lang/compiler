@@ -173,6 +173,125 @@ Definition bottom_type: EType := RootResolved (Some exclusive) nothing [].
 Definition as_any (m: Mutability): EType := RootResolved (Some m) any [].
 Definition as_nothing (m: Mutability): EType := RootResolved (Some m) nothing [].
 
+(* ---------------------------------------------------------------------------------------------- *)
+(* Instantiating type parameters                                                                   *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* NullableTypeReference.rewrap: nullable, without nesting nullability *)
+Definition rewrap_nullable (t: EType): EType :=
+    match t with
+    | Nullable _ => t
+    | _ => Nullable t
+    end.
+
+(* BoundTypeReference.withMutabilityUnionedWith *)
+Fixpoint with_mutability_unioned_with (m: Mutability) (t: EType): EType :=
+    match t with
+    | RootResolved _ c arguments =>
+        let combined := union (mutability_of t) m in
+        if Mutability_beq combined (mutability_of t) then t else RootResolved (Some combined) c arguments
+    | Nullable n => rewrap_nullable (with_mutability_unioned_with m n)
+    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (with_mutability_unioned_with m bound))
+    | TypeVariable (mkGenericRef gm p bound) => TypeVariable (mkGenericRef gm p (with_mutability_unioned_with m bound))
+    (* the model's ErroneousType has no type arguments that it could default the mutability of *)
+    | Error _ _ => t
+    | TypeArgument v o n =>
+        if Mutability_beq (mutability_of n) m then t else TypeArgument v o (with_mutability_unioned_with m n)
+    | Intersection components => Intersection (map (with_mutability_unioned_with m) components)
+    end.
+
+(* What the type parameters are bound to: the type arguments of a reference, a TypeUnification's
+   inherent type bindings *)
+Definition Bindings := list (TypeParameterId * EType).
+
+Fixpoint lookup_binding (bindings: Bindings) (p: TypeParameterId): option EType :=
+    match bindings with
+    | [] => None
+    | (p', argument) :: rest => if param_eqb p p' then Some argument else lookup_binding rest p
+    end.
+
+(* The ownership of a type parameter becomes that of the type argument it is bound to. A type
+   parameter without a binding is replaced by its bound, whose ownership is unknown: any. *)
+Definition instantiate_ownership (bindings: Bindings) (o: Ownership): Ownership :=
+    match o with
+    | parameter_ownership p =>
+        match lookup_binding bindings p with
+        | Some (TypeArgument _ argument_ownership _) => argument_ownership
+        | _ => any_ownership
+        end
+    | owned | ref | any_ownership => o
+    end.
+
+(*
+ * BoundTypeReference.instantiateAllParameters, extended with ownership. Where it deviates:
+ * - TypeUnification.getFinalValueFor instantiates the free variables in a binding. The bindings here
+ *   are those of a type reference (TypeUnification.forSubstitution), in which type variables belong to
+ *   another inference; they stay as they are (TypeVariable.instantiateFreeVariables), so that unifying
+ *   with the instantiated type constrains them. They do occur: in `fn f<T>(c: Consumer<in MyLst<T>>)`
+ *   called with a `Consumer<in Lst<X>>`, `MyLst<T>` becomes the assignee of `Lst<X>`, with T under
+ *   inference. So this is left out.
+ * - A type parameter without a binding is replaced by its bound; Kotlin uses the declared bound,
+ *   this the effective bound of the reference.
+ * - BoundIntersectionTypeReference simplifies the instantiated intersection, this doesn't.
+ *)
+Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
+    match t with
+    | RootResolved m c arguments => RootResolved m c (map (instantiate bindings) arguments)
+    | Nullable n => rewrap_nullable (instantiate bindings n)
+    | Generic (mkGenericRef given p bound) =>
+        let final_value :=
+            match lookup_binding bindings p with
+            | Some argument => argument
+            | None => instantiate bindings bound
+            end in
+        match given with
+        | Some _ => with_mutability_unioned_with (mutability_of t) final_value
+        | None => final_value
+        end
+    | Error _ _ => t
+    (* BoundTypeArgument.instantiateAllParameters: when the nested type becomes a type argument of its
+       own (a type parameter replaced by its binding), their variances merge *)
+    | TypeArgument v o n =>
+        let o' := instantiate_ownership bindings o in
+        let n_instantiated := instantiate bindings n in
+        let is_nullable_instantiated := match n_instantiated with Nullable _ => true | _ => false end in
+        let n_non_null := match n_instantiated with Nullable x => x | _ => n_instantiated end in
+        match n_non_null with
+        | TypeArgument nested_variance _ nested_type =>
+            if Variance_beq nested_variance invariant || Variance_beq v invariant then
+                let merged_variance := if Variance_beq nested_variance invariant then v else nested_variance in
+                TypeArgument merged_variance o'
+                    (if is_nullable_instantiated then Nullable nested_type else nested_type)
+            else
+                let top := RootResolved (Some (intersect_mutability (mutability_of n) (mutability_of n_non_null))) any [] in
+                TypeArgument output o' (if is_nullable n || is_nullable_instantiated then Nullable top else top)
+        | _ => TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
+        end
+    (* TypeVariable.instantiateAllParameters *)
+    | TypeVariable (mkGenericRef _ p bound) =>
+        match lookup_binding bindings p with
+        | Some argument => argument
+        | None => instantiate bindings bound
+        end
+    | Intersection components => Intersection (map (instantiate bindings) components)
+    end.
+
+(* RootResolvedTypeReference.inherentTypeBindings: each type parameter of the class is bound to the
+   type argument in its place *)
+Definition bindings_of (c: Class) (arguments: list EType): Bindings :=
+    combine (map param_id (type_parameters (declaration_of env c))) arguments.
+
+(*
+ * RootResolvedTypeReference.getInstantiatedSupertype: given a class `sub` with type arguments
+ * `arguments` and one of its supertypes `super` (never `sub` itself, nor `nothing`), the type
+ * arguments `super` has as a supertype of that reference.
+ *)
+Definition parameterized_supertype_arguments (sub: Class) (arguments: list EType) (super: Class): list EType :=
+    match parameterized_supertype env sub super with
+    | RootResolved _ _ super_arguments => map (instantiate (bindings_of sub arguments)) super_arguments
+    | _ => []
+    end.
+
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* TypeUnification                                                                                 *)
@@ -323,7 +442,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
         let normalized_assignee_arguments :=
             if class_eqb assignee_base_type base_type
             then assignee_arguments
-            else parameterized_supertype_arguments env assignee_base_type assignee_arguments base_type in
+            else parameterized_supertype_arguments assignee_base_type assignee_arguments base_type in
         unify_arguments unify arguments normalized_assignee_arguments states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)

@@ -560,4 +560,142 @@ Proof.
     destruct (param_eqb p p') eqn:E; [|reflexivity]. apply param_eqb_eq in E. congruence.
 Qed.
 
+(* ---------------------------------------------------------------------------------------------- *)
+(* Instantiation                                                                                   *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Lemma ownership_is_assignable_to_itself: forall o, ownership_is_assignable_to o o = true.
+Proof. intros []; try reflexivity. apply param_eqb_refl. Qed.
+
+(* The ownership of a type parameter becomes that of its type argument... *)
+Lemma instantiating_a_bound_parameter_ownership: forall bindings p v o t,
+    lookup_binding bindings p = Some (TypeArgument v o t) ->
+    instantiate_ownership bindings (parameter_ownership p) = o.
+Proof. intros bindings p v o t H. unfold instantiate_ownership. rewrite H. reflexivity. Qed.
+
+(* ... the weakest of all, without one... *)
+Lemma instantiating_an_unbound_parameter_ownership: forall bindings p,
+    lookup_binding bindings p = None ->
+    instantiate_ownership bindings (parameter_ownership p) = any_ownership.
+Proof. intros bindings p H. unfold instantiate_ownership. rewrite H. reflexivity. Qed.
+
+(* ... and explicit ownership stays as it is *)
+Lemma instantiation_keeps_explicit_ownership: forall bindings o,
+    (forall p, o <> parameter_ownership p) -> instantiate_ownership bindings o = o.
+Proof. intros bindings [] H; try reflexivity. exfalso. apply (H param). reflexivity. Qed.
+
+(* Instantiation keeps ownerships assignable: the ownership half of the substitution lemma *)
+Theorem instantiation_preserves_ownership_assignability: forall bindings o_sub o_super,
+    ownership_is_assignable_to o_sub o_super = true ->
+    ownership_is_assignable_to (instantiate_ownership bindings o_sub) (instantiate_ownership bindings o_super) = true.
+Proof.
+    intros bindings o_sub o_super H.
+    destruct o_super, o_sub; simpl in H; try discriminate H; try reflexivity.
+    apply param_eqb_eq in H. subst. apply ownership_is_assignable_to_itself.
+Qed.
+
+Lemma class_eqb_false: forall a b, a <> b -> class_eqb a b = false.
+Proof. intros a b H. unfold class_eqb. destruct (Class_eq_dec a b); [contradiction|reflexivity]. Qed.
+
+(* A class `sub` with the type parameter T only, which has `super<os T>` as a supertype: as a
+   supertype of `sub<o X>` (X a class without type arguments), that is `super<os' X>`, os' being os
+   instantiated with T bound to `o X` *)
+Lemma supertype_arguments_of_a_single_parameter_class: forall sub super T bound ms os o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [T] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant os (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
+    = [TypeArgument Model.invariant
+        (instantiate_ownership [(T, TypeArgument Model.invariant o (RootResolved mt ct []))] os)
+        (RootResolved mt ct [])].
+Proof.
+    intros sub super T bound ms os o mt ct Hparams Hsuper.
+    unfold parameterized_supertype_arguments, bindings_of. rewrite Hsuper, Hparams. simpl.
+    rewrite param_eqb_refl. reflexivity.
+Qed.
+
+(* `class OwnedList<T> : List<owned T>`: ownership declared explicitly in the supertype stays *)
+Corollary explicit_ownership_of_supertype_arguments_stays: forall sub super T bound ms o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [T] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant owned (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
+    = [TypeArgument Model.invariant owned (RootResolved mt ct [])].
+Proof. intros. erewrite supertype_arguments_of_a_single_parameter_class by eassumption. reflexivity. Qed.
+
+(* `class MyList<T> : List<T>`: the ownership of the type argument carries over *)
+Corollary ownership_of_type_arguments_carries_over_to_supertypes: forall sub super T bound ms o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [T] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
+    = [TypeArgument Model.invariant o (RootResolved mt ct [])].
+Proof.
+    intros. erewrite supertype_arguments_of_a_single_parameter_class by eassumption.
+    simpl. rewrite param_eqb_refl. reflexivity.
+Qed.
+
+(* A class type without type arguments is assignable to itself, as a type argument, too *)
+Lemma class_type_argument_unifies_with_itself: forall fuel v o mt ct states,
+    unify env (S (S fuel)) (TypeArgument v o (RootResolved mt ct [])) (TypeArgument v o (RootResolved mt ct [])) (Ongoing states)
+    = Some (Ongoing states).
+Proof.
+    intros fuel v o mt ct states. unfold unify, unify_step, unify_type_argument.
+    cbn -[ownership_is_assignable_to without_mutability unify_root_resolved].
+    rewrite ownership_is_assignable_to_itself.
+    destruct o, v; cbn -[unify_root_resolved]; unfold unify_root_resolved, base_type_is_subtype_of;
+        rewrite ?class_eqb_refl, ?mutability_is_subtype_of_refl; cbn;
+        destruct (class_eqb ct nothing); reflexivity.
+Qed.
+
+(* one step of unify, without unfolding the recursive calls *)
+Lemma unify_step_once: forall fuel target assignee states,
+    unify env (S fuel) target assignee (Ongoing states) = unify_step env (unify env fuel) target assignee states.
+Proof. reflexivity. Qed.
+
+(* End to end: with `class MyList<T> : List<T>`, `MyList<o X>` is assignable to `List<o X>`, for every
+   ownership o *)
+Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super T bound ms o mt ct,
+    3 <= fuel -> sub <> super -> sub <> nothing ->
+    base_type_is_subtype_of env sub super = true ->
+    is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
+    map param_id (type_parameters (declaration_of env sub)) = [T] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    is_assignable_to env fuel
+        (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])
+        (RootResolved m super [TypeArgument Model.invariant o (RootResolved mt ct [])])
+    = Some true.
+Proof.
+    intros fuel m sub super T bound ms o mt ct Hfuel Hne Hnothing Hsub Hscalar Hparams Hsuper.
+    destruct fuel as [|[|[|fuel]]]; try lia.
+    unfold is_assignable_to, empty_unification. rewrite unify_step_once.
+    unfold unify_step, unify_root_resolved. cbn beta iota.
+    rewrite Hsub. cbn [mutability_of]. rewrite Hscalar, mutability_is_subtype_of_refl. cbn [negb].
+    rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
+    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
+    unfold unify_arguments. cbn [fold_unify combine].
+    rewrite class_type_argument_unifies_with_itself. reflexivity.
+Qed.
+
+(* ... and not to `List<o' X>` for an ownership o' that o isn't assignable to *)
+Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super T bound ms o o' mt ct,
+    3 <= fuel -> sub <> super -> sub <> nothing ->
+    base_type_is_subtype_of env sub super = true ->
+    is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
+    map param_id (type_parameters (declaration_of env sub)) = [T] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    ownership_is_assignable_to o o' = false ->
+    is_assignable_to env fuel
+        (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])
+        (RootResolved m super [TypeArgument Model.invariant o' (RootResolved mt ct [])])
+    = Some false.
+Proof.
+    intros fuel m sub super T bound ms o o' mt ct Hfuel Hne Hnothing Hsub Hscalar Hparams Hsuper Ho.
+    destruct fuel as [|[|[|fuel]]]; try lia.
+    unfold is_assignable_to, empty_unification. rewrite unify_step_once.
+    unfold unify_step, unify_root_resolved. cbn beta iota.
+    rewrite Hsub. cbn [mutability_of]. rewrite Hscalar, mutability_is_subtype_of_refl. cbn [negb].
+    rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
+    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
+    unfold unify_arguments. cbn [fold_unify combine].
+    rewrite unify_rejects_unassignable_ownership by exact Ho. reflexivity.
+Qed.
+
 End Types.

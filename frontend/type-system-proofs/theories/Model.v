@@ -202,12 +202,13 @@ Record Environment := {
     (* BoundBaseType.closestCommonSupertypeOf *)
     closest_common_super_class: list Class -> Class;
     (*
-     * Given a class `sub` with type arguments `sub_arguments` and one of its supertypes `super`
-     * (never `sub` itself, nor `nothing`): the type arguments `super` has as a supertype of that
-     * reference. That is RootResolvedTypeReference.getInstantiatedSupertype, i.e.
-     * `baseType.superTypes.getParameterizedSupertype(super).instantiateAllParameters(inherentTypeBindings)`.
+     * Given a class `sub` and one of its transitive supertypes `super` (never `sub` itself, nor
+     * `nothing`): the RootResolved reference to `super` as a supertype of `sub`, its arguments in
+     * terms of the type parameters of `sub`. That is `sub.superTypes.getParameterizedSupertype(super)`.
+     * Instantiating it with the arguments of a reference to `sub` is up to the type system (see
+     * Subtyping.parameterized_supertype_arguments).
      *)
-    parameterized_supertype_arguments: Class -> list EType -> Class -> list EType;
+    parameterized_supertype: Class -> Class -> EType;
     (* BoundTypeReference.closestCommonSupertypeWith *)
     closest_common_supertype_with: EType -> EType -> EType;
     (* BoundIntersectionTypeReference.Companion.intersect *)
