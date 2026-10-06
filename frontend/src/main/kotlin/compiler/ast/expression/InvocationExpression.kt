@@ -51,6 +51,7 @@ class InvocationExpression(
         if (targetExpression is MemberAccessExpression) {
             return BoundInvocationExpression(
                 contextAfterArguments,
+                context,
                 this,
                 targetExpression.valueExpression.bindTo(context),
                 targetExpression.memberName,
@@ -62,6 +63,7 @@ class InvocationExpression(
         else if (targetExpression is IdentifierExpression) {
             return BoundInvocationExpression(
                 contextAfterArguments,
+                context,
                 this,
                 null,
                 targetExpression.identifier,

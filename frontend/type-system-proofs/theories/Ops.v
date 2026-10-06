@@ -98,8 +98,8 @@ Proof. intros [] [] []; simpl; congruence. Qed.
  * reference promises that it is the only one that can mutate or rely on immutability.
  * This is assured by the subtyping rules on assignment, and variable lifetime rules:
  * * copying an exclusive reference into a non-readonly reference ends the lifetime of the exclusive reference
- * * when an invoked function borrows an exclusive reference, BoundInvocationExpression will not allow
-     any other aliases for the same invocation that aren't readonly
+ * * while an exclusive reference is borrowed, it can only be borrowed again by references that may
+ *   coexist with all active borrows. The borrows end when the invocation they were created for returns.
  *)
 Definition may_coexist (a b: Mutability): bool :=
     match a, b with
@@ -189,47 +189,73 @@ Definition conflict_free (s: Aliasing): bool :=
     forallb (fun a => may_coexist (owner_mutability (owner s)) (alias_mutability a)) (aliases s)
     && pairwise (fun a b => may_coexist (alias_mutability a) (alias_mutability b)) (aliases s).
 
-Inductive step: Aliasing -> Aliasing -> Prop :=
+Definition is_borrowed (o: Owner): bool :=
+    match o with borrowed _ => true | _ => false end.
+
+(* The things that can happen to the references within an invocation's arguments or in between invocations *)
+Inductive transition: Aliasing -> Aliasing -> Prop :=
     (* the owner is captured as readonly: its lifetime goes on *)
     | capture_owner_as_readonly: forall l,
-        step (mkAliasing alive l) (mkAliasing alive (captured readonly :: l))
+        transition (mkAliasing alive l) (mkAliasing alive (captured readonly :: l))
     (* the owner is captured as mutable or immutable: its lifetime ends. (Captured as exclusive,
        the exclusive reference merely moves to another variable, which changes nothing here.) *)
     | capture_owner: forall l m,
         m = mutable \/ m = immutable ->
-        step (mkAliasing alive l) (mkAliasing dead (captured m :: l))
+        transition (mkAliasing alive l) (mkAliasing dead (captured m :: l))
     (* an alias is captured as a supertype of its own type; borrows can't be captured *)
     | capture_alias: forall o l1 l2 m m',
         is_subtype_of m m' = true ->
-        step (mkAliasing o (l1 ++ captured m :: l2)) (mkAliasing o (captured m' :: l1 ++ captured m :: l2))
+        transition (mkAliasing o (l1 ++ captured m :: l2)) (mkAliasing o (captured m' :: l1 ++ captured m :: l2))
     (* the owner is borrowed for the first time *)
     | start_borrow: forall l m,
-        step (mkAliasing alive l) (mkAliasing (borrowed m) (borrow m :: l))
+        transition (mkAliasing alive l) (mkAliasing (borrowed m) (borrow m :: l))
     (* the owner is borrowed again, while borrowed already: the new borrow must coexist with the
        intersection of all active borrows, which is tracked from then on *)
     | add_borrow: forall b l m,
         may_coexist m b = true ->
-        step (mkAliasing (borrowed b) l) (mkAliasing (borrowed (intersect_mutability b m)) (borrow m :: l))
+        transition (mkAliasing (borrowed b) l) (mkAliasing (borrowed (intersect_mutability b m)) (borrow m :: l))
     (* a borrowed parameter is lent on. An exclusive one is an owner of its own in the called
        function, which this model leaves out. *)
     | reborrow: forall o l1 l2 m m',
         m <> exclusive ->
         is_subtype_of m m' = true ->
-        step (mkAliasing o (l1 ++ borrow m :: l2)) (mkAliasing o (borrow m' :: l1 ++ borrow m :: l2))
-    (* the call returns: VariableLifetime.Effect.EndAllBorrows *)
-    | end_borrows: forall b l,
-        step (mkAliasing (borrowed b) l) (mkAliasing alive (filter is_captured l))
+        transition (mkAliasing o (l1 ++ borrow m :: l2)) (mkAliasing o (borrow m' :: l1 ++ borrow m :: l2))
     (* an alias goes out of scope *)
     | drop: forall o l1 a l2,
-        step (mkAliasing o (l1 ++ a :: l2)) (mkAliasing o (l1 ++ l2))
+        transition (mkAliasing o (l1 ++ a :: l2)) (mkAliasing o (l1 ++ l2))
     .
+
+(* VariableLifetime.endInvocation *)
+Definition owner_after_invocation (before after: Owner): Owner :=
+    match after with
+    | dead => dead
+    | _ => match before with borrowed b => borrowed b | _ => alive end
+    end.
+
+(* The invoked function returns: the borrows created for its arguments end, the ones from before the
+   invocation remain active. Captures from evaluating the arguments remain as well. *)
+Definition return_from (before after: Aliasing): Aliasing :=
+    mkAliasing (owner_after_invocation (owner before) (owner after))
+        (filter is_captured (aliases after) ++ filter (fun a => negb (is_captured a)) (aliases before)).
+
+Inductive step: Aliasing -> Aliasing -> Prop :=
+    | transition_step: forall s s', transition s s' -> step s s'
+    (* compiler.binding.context.InvocationJoinExecutionScopedCTContext: the arguments are evaluated,
+       then the invoked function returns *)
+    | invocation: forall s s', evaluates s s' -> step s (return_from s s')
+(* evaluating code: any number of steps, one after the other *)
+with evaluates: Aliasing -> Aliasing -> Prop :=
+    | evaluates_nothing: forall s, evaluates s s
+    | evaluates_more: forall s s' s'', evaluates s s' -> step s' s'' -> evaluates s s''
+    .
+
+Scheme step_mut := Minimality for step Sort Prop
+with evaluates_mut := Minimality for evaluates Sort Prop.
+Combined Scheme step_evaluates_mut from step_mut, evaluates_mut.
 
 (* The references to an object over its lifetime. It starts out as the exclusive result of a
    constructor; the axiom that panic never returns means that Nothing is never one of them. *)
-Inductive reachable: Aliasing -> Prop :=
-    | constructed: reachable (mkAliasing alive [])
-    | stepped: forall s s', reachable s -> step s s' -> reachable s'
-    .
+Definition reachable (s: Aliasing): Prop := evaluates (mkAliasing alive []) s.
 
 (* sublists, to show that dropping references can't introduce a conflict *)
 Inductive sublist {A: Type}: list A -> list A -> Prop :=
@@ -293,6 +319,22 @@ Lemma pairwise_cons: forall {A: Type} (R: A -> A -> bool) x l,
     (forall y, In y l -> R x y = true) -> pairwise R l = true -> pairwise R (x :: l) = true.
 Proof. intros. simpl. apply andb_true_iff. split; [apply forallb_forall|]; assumption. Qed.
 
+Lemma pairwise_app: forall {A: Type} (R: A -> A -> bool) l1 l2,
+    pairwise R l1 = true -> pairwise R l2 = true ->
+    (forall x y, In x l1 -> In y l2 -> R x y = true) ->
+    pairwise R (l1 ++ l2) = true.
+Proof.
+    intros A R l1 l2 H1 H2 Hcross. induction l1 as [|x l1 IH]; simpl in *; [exact H2|].
+    apply andb_true_iff in H1. destruct H1 as [Hx H1]. apply andb_true_iff. split.
+    - rewrite forallb_forall in *. intros y Hy. apply in_app_or in Hy. destruct Hy as [Hy|Hy].
+      + apply Hx, Hy.
+      + apply Hcross; [left; reflexivity|exact Hy].
+    - apply IH; [exact H1|]. intros a b Ha Hb. apply Hcross; [right; exact Ha|exact Hb].
+Qed.
+
+Lemma may_coexist_readonly: forall m, may_coexist readonly m = true.
+Proof. intros []; reflexivity. Qed.
+
 (* What keeps the references conflict-free from one step to the next *)
 Definition invariant (s: Aliasing): Prop :=
     conflict_free s = true
@@ -301,7 +343,9 @@ Definition invariant (s: Aliasing): Prop :=
     (* as long as there is an owner, all captured references are readonly *)
     /\ (owner s <> dead -> forall m, In (captured m) (aliases s) -> m = readonly)
     (* the tracked mutability is a lower bound of the active borrows *)
-    /\ (forall b, owner s = borrowed b -> forall m, In (borrow m) (aliases s) -> is_subtype_of b m = true).
+    /\ (forall b, owner s = borrowed b -> forall m, In (borrow m) (aliases s) -> is_subtype_of b m = true)
+    (* as long as the owner isn't borrowed, all borrows are readonly *)
+    /\ (is_borrowed (owner s) = false -> forall m, In (borrow m) (aliases s) -> m = readonly).
 
 Lemma alias_coexists_with_owner: forall s a,
     conflict_free s = true -> In a (aliases s) ->
@@ -350,11 +394,11 @@ Lemma in_derived: forall {A: Type} (x y: A) l1 source l2,
     In x (y :: l1 ++ source :: l2) -> x = y \/ In x (l1 ++ source :: l2).
 Proof. intros. simpl in H. destruct H; [left; symmetry|right]; assumption. Qed.
 
-Lemma invariant_step: forall s s', invariant s -> step s s' -> invariant s'.
+Lemma invariant_transition: forall s s', invariant s -> transition s s' -> invariant s'.
 Proof.
-    intros s s' [Hfree [Hexcl [Hreadonly Hbound]]] Hstep.
-    destruct Hstep as [l|l m Hm|o l1 l2 m m' Hsub|l m|b l m Hallowed|o l1 l2 m m' Hm Hsub|b l|o l1 a l2];
-        simpl in Hexcl, Hreadonly, Hbound.
+    intros s s' [Hfree [Hexcl [Hreadonly [Hbound Hborrows]]]] Htransition.
+    destruct Htransition as [l|l m Hm|o l1 l2 m m' Hsub|l m|b l m Hallowed|o l1 l2 m m' Hm Hsub|o l1 a l2];
+        simpl in Hexcl, Hreadonly, Hbound, Hborrows.
     - (* capture_owner_as_readonly *)
       pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
       repeat split; simpl.
@@ -363,6 +407,7 @@ Proof.
       + intros m0 [Heq|Hin]; [injection Heq as <-; discriminate|apply Hexcl, Hin].
       + intros _ m0 [Heq|Hin]; [injection Heq as <-; reflexivity|apply Hreadonly; [discriminate|exact Hin]].
       + intros b0 Hb0. discriminate Hb0.
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hborrows; [reflexivity|exact Hin]].
     - (* capture_owner *)
       pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
       simpl in Howner, Hpairs.
@@ -373,6 +418,7 @@ Proof.
       + intros m0 [Heq|Hin]; [injection Heq as <-; destruct Hm as [->| ->]; discriminate|apply Hexcl, Hin].
       + intros Hdead. exfalso. apply Hdead. reflexivity.
       + intros b0 Hb0. discriminate Hb0.
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hborrows; [reflexivity|exact Hin]].
     - (* capture_alias *)
       assert (Hm: m <> exclusive). { apply Hexcl, in_or_app. right. left. reflexivity. }
       repeat split; simpl.
@@ -383,6 +429,7 @@ Proof.
         injection Heq as ->. assert (Hro: m = readonly). { apply Hreadonly; [exact Ho|]. apply in_or_app. right. left. reflexivity. }
         subst m. destruct m'; simpl in Hsub; congruence.
       + intros b0 Hb0 m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|]. apply (Hbound b0 Hb0), Hin.
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|]. apply Hborrows; assumption.
     - (* start_borrow *)
       pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
       simpl in Howner, Hpairs.
@@ -396,6 +443,7 @@ Proof.
         * injection Heq as <-. apply mutability_is_subtype_of_refl.
         * pose proof (may_coexist_exclusive _ (Howner _ Hin)) as Hro. simpl in Hro. rewrite Hro.
           apply mutability_subtype_of_readonly.
+      + intros Hb. discriminate Hb.
     - (* add_borrow *)
       pose proof (aliases_coexist _ Hfree) as Hpairs. simpl in Hpairs, Hallowed.
       repeat split; simpl.
@@ -409,6 +457,7 @@ Proof.
       + intros b0 Hb0 m0 Hin. injection Hb0 as <-. destruct Hin as [Heq|Hin].
         * injection Heq as <-. apply intersect_mutability_right.
         * eapply mutability_subtype_trans; [apply intersect_mutability_left|]. apply (Hbound b eq_refl), Hin.
+      + intros Hb. discriminate Hb.
     - (* reborrow *)
       repeat split; simpl.
       + apply (conflict_free_derived _ _ _ (borrow m) (borrow m')); assumption.
@@ -417,15 +466,9 @@ Proof.
       + intros b0 Hb0 m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply (Hbound b0 Hb0), Hin].
         injection Heq as ->. eapply mutability_subtype_trans; [|exact Hsub].
         apply (Hbound b0 Hb0), in_or_app. right. left. reflexivity.
-    - (* end_borrows *)
-      pose proof (aliases_coexist _ Hfree) as Hpairs. simpl in Hpairs.
-      repeat split; simpl.
-      + apply make_conflict_free; [|eapply pairwise_sublist; [apply sublist_filter|exact Hpairs]].
-        intros [m0|m0] Ha; apply filter_In in Ha; destruct Ha as [Ha Hc]; [|discriminate Hc].
-        simpl. rewrite (Hreadonly ltac:(discriminate) m0 Ha). reflexivity.
-      + intros m0 Hin. apply filter_In in Hin. apply Hexcl, Hin.
-      + intros _ m0 Hin. apply filter_In in Hin. apply Hreadonly; [discriminate|apply Hin].
-      + intros b0 Hb0. discriminate Hb0.
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hborrows; assumption].
+        injection Heq as ->. assert (Hro: m = readonly). { apply Hborrows; [exact Ho|]. apply in_or_app. right. left. reflexivity. }
+        subst m. destruct m'; simpl in Hsub; congruence.
     - (* drop *)
       pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
       simpl in Howner, Hpairs.
@@ -437,6 +480,97 @@ Proof.
       + intros m0 Hm0. apply Hexcl, Hin, Hm0.
       + intros Ho m0 Hm0. apply Hreadonly; [exact Ho|apply Hin, Hm0].
       + intros b0 Hb0 m0 Hm0. apply (Hbound b0 Hb0), Hin, Hm0.
+      + intros Ho m0 Hm0. apply Hborrows; [exact Ho|apply Hin, Hm0].
+Qed.
+
+Lemma owner_after_invocation_alive: forall before after,
+    owner_after_invocation before after = alive -> after <> dead /\ is_borrowed before = false.
+Proof. intros [] [] H; simpl in H; try discriminate H; split; (congruence || reflexivity). Qed.
+
+Lemma owner_after_invocation_not_dead: forall before after,
+    owner_after_invocation before after <> dead -> after <> dead.
+Proof. intros [] [] H; simpl in H; congruence. Qed.
+
+Lemma owner_after_invocation_borrowed: forall before after b,
+    owner_after_invocation before after = borrowed b -> before = borrowed b.
+Proof. intros [] [] b H; simpl in H; congruence. Qed.
+
+Lemma owner_after_invocation_not_borrowed: forall before after,
+    is_borrowed (owner_after_invocation before after) = false -> after = dead \/ is_borrowed before = false.
+Proof. intros [] [] H; simpl in H; auto. Qed.
+
+(* An invocation that starts while the owner is borrowed can't end the borrow, nor the lifetime of the owner. *)
+Lemma owner_stays_borrowed:
+    (forall s s', step s s' -> is_borrowed (owner s) = true -> is_borrowed (owner s') = true)
+    /\ (forall s s', evaluates s s' -> is_borrowed (owner s) = true -> is_borrowed (owner s') = true).
+Proof.
+    apply step_evaluates_mut.
+    - intros s s' Htransition Hb. destruct Htransition; simpl in *; congruence.
+    - intros s s' _ IH Hb. specialize (IH Hb). simpl.
+      destruct (owner s), (owner s'); simpl in *; congruence.
+    - intros s Hb. exact Hb.
+    - intros s s' s'' _ IH1 _ IH2 Hb. apply IH2, IH1, Hb.
+Qed.
+
+Lemma invariant_return: forall before after,
+    invariant before -> invariant after ->
+    (is_borrowed (owner before) = true -> is_borrowed (owner after) = true) ->
+    invariant (return_from before after).
+Proof.
+    intros before after [Hfree [Hexcl [Hreadonly [Hbound Hborrows]]]] [Hfree' [Hexcl' [Hreadonly' [Hbound' Hborrows']]]] Hstays.
+    set (captures := filter is_captured (aliases after)).
+    set (borrows := filter (fun a => negb (is_captured a)) (aliases before)).
+    (* the captures from evaluating the arguments are readonly, unless the owner was captured *)
+    assert (Hcaptures: owner after <> dead -> forall a, In a captures -> alias_mutability a = readonly).
+    { intros Ho [m|m] Ha; apply filter_In in Ha; destruct Ha as [Ha Hc]; [|discriminate Hc]. apply (Hreadonly' Ho m Ha). }
+    (* the borrows from before the invocation are readonly, unless the owner was borrowed *)
+    assert (Hborrowed: is_borrowed (owner before) = false -> forall a, In a borrows -> alias_mutability a = readonly).
+    { intros Ho [m|m] Ha; apply filter_In in Ha; destruct Ha as [Ha Hc]; [discriminate Hc|]. apply (Hborrows Ho m Ha). }
+    (* the owner can't be captured while it is borrowed *)
+    assert (Hcross: owner after <> dead \/ is_borrowed (owner before) = false).
+    { destruct (is_borrowed (owner before)) eqn:Hb; [left|right; reflexivity].
+      intros Hd. specialize (Hstays eq_refl). rewrite Hd in Hstays. discriminate Hstays. }
+    assert (Hin: forall a, In a (captures ++ borrows) -> (In a captures /\ In a (aliases after)) \/ (In a borrows /\ In a (aliases before))).
+    { intros a Ha. apply in_app_or in Ha. destruct Ha as [Ha|Ha]; [left|right]; split; try exact Ha; apply filter_In in Ha; apply Ha. }
+    unfold return_from. fold captures borrows.
+    repeat split; cbn [owner aliases].
+    - apply make_conflict_free.
+      + intros a Ha. destruct (owner_after_invocation (owner before) (owner after)) eqn:Ho; simpl; try reflexivity.
+        apply owner_after_invocation_alive in Ho. destruct Ho as [Hafter Hbefore].
+        destruct (Hin a Ha) as [[Ha' _]|[Ha' _]]; [rewrite (Hcaptures Hafter a Ha')|rewrite (Hborrowed Hbefore a Ha')]; reflexivity.
+      + apply pairwise_app.
+        * eapply pairwise_sublist; [apply sublist_filter|exact (aliases_coexist _ Hfree')].
+        * eapply pairwise_sublist; [apply sublist_filter|exact (aliases_coexist _ Hfree)].
+        * intros x y Hx Hy. cbv beta. destruct Hcross as [Ho|Ho].
+          -- rewrite (Hcaptures Ho x Hx). apply may_coexist_readonly.
+          -- rewrite (Hborrowed Ho y Hy), may_coexist_sym. apply may_coexist_readonly.
+    - intros m Hm. destruct (Hin _ Hm) as [[_ Hm']|[Hm' _]]; [apply Hexcl', Hm'|].
+      apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+    - intros Ho m Hm. destruct (Hin _ Hm) as [[_ Hm']|[Hm' _]].
+      + apply Hreadonly'; [apply (owner_after_invocation_not_dead (owner before)), Ho|exact Hm'].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+    - intros b Hb m Hm. apply owner_after_invocation_borrowed in Hb.
+      destruct (Hin _ Hm) as [[Hm' _]|[_ Hm']].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+      + apply (Hbound b Hb), Hm'.
+    - intros Ho m Hm. destruct (Hin _ Hm) as [[Hm' _]|[Hm' _]].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+      + apply owner_after_invocation_not_borrowed in Ho.
+        assert (Hbefore: is_borrowed (owner before) = false) by (destruct Ho as [Ho|Ho]; [destruct Hcross; [contradiction|assumption]|exact Ho]).
+        apply (Hborrowed Hbefore _ Hm').
+Qed.
+
+(* What happens to the references keeps them conflict-free *)
+Lemma invariant_steps:
+    (forall s s', step s s' -> invariant s -> invariant s')
+    /\ (forall s s', evaluates s s' -> invariant s -> invariant s').
+Proof.
+    apply step_evaluates_mut.
+    - intros s s' Htransition Hinv. eapply invariant_transition; eassumption.
+    - intros s s' Hevaluates IH Hinv. apply invariant_return; [exact Hinv|apply IH, Hinv|].
+      apply (proj2 owner_stays_borrowed _ _ Hevaluates).
+    - intros s Hinv. exact Hinv.
+    - intros s s' s'' _ IH1 _ IH2 Hinv. apply IH2, IH1, Hinv.
 Qed.
 
 (* No two references to an object ever make conflicting promises. *)
@@ -444,9 +578,8 @@ Theorem references_are_conflict_free: forall s,
     reachable s -> conflict_free s = true.
 Proof.
     intros s H. enough (Hinv: invariant s) by apply Hinv.
-    induction H as [|s s' _ IH Hstep].
-    - repeat split; simpl; intros; contradiction.
-    - eapply invariant_step; eassumption.
+    apply (proj2 invariant_steps _ _ H).
+    repeat split; simpl; intros; contradiction.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)

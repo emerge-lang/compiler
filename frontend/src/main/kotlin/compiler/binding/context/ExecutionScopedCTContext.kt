@@ -173,6 +173,7 @@ open class MutableExecutionScopedCTContext protected constructor(
             is MutableCTContext -> it.parentContext
             is SingleBranchJoinExecutionScopedCTContext -> it.beforeBranch
             is MultiBranchJoinExecutionScopedCTContext -> it.beforeBranch
+            is InvocationJoinExecutionScopedCTContext -> it.afterArguments
             else -> null
         }
     }
@@ -292,7 +293,24 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
-        val parentState = parentContext.getEphemeralState(stateClass, subject)
+        return applySelfEffects(parentContext.getEphemeralState(stateClass, subject), stateClass, subject)
+    }
+
+    override fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        if (this === ancestor) {
+            return stateInAncestor
+        }
+
+        val parentState = parentContext.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject)
+        return applySelfEffects(parentState, stateClass, subject)
+    }
+
+    private fun <Subject : Any, State> applySelfEffects(parentState: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         val selfEffects = sideEffectsBySubjectAndClass[subject]?.get(stateClass) ?: return parentState
 
         // trackSideEffect is responsible for the type safety!
@@ -424,8 +442,24 @@ class SingleBranchJoinExecutionScopedCTContext(
         stateClass: EphemeralStateClass<Subject, State, *>,
         subject: Subject,
     ): State {
-        val stateBeforeBranch = beforeBranch.getEphemeralState(stateClass, subject)
-        val stateAfterBranch = atEndOfBranch.getEphemeralState(stateClass, subject)
+        return join(beforeBranch.getEphemeralState(stateClass, subject), stateClass, subject)
+    }
+
+    override fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        if (this === ancestor) {
+            return stateInAncestor
+        }
+
+        return join(beforeBranch.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject), stateClass, subject)
+    }
+
+    private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        val stateAfterBranch = atEndOfBranch.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
         return stateClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
     }
 }
@@ -444,9 +478,61 @@ class MultiBranchJoinExecutionScopedCTContext(
         stateClass: EphemeralStateClass<Subject, State, *>,
         subject: Subject,
     ): State {
+        return join(beforeBranch.getEphemeralState(stateClass, subject), stateClass, subject)
+    }
+
+    override fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        if (this === ancestor) {
+            return stateInAncestor
+        }
+
+        return join(beforeBranch.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject), stateClass, subject)
+    }
+
+    private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         return atEndOfBranches.asSequence()
-            .map { it.getEphemeralState(stateClass, subject) }
+            .map { it.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject) }
             .reduce(stateClass::combineExclusiveBranches)
+    }
+}
+
+/**
+ * Models the context after an invocation has returned. [afterArguments] must be (an indirect child of)
+ * [beforeInvocation]. The [SideEffect]s that happened between the two, while evaluating the arguments, are
+ * considered using [EphemeralStateClass.endInvocation].
+ */
+class InvocationJoinExecutionScopedCTContext(
+    private val beforeInvocation: ExecutionScopedCTContext,
+    internal val afterArguments: ExecutionScopedCTContext,
+) : ExecutionScopedCTContext by afterArguments {
+    override fun <Subject : Any, State> getEphemeralState(
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        return join(beforeInvocation.getEphemeralState(stateClass, subject), stateClass, subject)
+    }
+
+    override fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        if (this === ancestor) {
+            return stateInAncestor
+        }
+
+        return join(beforeInvocation.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject), stateClass, subject)
+    }
+
+    private fun <Subject : Any, State> join(stateBeforeInvocation: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        val stateAfterArguments = afterArguments.getEphemeralStateRelativeTo(beforeInvocation, stateBeforeInvocation, stateClass, subject)
+        return stateClass.endInvocation(stateBeforeInvocation, stateAfterArguments)
     }
 }
 

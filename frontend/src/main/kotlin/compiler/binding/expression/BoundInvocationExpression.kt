@@ -19,7 +19,6 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
@@ -34,9 +33,9 @@ import compiler.binding.SeanHelper
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.InvocationJoinExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
-import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ImpurityVisitor
@@ -81,7 +80,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundInvocationExpression(
+    /** the context after all [valueArguments] have been evaluated */
     override val context: ExecutionScopedCTContext,
+    /** the context before any of the [valueArguments] is evaluated */
+    contextBeforeInvocation: ExecutionScopedCTContext,
     override val declaration: InvocationExpression,
     /** The receiver expression; is null if not specified in the source */
     val receiverExpression: BoundExpression<*>?,
@@ -111,7 +113,9 @@ class BoundInvocationExpression(
     private val receiverExceptReferringType: BoundExpression<*>?
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
-    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(
+        InvocationJoinExecutionScopedCTContext(contextBeforeInvocation, context)
+    )
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) =
@@ -191,10 +195,6 @@ class BoundInvocationExpression(
                         parameter.declaration.span,
                         parameter.ownershipAtDeclarationTime,
                     ))
-                    if (parameter.ownershipAtDeclarationTime == VariableOwnership.BORROWED && argument is BoundIdentifierExpression && argument.referral is BoundIdentifierExpression.ReferringVariable) {
-                        val variable = (argument.referral as BoundIdentifierExpression.ReferringVariable).variable
-                        _modifiedContext.trackSideEffect(VariableLifetime.Effect.EndAllBorrows(variable))
-                    }
                 }
         }
     }

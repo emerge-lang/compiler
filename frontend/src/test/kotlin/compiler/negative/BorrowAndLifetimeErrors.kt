@@ -550,5 +550,18 @@ class BorrowAndLifetimeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
+
+        "nested incompatible borrow" {
+            validateModule("""
+                class C {}
+                intrinsic fn inner(borrow x: read C) -> S32
+                fn trigger(borrow a: mut C, n: S32, borrow b: const C) {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, inner(c), c)
+                }
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
     }
 })

@@ -47,12 +47,18 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     false,
                 )
             }
-            is Effect.EndAllBorrows -> when (state) {
-                is State.Untracked,
-                is State.Dead -> state
-                is State.AliveExclusive -> state
-                is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusive
-            }
+        }
+    }
+
+    override fun endInvocation(beforeInvocation: State, afterArguments: State): State {
+        return when (afterArguments) {
+            // the borrows started for the arguments end when the invoked function returns; the ones from
+            // before the invocation remain active, as they may belong to an enclosing invocation
+            is State.AliveExclusive,
+            is State.AliveExclusiveWithActiveBorrow -> beforeInvocation as? State.AliveExclusiveWithActiveBorrow ?: State.AliveExclusive
+            // captures by the arguments remain in effect
+            is State.Dead,
+            is State.Untracked -> afterArguments
         }
     }
 
@@ -213,10 +219,6 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             override val subject: BoundVariable,
             val withMutability: TypeMutability,
             val borrowStartedAt: Span,
-        ) : Effect
-
-        data class EndAllBorrows(
-            override val subject: BoundVariable,
         ) : Effect
     }
 }
