@@ -481,6 +481,11 @@ Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (sta
 (* `unify` is the recursive call; `self` is the target                                             *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* What a value of a type argument can be read as: an in-variant one is known no closer than
+   `read Any?` *)
+Definition read_type (v: Variance) (type: EType): EType :=
+    match v with input => top_type | _ => type end.
+
 (* RootResolvedTypeReference.unify *)
 Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class) (arguments: list EType) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
@@ -496,7 +501,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
         unify_arguments unify arguments normalized_assignee_arguments states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)
-    | TypeArgument _ _ type => unify self type (Ongoing states)
+    | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     (* a possibly null value to a non-null reference *)
     | Nullable _ => Some Failed
@@ -507,7 +512,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
 Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
-    | TypeArgument _ _ type => unify self type (Ongoing states)
+    | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) =>
         match nested with
         | Generic _ | TypeArgument _ _ _ => unify nested assignee (Ongoing states)
@@ -536,11 +541,7 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     | RootResolved _ _ _ =>
         if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
-    | TypeArgument variance _ type =>
-        match variance with
-        | output | invariant => unify self type (Ongoing states)
-        | input => unify self top_type (Ongoing states)
-        end
+    | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
     | Generic _ =>
         if generic_is_subtype_of assignee parameter (mutability_of self) then Some (Ongoing states) else Some Failed
     | Intersection components => intersection_flipped_unify unify self components states
