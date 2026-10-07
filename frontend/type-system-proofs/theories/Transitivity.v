@@ -171,24 +171,40 @@ Definition supertype_arguments (sub super: Class): list EType :=
     | _ => []
     end.
 
-Hypothesis supertypes_are_transitive: forall a b c,
-    In b (supertypes_of env a) -> In c (supertypes_of env b) -> In c (supertypes_of env a).
-Hypothesis any_has_no_supertypes: supertypes_of env any = [].
-Hypothesis acyclic: forall c c',
-    base_type_is_subtype_of env c c' = true -> base_type_is_subtype_of env c' c = true -> c = c'.
-Hypothesis parameter_ids_are_distinct: forall c, NoDup (parameter_ids c).
-Hypothesis nothing_has_no_type_parameters: parameter_ids nothing = [].
-Hypothesis any_has_no_type_parameters: parameter_ids any = [].
-Hypothesis nothing_is_no_scalar: is_core_scalar (declaration_of env nothing) = false.
-Hypothesis any_is_no_scalar: is_core_scalar (declaration_of env any) = false.
-Hypothesis supertypes_are_templates: forall sub super,
-    sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
-    length (supertype_arguments sub super) = length (parameter_ids super)
-    /\ forall t, In t (supertype_arguments sub super) -> template_argument sub t = true.
-Hypothesis supertypes_compose: forall a b c,
-    a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
-    base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
-    supertype_arguments a c = map (instantiate env (bindings_of env b (supertype_arguments a b))) (supertype_arguments b c).
+(* What the class declarations of a program are assumed to satisfy *)
+Record wellformed: Prop := {
+    wf_supertypes_are_transitive: forall a b c,
+        In b (supertypes_of env a) -> In c (supertypes_of env b) -> In c (supertypes_of env a);
+    wf_any_has_no_supertypes: supertypes_of env any = [];
+    wf_acyclic: forall c c',
+        base_type_is_subtype_of env c c' = true -> base_type_is_subtype_of env c' c = true -> c = c';
+    wf_parameter_ids_are_distinct: forall c, NoDup (parameter_ids c);
+    wf_nothing_has_no_type_parameters: parameter_ids nothing = [];
+    wf_any_has_no_type_parameters: parameter_ids any = [];
+    wf_nothing_is_no_scalar: is_core_scalar (declaration_of env nothing) = false;
+    wf_any_is_no_scalar: is_core_scalar (declaration_of env any) = false;
+    wf_supertypes_are_templates: forall sub super,
+        sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
+        length (supertype_arguments sub super) = length (parameter_ids super)
+        /\ forall t, In t (supertype_arguments sub super) -> template_argument sub t = true;
+    wf_supertypes_compose: forall a b c,
+        a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
+        base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
+        supertype_arguments a c = map (instantiate env (bindings_of env b (supertype_arguments a b))) (supertype_arguments b c);
+}.
+
+Hypothesis wf: wellformed.
+
+Let supertypes_are_transitive := wf_supertypes_are_transitive wf.
+Let any_has_no_supertypes := wf_any_has_no_supertypes wf.
+Let acyclic := wf_acyclic wf.
+Let parameter_ids_are_distinct := wf_parameter_ids_are_distinct wf.
+Let nothing_has_no_type_parameters := wf_nothing_has_no_type_parameters wf.
+Let any_has_no_type_parameters := wf_any_has_no_type_parameters wf.
+Let nothing_is_no_scalar := wf_nothing_is_no_scalar wf.
+Let any_is_no_scalar := wf_any_is_no_scalar wf.
+Let supertypes_are_templates := wf_supertypes_are_templates wf.
+Let supertypes_compose := wf_supertypes_compose wf.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Facts about classes, mutabilities and ownerships                                                *)
@@ -1374,6 +1390,42 @@ Proof.
     pose proof (proj1 (keeps_states_with_arguments n2) _ _ _ _ Hz Hy E2). subst u2.
     rewrite (proj1 (transitivity_with_arguments (n1 + n2)) x y z n1 n2 [] (le_n _) Hx Hy Hz E1 E2).
     reflexivity.
+Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Reflexivity                                                                                      *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Lemma reflexivity_with_arguments: forall f,
+    (forall t s, in_fragment t = true -> depth t <= f -> unify env f t t (Ongoing s) = Some (Ongoing s))
+    /\ (forall a s, argument_in_fragment a = true -> argument_depth a <= f -> unify env f a a (Ongoing s) = Some (Ongoing s)).
+Proof.
+    induction f as [|f [IHt IHa]].
+    { split; [intros t s Ht Hd|intros a s Ha Hd].
+      - destruct (fragment_cases t Ht) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; simpl in Hd; lia.
+      - destruct a as [| | | |v o n| |]; simpl in Ha, Hd; try discriminate Ha; lia. }
+    split.
+    - intros t s Ht Hd. destruct (fragment_cases t Ht) as [[m [c [args ->]]]|[m [c [args [-> Ht']]]]].
+      + destruct (root_in_fragment _ _ _ Ht) as [_ Hargs].
+        rewrite unify_classes, mutability_is_subtype_of_refl.
+        replace (base_type_is_subtype_of env c c) with true by (symmetry; apply base_type_is_subtype_of_iff; auto).
+        destruct (class_eqb c nothing); [reflexivity|]. rewrite class_eqb_refl.
+        assert (Hall: forall a, In a args -> unify env f a a (Ongoing s) = Some (Ongoing s)).
+        { intros a Ha. pose proof (argument_depth_below m c args a Ha). apply IHa; [apply Hargs, Ha|lia]. }
+        clear Ht Hd Hargs. unfold unify_arguments. induction args as [|a args IH]; [reflexivity|]. simpl.
+        rewrite (Hall a (or_introl eq_refl)). apply IH. intros a' Ha'. apply Hall. right. exact Ha'.
+      + rewrite depth_nullable in Hd. rewrite unify_nullable_nullable. apply IHt; [exact Ht'|lia].
+    - intros [| | | |v o n| |] s Ha Hd; simpl in Ha; try discriminate Ha. simpl in Hd.
+      rewrite unify_type_arguments, ownership_is_assignable_to_itself.
+      assert (Hn: forall s', unify env f n n (Ongoing s') = Some (Ongoing s')) by (intros s'; apply IHt; [exact Ha|lia]).
+      destruct v; unfold compare_variances; rewrite ?Hn; reflexivity.
+Qed.
+
+(* Every type of the fragment is assignable to itself *)
+Theorem reflexivity: forall t, in_fragment t = true -> is_assignable_to env (depth t) t t = Some true.
+Proof.
+    intros t Ht. unfold is_assignable_to, empty_unification.
+    rewrite (proj1 (reflexivity_with_arguments (depth t)) t [] Ht (le_n _)). reflexivity.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
