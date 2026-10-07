@@ -77,11 +77,12 @@ class BoundTypeArgument(
             }
             is BoundTypeArgument -> {
                 if (this.variance == TypeVariance.UNSPECIFIED) {
+                    val type = this.type
+                    if (type is TypeVariable) {
+                        carry.plusCapture(type.parameter, assigneeType, assignmentLocation)?.let { return it }
+                    }
+
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        val type = this.type
-                        if (type is TypeVariable) {
-                            carry.plusCapture(type.parameter, assigneeType, assignmentLocation)?.let { return it }
-                        }
                         return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an ${assigneeType.variance}-variant value to an exact-variant reference", assignmentLocation))
                     }
 

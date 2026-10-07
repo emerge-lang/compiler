@@ -142,8 +142,8 @@ class TypeUnification private constructor(
     }
 
     /**
-     * Binds [parameter] exactly to [binding], a type argument of a variance, if [parameter] may be captured and isn't bound
-     * exactly already. A capture stands for all the types the type argument does: `out A` for `A` and its subtypes.
+     * Binds [parameter] exactly to [binding], if [parameter] may be captured and isn't bound exactly already. A capture of
+     * a type argument with a variance stands for all the types the type argument does: `out A` for `A` and its subtypes.
      * @return `null` if [parameter] cannot be captured
      */
     fun plusCapture(
