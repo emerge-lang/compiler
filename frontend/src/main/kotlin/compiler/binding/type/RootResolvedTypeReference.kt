@@ -5,6 +5,7 @@ import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
@@ -289,11 +290,10 @@ class RootResolvedTypeReference private constructor(
             }
             is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
-            is BoundTypeArgument -> {
-                // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument
-                // in this case this is the bound and assigneeType is the argument
-                // variance is not important in that scenario because type arguments must be subtypes of the parameters bounds
-                return unify(assigneeType.type, assignmentLocation, carry)
+            is BoundTypeArgument -> return when (assigneeType.variance) {
+                TypeVariance.IN -> unify(context.swCtx.getTopType(assignmentLocation), assignmentLocation, carry)
+                TypeVariance.OUT,
+                TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is NullableTypeReference -> return carry.plusDiagnostic(

@@ -27,6 +27,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.instantiateAllParametersForWriting
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
@@ -101,7 +102,7 @@ class BoundObjectMemberAssignmentStatement(
         val targetObjectTypeBindings = targetObjectExpression.type?.inherentTypeBindings
             ?: return null
 
-        return contextualType?.instantiateAllParameters(targetObjectTypeBindings)
+        return contextualType?.instantiateAllParametersForWriting(targetObjectTypeBindings)
     }
 
     override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(

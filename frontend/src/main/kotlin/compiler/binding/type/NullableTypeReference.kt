@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -71,7 +72,11 @@ class NullableTypeReference private constructor(
     ): TypeUnification {
         return when(assigneeType) {
             is NullableTypeReference -> nested.unify(assigneeType.nested, assignmentLocation, carry)
-            is BoundTypeArgument -> unify(assigneeType.type, assignmentLocation, carry)
+            is BoundTypeArgument -> when (assigneeType.variance) {
+                TypeVariance.IN -> unify(context.swCtx.getTopType(assignmentLocation), assignmentLocation, carry)
+                TypeVariance.OUT,
+                TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
+            }
             is GenericTypeReference -> if (nested is GenericTypeReference || nested is BoundTypeArgument) {
                 nested.unify(assigneeType, assignmentLocation, carry)
             } else {

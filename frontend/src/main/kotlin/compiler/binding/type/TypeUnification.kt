@@ -106,7 +106,7 @@ class TypeUnification private constructor(
         assignmentLocation: Span
     ): TypeUnification {
         val stateBefore = variableStates[parameter] ?: throw TypeVariableNotUnderInferenceException(parameter)
-        val unificationWithUpperBound = stateBefore.upperBound.unify(binding, assignmentLocation, this)
+        val unificationWithUpperBound = stateBefore.upperBound.unify(binding.type, assignmentLocation, this)
         val errorWithUpperBound = unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<ValueNotAssignableDiagnostic>().firstOrNull()
         if (errorWithUpperBound != null) {
             return this.plusDiagnostic(TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, binding, errorWithUpperBound.reason))

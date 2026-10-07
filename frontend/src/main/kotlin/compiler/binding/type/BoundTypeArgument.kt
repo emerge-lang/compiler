@@ -259,12 +259,18 @@ class BoundTypeArgument(
         )
     }
 
+    private val readType: BoundTypeReference get() = when (variance) {
+        TypeVariance.IN -> context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
+        TypeVariance.OUT,
+        TypeVariance.UNSPECIFIED -> type
+    }
+
     override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
-        return type.findMemberVariable(name)
+        return readType.findMemberVariable(name)
     }
 
     override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
-        return type.findMemberFunction(name)
+        return readType.findMemberFunction(name)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -325,6 +331,20 @@ private class IrTypeArgumentImpl(
         result = 31 * result + type.hashCode()
         return result
     }
+}
+
+/**
+ * Like [BoundTypeReference.instantiateAllParameters], but for the type of values written to a reference of this type:
+ * `Box<T>` with `T` bound to `out A` might be a `Box<B>` or a `Box<C>`, only `Nothing` fits all of them.
+ */
+fun BoundTypeReference.instantiateAllParametersForWriting(context: TypeUnification): BoundTypeReference {
+    val instantiated = instantiateAllParameters(context)
+    if (!mentionsVariantlyBoundParameterInTypeArguments(context)) {
+        return instantiated
+    }
+
+    val bottomType = this.context.swCtx.getBottomType(span ?: Span.UNKNOWN)
+    return if (instantiated.isNullable) NullableTypeReference(bottomType) else bottomType
 }
 
 /**

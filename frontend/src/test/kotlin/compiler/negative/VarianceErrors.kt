@@ -6,6 +6,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.binding.type.parseTypeArgument
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentOnInvocationDiagnostic
 import compiler.lexer.Span
@@ -207,6 +208,162 @@ class VarianceErrors : FreeSpec({
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }
+    }
+
+    "reading through an in-variant type argument gives read Any?" - {
+        "assigned to a class type" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: B = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read Any?"
+                }
+        }
+
+        "assigned to a nullable type" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: B? = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "assigned to read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: read Any? = a.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "members of the type argument are not available" {
+            validateModule("""
+                interface A {}
+                interface B : A {
+                    fn onlyOnB(self) -> S32
+                }
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) -> S32 {
+                    return a.p.onlyOnB()
+                }
+            """.trimIndent())
+                .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
+        }
+
+        "a bounded type parameter still takes an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T : A> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "writing through a variant type argument" - {
+        "a type parameter nested in the type of the member, bound to an out-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<out A>, b: Box<B>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a type parameter nested in the type of the member, bound to an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<in B>, b: Box<B>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "null can still be written to a nullable member" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T>? = init
+                }
+                fn test(h: mut Holder<out A>) {
+                    set h.box = null
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "a member typed as the type parameter takes subtypes of an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Holder<T> {
+                    var value: T? = init
+                }
+                fn test(h: mut Holder<in B>, b: B) {
+                    set h.value = b
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "an exact type argument takes the exact type" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<A>, b: Box<A>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "instantiating a type argument with one of the same variance keeps the type" - {
