@@ -202,7 +202,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 25. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
-26. member functions can't be invoked on receivers with variant type arguments. Inferring `T` from the receiver
+26. ~~member functions can't be invoked on receivers with variant type arguments.~~ Inferring `T` from the receiver
     fails, because the inferred `T` is exact, and an out-variant type argument isn't assignable to it:
     ```
     interface Holder<T> {

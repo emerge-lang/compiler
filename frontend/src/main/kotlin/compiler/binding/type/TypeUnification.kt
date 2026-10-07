@@ -142,6 +142,24 @@ class TypeUnification private constructor(
     }
 
     /**
+     * Binds [parameter] exactly to [binding], a type argument of a variance, if [parameter] may be captured and isn't bound
+     * exactly already. A capture stands for all the types the type argument does: `out A` for `A` and its subtypes.
+     * @return `null` if [parameter] cannot be captured
+     */
+    fun plusCapture(
+        parameter: BoundTypeParameter,
+        binding: BoundTypeArgument,
+        assignmentLocation: Span,
+    ): TypeUnification? {
+        val state = variableStates[parameter] ?: return null
+        if (!state.isCapturable || state.isExact) {
+            return null
+        }
+
+        return plusExactBinding(parameter, binding, assignmentLocation)
+    }
+
+    /**
      * @return whether [parameter] is bound by this [TypeUnification], or under inference in it
      */
     fun binds(parameter: BoundTypeParameter): Boolean = parameter in variableStates
@@ -186,11 +204,17 @@ class TypeUnification private constructor(
     companion object {
         val EMPTY = TypeUnification(emptyMap(), emptySet())
 
-        fun forInferenceOf(parameters: Collection<BoundTypeParameter>): TypeUnification {
+        /**
+         * @param capturableParameters see [plusCapture]
+         */
+        fun forInferenceOf(
+            parameters: Collection<BoundTypeParameter>,
+            capturableParameters: Collection<BoundTypeParameter> = emptySet(),
+        ): TypeUnification {
             return TypeUnification(
                 parameters.associateWith {
                     val upperBound = it.bound.withTypeVariables(parameters)
-                    VariableState(upperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false)
+                    VariableState(upperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false, it in capturableParameters)
                 },
                 emptySet(),
             )
@@ -227,6 +251,7 @@ class TypeUnification private constructor(
          * for [Diagnostic]s if there are no type arguments and [allowZeroTypeArguments] is false
          * @param allowMissingTypeArguments Whether 0 type arguments is valid even if [declaredTypeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
+         * @param capturableParameters see [plusCapture]
          */
         fun fromExplicit(
             allTypeParameters: Collection<BoundTypeParameter>,
@@ -234,8 +259,9 @@ class TypeUnification private constructor(
             arguments: List<BoundTypeArgument>?,
             argumentsLocation: Span,
             allowMissingTypeArguments: Boolean = false,
+            capturableParameters: Collection<BoundTypeParameter> = emptySet(),
         ): TypeUnification {
-            var unification = forInferenceOf(allTypeParameters)
+            var unification = forInferenceOf(allTypeParameters, capturableParameters)
 
             if (arguments == null) {
                 if (declaredTypeParameters.isNotEmpty() && !allowMissingTypeArguments) {
@@ -282,6 +308,7 @@ class TypeUnification private constructor(
          */
         val lowerBound: BoundTypeReference,
         val isExact: Boolean,
+        val isCapturable: Boolean = false,
     )
 }
 

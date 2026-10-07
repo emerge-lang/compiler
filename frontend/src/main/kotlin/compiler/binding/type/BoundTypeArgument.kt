@@ -78,7 +78,11 @@ class BoundTypeArgument(
             is BoundTypeArgument -> {
                 if (this.variance == TypeVariance.UNSPECIFIED) {
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        val type = this.type
+                        if (type is TypeVariable) {
+                            carry.plusCapture(type.parameter, assigneeType, assignmentLocation)?.let { return it }
+                        }
+                        return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an ${assigneeType.variance}-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
@@ -119,17 +123,16 @@ class BoundTypeArgument(
     /**
      * @see BoundTypeReference.instantiateFreeVariables
      */
-    override fun instantiateFreeVariables(context: TypeUnification,): BoundTypeArgument {
-        val binding = type.instantiateFreeVariables(context)
-        if (binding is BoundTypeArgument) {
-            return binding
-        }
-
-        return BoundTypeArgument(this.context, astNode, variance, binding)
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeArgument {
+        return instantiateWith(context, type.instantiateFreeVariables(context), keepAstNode = true)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
-        var nestedInstantiated = type.instantiateAllParameters(context)
+        return instantiateWith(context, type.instantiateAllParameters(context), keepAstNode = false)
+    }
+
+    private fun instantiateWith(context: TypeUnification, typeInstantiated: BoundTypeReference, keepAstNode: Boolean): BoundTypeArgument {
+        var nestedInstantiated = typeInstantiated
         var isNullable: Boolean
         if (nestedInstantiated is NullableTypeReference) {
             isNullable = true
@@ -167,7 +170,8 @@ class BoundTypeArgument(
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, AstSpecificTypeArgument(resultVariance, nestedInstantiated.asAstReference()), resultVariance, nestedInstantiated)
+        val resultAstNode = if (keepAstNode && resultVariance == variance) astNode else AstSpecificTypeArgument(resultVariance, nestedInstantiated.asAstReference())
+        return BoundTypeArgument(this.context, resultAstNode, resultVariance, nestedInstantiated)
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {

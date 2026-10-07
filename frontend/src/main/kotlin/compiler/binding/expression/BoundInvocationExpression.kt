@@ -377,7 +377,12 @@ class BoundInvocationExpression(
                     candidateFn.declaredTypeParameters,
                     typeArguments,
                     returnTypeArgsLocation,
-                    allowMissingTypeArguments = true
+                    allowMissingTypeArguments = true,
+                    capturableParameters = if (candidateFn.declaresReceiver) {
+                        candidateFn.allTypeParameters.toSet() - candidateFn.declaredTypeParameters.toSet()
+                    } else {
+                        emptySet()
+                    },
                 )
                 val unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
