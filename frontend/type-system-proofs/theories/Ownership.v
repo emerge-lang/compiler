@@ -447,7 +447,7 @@ Qed.
 (* unify enforces variance_is_assignable_to: it rejects a variant type argument for an invariant one
    outright, before looking at the types. (Where it accepts the variances, it unifies the types in the
    directions of mutability_conforms: both ways for invariant, covariantly for out, contravariantly for
-   in.) The exception is a type variable that captures the type argument (plus_capture). *)
+   in.) The exception is a type variable that captures the type argument (Subtyping.capturable). *)
 Theorem unify_rejects_unassignable_variances: forall fuel v v' o o' t t' states,
     ownership_is_assignable_to o' o = true ->
     variance_is_assignable_to v' v = false ->

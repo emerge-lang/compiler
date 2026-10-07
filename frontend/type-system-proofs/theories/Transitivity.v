@@ -354,8 +354,8 @@ Lemma unify_nullable_nullable: forall n nt na s,
     unify env (S n) (Nullable nt) (Nullable na) (Ongoing s) = unify env n nt na (Ongoing s).
 Proof. reflexivity. Qed.
 
-(* A type variable in an invariant type argument may capture a variant one (plus_capture); there are
-   none in the fragment *)
+(* A type variable in an invariant type argument may capture the type argument assigned
+   (Subtyping.capturable); there are none in the fragment *)
 Lemma unify_type_arguments: forall n vt ot nt va oa na s,
     is_type_variable nt = false ->
     unify env (S n) (TypeArgument vt ot nt) (TypeArgument va oa na) (Ongoing s) =
@@ -363,7 +363,7 @@ Lemma unify_type_arguments: forall n vt ot nt va oa na s,
 Proof.
     intros n vt ot nt va oa na s Hnt. rewrite unify_step_once. unfold unify_step, unify_type_argument. cbn beta iota zeta.
     destruct (ownership_is_assignable_to oa ot); [|reflexivity].
-    destruct vt, va; try reflexivity; destruct nt; try discriminate Hnt; reflexivity.
+    destruct nt; try discriminate Hnt; destruct vt, va; reflexivity.
 Qed.
 
 Lemma fragment_not_variable: forall t, in_fragment t = true -> is_type_variable t = false.

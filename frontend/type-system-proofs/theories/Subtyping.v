@@ -464,14 +464,17 @@ Definition plus_exact_binding (unify: UnifyFn) (states: VariableStates) (paramet
     end.
 
 (* TypeUnification.plusCapture: a type variable that may be captured (one of the type parameters of the
-   class of a receiver), not bound exactly yet, is bound exactly to a type argument of a variance;
-   it stands for all the types the type argument does. Some Failed where it can't be captured. *)
-Definition plus_capture (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (binding: EType): option Unification :=
-    match lookup_state states parameter with
-    | Some state =>
-        if is_capturable state && negb (is_exact state) then plus_exact_binding unify states parameter binding
-        else Some Failed
-    | None => Some Failed
+   class of a receiver), and isn't bound exactly yet, in place of the type of an invariant type
+   argument. It is bound exactly to the type argument assigned (plus_exact_binding); one of a
+   variance stands for all the types it does. *)
+Definition capturable (t: EType) (states: VariableStates): option TypeParameterId :=
+    match t with
+    | TypeVariable (mkGenericRef _ p _) =>
+        match lookup_state states p with
+        | Some state => if is_capturable state && negb (is_exact state) then Some p else None
+        | None => None
+        end
+    | _ => None
     end.
 
 (* TypeVariable.flippedUnify: the variable is the assignee *)
@@ -612,15 +615,17 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
     | TypeArgument assignee_variance assignee_ownership assignee_type =>
         if negb (ownership_is_assignable_to assignee_ownership ownership) then Some Failed else
         match variance, assignee_variance with
-        (* the target uses the type both in IN and OUT fashion, the source must match exactly *)
-        | invariant, invariant =>
-            let* carry2 := unify type assignee_type (Ongoing states) in
-            unify assignee_type type carry2
-        (* a type variable in place of the type may capture the type argument *)
         | invariant, _ =>
-            match type with
-            | TypeVariable (mkGenericRef _ p _) => plus_capture unify states p assignee
-            | _ => Some Failed
+            match capturable type states with
+            | Some p => plus_exact_binding unify states p assignee
+            | None =>
+                match assignee_variance with
+                (* the target uses the type both in IN and OUT fashion, the source must match exactly *)
+                | invariant =>
+                    let* carry2 := unify type assignee_type (Ongoing states) in
+                    unify assignee_type type carry2
+                | _ => Some Failed
+                end
             end
         | output, output
         | output, invariant => unify type assignee_type (Ongoing states)
@@ -816,13 +821,6 @@ Section StepRefines.
         plus_exact_binding f states p binding = Some u -> plus_exact_binding g states p binding = Some u.
     Proof. intros * H. unfold plus_exact_binding in *. solve_refines Hfg H. Qed.
 
-    Lemma plus_capture_refines: forall states p binding u,
-        plus_capture f states p binding = Some u -> plus_capture g states p binding = Some u.
-    Proof.
-        intros * H. unfold plus_capture in *. destruct (lookup_state states p); [|exact H].
-        destruct (is_capturable v && negb (is_exact v)); [|exact H]. exact (plus_exact_binding_refines _ _ _ _ H).
-    Qed.
-
     Lemma intersection_flipped_unify_refines: forall target components states u,
         intersection_flipped_unify f target components states = Some u -> intersection_flipped_unify g target components states = Some u.
     Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
@@ -839,7 +837,7 @@ Section StepRefines.
         | plus_supertype_constraint f ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
         | type_variable_flipped_unify f ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
         | intersection_flipped_unify f ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
-        | plus_capture f ?s ?p ?t = Some _ => exact (plus_capture_refines _ _ _ _ H)
+        | plus_exact_binding f ?s ?p ?t = Some _ => exact (plus_exact_binding_refines _ _ _ _ H)
         | unify_arguments f ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
         end.
 
