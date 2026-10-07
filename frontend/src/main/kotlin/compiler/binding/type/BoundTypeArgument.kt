@@ -92,9 +92,7 @@ class BoundTypeArgument(
                     }
 
                     check(assigneeType.variance == TypeVariance.IN)
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
-                    )
+                    return this.type.unify(context.swCtx.getTopType(assigneeType.span ?: Span.UNKNOWN), assignmentLocation, carry)
                 }
 
                 check(this.variance == TypeVariance.IN)
@@ -103,9 +101,7 @@ class BoundTypeArgument(
                     return assigneeType.type.unify(this.type, assignmentLocation, carry)
                 }
 
-                return carry.plusDiagnostic(
-                    ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
-                )
+                return context.swCtx.getBottomType(assigneeType.span ?: Span.UNKNOWN).unify(this.type, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
@@ -146,17 +142,22 @@ class BoundTypeArgument(
             if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED || nestedInstantiated.variance == this.variance) {
                 resultVariance = nestedInstantiated.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: variance
                 nestedInstantiated = nestedInstantiated.type
-            } else {
+            } else if (this.variance == TypeVariance.OUT) {
                 resultVariance = TypeVariance.OUT
-                val topMutability = if (this.variance == TypeVariance.OUT) this.mutability else TypeMutability.READONLY
-                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(topMutability)
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(this.mutability)
+                isNullable = false
+            } else {
+                resultVariance = TypeVariance.IN
+                nestedInstantiated = this.context.swCtx.getBottomType(astNode.span ?: Span.UNKNOWN)
                 isNullable = false
             }
         } else if (type.mentionsVariantlyBoundParameterInTypeArguments(context)) {
-            resultVariance = TypeVariance.OUT
             if (this.variance == TypeVariance.IN) {
-                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(TypeMutability.READONLY)
+                resultVariance = TypeVariance.IN
+                nestedInstantiated = this.context.swCtx.getBottomType(astNode.span ?: Span.UNKNOWN)
                 isNullable = false
+            } else {
+                resultVariance = TypeVariance.OUT
             }
         } else {
             resultVariance = variance

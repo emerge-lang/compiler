@@ -167,6 +167,29 @@ class VarianceErrors : FreeSpec({
         }
     }
 
+    "opposite variances meet at the top" - {
+        val outTop = swCtx.parseTypeArgument("out read Any?")
+        val outConstTop = swCtx.parseTypeArgument("out const Any?")
+        val inBottom = swCtx.parseTypeArgument("in exclusive Nothing")
+        val inReadBottom = swCtx.parseTypeArgument("in read Nothing")
+
+        "in Child to out read Any?" {
+            inChild should beAssignableTo(outTop)
+        }
+
+        "in Child to out const Any?" {
+            inChild shouldNot beAssignableTo(outConstTop)
+        }
+
+        "out Child to in exclusive Nothing" {
+            outChild should beAssignableTo(inBottom)
+        }
+
+        "out Child to in read Nothing" {
+            outChild shouldNot beAssignableTo(inReadBottom)
+        }
+    }
+
     "in-variant type argument assumes type read Any? in out-position" {
         validateModule("""
             interface A {}
@@ -286,6 +309,50 @@ class VarianceErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+    }
+
+    "an in-variant type argument widened to in Nothing is assignable from all others" {
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> : Consumer<in Box<T>> {}
+            fn test(exact: Holder<A>, variant: Holder<out A>) {
+                x: Consumer<in exclusive Nothing> = variant
+                y: Consumer<in exclusive Nothing> = exact
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
+
+    "a type argument widened to in Nothing is assignable to out read Any?" {
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> : Consumer<in Box<T>> {}
+            fn test(variant: Holder<out A>) {
+                x: Consumer<out read Any?> = variant
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> : Consumer<in Box<T>> {}
+            fn test(variant: Holder<out A>) {
+                x: Consumer<out const Any?> = variant
+            }
+        """.trimIndent())
+            .shouldFind<ValueNotAssignableDiagnostic>()
     }
 
     "opposite variances" - {
