@@ -160,7 +160,8 @@ Proof.
     destruct y as [| | | |v oy Y| |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
-    rewrite unify_type_arguments in E. destruct (ownership_is_assignable_to o oy); [|discriminate E].
+    rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
+    destruct (ownership_is_assignable_to o oy); [|discriminate E].
     exists o, X, v, oy, Y, n''. repeat split; auto.
     - apply instantiate_parameter. exact (lookup_parameter env wf c xs i p _ Hi Ex).
     - apply instantiate_parameter. exact (lookup_parameter env wf c ys i p _ Hi Ey).

@@ -354,13 +354,20 @@ Lemma unify_nullable_nullable: forall n nt na s,
     unify env (S n) (Nullable nt) (Nullable na) (Ongoing s) = unify env n nt na (Ongoing s).
 Proof. reflexivity. Qed.
 
+(* A type variable in an invariant type argument may capture a variant one (plus_capture); there are
+   none in the fragment *)
 Lemma unify_type_arguments: forall n vt ot nt va oa na s,
+    is_type_variable nt = false ->
     unify env (S n) (TypeArgument vt ot nt) (TypeArgument va oa na) (Ongoing s) =
     if ownership_is_assignable_to oa ot then compare_variances (unify env n) vt va nt na s else Some Failed.
 Proof.
-    intros. rewrite unify_step_once. unfold unify_step, unify_type_argument. cbn beta iota zeta.
-    destruct (ownership_is_assignable_to oa ot); [|reflexivity]. destruct vt, va; reflexivity.
+    intros n vt ot nt va oa na s Hnt. rewrite unify_step_once. unfold unify_step, unify_type_argument. cbn beta iota zeta.
+    destruct (ownership_is_assignable_to oa ot); [|reflexivity].
+    destruct vt, va; try reflexivity; destruct nt; try discriminate Hnt; reflexivity.
 Qed.
+
+Lemma fragment_not_variable: forall t, in_fragment t = true -> is_type_variable t = false.
+Proof. intros t H. destruct (fragment_cases t H) as [[m [c [a ->]]]|[m [c [a [-> _]]]]]; reflexivity. Qed.
 
 Lemma fold_stays_failed: forall n l,
     fold_unify (fun inner '(t, a) => unify env n t a inner) l Failed = Some Failed.
@@ -512,6 +519,9 @@ Proof.
         destruct o; try discriminate Ho; destruct v; reflexivity.
 Qed.
 
+Lemma class_shaped_not_variable: forall t, class_shaped t -> is_type_variable t = false.
+Proof. intros t [[m [c [a ->]]]|[m [c [a ->]]]]; reflexivity. Qed.
+
 Lemma template_instance_shape: forall sub b t, template_type sub t = true -> class_shaped (instantiate env b t).
 Proof.
     intros sub b t H. destruct (template_type_cases sub t H) as [[m [c [arguments ->]]]|[m [c [arguments [-> _]]]]].
@@ -525,6 +535,13 @@ Proof.
     - left. eauto.
     - right. eauto.
 Qed.
+
+Ltac no_variable :=
+    first
+        [ reflexivity
+        | apply fragment_not_variable; assumption
+        | apply class_shaped_not_variable; assumption
+        | apply class_shaped_not_variable; eapply template_instance_shape; eassumption ].
 
 (* Instantiating a template with type arguments of the fragment gives a type (argument) of it *)
 Lemma template_instances_with_arguments: forall sub ys,
@@ -619,7 +636,7 @@ Lemma loose_monotone: forall f x y s, argument_in_fragment x = true -> argument_
     unify env f y x (Ongoing s) = Some (Ongoing s) -> is_loose x = true -> is_loose y = true.
 Proof.
     intros [|f] [| | | |vx ox X| |] [| | | |vy oy Y| |] s Hx Hy H Hl; simpl in Hx, Hy; try discriminate.
-    rewrite unify_type_arguments in H. destruct vy; [|reflexivity|reflexivity].
+    rewrite unify_type_arguments in H by no_variable. destruct vy; [|reflexivity|reflexivity].
     destruct (ownership_is_assignable_to ox oy) eqn:Ho; [|discriminate H].
     destruct vx; unfold compare_variances in H; try discriminate H.
     destruct ox as [| | |p], oy as [| | |q]; simpl in Hl, Ho |- *; congruence.
@@ -807,7 +824,7 @@ Proof.
       + rewrite unify_nullable_class in H. exact (IHt _ _ s u Ht' Ha H).
       + rewrite unify_nullable_nullable in H. exact (IHt _ _ s u Ht' Ha' H).
     - intros [| | | |vt ot nt| |] [| | | |va oa na| |] s u Ht Ha H; simpl in Ht, Ha; try discriminate Ht; try discriminate Ha.
-      rewrite unify_type_arguments in H. destruct (ownership_is_assignable_to oa ot); [|discriminate H].
+      rewrite unify_type_arguments in H by no_variable. destruct (ownership_is_assignable_to oa ot); [|discriminate H].
       destruct vt, va; unfold compare_variances in H; try discriminate H;
           try exact (IHt _ _ s u Ht Ha H); try exact (IHt _ _ s u Ha Ht H);
           try exact (IHt _ _ s u Ht top_in_fragment H); try exact (IHt _ _ s u bottom_in_fragment Ht H).
@@ -965,7 +982,7 @@ Lemma exact_symmetric: forall f x y s, argument_in_fragment x = true -> argument
     unify env f y x (Ongoing s) = Some (Ongoing s) -> is_loose y = false -> unify env f x y (Ongoing s) = Some (Ongoing s).
 Proof.
     intros [|f] [| | | |vx ox X| |] [| | | |vy oy Y| |] s Hx Hy H Hl; simpl in Hx, Hy; try discriminate.
-    rewrite unify_type_arguments in H |- *.
+    rewrite unify_type_arguments in H |- * by no_variable.
     destruct vy; simpl in Hl; try discriminate Hl.
     destruct (ownership_is_assignable_to ox oy) eqn:Ho; [|discriminate H].
     destruct vx; unfold compare_variances in H |- *; try discriminate H.
@@ -1162,7 +1179,7 @@ Proof.
           intros z m' Hm' Hz H. destruct m' as [|m'']; [discriminate H|]. change (S m'' + C) with (S (m'' + C)).
           destruct z as [| | | |vz oz Z| |]; simpl in Hz; try discriminate Hz.
           destruct v; cbn beta iota in H |- *;
-              rewrite unify_type_arguments in H |- *; destruct (ownership_is_assignable_to o oz); try discriminate H;
+              rewrite unify_type_arguments in H |- * by no_variable; destruct (ownership_is_assignable_to o oz); try discriminate H;
               destruct vz; unfold compare_variances in H |- *; try discriminate H;
               first [ apply IHn_f; [lia|exact Hz|exact H]
                     | apply (unify_fuel_monotone env m''); [lia|exact H] ].
@@ -1171,7 +1188,7 @@ Proof.
           intros z m' Hm' Hz H. destruct m' as [|m'']; [discriminate H|]. change (S m'' + C) with (S (m'' + C)).
           destruct z as [| | | |vz oz Z| |]; simpl in Hz; try discriminate Hz.
           destruct v; cbn beta iota in H |- *;
-              rewrite unify_type_arguments in H |- *; destruct (ownership_is_assignable_to o oz); try discriminate H;
+              rewrite unify_type_arguments in H |- * by no_variable; destruct (ownership_is_assignable_to o oz); try discriminate H;
               destruct vz; unfold compare_variances in H |- *; try discriminate H;
               first [ apply IHn_f; [lia|exact Hz|exact H]
                     | apply (unify_fuel_monotone env m''); [lia|exact H]
@@ -1184,7 +1201,7 @@ Proof.
           split.
           -- intros z m' Hm' Hz H. destruct m' as [|m'']; [discriminate H|]. change (S m'' + C) with (S (m'' + C)).
              destruct z as [| | | |vz oz Z| |]; simpl in Hz; try discriminate Hz.
-             rewrite unify_type_arguments in H |- *. destruct (ownership_is_assignable_to o oz); [|discriminate H].
+             rewrite unify_type_arguments in H |- * by no_variable. destruct (ownership_is_assignable_to o oz); [|discriminate H].
              apply (compare_variances_assignee (unify env m'') (unify env (m'' + C)) vz v Z
                  (instantiate env (bindings_of env sub ys) n) (instantiate env (bindings_of env sub xs) n) s);
                  [apply unify_keeps_failure| | | | | |exact H].
@@ -1195,7 +1212,7 @@ Proof.
              ++ intros E. apply (unify_fuel_monotone env m''); [lia|exact E].
           -- intros _ z m' Hm' Hz H. destruct m' as [|m'']; [discriminate H|]. change (S m'' + C) with (S (m'' + C)).
              destruct z as [| | | |vz oz Z| |]; simpl in Hz; try discriminate Hz.
-             rewrite unify_type_arguments in H |- *. destruct (ownership_is_assignable_to oz o); [|discriminate H].
+             rewrite unify_type_arguments in H |- * by no_variable. destruct (ownership_is_assignable_to oz o); [|discriminate H].
              apply (compare_variances_target (unify env m'') (unify env (m'' + C)) v vz
                  (instantiate env (bindings_of env sub ys) n) (instantiate env (bindings_of env sub xs) n) Z s);
                  [apply unify_keeps_failure| | | | | |exact H].
@@ -1350,7 +1367,7 @@ Proof.
           simpl in Hx, Hy, Hz; try discriminate Hx; try discriminate Hy; try discriminate Hz.
       destruct n1 as [|n1']; [discriminate H1|]. destruct n2 as [|n2']; [discriminate H2|].
       change (S n1' + S n2') with (S (n1' + S n2')).
-      rewrite unify_type_arguments in H1, H2 |- *.
+      rewrite unify_type_arguments in H1, H2 |- * by no_variable.
       destruct (ownership_is_assignable_to o1 o2) eqn:Ho12; [|discriminate H1].
       destruct (ownership_is_assignable_to o2 o3) eqn:Ho23; [|discriminate H2].
       rewrite (ownership_trans o1 o2 o3 Ho12 Ho23).
@@ -1416,7 +1433,7 @@ Proof.
         rewrite (Hall a (or_introl eq_refl)). apply IH. intros a' Ha'. apply Hall. right. exact Ha'.
       + rewrite depth_nullable in Hd. rewrite unify_nullable_nullable. apply IHt; [exact Ht'|lia].
     - intros [| | | |v o n| |] s Ha Hd; simpl in Ha; try discriminate Ha. simpl in Hd.
-      rewrite unify_type_arguments, ownership_is_assignable_to_itself.
+      rewrite unify_type_arguments, ownership_is_assignable_to_itself by no_variable.
       assert (Hn: forall s', unify env f n n (Ongoing s') = Some (Ongoing s')) by (intros s'; apply IHt; [exact Ha|lia]).
       destruct v; unfold compare_variances; rewrite ?Hn; reflexivity.
 Qed.

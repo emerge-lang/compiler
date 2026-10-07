@@ -11,8 +11,8 @@
  *
  * - No diagnostics, just whether the unification failed. Once it has, unify stops, where Kotlin
  *   carries on to collect more diagnostics; and where Kotlin does extra work only to pick the more
- *   helpful diagnostic, this doesn't. TypeUnification.plusExactBinding, which only serves explicit
- *   type arguments and tells its diagnostics apart, is left out.
+ *   helpful diagnostic, this doesn't. TypeUnification.fromExplicit, the explicit type arguments
+ *   of an invocation, is left out; plus_exact_binding serves the capture of type arguments.
  * - Everything that unify only consumes, rather than decides, is a section variable, the
  *   Environment: the class declarations, what is derived from them (the transitive supertypes,
  *   their type arguments), and the lattice operations the inference uses
@@ -353,6 +353,8 @@ Record VariableState := mkVariableState {
     upper_bound: EType;
     lower_bound: EType;
     is_exact: bool;
+    (* see TypeUnification.plusCapture *)
+    is_capturable: bool;
 }.
 
 Definition VariableStates := list (TypeParameterId * VariableState).
@@ -372,8 +374,8 @@ Definition empty_unification: Unification := Ongoing [].
 
 (* TypeUnification.forInferenceOf; the bounds are expected with their type variables already in
    place (`it.bound.withTypeVariables(parameters)`) *)
-Definition for_inference_of (parameters: list (TypeParameterId * EType)): Unification :=
-    Ongoing (map (fun '(p, bound) => (p, mkVariableState bound bound bottom_type false)) parameters).
+Definition for_inference_of (parameters: list (TypeParameterId * EType)) (capturable: list TypeParameterId): Unification :=
+    Ongoing (map (fun '(p, bound) => (p, mkVariableState bound bound bottom_type false (existsb (param_eqb p) capturable))) parameters).
 
 Fixpoint lookup_state (states: VariableStates) (p: TypeParameterId): option VariableState :=
     match states with
@@ -418,7 +420,7 @@ Definition plus_subtype_constraint (unify: UnifyFn) (states: VariableStates) (pa
         match with_lower_bound with
         | Failed => Some Failed
         | Ongoing new_states => Some (Ongoing (set_state new_states parameter
-            (mkVariableState (static_upper_bound state) new_upper_bound (lower_bound state) false)))
+            (mkVariableState (static_upper_bound state) new_upper_bound (lower_bound state) false (is_capturable state))))
         end
     end.
 
@@ -436,8 +438,40 @@ Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (
            whether that or another constraint is to blame; it fails either way. *)
         | Failed => Some Failed
         | Ongoing new_states => Some (Ongoing (set_state new_states parameter
-            (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false)))
+            (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false (is_capturable state))))
         end
+    end.
+
+(* TypeUnification.plusExactBinding: parameter is exactly the type argument binding, whose type must
+   be within the bounds so far *)
+Definition plus_exact_binding (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (binding: EType): option Unification :=
+    match lookup_state states parameter with
+    (* TypeVariableNotUnderInferenceException *)
+    | None => None
+    | Some state =>
+        let binding_type := match binding with TypeArgument _ _ t => t | _ => binding end in
+        let* with_upper_bound := unify (upper_bound state) binding_type (Ongoing states) in
+        match with_upper_bound with
+        | Failed => Some Failed
+        | Ongoing _ =>
+            let* with_lower_bound := unify binding (lower_bound state) (Ongoing states) in
+            match with_lower_bound with
+            | Failed => Some Failed
+            | Ongoing new_states => Some (Ongoing (set_state new_states parameter
+                (mkVariableState (static_upper_bound state) binding binding true (is_capturable state))))
+            end
+        end
+    end.
+
+(* TypeUnification.plusCapture: a type variable that may be captured (one of the type parameters of the
+   class of a receiver), not bound exactly yet, is bound exactly to a type argument of a variance;
+   it stands for all the types the type argument does. Some Failed where it can't be captured. *)
+Definition plus_capture (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (binding: EType): option Unification :=
+    match lookup_state states parameter with
+    | Some state =>
+        if is_capturable state && negb (is_exact state) then plus_exact_binding unify states parameter binding
+        else Some Failed
+    | None => Some Failed
     end.
 
 (* TypeVariable.flippedUnify: the variable is the assignee *)
@@ -582,7 +616,12 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
         | invariant, invariant =>
             let* carry2 := unify type assignee_type (Ongoing states) in
             unify assignee_type type carry2
-        | invariant, _ => Some Failed
+        (* a type variable in place of the type may capture the type argument *)
+        | invariant, _ =>
+            match type with
+            | TypeVariable (mkGenericRef _ p _) => plus_capture unify states p assignee
+            | _ => Some Failed
+            end
         | output, output
         | output, invariant => unify type assignee_type (Ongoing states)
         (* What an in-variant type argument gives out is known no closer than `read Any?` *)
@@ -773,6 +812,17 @@ Section StepRefines.
         plus_supertype_constraint f states p lower = Some u -> plus_supertype_constraint g states p lower = Some u.
     Proof. intros * H. unfold plus_supertype_constraint in *. solve_refines Hfg H. Qed.
 
+    Lemma plus_exact_binding_refines: forall states p binding u,
+        plus_exact_binding f states p binding = Some u -> plus_exact_binding g states p binding = Some u.
+    Proof. intros * H. unfold plus_exact_binding in *. solve_refines Hfg H. Qed.
+
+    Lemma plus_capture_refines: forall states p binding u,
+        plus_capture f states p binding = Some u -> plus_capture g states p binding = Some u.
+    Proof.
+        intros * H. unfold plus_capture in *. destruct (lookup_state states p); [|exact H].
+        destruct (is_capturable v && negb (is_exact v)); [|exact H]. exact (plus_exact_binding_refines _ _ _ _ H).
+    Qed.
+
     Lemma intersection_flipped_unify_refines: forall target components states u,
         intersection_flipped_unify f target components states = Some u -> intersection_flipped_unify g target components states = Some u.
     Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
@@ -789,6 +839,7 @@ Section StepRefines.
         | plus_supertype_constraint f ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
         | type_variable_flipped_unify f ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
         | intersection_flipped_unify f ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
+        | plus_capture f ?s ?p ?t = Some _ => exact (plus_capture_refines _ _ _ _ H)
         | unify_arguments f ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
         end.
 

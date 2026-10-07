@@ -736,7 +736,9 @@ Proof.
     - intros [| | | |vt ot nt| |] [| | | |va oa na| |] u Ht Ha Hbt Hba H; simpl in Ht, Ha; try discriminate Ht; try discriminate Ha.
       destruct (bound_in_argument vt ot nt Hbt) as [_ Hbnt]. destruct (bound_in_argument va oa na Hba) as [_ Hbna].
       rewrite (instantiate_bound_argument vt ot nt Ht Hbnt), (instantiate_bound_argument va oa na Ha Hbna).
-      rewrite unify_type_arguments in H |- *.
+      rewrite unify_type_arguments in H |- * by first
+          [ apply (fragment_not_variable env); apply instance_in_fragment; assumption
+          | destruct (sfrag_cases nt Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]]; reflexivity ].
       destruct (ownership_is_assignable_to oa ot) eqn:Ho; [|discriminate H].
       rewrite (instantiation_preserves_ownership_assignability b oa ot Ho).
       destruct (proj1 (closed_facts (sdepth top_type)) top_type (le_n _) top_in_sfrag eq_refl) as [_ [Hitop [Hbtop _]]].

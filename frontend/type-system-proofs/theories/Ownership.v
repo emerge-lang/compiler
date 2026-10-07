@@ -447,15 +447,16 @@ Qed.
 (* unify enforces variance_is_assignable_to: it rejects a variant type argument for an invariant one
    outright, before looking at the types. (Where it accepts the variances, it unifies the types in the
    directions of mutability_conforms: both ways for invariant, covariantly for out, contravariantly for
-   in.) *)
+   in.) The exception is a type variable that captures the type argument (plus_capture). *)
 Theorem unify_rejects_unassignable_variances: forall fuel v v' o o' t t' states,
     ownership_is_assignable_to o' o = true ->
     variance_is_assignable_to v' v = false ->
-    v = Model.invariant ->
+    v = Model.invariant -> is_type_variable t = false ->
     unify env (S fuel) (TypeArgument v o t) (TypeArgument v' o' t') (Ongoing states) = Some Failed.
 Proof.
-    intros fuel v v' o o' t t' states Ho Hv ->. unfold unify, unify_step, unify_type_argument.
-    cbn -[ownership_is_assignable_to]. rewrite Ho. destruct v'; simpl in Hv; try discriminate Hv; reflexivity.
+    intros fuel v v' o o' t t' states Ho Hv -> Ht. unfold unify, unify_step, unify_type_argument.
+    cbn -[ownership_is_assignable_to]. rewrite Ho.
+    destruct v'; simpl in Hv; try discriminate Hv; destruct t; try discriminate Ht; reflexivity.
 Qed.
 
 (* Of the opposite variance, an out-variant type argument takes an in-variant one where it takes
