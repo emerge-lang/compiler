@@ -339,7 +339,10 @@ Proof. split; reflexivity. Qed.
 (* conflicts, each covering its own dimension of the type argument.                                 *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* Which variance can stand in for which, as unify_type_argument has it: invariant for all of them *)
+(* Which variance can stand in for which, as unify_type_argument has it: invariant for all of them.
+   An in-variant type argument can stand in for an out-variant one, and vice versa, only where the
+   latter takes all types (see unify_crosses_variances), which every actual slot conforms to (see
+   every_slot_conforms_to_the_top_views). *)
 Definition variance_is_assignable_to (sub super: Variance): bool :=
     match super, sub with
     | Model.invariant, Model.invariant => true
@@ -441,17 +444,38 @@ Proof.
     cbn -[ownership_is_assignable_to]. rewrite H. reflexivity.
 Qed.
 
-(* unify enforces variance_is_assignable_to: it rejects every other pair of variances outright, before
-   looking at the types. (Where it accepts the variances, it unifies the types in the directions of
-   mutability_conforms: both ways for invariant, covariantly for out, contravariantly for in.) *)
+(* unify enforces variance_is_assignable_to: it rejects a variant type argument for an invariant one
+   outright, before looking at the types. (Where it accepts the variances, it unifies the types in the
+   directions of mutability_conforms: both ways for invariant, covariantly for out, contravariantly for
+   in.) *)
 Theorem unify_rejects_unassignable_variances: forall fuel v v' o o' t t' states,
     ownership_is_assignable_to o' o = true ->
     variance_is_assignable_to v' v = false ->
+    v = Model.invariant ->
     unify env (S fuel) (TypeArgument v o t) (TypeArgument v' o' t') (Ongoing states) = Some Failed.
 Proof.
-    intros fuel v v' o o' t t' states Ho Hv. unfold unify, unify_step, unify_type_argument.
-    cbn -[ownership_is_assignable_to]. rewrite Ho. destruct v, v'; simpl in Hv; try discriminate Hv; reflexivity.
+    intros fuel v v' o o' t t' states Ho Hv ->. unfold unify, unify_step, unify_type_argument.
+    cbn -[ownership_is_assignable_to]. rewrite Ho. destruct v'; simpl in Hv; try discriminate Hv; reflexivity.
 Qed.
+
+(* Of the opposite variance, an out-variant type argument takes an in-variant one where it takes
+   `read Any?`, and an in-variant one takes an out-variant one where it takes no more than `exclusive
+   Nothing` *)
+Theorem unify_crosses_variances: forall fuel o o' t t' states,
+    ownership_is_assignable_to o' o = true ->
+    unify env (S fuel) (TypeArgument output o t) (TypeArgument input o' t') (Ongoing states)
+        = unify env fuel t top_type (Ongoing states)
+    /\ unify env (S fuel) (TypeArgument input o t) (TypeArgument output o' t') (Ongoing states)
+        = unify env fuel bottom_type t (Ongoing states).
+Proof.
+    intros fuel o o' t t' states Ho. unfold unify at 1 3, unify_step, unify_type_argument.
+    cbn -[ownership_is_assignable_to unify]. rewrite Ho. split; reflexivity.
+Qed.
+
+(* The views `out read Any?` and `in exclusive Nothing` conform to every actual slot *)
+Theorem every_slot_conforms_to_the_top_views: forall m_actual,
+    mutability_conforms output m_actual readonly = true /\ mutability_conforms input m_actual exclusive = true.
+Proof. intros []; split; reflexivity. Qed.
 
 (* A target with any ownership accepts whatever the target with the assignee's own ownership
    accepts: nothing an argument is assignable to stops being so with any ownership instead *)

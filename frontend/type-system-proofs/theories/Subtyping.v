@@ -222,28 +222,37 @@ Definition instantiate_ownership (bindings: Bindings) (o: Ownership): Ownership 
     | owned | ref | any_ownership => o
     end.
 
-(* Whether the type mentions a type parameter that is bound to an out- or in-variant type argument *)
-Fixpoint mentions_variantly_bound (bindings: Bindings) (t: EType): bool :=
+(* A type argument that stands for more than one type argument: one of a variance, `out X` for X and
+   all its subtypes, or of any ownership, `any X` for `owned X` and `ref X`. Kotlin has no ownership,
+   yet, so there it's just the variance. *)
+Definition is_loose (a: EType): bool :=
+    match a with
+    | TypeArgument v o _ => negb (Variance_beq v invariant) || match o with any_ownership => true | _ => false end
+    | _ => false
+    end.
+
+(* Whether the type mentions a type parameter that is bound to a loose type argument *)
+Fixpoint mentions_loosely_bound (bindings: Bindings) (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments => existsb (mentions_variantly_bound bindings) arguments
-    | Nullable n => mentions_variantly_bound bindings n
+    | RootResolved _ _ arguments => existsb (mentions_loosely_bound bindings) arguments
+    | Nullable n => mentions_loosely_bound bindings n
     | Generic (mkGenericRef _ p _)
     | TypeVariable (mkGenericRef _ p _) =>
         match lookup_binding bindings p with
-        | Some (TypeArgument v _ _) => negb (Variance_beq v invariant)
-        | _ => false
+        | Some argument => is_loose argument
+        | None => false
         end
     | Error _ _ => false
-    | TypeArgument _ _ n => mentions_variantly_bound bindings n
-    | Intersection components => existsb (mentions_variantly_bound bindings) components
+    | TypeArgument _ _ n => mentions_loosely_bound bindings n
+    | Intersection components => existsb (mentions_loosely_bound bindings) components
     end.
 
 (* The same, in the type arguments of the type, rather than as the type itself *)
-Fixpoint mentions_variantly_bound_in_arguments (bindings: Bindings) (t: EType): bool :=
+Fixpoint mentions_loosely_bound_in_arguments (bindings: Bindings) (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments => existsb (mentions_variantly_bound bindings) arguments
-    | Nullable n => mentions_variantly_bound_in_arguments bindings n
-    | Intersection components => existsb (mentions_variantly_bound_in_arguments bindings) components
+    | RootResolved _ _ arguments => existsb (mentions_loosely_bound bindings) arguments
+    | Nullable n => mentions_loosely_bound_in_arguments bindings n
+    | Intersection components => existsb (mentions_loosely_bound_in_arguments bindings) components
     | _ => false
     end.
 
@@ -277,10 +286,13 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     (* BoundTypeArgument.instantiateAllParameters. When the nested type becomes a type argument of its
        own (a type parameter replaced by its binding), their variances merge: `out T` with T bound to
        `out X` is `out X`. Of opposite variances, `out T` with T bound to `in X` is known no closer than
-       by the mutability of T, and `in T` with T bound to `out X` not at all.
+       by the mutability of T, and `in T` with T bound to `out X` takes nothing: `in Nothing`.
        A type parameter bound to an out- or in-variant type argument deeper down widens the type
        argument: with T bound to `out X`, `Box<Box<T>>` is no `Box<Box<out X>>`, which would take any
-       `Box<out X>`, but a `Box<out Box<out X>>`. And `Consumer<in Box<T>>` takes nothing anymore. *)
+       `Box<out X>`, but a `Box<out Box<out X>>`. And `Consumer<in Box<T>>` takes nothing anymore:
+       `Consumer<in Nothing>`, which every `Consumer<in Y>` is assignable to (unlike `Consumer<out read
+       Any?>`). The same goes for type parameters bound to type arguments of any ownership: with T bound
+       to `any X`, `Box<Box<T>>` would take a `Box<ref X>` where there is a `Box<Box<owned X>>`. *)
     | TypeArgument v o n =>
         let o' := instantiate_ownership bindings o in
         let n_instantiated := instantiate bindings n in
@@ -293,12 +305,14 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
                 TypeArgument merged_variance o'
                     (if is_nullable_instantiated then Nullable nested_type else nested_type)
             else
-                let top_mutability := match v with output => mutability_of n | _ => readonly end in
-                TypeArgument output o' (Nullable (RootResolved (Some top_mutability) any []))
-        | _ =>
-            if mentions_variantly_bound_in_arguments bindings n then
                 match v with
-                | input => TypeArgument output o' top_type
+                | output => TypeArgument output o' (Nullable (RootResolved (Some (mutability_of n)) any []))
+                | _ => TypeArgument input o' bottom_type
+                end
+        | _ =>
+            if mentions_loosely_bound_in_arguments bindings n then
+                match v with
+                | input => TypeArgument input o' bottom_type
                 | invariant | output => TypeArgument output o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
                 end
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
@@ -570,11 +584,13 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
         | invariant, _ => Some Failed
         | output, output
         | output, invariant => unify type assignee_type (Ongoing states)
-        | output, input => Some Failed
+        (* What an in-variant type argument gives out is known no closer than `read Any?` *)
+        | output, input => unify type top_type (Ongoing states)
         (* IN variance reverses the hierarchy direction *)
         | input, input
         | input, invariant => unify assignee_type type (Ongoing states)
-        | input, output => Some Failed
+        (* An out-variant type argument takes nothing but Nothing *)
+        | input, output => unify bottom_type type (Ongoing states)
         end
     | Generic _ => unify type assignee (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
@@ -869,7 +885,7 @@ Example instantiating_voids_nested_in_variant_type_arguments: forall consumer bo
     instantiate [(T, TypeArgument output ref (RootResolved None x []))]
         (RootResolved None consumer [TypeArgument input ref
             (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))])])
-    = RootResolved None consumer [TypeArgument output ref top_type].
+    = RootResolved None consumer [TypeArgument input ref bottom_type].
 Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 
 End Subtyping.

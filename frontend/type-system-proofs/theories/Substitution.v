@@ -14,7 +14,8 @@ Import ListNotations.
 (*   a type of the fragment;                                                                       *)
 (* - type parameters, without a mutability of their own, whose bound isn't a type parameter;      *)
 (* - comparing a class type to a type of the same class, at the top;                               *)
-(* - instantiating with invariant type arguments of fragment types;                                *)
+(* - instantiating with invariant type arguments of fragment types, not of any ownership (those    *)
+(*   widen the type arguments they are instantiated into, see Subtyping.instantiate);               *)
 (* - without type inference (no type variables).                                                  *)
 (* Beyond it, the lemma needs more:                                                                *)
 (* - Nothing: a type parameter accepts any non-nullable Nothing, also one whose mutability an     *)
@@ -55,14 +56,15 @@ Definition argument_in_fragment (a: EType): bool :=
     | _ => false
     end.
 
-(* Every type parameter in the type is bound, to an invariant type argument of a fragment type *)
+(* Every type parameter in the type is bound, to an invariant type argument of a fragment type, of an
+   ownership other than any *)
 Fixpoint bound_in (b: Bindings) (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments =>
         forallb (fun a => match a with TypeArgument _ _ n => bound_in b n | _ => true end) arguments
     | Generic (mkGenericRef _ p _) =>
         match lookup_binding b p with
-        | Some (TypeArgument Model.invariant _ x) => in_fragment x
+        | Some (TypeArgument Model.invariant o x) => match o with any_ownership => false | _ => in_fragment x end
         | _ => false
         end
     | _ => true
@@ -151,20 +153,21 @@ Qed.
 
 (* The type parameters are all bound invariantly, so instantiating widens no type argument *)
 Lemma bound_invariantly: forall b k t,
-    udepth t <= k -> in_fragment t = true -> bound_in b t = true -> mentions_variantly_bound b t = false.
+    udepth t <= k -> in_fragment t = true -> bound_in b t = true -> mentions_loosely_bound b t = false.
 Proof.
     intros b k. induction k as [|k IH]; intros t Hd Hf Hb.
     { destruct t; simpl in Hd; lia. }
     destruct t as [m c args|n|[gm p bnd]|m msg|v o n|g|cs]; simpl in Hf; try discriminate Hf.
     - destruct (root_in_fragment m c args Hf) as [_ Hargs].
-      apply not_true_iff_false. intros H. change (existsb (mentions_variantly_bound b) args = true) in H.
+      apply not_true_iff_false. intros H. change (existsb (mentions_loosely_bound b) args = true) in H.
       apply existsb_exists in H. destruct H as [a [Ha Hm]].
       specialize (Hargs a Ha). pose proof (root_bound_in b m c args Hb a Ha) as Hba.
       pose proof (argument_depth_below m c args a Ha) as Hda.
       destruct a as [| | | |v o n| |]; simpl in Hargs, Hba; try discriminate Hargs. destruct v; try discriminate Hargs.
       cbn [argument_depth] in Hda. simpl in Hm. rewrite (IH n) in Hm; [discriminate Hm|lia|exact Hargs|exact Hba].
     - simpl in Hb |- *. destruct (lookup_binding b p) as [a|]; [|discriminate Hb].
-      destruct a as [| | | |v' o_p x| |]; try discriminate Hb. destruct v'; try discriminate Hb. reflexivity.
+      destruct a as [| | | |v' o_p x| |]; try discriminate Hb. destruct v'; try discriminate Hb.
+      destruct o_p; try discriminate Hb; reflexivity.
 Qed.
 
 Lemma instantiate_type_argument: forall b o n,
@@ -173,17 +176,17 @@ Lemma instantiate_type_argument: forall b o n,
     = TypeArgument Model.invariant (instantiate_ownership b o) (instantiate_nested b n).
 Proof.
     intros b o [m c args|n|[gm p bnd]|m msg|v o' n|g|cs] Hf Hb; simpl in Hf; try discriminate Hf.
-    - assert (Hv: mentions_variantly_bound_in_arguments b (RootResolved m c args) = false)
+    - assert (Hv: mentions_loosely_bound_in_arguments b (RootResolved m c args) = false)
           by exact (bound_invariantly b _ (RootResolved m c args) (le_n _) Hf Hb).
       change (instantiate env b (TypeArgument Model.invariant o (RootResolved m c args)))
-          with (if mentions_variantly_bound_in_arguments b (RootResolved m c args)
+          with (if mentions_loosely_bound_in_arguments b (RootResolved m c args)
                 then TypeArgument output (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) args))
                 else TypeArgument Model.invariant (instantiate_ownership b o) (RootResolved m c (map (instantiate env b) args))).
       rewrite Hv. reflexivity.
     - destruct gm; [discriminate Hf|]. simpl in Hb.
       destruct (lookup_binding b p) as [a|] eqn:E; [|discriminate Hb].
       destruct a as [| | | |v' o_p x| |]; try discriminate Hb. destruct v'; try discriminate Hb.
-      cbn. rewrite E. reflexivity.
+      cbn. rewrite E. destruct o_p; try discriminate Hb; reflexivity.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -316,7 +319,8 @@ Proof.
     intros b gm p bnd Hb. simpl in Hb.
     destruct (lookup_binding b p) as [a|] eqn:E; [|discriminate Hb].
     destruct a as [| | | |v o x| |]; try discriminate Hb. destruct v; try discriminate Hb.
-    exists x. split; [intros; simpl; rewrite E; reflexivity|]. split; [exact Hb|]. apply (lookup_depth b p _ E).
+    exists x. split; [intros; simpl; rewrite E; reflexivity|]. split; [destruct o; first [discriminate Hb|exact Hb]|].
+    apply (lookup_depth b p _ E).
 Qed.
 
 Lemma substitution_with_arguments: forall b, acyclic -> forall n,
