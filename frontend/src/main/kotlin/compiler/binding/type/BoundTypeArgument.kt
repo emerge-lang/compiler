@@ -148,7 +148,7 @@ class BoundTypeArgument(
                 nestedInstantiated = nestedInstantiated.type
             } else if (this.variance == TypeVariance.OUT) {
                 resultVariance = TypeVariance.OUT
-                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(this.mutability)
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
                 isNullable = false
             } else {
                 resultVariance = TypeVariance.IN

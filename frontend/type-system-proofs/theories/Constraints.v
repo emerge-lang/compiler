@@ -99,7 +99,8 @@ Proof.
           cbn beta iota zeta;
           repeat match goal with |- context [if ?c then _ else _] => destruct c end;
           repeat match goal with |- context [match ?x with _ => _ end] => destruct x end;
-          simpl in Hn |- *; try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
+          simpl in Hn |- *; rewrite ?no_vars_rewrap; simpl in Hn |- *;
+          try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
     - simpl. apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.

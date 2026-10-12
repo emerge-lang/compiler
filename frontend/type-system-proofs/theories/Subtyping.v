@@ -286,7 +286,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     (* BoundTypeArgument.instantiateAllParameters. When the nested type becomes a type argument of its
        own (a type parameter replaced by its binding), their variances merge: `out T` with T bound to
        `out X` is `out X`. Of opposite variances, `out T` with T bound to `in X` is known no closer than
-       by the mutability of T, and `in T` with T bound to `out X` takes nothing: `in Nothing`.
+       `out read Any?` (as in unify), and `in T` with T bound to `out X` takes nothing: `in Nothing`.
        A type parameter bound to an out- or in-variant type argument deeper down widens the type
        argument: with T bound to `out X`, `Box<Box<T>>` is no `Box<Box<out X>>`, which would take any
        `Box<out X>`, but a `Box<out Box<out X>>`. And `Consumer<in Box<T>>` takes nothing anymore:
@@ -303,10 +303,10 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
             if Variance_beq nested_variance invariant || Variance_beq v invariant || Variance_beq nested_variance v then
                 let merged_variance := if Variance_beq nested_variance invariant then v else nested_variance in
                 TypeArgument merged_variance o'
-                    (if is_nullable_instantiated then Nullable nested_type else nested_type)
+                    (if is_nullable_instantiated then rewrap_nullable nested_type else nested_type)
             else
                 match v with
-                | output => TypeArgument output o' (Nullable (RootResolved (Some (mutability_of n)) any []))
+                | output => TypeArgument output o' top_type
                 | _ => TypeArgument input o' bottom_type
                 end
         | _ =>

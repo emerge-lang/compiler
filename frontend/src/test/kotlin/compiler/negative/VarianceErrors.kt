@@ -271,6 +271,43 @@ class VarianceErrors : FreeSpec({
                 .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
         }
 
+        "an out-variant use of the type parameter in the type of the member reads as out read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    value: T = init
+                }
+                class C<T : mut A> {
+                    p: Box<out T> = init
+                }
+                fn test(a: C<in mut B>) {
+                    y: Box<out mut Any?> = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read Any"
+                    it.targetType.toString() shouldBe "mut Any"
+                }
+        }
+
+        "an out-variant use of the type parameter in the type of the member can be read as out read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    value: T = init
+                }
+                class C<T : mut A> {
+                    p: Box<out T> = init
+                }
+                fn test(a: C<in mut B>) {
+                    y: Box<out read Any?> = a.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
         "a bounded type parameter still takes an in-variant type argument" {
             validateModule("""
                 interface A {}
