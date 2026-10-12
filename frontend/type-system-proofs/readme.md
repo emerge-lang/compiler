@@ -7,6 +7,72 @@ Nothing here is compiled into the compiler yet; the proofs are a specification o
 system implemented in `../src/main/kotlin/compiler/binding/type` is supposed to do, checked by a
 machine instead of by review.
 
+## The proofs
+
+The model (`Model.v`, `Subtyping.v`) translates the Kotlin type references and
+`BoundTypeReference.unify`; everything else proves properties of it. Each file's header says what
+it shows and why; the tables below are the map.
+
+### Files, in dependency order
+
+| file                 | what it shows                                                                                   | headline results                                                        |
+|----------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `Model.v`            | the types, mutabilities, variances, ownerships, and the `Environment` of class declarations     |                                                                         |
+| `Subtyping.v`        | unify, the model of `BoundTypeReference.unify`, and instantiation                               | `unify_fuel_monotone`                                                   |
+| `Ops.v`              | mutability and aliasing: references to a block make no conflicting promises                   | `references_are_conflict_free`, `assignability_respects_mutability`     |
+| `Ownership.v`        | owned and ref slots (not implemented in the Kotlin frontend yet)                               | `no_conflicts_through_a_view`, `instantiation_preserves_ownership_assignability` |
+| `Transitivity.v`     | well-formed environments; transitivity and reflexivity of unify on class types                  | `transitivity`, `reflexivity`                                           |
+| `Fragment.v`         | the fragment of type parameters and intersections, as the frontend builds them                  |                                                                         |
+| `Substitution.v`     | instantiating type parameters keeps assignability                                              | `substitution_lemma`                                                    |
+| `MemberAccess.v`     | reading and writing members through a reference of variant type arguments                       | `member_read_sound`, `member_write_sound`                               |
+| `Inference.v`        | inference with type variables bound exactly (explicit type arguments, a captured receiver)      | `member_call_sound`                                                     |
+| `States.v`           | unify on types without type variables doesn't touch the variable states                       | `unify_free`, `unify_keeps_exact`                                       |
+| `Constraints.v`      | inference with lower and upper bounds, and the final values it picks                            | `invocation_sound`, `final_values_satisfy`                              |
+| `MemberCalls.v`      | calling a member function with type parameters of its own                                       | `member_call_through_subtypes_sound`                                    |
+| `Generics.v`         | transitivity with type parameters and intersections, in the form of never rejecting            | `transitivity_never_fails`                                              |
+| `Conjectures.v`      | the conjectures below, and what follows from them directly                                     | `transitivity_terminating`                                              |
+| `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
+
+### Fragments
+
+Most results hold for a fragment of the types, a boolean predicate on `EType`:
+
+| fragment      | defined in        | admits                                                                                                  |
+|---------------|-------------------|---------------------------------------------------------------------------------------------------------|
+| `in_fragment` | `Transitivity.v`  | class types with as many type arguments as type parameters, of any variance and ownership; nullable class types |
+| `gfrag`       | `Fragment.v`      | `in_fragment`, plus references to type parameters and non-empty intersections of class types and non-null references, as `ofComponents` builds them; well-formed references are `refs_wf` (`Generics.v`) |
+| `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters of no mutability of their own, bounded by such a type without type parameters |
+| `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters     |
+| `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
+
+### What the proofs assume
+
+Nothing is an axiom (`./rocq.sh check` gates on that). What the proofs assume, they take as premises
+of the theorems, mostly bundled in records:
+
+| assumption                                     | where             | what it says                                                                                       |
+|------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------|
+| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, mentioning no type variables, and Nothing only as `exclusive Nothing` |
+| `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`, and take the mutability applied to them     |
+| `supertypes_repeat_prescriptions`              | `Transitivity.v`  | for `prescriptions_carry_over_to_supertypes` only: supertypes repeat prescribed ownerships        |
+| `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
+| `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
+| `intersect_is_below_both`, `closest_common_supertype_is_above_both` | `Conjectures.v` | conjecture: the intersection is below both types, the closest common supertype above both |
+| `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
+
+The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
+lets be anything; so the conjectures about them are properties of an environment that a theorem
+takes as a premise, never axioms, which would be false of some environment and so let Rocq prove
+anything. `unify_terminates` is a claim about the model alone, a theorem yet to be proven.
+
+### Not covered yet
+
+- Substitution with type variables, intersections and F-bounded type parameters (`T : Comparable<T>`):
+  `Substitution.v` instantiates class types and type parameters bounded by them.
+- Supertypes declared with variant type arguments (`Holder<T> : Consumer<in Box<T>>`), as far as member
+  calls through them go: that takes a model of overriding.
+- Declaration-site variance, which emerge doesn't have.
+
 ## Running the proofs
 
 Rocq runs out of the official `rocq/rocq-prover` Docker image, so the only prerequisite is a
@@ -78,9 +144,6 @@ The theory name is unfortunately stated twice, in `theories/dune` for the build 
 
 Note that the standard library is a separate package since Rocq 9, so its modules are imported as
 `From Stdlib Require Import List.`, not `Require Import Coq.Lists.List.`.
-
-`theories/Sanity.v` is a placeholder that only exists so the build has something to do; delete it
-once real theories exist.
 
 ## Editor support
 
