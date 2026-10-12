@@ -252,7 +252,12 @@ class BoundTypeArgument(
 
         val resultType = when (resultVariance) {
             TypeVariance.IN -> this.type.intersect(other.type)
-            TypeVariance.OUT -> this.type.closestCommonSupertypeWith(other.type)
+            // what an in-variant type argument gives out is known no closer than `read Any?`
+            TypeVariance.OUT -> if (this.variance == TypeVariance.IN || other.variance == TypeVariance.IN) {
+                context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
+            } else {
+                this.type.closestCommonSupertypeWith(other.type)
+            }
             TypeVariance.UNSPECIFIED -> error("should never happen, intellij realizes this but not kotlinc")
         }
 

@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.ExplicitInferTypeWithArgumentsDiagnostic
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.TypeDeductionErrorDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
@@ -40,5 +41,42 @@ class TypeInferenceErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<ExplicitInferTypeWithArgumentsDiagnostic>()
+    }
+
+    "bounds of type variables" - {
+        val declarations = """
+            interface A {}
+            interface B : A {}
+            interface C : A {}
+            interface E {}
+            class Box<T> {
+                var value: T = init
+            }
+            fn pick<X>(a: X, b: X) -> X {
+                return a
+            }
+            fn takeOne<X>(a: Box<in X>) {}
+            fn takeTwo<X>(a: Box<in X>, b: Box<in X>) {}
+        """.trimIndent()
+
+        "the closest common supertype of an in-variant and an out-variant type argument" - {
+            "is out read Any?" {
+                validateModule(declarations + "\n" + """
+                    fn f(p: Box<in B>, q: Box<out C>) -> Box<out read Any?> {
+                        return pick(p, q)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reads as nothing closer than read Any?" {
+                validateModule(declarations + "\n" + """
+                    fn f(p: Box<in B>, q: Box<out C>) -> A {
+                        return pick(p, q).value
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
     }
 })
