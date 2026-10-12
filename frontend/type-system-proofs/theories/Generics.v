@@ -3,6 +3,7 @@ From EmergeTypeSystem Require Import Subtyping.
 From EmergeTypeSystem Require Import Ownership.
 From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import Fragment.
+From EmergeTypeSystem Require Import States.
 From EmergeTypeSystem Require Import Constraints.
 From EmergeTypeSystem Require Import Ops.
 From Stdlib Require Import Bool List Arith Lia.

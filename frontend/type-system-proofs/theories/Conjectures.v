@@ -1,6 +1,7 @@
 From EmergeTypeSystem Require Import Model.
 From EmergeTypeSystem Require Import Subtyping.
 From EmergeTypeSystem Require Import Transitivity.
+From EmergeTypeSystem Require Import States.
 From EmergeTypeSystem Require Import Constraints.
 From EmergeTypeSystem Require Import Fragment.
 From EmergeTypeSystem Require Import Generics.

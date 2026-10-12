@@ -12,6 +12,13 @@ Import ListNotations.
 (* type parameters can be replaced with types of it.                                               *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+Lemma fold_and_in: forall (Q: EType -> Prop) (l: list EType), fold_right (fun a acc => Q a /\ acc) True l -> forall a, In a l -> Q a.
+Proof. intros Q l H. induction l as [|x l IH]; intros a Ha; [destruct Ha|]. destruct H as [Hx H]. destruct Ha as [<-|Ha]; auto. Qed.
+
+Lemma fold_and_map: forall (Q: EType -> Prop) (f: EType -> EType) (l: list EType),
+    (forall a, In a l -> Q (f a)) -> fold_right (fun a acc => Q a /\ acc) True (map f l).
+Proof. intros Q f l H. induction l as [|x l IH]; [exact I|]. split; [apply H; left; reflexivity|]. apply IH. intros a Ha. apply H. right. exact Ha. Qed.
+
 Section Fragment.
 
 Variable env: Environment.

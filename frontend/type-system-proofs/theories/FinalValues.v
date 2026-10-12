@@ -5,7 +5,9 @@ From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import Fragment.
 From EmergeTypeSystem Require Import Substitution.
 From EmergeTypeSystem Require Import Inference.
+From EmergeTypeSystem Require Import States.
 From EmergeTypeSystem Require Import Constraints.
+From EmergeTypeSystem Require Import MemberCalls.
 From EmergeTypeSystem Require Import Generics.
 From EmergeTypeSystem Require Import Conjectures.
 From Stdlib Require Import Bool List Arith Lia.
@@ -219,12 +221,12 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold.
-    exact (member_call_through_subtypes_sound env wf
-        of_fragment (fun x H => proj1 H) in_fragment_of_fragment reflexive
-        of_fragment in_fragment_of_fragment
-        (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-        (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-        below_intersection above_supertype intersect_no_vars supertype_no_vars
+    exact (member_call_through_subtypes_sound env wf of_fragment of_fragment
+        (Build_inference_types env of_fragment of_fragment (fun x H => proj1 H) in_fragment_of_fragment reflexive
+            in_fragment_of_fragment
+            (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
+            (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
+            below_intersection above_supertype intersect_no_vars supertype_no_vars)
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold (fun _ _ _ H => H)).
 Qed.
