@@ -684,12 +684,21 @@ Lemma mentions_nullable: forall bindings t,
     mentions_loosely_bound bindings (Nullable t) = mentions_loosely_bound bindings t.
 Proof. reflexivity. Qed.
 
+(* Instantiating a type argument gives a type argument *)
+Lemma instance_is_type_argument: forall b u, is_type_argument u = true -> is_type_argument (instantiate env b u) = true.
+Proof.
+    intros b [| | | |v o n| |] H; try discriminate H. simpl.
+    destruct (instantiate env b n) as [| [| | | |vn on nn| |] | | |vn on nn| |];
+        repeat match goal with |- context [if ?c then _ else _] => destruct c end;
+        repeat match goal with |- context [match ?x with _ => _ end] => destruct x end; reflexivity.
+Qed.
+
 (* A template of `b`, instantiated with the type arguments `sargs` of `b` as a supertype of `a` and
    then with the type arguments `xs` of a reference to `a`, is that template instantiated with
    `sargs` instantiated with `xs`. Widening included: a type argument is widened in one if it is in
    the other. *)
 Lemma compose_with_arguments: forall a b xs sargs,
-    length xs = length (parameter_ids a) -> (forall x, In x xs -> argument_in_fragment x = true) ->
+    length xs = length (parameter_ids a) -> (forall x, In x xs -> is_type_argument x = true) ->
     length sargs = length (parameter_ids b) -> (forall u, In u sargs -> template_argument a u = true) ->
     forall k,
     (forall t, depth t <= k -> template_type b t = true ->
@@ -708,8 +717,7 @@ Proof.
     intros a b xs sargs Hlx Hxs Hls Hsargs k.
     set (bx := bindings_of env a xs). set (bS := bindings_of env b sargs).
     set (bL := bindings_of env b (map (instantiate env bx) sargs)).
-    assert (Hxs': forall x, In x xs -> is_type_argument x = true)
-        by (intros x Hx; apply argument_in_fragment_is_type_argument, Hxs, Hx).
+    assert (Hxs': forall x, In x xs -> is_type_argument x = true) by exact Hxs.
     induction k as [|k [IHt IHa]].
     { split; intros t Hd Ht; [pose proof (template_type_depth b t Ht)|pose proof (template_argument_depth b t Ht)]; lia. }
     assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k ->
@@ -737,7 +745,7 @@ Proof.
         assert (Hu': nth_error (map (instantiate env bx) sargs) i = Some (instantiate env bx u))
             by (rewrite nth_error_map, Hu; reflexivity).
         assert (Hxu: is_type_argument (instantiate env bx u) = true)
-            by (apply argument_in_fragment_is_type_argument, template_instance_in_fragment; assumption).
+            by (apply instance_is_type_argument, (template_is_type_argument a u Htu)).
         unfold bL. rewrite (selects b _ q bq i _ Hi Hu' Hxu).
         unfold bS. rewrite (selects b sargs q bq i u Hi Hu (template_is_type_argument a u Htu)).
         rewrite (mentions_parameter_template _ q bq _ (lookup_parameter b _ i q _ Hi Hu')).
@@ -768,7 +776,7 @@ Qed.
 Lemma parameterized_supertype_arguments_compose: forall a b c xs,
     a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
     base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
-    length xs = length (parameter_ids a) -> (forall x, In x xs -> argument_in_fragment x = true) ->
+    length xs = length (parameter_ids a) -> (forall x, In x xs -> is_type_argument x = true) ->
     parameterized_supertype_arguments env a xs c
     = parameterized_supertype_arguments env b (parameterized_supertype_arguments env a xs b) c.
 Proof.
@@ -1329,7 +1337,8 @@ Proof.
           replace (parameterized_supertype_arguments env cx xargs cz) with (parameterized_supertype_arguments env cy xs1 cz).
           2: { unfold xs1. destruct (Class_eq_dec cx cy) as [<-|Hxy]; [rewrite class_eqb_refl; reflexivity|].
                rewrite (class_eqb_false _ _ Hxy). symmetry.
-               apply parameterized_supertype_arguments_compose; assumption. }
+               apply parameterized_supertype_arguments_compose; try assumption.
+               intros x' Hx'. apply argument_in_fragment_is_type_argument, Hxargs, Hx'. }
           destruct (supertype_arguments_in_fragment cy cz yargs Hyz Hcy Hb2 Hly Hyargs) as [_ Hfys].
           destruct (supertypes_are_templates cy cz Hyz Hcy Hb2) as [_ Hst].
           assert (Hleaves: leaves_lift n2' (S n1') s xs1 yargs).
