@@ -558,10 +558,17 @@ Lemma unify_root_generic: forall n m c args gm q bound,
     = unify env n (RootResolved m c args) bound (Ongoing s).
 Proof. reflexivity. Qed.
 
-Lemma unify_nullable_generic: forall n m c args gm q bound,
-    unify env (S n) (Nullable (RootResolved m c args)) (Generic (mkGenericRef gm q bound)) (Ongoing s)
-    = unify env n (Nullable (RootResolved m c args)) bound (Ongoing s).
-Proof. reflexivity. Qed.
+(* A type parameter, made non-null, to the class type; that is, its bound, which is closed *)
+Lemma unify_nullable_generic: forall n m c args gm q bound u, sfrag bound = true -> closed bound = true ->
+    unify env (S n) (Nullable (RootResolved m c args)) (Generic (mkGenericRef gm q bound)) (Ongoing s) = Some u ->
+    unify env n (Nullable (RootResolved m c args)) bound (Ongoing s) = Some u.
+Proof.
+    intros n m c args gm q bound u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_nullable in H.
+    cbn [without_null] in H. destruct n as [|n]; [discriminate H|]. rewrite unify_root_generic in H.
+    destruct (sfrag_cases bound Hf) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
+        [exact H|exact H|exact H|
+         discriminate Hc].
+Qed.
 
 Lemma unify_generic_root: forall n p bound m c args,
     unify env (S n) (Generic (mkGenericRef None p bound)) (RootResolved m c args) (Ongoing s)
@@ -574,17 +581,21 @@ Lemma unify_generic_nullable: forall n p bound na,
     unify env (S n) (Generic (mkGenericRef None p bound)) (Nullable na) (Ongoing s) = Some Failed.
 Proof. reflexivity. Qed.
 
-(* A type parameter, whose bound is no type parameter, is assignable to nothing but itself *)
+(* A type parameter, whose bound is no type parameter, is assignable to nothing but itself; unless it
+   is bounded by Nothing *)
 Lemma unify_generic_generic: forall n p bp q bq u,
     sfrag bq = true -> closed bq = true ->
     unify env (S n) (Generic (mkGenericRef None p bp)) (Generic (mkGenericRef None q bq)) (Ongoing s) = Some (Ongoing u) ->
-    q = p /\ u = s.
+    (q = p \/ bq = bottom_type) /\ u = s.
 Proof.
     intros n p bp q bq u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_generic in H.
-    cbn [generic_is_subtype_of] in H. destruct (param_eqb q p) eqn:E.
-    - apply param_eqb_eq in E. split; [exact E|]. destruct (Model.is_subtype_of _ _ && _); injection H; auto. discriminate.
-    - destruct (sfrag_cases bq Hf) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
-          [discriminate H|discriminate H|discriminate H|discriminate Hc].
+    destruct (param_eqb q p) eqn:E.
+    - apply param_eqb_eq in E. split; [left; exact E|]. destruct (_ && _) in H; [injection H; auto|discriminate H].
+    - destruct n as [|n]; [discriminate H|]. rewrite unify_step_once in H. unfold unify_step, unify_generic in H.
+      destruct (sfrag_cases bq Hf) as [[? [? [? [-> [Hcn _]]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
+          [|split; [right; reflexivity|]|discriminate H|discriminate Hc].
+      + simpl in H. rewrite Hcn in H. discriminate H.
+      + destruct (_ && _) in H; [injection H; auto|discriminate H].
 Qed.
 
 Lemma inst_nested_generic: forall gm p bound v o x,
@@ -725,17 +736,25 @@ Proof.
         change (inst_nested b (Nullable (RootResolved mt ct targs))) with (instantiate env b (Nullable (RootResolved mt ct targs))).
         change (inst_nested b (Nullable (RootResolved ma ca aargs))) with (instantiate env b (Nullable (RootResolved ma ca aargs))).
         rewrite !instantiate_nullable_class, unify_nullable_nullable. apply (unify_fuel_monotone env (P + E)); [lia|exact Hi].
-      + rewrite unify_nullable_generic in H. exact (Hvia q ba Hfba Hcba Hba H).
+      + apply unify_nullable_generic in H; [|exact Hfba|exact Hcba]. exact (Hvia q ba Hfba Hcba Hba H).
       + rewrite unify_generic_root, Hca in H. cbn [andb] in H. discriminate H.
       + rewrite unify_generic_root, class_eqb_refl in H. cbn [andb] in H.
         destruct (Model.is_subtype_of _ _); [|discriminate H]. injection H as <-. split; [reflexivity|].
         simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex [_ [Hx _]]]]].
         rewrite (inst_nested_generic None p bt _ o x Ex). apply below_all; [exact Hx|lia].
       + rewrite unify_generic_nullable in H. discriminate H.
-      + destruct (unify_generic_generic n p bt q ba u Hfba Hcba H) as [-> ->]. split; [reflexivity|].
-        simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex [_ [Hx _]]]]].
-        rewrite (inst_nested_generic None p bt _ o x Ex), (inst_nested_generic None p ba _ o x Ex).
-        apply (proj1 (reflexivity_with_arguments env _)); [exact Hx|]. pose proof (HE p o x Ex). lia.
+      + destruct (unify_generic_generic n p bt q ba u Hfba Hcba H) as [[->| ->] ->]; split; [reflexivity| |reflexivity|].
+        * simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex [_ [Hx _]]]]].
+          rewrite (inst_nested_generic None p bt _ o x Ex), (inst_nested_generic None p ba _ o x Ex).
+          apply (proj1 (reflexivity_with_arguments env _)); [exact Hx|]. pose proof (HE p o x Ex). lia.
+        * (* a type parameter bounded by Nothing: its type argument is no more than Nothing *)
+          simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex [_ [Hx _]]]]].
+          simpl in Hba. destruct (binds_exactly_some q bottom_type Hba) as [oq [xq [Eq [_ [Hxq Hrq]]]]].
+          rewrite (inst_nested_generic None p bt _ o x Ex), (inst_nested_generic None q bottom_type _ oq xq Eq).
+          apply (unify_fuel_monotone env (K + 2)); [lia|].
+          apply (proj1 (transitivity_with_arguments env wf (K + 2)) xq bottom_type x K 2 s (le_n _));
+              [exact Hxq|exact (bottom_in_fragment env wf)|exact Hx| |apply below_all; [exact Hx|lia]].
+          apply respects_unify; [exact Hxq|exact (bottom_in_fragment env wf)|exact Hrq].
     - intros [| | | |vt ot nt| |] [| | | |va oa na| |] u Ht Ha Hbt Hba H; simpl in Ht, Ha; try discriminate Ht; try discriminate Ha.
       destruct (bound_in_argument vt ot nt Hbt) as [_ Hbnt]. destruct (bound_in_argument va oa na Hba) as [_ Hbna].
       rewrite (instantiate_bound_argument vt ot nt Ht Hbnt), (instantiate_bound_argument va oa na Ha Hbna).

@@ -77,11 +77,8 @@ class NullableTypeReference private constructor(
                 TypeVariance.OUT,
                 TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
             }
-            is GenericTypeReference -> if (nested is GenericTypeReference || nested is BoundTypeArgument) {
-                nested.unify(assigneeType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE), assignmentLocation, carry)
-            } else {
-                unify(assigneeType.effectiveBound, assignmentLocation, carry)
-            }
+            // null is taken care of by this; what's left is whether the type parameter, made non-null, fits the nested type
+            is GenericTypeReference -> nested.unify(assigneeType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE), assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             else -> nested.unify(assigneeType, assignmentLocation, carry)
         }

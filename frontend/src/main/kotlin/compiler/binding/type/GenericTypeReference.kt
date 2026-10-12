@@ -24,13 +24,7 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
-    override val mutability: TypeMutability get() {
-        val givenMutability = original.mutability
-        if (givenMutability == null || !givenMutability.isAssignableTo(effectiveBound.mutability)) {
-            return effectiveBound.mutability
-        }
-        return givenMutability
-    }
+    override val mutability: TypeMutability get() = effectiveBound.mutability
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.span
     override val inherentTypeBindings = TypeUnification.EMPTY
@@ -103,16 +97,21 @@ sealed class GenericTypeReference : BoundTypeReference {
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
                 // that it is forbidden to shadow type variables (e.g. class A<T> { fun foo<T>() {} })
-                if (assigneeType.isSubtypeOf(this)) {
+                if (assigneeType.parameter != this.parameter) {
+                    // another type parameter is a subtype of this one where its bound is
+                    val viaBound = unify(assigneeType.effectiveBound, assignmentLocation, carry)
+                    if (viaBound.getErrorsNotIn(carry).none()) {
+                        return viaBound
+                    }
+                } else if (assigneeType.mutability.isAssignableTo(this.mutability) && (!assigneeType.isNullable || this.isNullable)) {
                     return carry
-                } else {
-                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
-                        this,
-                        assigneeType,
-                        "$assigneeType cannot be proven to be a subtype of $this",
-                        assignmentLocation,
-                    ))
                 }
+                return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                    this,
+                    assigneeType,
+                    "$assigneeType cannot be proven to be a subtype of $this",
+                    assignmentLocation,
+                ))
             }
             is BoundIntersectionTypeReference -> {
                 return assigneeType.flippedUnify(
@@ -235,9 +234,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override fun toString(): String {
         var str = ""
 
-        if (original.mutability != null) {
-            str += "${original.mutability} "
-        } else if (mutability != parameter.bound.mutability) {
+        if (original.mutability != null || mutability != parameter.bound.mutability) {
             str += "$mutability "
         }
 

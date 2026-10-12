@@ -215,6 +215,63 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "a type parameter bounded by Nothing to another type parameter" - {
+            "of a fitting mutability" {
+                validateModule("""
+                    interface A {}
+                    fn f<N : Nothing, T : A>(n: N) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of a mutability that doesn't fit" {
+                validateModule("""
+                    interface A {}
+                    fn f<N : read Nothing, T : mut A>(n: N) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
+
+        "a type parameter to a nullable intersection that includes it" {
+            validateModule("""
+                interface A {}
+                fn f<T : A?>(t: T) -> A? & T {
+                    return t
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics(setOf(Diagnostic.Severity.CONSECUTIVE, Diagnostic.Severity.WARNING))
+        }
+
+        "a type parameter to another type parameter, by its bound" - {
+            "an intersection of the other type parameter" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    fn f<P : A, T : P & B>(t: T) -> P {
+                        return t
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an intersection that has no values isn't Nothing" {
+                validateModule("""
+                    interface A {}
+                    class F : A {}
+                    class G : A {}
+                    fn f<T : F & G, U : A>(t: T) -> U {
+                        return t
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
+
         "non-nullable reference to a type parameter" - {
             "takes the possibly null type parameter it narrows" {
                 validateModule("""
@@ -304,6 +361,20 @@ class TypeErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+
+            "has the mutability it is given after the fact" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : read A>(p: const T) {
+                        x: read _ = p
+                        y: const T = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "read T"
+                        it.targetType.toString() shouldBe "const T"
+                    }
             }
 
             "is instantiated to its type argument of the mutabilities of both" {

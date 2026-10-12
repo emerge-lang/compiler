@@ -684,17 +684,7 @@ Qed.
 Lemma generic_mutability_below_bound: forall g p b,
     is_subtype_of (mutability_of env (Generic (mkGenericRef g p b))) (mutability_of env b) = true.
 Proof.
-    intros [m|] p b; simpl; [|apply mutability_is_subtype_of_refl].
-    destruct (is_subtype_of m (mutability_of env b)) eqn:E; [exact E|apply mutability_is_subtype_of_refl].
-Qed.
-
-Lemma generic_is_subtype_of_mutability: forall t p m nl,
-    generic_is_subtype_of env t p m nl = true -> is_subtype_of (mutability_of env t) m = true.
-Proof.
-    fix IH 1. intros t p m nl H.
-    destruct t as [| |[g p' b]| | | |]; cbn [generic_is_subtype_of] in H; try discriminate H.
-    destruct (param_eqb p' p); [apply andb_true_iff in H; exact (proj1 H)|].
-    eapply mutability_subtype_trans; [apply generic_mutability_below_bound|]. eapply IH, H.
+    intros g p b. apply mutability_is_subtype_of_refl.
 Qed.
 
 Lemma fold_intersect_below_acc: forall l acc, is_subtype_of (fold_left intersect_mutability l acc) acc = true.
@@ -823,8 +813,9 @@ Proof.
       destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + simpl in H. apply negb_true_iff in Ha. rewrite Ha in H. discriminate H.
       + discriminate H.
-      + destruct (generic_is_subtype_of _ _ _ _ _) eqn:E; [|discriminate H].
-        apply generic_is_subtype_of_mutability in E. exact E.
+      + destruct (param_eqb ap tp).
+        * destruct (_ && _) eqn:E2 in H; [|discriminate H]. apply andb_true_iff in E2. exact (proj1 E2).
+        * eapply mutability_subtype_trans; [apply generic_mutability_below_bound|]. eapply IH; [exact H|exact Ht|exact Ha].
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.

@@ -65,13 +65,9 @@ Fixpoint mutability_of (t: EType): Mutability :=
     | RootResolved m c _ =>
         if is_core_scalar (declaration_of env c) then immutable else or_readonly m
     | Nullable n => mutability_of n
-    | Generic (mkGenericRef given _ bound)
-    | TypeVariable (mkGenericRef given _ bound) =>
-        let bound_mutability := mutability_of bound in
-        match given with
-        | Some m => if Model.is_subtype_of m bound_mutability then m else bound_mutability
-        | None => bound_mutability
-        end
+    (* the given mutability is applied to the effective bound, which carries it from there *)
+    | Generic (mkGenericRef _ _ bound)
+    | TypeVariable (mkGenericRef _ _ bound) => mutability_of bound
     | Error m _ => or_readonly m
     | TypeArgument _ _ n => mutability_of n
     (* readonly is the neutral element of intersect_mutability *)
@@ -557,25 +553,10 @@ Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states
     match assignee with
     | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
     | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
-    | Generic (mkGenericRef _ _ bound) =>
-        (* null is taken care of: what's left is whether `V!` is a subtype of nested *)
-        match nested with
-        | Generic _ | TypeArgument _ _ _ => unify nested (without_null assignee) (Ongoing states)
-        | _ => unify self bound (Ongoing states)
-        end
+    (* null is taken care of: what's left is whether `V!` is a subtype of nested *)
+    | Generic _ => unify nested (without_null assignee) (Ongoing states)
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | _ => unify nested assignee (Ongoing states)
-    end.
-
-(* GenericTypeReference.isSubtypeOf: whether t, a Generic, is the generic `other`, or bounded by it; a
-   possibly null reference to `other` isn't a non-null one (`V` isn't a `V!`) *)
-Fixpoint generic_is_subtype_of (t: EType) (other: TypeParameterId) (other_mutability: Mutability) (other_nullable: bool): bool :=
-    match t with
-    | Generic (mkGenericRef _ p bound) =>
-        if param_eqb p other
-        then Model.is_subtype_of (mutability_of t) other_mutability && (negb (is_nullable t) || other_nullable)
-        else generic_is_subtype_of bound other other_mutability other_nullable
-    | _ => false
     end.
 
 (* GenericTypeReference.unify *)
@@ -590,8 +571,12 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
         then Some (Ongoing states) else Some Failed
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
-    | Generic _ =>
-        if generic_is_subtype_of assignee parameter (mutability_of self) (is_nullable self) then Some (Ongoing states) else Some Failed
+    (* the same type parameter, of a mutability and nullability that fit; another one by its bound *)
+    | Generic (mkGenericRef _ q bound) =>
+        if param_eqb q parameter
+        then if Model.is_subtype_of (mutability_of assignee) (mutability_of self) && (negb (is_nullable assignee) || is_nullable self)
+             then Some (Ongoing states) else Some Failed
+        else unify self bound (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
     end.
 
