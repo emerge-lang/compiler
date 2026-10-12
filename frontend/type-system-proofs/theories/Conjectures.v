@@ -3,7 +3,8 @@ From EmergeTypeSystem Require Import Subtyping.
 From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import Constraints.
 From EmergeTypeSystem Require Import Generics.
-From Stdlib Require Import List.
+From Stdlib Require Import List Arith.
+Import ListNotations.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Conjectures about the Kotlin implementation                                                      *)
@@ -19,6 +20,10 @@ From Stdlib Require Import List.
 (*                                                                                                *)
 (* The types are those of Generics.v: of the fragment gfrag, with the references to type parameters *)
 (* well-formed (refs_wf). A conjecture whose inputs are outside of it claims nothing about them.     *)
+(*                                                                                                *)
+(* One conjecture is about the model alone: that unify terminates where inheritance isn't          *)
+(* expansive (unify_terminates, below). It is a claim about every such environment, a theorem to   *)
+(* prove rather than a property to check of the Kotlin implementation.                            *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Section Conjectures.
@@ -104,3 +109,104 @@ Proof.
 Qed.
 
 End Bounds.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Termination                                                                                     *)
+(*                                                                                                *)
+(* unify isn't known to terminate on all types: with expansive inheritance and contravariance, as   *)
+(* in `interface N<Z> : C<in N<N<Z>>>`, checking subtyping can go on forever (Kennedy and Pierce,    *)
+(* "On Decidability of Nominal Subtyping with Variance"). The frontend rejects expansive            *)
+(* inheritance (findExpansiveSupertypes). Kennedy and Pierce show subtyping decidable without it;   *)
+(* that unify terminates then is conjectured here, for a program's finite class table.             *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* The type parameters a type mentions, each with whether nested in a type argument of a class type
+   in it; not those in the bounds of references *)
+Fixpoint parameter_occurrences (nested: bool) (t: EType): list (TypeParameterId * bool) :=
+    match t with
+    | Generic (mkGenericRef _ p _) => [(p, nested)]
+    | RootResolved _ _ arguments => flat_map (parameter_occurrences true) arguments
+    | TypeArgument _ _ n => parameter_occurrences nested n
+    | Nullable n => parameter_occurrences nested n
+    | Intersection components => flat_map (parameter_occurrences nested) components
+    | _ => []
+    end.
+
+(* The class types in a type, with their type arguments *)
+Fixpoint constructed_types (t: EType): list (Class * list EType) :=
+    match t with
+    | RootResolved _ c arguments => (c, arguments) :: flat_map constructed_types arguments
+    | TypeArgument _ _ n => constructed_types n
+    | Nullable n => constructed_types n
+    | Intersection components => flat_map constructed_types components
+    | _ => []
+    end.
+
+Section Expansive.
+
+Variable env: Environment.
+
+(* An edge from p to the j-th type parameter q of a class c, wherever p is in the j-th type argument of
+   c in a supertype of a class; expansive where p is nested deeper in it. Taken over all supertypes,
+   the templates of which compose those declared, this has a cycle with an expansive edge where the
+   one of findExpansiveSupertypes over the declared supertypes has. *)
+Definition inheritance_edge (p q: TypeParameterId) (expansive: bool): Prop :=
+    exists sub super c arguments j a,
+        sub <> super /\ sub <> nothing /\ base_type_is_subtype_of env sub super = true
+        /\ In (c, arguments) (constructed_types (RootResolved None super (supertype_arguments env sub super)))
+        /\ nth_error arguments j = Some a /\ nth_error (parameter_ids env c) j = Some q
+        /\ In (p, expansive) (parameter_occurrences false a).
+
+(* No cycle has an expansive edge: there is a rank that no edge increases and every expansive one
+   decreases *)
+Definition non_expansive: Prop :=
+    exists rank: TypeParameterId -> nat, forall p q expansive, inheritance_edge p q expansive ->
+        if expansive then rank q < rank p else rank q <= rank p.
+
+(* Finitely many classes have supertypes with type arguments *)
+Definition finitely_many_templates: Prop :=
+    exists classes: list Class, forall sub super, supertype_arguments env sub super <> [] -> In sub classes.
+
+End Expansive.
+
+(* unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive *)
+Definition unify_terminates: Prop :=
+    forall env declared,
+        wellformed env ->
+        (forall sub super t, In t (supertype_arguments env sub super) -> no_vars t = true) ->
+        (forall p, gfrag env (declared p) = true) ->
+        (forall p m, mutability_of env (with_mutability env m (declared p)) = m) ->
+        finitely_many_templates env -> non_expansive env ->
+        forall t a s, gfrag env t = true -> gfrag env a = true -> refs_wf env declared t -> refs_wf env declared a ->
+            exists n, unify env n t a (Ongoing s) <> None.
+
+Section Terminating.
+
+Variable env: Environment.
+Hypothesis wf: wellformed env.
+Hypothesis supertypes_mention_no_variables: forall sub super t,
+    In t (supertype_arguments env sub super) -> no_vars t = true.
+Variable declared: TypeParameterId -> EType.
+Hypothesis declared_gfrag: forall p, gfrag env (declared p) = true.
+Hypothesis declared_mutability: forall p m, mutability_of env (with_mutability env m (declared p)) = m.
+Hypothesis terminates: unify_terminates.
+Hypothesis finite: finitely_many_templates env.
+Hypothesis not_expansive: non_expansive env.
+
+(* Transitivity, as usual, where unify terminates *)
+Theorem transitivity_terminating: forall n1 n2 x y z,
+    gfrag env x = true -> gfrag env y = true -> gfrag env z = true ->
+    refs_wf env declared x -> refs_wf env declared y -> refs_wf env declared z ->
+    is_assignable_to env n1 x y = Some true -> is_assignable_to env n2 y z = Some true ->
+    exists f, is_assignable_to env f x z = Some true.
+Proof.
+    intros n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2.
+    destruct (terminates env declared wf supertypes_mention_no_variables declared_gfrag declared_mutability finite not_expansive
+        z x [] Hz Hx Hrz Hrx) as [f Hf].
+    exists f. pose proof (transitivity_never_fails env wf supertypes_mention_no_variables declared declared_gfrag declared_mutability
+        n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 f) as Hnf.
+    unfold is_assignable_to, empty_unification in *.
+    destruct (unify env f z x (Ongoing [])) as [[u|]|]; simpl in *; [reflexivity|contradiction Hnf; reflexivity|contradiction Hf; reflexivity].
+Qed.
+
+End Terminating.
