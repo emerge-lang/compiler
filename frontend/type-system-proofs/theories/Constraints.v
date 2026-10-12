@@ -74,15 +74,15 @@ Variable env: Environment.
 Hypothesis supertypes_mention_no_variables: forall sub super t,
     In t (supertype_arguments env sub super) -> no_vars t = true.
 
-Lemma no_vars_with_mutability: forall m t, no_vars t = true -> no_vars (with_mutability_unioned_with env m t) = true.
+Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
 Proof.
     intros m t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
     destruct t as [mt c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try discriminate H.
-    - destruct (Mutability_beq _ _); exact H.
+    - exact H.
     - rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
     - apply (IH (esize bnd)); simpl; auto; lia.
     - reflexivity.
-    - destruct (Mutability_beq _ _); [exact H|]. simpl. apply (IH (esize n)); simpl; auto; lia.
+    - apply (IH (esize n)); simpl; auto; lia.
     - apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.
@@ -97,7 +97,7 @@ Proof.
     - simpl. rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
     - simpl. assert (Hf: no_vars (match lookup_binding b p with Some a => a | None => instantiate env b bnd end) = true).
       { destruct (lookup_binding b p) eqn:E; [exact (Hb p e E)|]. apply (IH (esize bnd)); simpl; auto; lia. }
-      destruct gm; [apply no_vars_with_mutability|]; exact Hf.
+      destruct gm; [apply no_vars_set_mutability|]; exact Hf.
     - reflexivity.
     - simpl. assert (Hn: no_vars (instantiate env b n) = true) by (apply (IH (esize n)); simpl; auto; lia).
       destruct (instantiate env b n) as [mi ci ai|ni|gi|mei msgi|vi oi ni|gi|csi] eqn:E;

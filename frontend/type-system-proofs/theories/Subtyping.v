@@ -193,20 +193,17 @@ Fixpoint without_null (t: EType): EType :=
     | _ => t
     end.
 
-(* BoundTypeReference.withMutabilityUnionedWith *)
-Fixpoint with_mutability_unioned_with (m: Mutability) (t: EType): EType :=
+(* BoundTypeReference.withMutability *)
+Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     match t with
     | RootResolved _ c arguments =>
-        let combined := union (mutability_of t) m in
-        if Mutability_beq combined (mutability_of t) then t else RootResolved (Some combined) c arguments
-    | Nullable n => rewrap_nullable (with_mutability_unioned_with m n)
-    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (with_mutability_unioned_with m bound))
-    | TypeVariable (mkGenericRef gm p bound) => TypeVariable (mkGenericRef gm p (with_mutability_unioned_with m bound))
-    (* the model's ErroneousType has no type arguments that it could default the mutability of *)
+        RootResolved (Some (if is_core_scalar (declaration_of env c) then immutable else m)) c arguments
+    | Nullable n => rewrap_nullable (with_mutability m n)
+    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (with_mutability m bound))
+    | TypeVariable (mkGenericRef gm p bound) => TypeVariable (mkGenericRef gm p (with_mutability m bound))
     | Error _ _ => t
-    | TypeArgument v o n =>
-        if Mutability_beq (mutability_of n) m then t else TypeArgument v o (with_mutability_unioned_with m n)
-    | Intersection components => Intersection (map (with_mutability_unioned_with m) components)
+    | TypeArgument v o n => TypeArgument v o (with_mutability m n)
+    | Intersection components => Intersection (map (with_mutability m) components)
     end.
 
 (* What the type parameters are bound to: the type arguments of a reference, a TypeUnification's
@@ -288,7 +285,8 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
             | None => instantiate bindings bound
             end in
         match given with
-        | Some _ => with_mutability_unioned_with (mutability_of t) final_value
+        (* a value of type `m T` is a T of a mutability that fits m *)
+        | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
         | None => final_value
         end
     | Error _ _ => t
@@ -657,16 +655,29 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
     end.
 
 (* TypeVariable.unify *)
+(* What a value of the assignee can be read as, mutability-wise *)
+Definition assignee_mutability (assignee: EType): Mutability :=
+    match assignee with TypeArgument input _ _ => readonly | _ => mutability_of assignee end.
+
+(* For `m T`, the variable T takes values of a mutability that fits m, only *)
+Definition given_mutability_fits (self assignee: EType): bool :=
+    match self with
+    | TypeVariable (mkGenericRef (Some m) _ _) => Model.is_subtype_of (assignee_mutability assignee) m
+    | _ => true
+    end.
+
 Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
     | RootResolved _ _ _
     | Generic _
     | Intersection _
-    | TypeArgument _ _ _ => plus_supertype_constraint unify states parameter assignee
+    | TypeArgument _ _ _ =>
+        if given_mutability_fits self assignee then plus_supertype_constraint unify states parameter assignee else Some Failed
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     (* Kotlin throws an InternalCompilerError *)
     | TypeVariable _ => None
     | Nullable nested =>
+        if negb (given_mutability_fits self assignee) then Some Failed else
         if is_nullable self then plus_supertype_constraint unify states parameter assignee else
         (* A possibly null value to a non-nullable reference. Kotlin carries on unifying without
            the null, for the sake of more diagnostics; it fails either way. *)

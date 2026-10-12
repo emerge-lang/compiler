@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -100,6 +101,14 @@ class TypeVariable private constructor(
         assignmentLocation: Span,
         carry: TypeUnification
     ): TypeUnification {
+        val givenMutability = asGeneric.original.mutability
+        if (givenMutability != null && assigneeType !is TypeVariable && assigneeType !is ErroneousType) {
+            val assigneeMutability = if (assigneeType is BoundTypeArgument && assigneeType.variance == TypeVariance.IN) TypeMutability.READONLY else assigneeType.mutability
+            if (!assigneeMutability.isAssignableTo(givenMutability)) {
+                return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a $assigneeMutability value to a $givenMutability reference", assignmentLocation))
+            }
+        }
+
         return when (assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,

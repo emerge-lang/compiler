@@ -253,6 +253,74 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "a type parameter with a mutability" - {
+            "takes values of a fitting mutability only, with the type argument given" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    interface B : A {}
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f(b: const B) {
+                        g::<const B>(b)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "const testmodule.B"
+                    }
+            }
+
+            "takes values of a fitting mutability only, with the type argument inferred" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f<T : read A>(t: const T) {
+                        g(t)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "const T"
+                    }
+            }
+
+            "takes values of a fitting mutability" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    interface B : A {}
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f(b: mut B) {
+                        g::<mut B>(b)
+                        g(b)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "is instantiated to its type argument of the mutabilities of both" {
+                validateModule("""
+                    interface A {}
+                    interface B : A {}
+                    class Box<X : read A> {
+                        p: mut X = init
+                    }
+                    fn f(b: mut Box<read B>) -> mut B {
+                        return b.p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
         "generic validation involving multiple values of different types" {
             /*
             ideally, the compiler should argue this way:

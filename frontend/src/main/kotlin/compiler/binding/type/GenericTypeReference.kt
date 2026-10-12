@@ -172,8 +172,10 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         var instantiated = context.getFinalValueFor(this.parameter)
-        if (original.mutability != null) {
-            instantiated = instantiated.withMutabilityUnionedWith(this.mutability)
+        val givenMutability = original.mutability
+        if (givenMutability != null) {
+            // a value of type `m T` is a T of a mutability that fits m
+            instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
         }
         return instantiated.withCombinedNullability(original.nullability)
     }
