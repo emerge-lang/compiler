@@ -59,6 +59,11 @@ Qed.
 Definition relabel (s': VariableStates) (r: Unification): Unification :=
     match r with Ongoing _ => Ongoing s' | Failed => Failed end.
 
+Lemma no_vars_without_null: forall t, no_vars (without_null t) = no_vars t.
+Proof.
+    fix IH 1. intros [m c a|n|[gm p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+Qed.
+
 Lemma no_vars_rewrap: forall t, no_vars (rewrap_nullable t) = no_vars t.
 Proof. intros [| | | | | |]; reflexivity. Qed.
 
@@ -195,7 +200,8 @@ Qed.
 Ltac nv := first
     [ assumption | reflexivity
     | match goal with |- no_vars (read_type ?v ?t) = true => destruct v; first [assumption|reflexivity] end
-    | simpl; assumption ].
+    | simpl; assumption
+    | rewrite no_vars_without_null; simpl; assumption ].
 
 Ltac free H := match type of H with f ?x ?y (Ongoing _) = Some ?r => exact (Hf x y _ _ r ltac:(nv) ltac:(nv) H) end.
 
@@ -242,7 +248,7 @@ Proof.
           try free H.
       + destruct (is_non_nullable_nothing env _ && _); injection H as <-; reflexivity.
       + injection H as <-. reflexivity.
-      + destruct (generic_is_subtype_of env _ _ _); injection H as <-; reflexivity.
+      + destruct (generic_is_subtype_of env _ _ _ _); injection H as <-; reflexivity.
       + (eapply flipped_free; [|exact Ha|exact H]; nv).
     - (* an erroneous type *)
       unfold unify_erroneous in H |- *.

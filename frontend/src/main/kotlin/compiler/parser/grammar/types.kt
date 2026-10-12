@@ -203,7 +203,7 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
                 nullabilityToken = next
                 nullability = when(next.operator) {
                     Operator.QUESTION_MARK -> TypeReference.Nullability.NULLABLE
-                    Operator.NOTNULL -> TypeReference.Nullability.NOT_NULLABLE
+                    Operator.EXCLAMATION_MARK -> TypeReference.Nullability.NOT_NULLABLE
                     else -> throw InternalCompilerError("Unknown type nullability marker: $next")
                 }
             }

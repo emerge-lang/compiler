@@ -192,7 +192,7 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
-            return this.mutability.isAssignableTo(other.mutability)
+            return this.mutability.isAssignableTo(other.mutability) && (!this.isNullable || other.isNullable)
         }
 
         val bound = this.effectiveBound

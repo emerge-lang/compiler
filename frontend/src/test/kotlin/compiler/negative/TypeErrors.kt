@@ -215,6 +215,44 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "non-nullable reference to a type parameter" - {
+            "takes the possibly null type parameter it narrows" {
+                validateModule("""
+                    fn f<V : Any?>(p: V!) {
+                        x: V = p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "is non-nullable" {
+                validateModule("""
+                    fn f<V : Any?>(p: V!) -> Any {
+                        return p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take the possibly null type parameter" {
+                validateModule("""
+                    fn f<V : Any?>(p: V) {
+                        x: V! = p
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take a possibly null type parameter bounded by it" {
+                validateModule("""
+                    fn f<V : Any?, W : V>(p: W) {
+                        x: V! = p
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
         "generic validation involving multiple values of different types" {
             /*
             ideally, the compiler should argue this way:

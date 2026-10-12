@@ -184,6 +184,15 @@ Definition rewrap_nullable (t: EType): EType :=
     | _ => Nullable t
     end.
 
+(* BoundTypeReference.withCombinedNullability(NOT_NULLABLE): `V!` for a type parameter V *)
+Fixpoint without_null (t: EType): EType :=
+    match t with
+    | Nullable n => n
+    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (without_null bound))
+    | TypeArgument v o n => TypeArgument v o (without_null n)
+    | _ => t
+    end.
+
 (* BoundTypeReference.withMutabilityUnionedWith *)
 Fixpoint with_mutability_unioned_with (m: Mutability) (t: EType): EType :=
     match t with
@@ -551,21 +560,23 @@ Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states
     | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
     | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
     | Generic (mkGenericRef _ _ bound) =>
+        (* null is taken care of: what's left is whether `V!` is a subtype of nested *)
         match nested with
-        | Generic _ | TypeArgument _ _ _ => unify nested assignee (Ongoing states)
+        | Generic _ | TypeArgument _ _ _ => unify nested (without_null assignee) (Ongoing states)
         | _ => unify self bound (Ongoing states)
         end
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | _ => unify nested assignee (Ongoing states)
     end.
 
-(* GenericTypeReference.isSubtypeOf: whether t, a Generic, is the generic `other`, or bounded by it *)
-Fixpoint generic_is_subtype_of (t: EType) (other: TypeParameterId) (other_mutability: Mutability): bool :=
+(* GenericTypeReference.isSubtypeOf: whether t, a Generic, is the generic `other`, or bounded by it; a
+   possibly null reference to `other` isn't a non-null one (`V` isn't a `V!`) *)
+Fixpoint generic_is_subtype_of (t: EType) (other: TypeParameterId) (other_mutability: Mutability) (other_nullable: bool): bool :=
     match t with
     | Generic (mkGenericRef _ p bound) =>
         if param_eqb p other
-        then Model.is_subtype_of (mutability_of t) other_mutability
-        else generic_is_subtype_of bound other other_mutability
+        then Model.is_subtype_of (mutability_of t) other_mutability && (negb (is_nullable t) || other_nullable)
+        else generic_is_subtype_of bound other other_mutability other_nullable
     | _ => false
     end.
 
@@ -582,7 +593,7 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
     | Generic _ =>
-        if generic_is_subtype_of assignee parameter (mutability_of self) then Some (Ongoing states) else Some Failed
+        if generic_is_subtype_of assignee parameter (mutability_of self) (is_nullable self) then Some (Ongoing states) else Some Failed
     | Intersection components => intersection_flipped_unify unify self components states
     end.
 

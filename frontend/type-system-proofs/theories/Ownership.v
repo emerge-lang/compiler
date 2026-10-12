@@ -505,7 +505,7 @@ Lemma generic_unifies_with_itself: forall fuel g states,
     unify env (S fuel) (Generic g) (Generic g) (Ongoing states) = Some (Ongoing states).
 Proof.
     intros fuel [gm p b] states. simpl. unfold param_eqb. rewrite Nat.eqb_refl, mutability_is_subtype_of_refl.
-    reflexivity.
+    destruct (is_nullable b); reflexivity.
 Qed.
 
 (* `Array<o T>` assignable to `Array<target_o T>`, for any class Array, any mutability of the array
@@ -526,7 +526,7 @@ Proof.
     rewrite Ho. destruct g as [gm p b].
     destruct o, v; cbn -[ownership_is_assignable_to];
         try unfold param_eqb; rewrite ?Nat.eqb_refl, ?mutability_is_subtype_of_refl; cbn;
-        rewrite ?Nat.eqb_refl, ?mutability_is_subtype_of_refl; reflexivity.
+        rewrite ?Nat.eqb_refl, ?mutability_is_subtype_of_refl; destruct (is_nullable b); reflexivity.
 Qed.
 
 Corollary owned_array_is_assignable_to_any_array: forall fuel m c v g,

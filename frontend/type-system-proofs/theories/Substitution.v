@@ -582,7 +582,7 @@ Lemma unify_generic_generic: forall n p bp q bq u,
 Proof.
     intros n p bp q bq u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_generic in H.
     cbn [generic_is_subtype_of] in H. destruct (param_eqb q p) eqn:E.
-    - apply param_eqb_eq in E. split; [exact E|]. destruct (Model.is_subtype_of _ _); injection H; auto. discriminate.
+    - apply param_eqb_eq in E. split; [exact E|]. destruct (Model.is_subtype_of _ _ && _); injection H; auto. discriminate.
     - destruct (sfrag_cases bq Hf) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
           [discriminate H|discriminate H|discriminate H|discriminate Hc].
 Qed.

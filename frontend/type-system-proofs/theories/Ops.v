@@ -673,6 +673,14 @@ Fixpoint can_refer_to_object (t: EType): bool :=
     | Intersection components => forallb can_refer_to_object components
     end.
 
+Lemma without_null_keeps: forall t,
+    mutability_of env (without_null t) = mutability_of env t /\ can_refer_to_object (without_null t) = can_refer_to_object t.
+Proof.
+    fix IH 1. intros [m c a|n|[gm p b]|m msg|v o n|g|cs]; try (split; reflexivity).
+    - simpl. destruct (IH b) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
+    - simpl. destruct (IH n) as [Hm _]. rewrite Hm. split; reflexivity.
+Qed.
+
 Lemma generic_mutability_below_bound: forall g p b,
     is_subtype_of (mutability_of env (Generic (mkGenericRef g p b))) (mutability_of env b) = true.
 Proof.
@@ -680,12 +688,12 @@ Proof.
     destruct (is_subtype_of m (mutability_of env b)) eqn:E; [exact E|apply mutability_is_subtype_of_refl].
 Qed.
 
-Lemma generic_is_subtype_of_mutability: forall t p m,
-    generic_is_subtype_of env t p m = true -> is_subtype_of (mutability_of env t) m = true.
+Lemma generic_is_subtype_of_mutability: forall t p m nl,
+    generic_is_subtype_of env t p m nl = true -> is_subtype_of (mutability_of env t) m = true.
 Proof.
-    fix IH 1. intros t p m H.
+    fix IH 1. intros t p m nl H.
     destruct t as [| |[g p' b]| | | |]; cbn [generic_is_subtype_of] in H; try discriminate H.
-    destruct (param_eqb p' p); [exact H|].
+    destruct (param_eqb p' p); [apply andb_true_iff in H; exact (proj1 H)|].
     eapply mutability_subtype_trans; [apply generic_mutability_below_bound|]. eapply IH, H.
 Qed.
 
@@ -799,9 +807,10 @@ Proof.
       + eapply IH; eassumption.
       + change (mutability_of env (Nullable an)) with (mutability_of env an). eapply IH; eassumption.
       + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
-        assert (Hnested: unify env fuel tn (Generic (mkGenericRef ag ap ab)) (Ongoing states) = Some (Ongoing u) ->
+        assert (Hnested: unify env fuel tn (without_null (Generic (mkGenericRef ag ap ab))) (Ongoing states) = Some (Ongoing u) ->
             is_subtype_of (mutability_of env (Generic (mkGenericRef ag ap ab))) (mutability_of env tn) = true).
-        { intros Hu. eapply IH; [exact Hu|exact Ht|exact Ha]. }
+        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ap ab))) as [Hm Hc]. rewrite <- Hm.
+          eapply IH; [exact Hu|exact Ht|rewrite Hc; exact Ha]. }
         assert (Hself: unify env fuel (Nullable tn) ab (Ongoing states) = Some (Ongoing u) ->
             is_subtype_of (mutability_of env (Generic (mkGenericRef ag ap ab))) (mutability_of env tn) = true).
         { intros Hu. eapply mutability_subtype_trans; [apply generic_mutability_below_bound|].
@@ -814,7 +823,7 @@ Proof.
       destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + simpl in H. apply negb_true_iff in Ha. rewrite Ha in H. discriminate H.
       + discriminate H.
-      + destruct (generic_is_subtype_of _ _ _ _) eqn:E; [|discriminate H].
+      + destruct (generic_is_subtype_of _ _ _ _ _) eqn:E; [|discriminate H].
         apply generic_is_subtype_of_mutability in E. exact E.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_mutability_below_component, Hc|].
