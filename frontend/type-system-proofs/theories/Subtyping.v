@@ -575,8 +575,10 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     (* a possibly null value to a non-nullable reference *)
     | Nullable _ => Some Failed
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
+    (* Nothing, of a mutability that fits *)
     | RootResolved _ _ _ =>
-        if is_non_nullable_nothing assignee then Some (Ongoing states) else Some Failed
+        if is_non_nullable_nothing assignee && Model.is_subtype_of (mutability_of assignee) (mutability_of self)
+        then Some (Ongoing states) else Some Failed
     | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
     | Generic _ =>

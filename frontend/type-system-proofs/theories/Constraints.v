@@ -240,7 +240,7 @@ Proof.
       unfold unify_generic in H |- *.
       destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha;
           try free H.
-      + destruct (is_non_nullable_nothing env _); injection H as <-; reflexivity.
+      + destruct (is_non_nullable_nothing env _ && _); injection H as <-; reflexivity.
       + injection H as <-. reflexivity.
       + destruct (generic_is_subtype_of env _ _ _); injection H as <-; reflexivity.
       + (eapply flipped_free; [|exact Ha|exact H]; nv).

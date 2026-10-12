@@ -87,7 +87,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                if (assigneeType.isNonNullableNothing && assigneeType.mutability.isAssignableTo(this.mutability)) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
                     assigneeType,
                     "$assigneeType cannot be proven to be a subtype of $this",

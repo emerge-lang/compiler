@@ -565,7 +565,9 @@ Proof. reflexivity. Qed.
 
 Lemma unify_generic_root: forall n p bound m c args,
     unify env (S n) (Generic (mkGenericRef None p bound)) (RootResolved m c args) (Ongoing s)
-    = if class_eqb c nothing then Some (Ongoing s) else Some Failed.
+    = if class_eqb c nothing && Model.is_subtype_of (mutability_of env (RootResolved m c args))
+        (mutability_of env (Generic (mkGenericRef None p bound)))
+      then Some (Ongoing s) else Some Failed.
 Proof. reflexivity. Qed.
 
 Lemma unify_generic_nullable: forall n p bound na,
@@ -724,8 +726,9 @@ Proof.
         change (inst_nested b (Nullable (RootResolved ma ca aargs))) with (instantiate env b (Nullable (RootResolved ma ca aargs))).
         rewrite !instantiate_nullable_class, unify_nullable_nullable. apply (unify_fuel_monotone env (P + E)); [lia|exact Hi].
       + rewrite unify_nullable_generic in H. exact (Hvia q ba Hfba Hcba Hba H).
-      + rewrite unify_generic_root, Hca in H. discriminate H.
-      + rewrite unify_generic_root, class_eqb_refl in H. injection H as <-. split; [reflexivity|].
+      + rewrite unify_generic_root, Hca in H. cbn [andb] in H. discriminate H.
+      + rewrite unify_generic_root, class_eqb_refl in H. cbn [andb] in H.
+        destruct (Model.is_subtype_of _ _); [|discriminate H]. injection H as <-. split; [reflexivity|].
         simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex [_ [Hx _]]]]].
         rewrite (inst_nested_generic None p bt _ o x Ex). apply below_all; [exact Hx|lia].
       + rewrite unify_generic_nullable in H. discriminate H.

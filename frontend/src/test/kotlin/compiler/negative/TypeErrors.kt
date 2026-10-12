@@ -11,6 +11,7 @@ import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -189,6 +190,28 @@ class TypeErrors : FreeSpec({
                         it.targetType.toString() shouldBe "mut Any"
                         it.reason shouldBe "cannot assign a const value to a mut reference"
                     }
+            }
+        }
+
+        "Nothing to a type parameter" - {
+            "of a fitting mutability" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : mut A>(n: exclusive Nothing) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of a mutability that doesn't fit the type parameter" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : mut A>(n: read Nothing) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
             }
         }
 
