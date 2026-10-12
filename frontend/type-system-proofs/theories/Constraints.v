@@ -293,7 +293,8 @@ End Variables.
 Definition keeps_exact (s s': VariableStates): Prop :=
     (forall p st, lookup_state s p = Some st -> is_exact st = true -> lookup_state s' p = Some st)
     /\ (forall p st, lookup_state s p = Some st -> is_exact st = false -> is_capturable st = false ->
-        exists st', lookup_state s' p = Some st' /\ is_exact st' = false /\ is_capturable st' = false).
+        exists st', lookup_state s' p = Some st' /\ is_exact st' = false /\ is_capturable st' = false
+            /\ static_upper_bound st' = static_upper_bound st).
 
 Lemma keeps_exact_refl: forall s, keeps_exact s s.
 Proof. intros s. split; [intros p st H _; exact H|]. intros p st H He Hc. exists st. auto. Qed.
@@ -301,11 +302,13 @@ Proof. intros s. split; [intros p st H _; exact H|]. intros p st H He Hc. exists
 Lemma keeps_exact_trans: forall s1 s2 s3, keeps_exact s1 s2 -> keeps_exact s2 s3 -> keeps_exact s1 s3.
 Proof.
     intros s1 s2 s3 [H1 H1'] [H2 H2']. split; [intros p st Hl He; exact (H2 p st (H1 p st Hl He) He)|].
-    intros p st Hl He Hc. destruct (H1' p st Hl He Hc) as [st' [Hl' [He' Hc']]]. exact (H2' p st' Hl' He' Hc').
+    intros p st Hl He Hc. destruct (H1' p st Hl He Hc) as [st' [Hl' [He' [Hc' Hs']]]].
+    destruct (H2' p st' Hl' He' Hc') as [st'' [Hl'' [He'' [Hc'' Hs'']]]]. exists st''. rewrite Hs'' in *. auto.
 Qed.
 
 Lemma keeps_exact_set: forall s s' p st st', lookup_state s p = Some st -> is_exact st = false ->
-    (is_capturable st = false -> is_exact st' = false /\ is_capturable st' = false) ->
+    (is_capturable st = false -> is_exact st' = false /\ is_capturable st' = false
+        /\ static_upper_bound st' = static_upper_bound st) ->
     keeps_exact s s' -> keeps_exact s (set_state s' p st').
 Proof.
     intros s s' p st st' Hl He Hst [H H']. split.
@@ -354,7 +357,7 @@ Proof.
     destruct (is_exact st) eqn:He; [exact (Hf _ _ _ _ H)|]. cbn zeta in H.
     destruct (is_non_nullable_nothing env _); [discriminate H|].
     destruct (f _ _ (Ongoing s)) as [[w|]|] eqn:E; cbn beta iota in H; try discriminate H. injection H as <-.
-    refine (keeps_exact_set s w p st _ Hl He _ (Hf _ _ _ _ E)). intros Hc. split; [reflexivity|exact Hc].
+    refine (keeps_exact_set s w p st _ Hl He _ (Hf _ _ _ _ E)). intros Hc. split; [reflexivity|split; [exact Hc|reflexivity]].
 Qed.
 
 Lemma plus_supertype_keeps_exact: forall s p t s',
@@ -363,7 +366,7 @@ Proof.
     intros s p t s' H. unfold plus_supertype_constraint in H. destruct (lookup_state s p) as [st|] eqn:Hl; [|discriminate H].
     destruct (is_exact st) eqn:He; [exact (Hf _ _ _ _ H)|]. cbn zeta in H.
     destruct (f _ _ (Ongoing s)) as [[w|]|] eqn:E; cbn beta iota in H; try discriminate H. injection H as <-.
-    refine (keeps_exact_set s w p st _ Hl He _ (Hf _ _ _ _ E)). intros Hc. split; [reflexivity|exact Hc].
+    refine (keeps_exact_set s w p st _ Hl He _ (Hf _ _ _ _ E)). intros Hc. split; [reflexivity|split; [exact Hc|reflexivity]].
 Qed.
 
 Lemma plus_exact_keeps_exact: forall s p t s',
@@ -552,16 +555,23 @@ Definition satisfies (b: Bindings) (s: VariableStates): Prop :=
 
 (* The variable states unify works with: the bounds without type variables, the upper bound above the
    lower one where the variable isn't bound exactly, and no variable to capture *)
+(* What is below the upper bound of a variable is below its declared one *)
+Definition below_static (st: VariableState): Prop :=
+    forall x f, in_fragment env x = true -> unify env f (upper_bound st) x (Ongoing []) = Some (Ongoing []) ->
+        exists f', unify env f' (static_upper_bound st) x (Ongoing []) = Some (Ongoing []).
+
 Definition wf_states (s: VariableStates): Prop :=
     forall p st, lookup_state s p = Some st ->
         no_vars (upper_bound st) = true /\ no_vars (lower_bound st) = true
         /\ (is_exact st = false -> is_capturable st = false
-            /\ exists K, unify env K (upper_bound st) (lower_bound st) (Ongoing []) = Some (Ongoing [])).
+            /\ (exists K, unify env K (upper_bound st) (lower_bound st) (Ongoing []) = Some (Ongoing []))
+            /\ below_static st).
 
 Lemma wf_set_state: forall s p st, wf_states s ->
     no_vars (upper_bound st) = true -> no_vars (lower_bound st) = true ->
     (is_exact st = false -> is_capturable st = false
-        /\ exists K, unify env K (upper_bound st) (lower_bound st) (Ongoing []) = Some (Ongoing [])) ->
+        /\ (exists K, unify env K (upper_bound st) (lower_bound st) (Ongoing []) = Some (Ongoing []))
+        /\ below_static st) ->
     wf_states (set_state s p st).
 Proof.
     intros s p st Hs Hu Hl He q st' Hq. destruct (Nat.eq_dec p q) as [<-|Hne].
@@ -616,9 +626,9 @@ Proof.
       destruct (unify env n (upper_bound st) (closest_common_supertype_with env (lower_bound st) A) (Ongoing s))
           as [[ns|]|] eqn:E; try discriminate H'. injection H' as <-.
       destruct (keeps_free n _ _ s ns Hnu Hnn E) as [-> H0].
-      destruct (He eq_refl) as [Hcap _].
+      destruct (He eq_refl) as [Hcap [_ Hbs]].
       split; [|split].
-      + apply wf_set_state; [exact Hs|exact Hnu|exact Hnn|]. intros _. split; [exact Hcap|]. exists n. exact H0.
+      + apply wf_set_state; [exact Hs|exact Hnu|exact Hnn|]. intros _. split; [exact Hcap|]. split; [exists n; exact H0|exact Hbs].
       + apply (satisfies_set_state s p st _ Hl). intros o x Hx Hfit. unfold fits in Hfit |- *. rewrite Ee.
         cbn [is_exact upper_bound lower_bound] in Hfit. destruct Hfit as [[K1 E1] [K2 E2]]. split; [|exists K2; exact E2].
         exact (proj1 (supertype_is_above _ _ x K1 Hnl HnA Hx E1)).
@@ -651,9 +661,10 @@ Proof.
       destruct (unify env n (intersect env (upper_bound st) A) (lower_bound st) (Ongoing s))
           as [[ns|]|] eqn:E; try discriminate H'. injection H' as <-.
       destruct (keeps_free n _ _ s ns Hnn Hnl E) as [-> H0].
-      destruct (He eq_refl) as [Hcap _].
+      destruct (He eq_refl) as [Hcap [_ Hbs]].
       split; [|split].
-      + apply wf_set_state; [exact Hs|exact Hnn|exact Hnl|]. intros _. split; [exact Hcap|]. exists n. exact H0.
+      + apply wf_set_state; [exact Hs|exact Hnn|exact Hnl|]. intros _. split; [exact Hcap|]. split; [exists n; exact H0|].
+        intros x f Hx Ex. destruct (intersect_is_below _ _ x f Hnu HnA Hx Ex) as [[f1 E1] _]. exact (Hbs x f1 Hx E1).
       + apply (satisfies_set_state s p st _ Hl). intros o x Hx Hfit. unfold fits in Hfit |- *. rewrite Ee.
         cbn [is_exact upper_bound lower_bound] in Hfit. destruct Hfit as [[K1 E1] [K2 E2]]. split; [exists K1; exact E1|].
         exact (proj1 (intersect_is_below _ _ x K2 Hnu HnA Hx E2)).
@@ -1067,7 +1078,7 @@ Definition final_value (st: VariableState): EType :=
 Lemma final_value_fits: forall s p st o, wf_states s -> lookup_state s p = Some st -> is_exact st = false ->
     in_fragment env (final_value st) = true -> fits st o (final_value st).
 Proof.
-    intros s p st o Hs Hl He Hf. destruct (Hs p st Hl) as [_ [_ Hb]]. destruct (Hb He) as [_ [K HK]].
+    intros s p st o Hs Hl He Hf. destruct (Hs p st Hl) as [_ [_ Hb]]. destruct (Hb He) as [_ [[K HK] _]].
     unfold fits. rewrite He. pose proof (proj1 (reflexivity_with_arguments env (depth (final_value st))) _ [] Hf (le_n _)) as Hr.
     unfold final_value in Hf, Hr |- *. destruct (is_non_nullable_nothing env (lower_bound st)).
     - split; [exists K; exact HK|exists (depth (upper_bound st)); exact Hr].
@@ -1156,41 +1167,170 @@ Proof.
     - intros [P A] _. apply unify_keeps_failure.
 Qed.
 
-(*
- * Calling a member function with type parameters of its own is sound: unifying the receiver parameter
- * with the receiver binds the type parameters of the class exactly to the type arguments of the
- * receiver; inferring those of the function from the arguments gives them lower and upper bounds,
- * and their final values. Whatever argument is accepted for a parameter fits the parameter with the
- * type parameters of the class replaced by the type arguments of the object actually called on, and
- * those of the function by their final values.
- *)
-Theorem member_call_with_type_parameters_sound: forall n mr c cvars ovars ma ys u mo xs n0 Ps As nf U K,
-    c <> nothing -> map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
-    (forall p bound, In (p, bound) (cvars ++ ovars) -> in_fragment env bound = true) ->
-    (* the receiver, unified with the receiver parameter *)
-    in_fragment env (RootResolved ma c ys) = true ->
-    unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma c ys)
-        (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
-    (* the object it is, of exact type arguments *)
-    length xs = length (parameter_ids env c) -> (forall x, In x xs -> exact_argument env x = true) ->
-    is_assignable_to env n0 (RootResolved mo c xs) (RootResolved ma c ys) = Some true ->
-    (* the parameters and the arguments, accepted in turn *)
-    (forall P, In P Ps -> ifrag env P = true) -> (forall A, In A As -> afrag env A = true /\ closed A = true) ->
-    fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
-    (* the final values of the type parameters of the function are types of the fragment, and they,
-       and the type arguments of the object, are within the bounds of the type parameters *)
-    (forall p bound, In (p, bound) ovars -> in_fragment env (final_value_of U p) = true) ->
-    forall b, b = bindings_of env c xs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
-    (forall P, In P Ps -> bound_in env b K [] (to_generic P) = true) ->
-    forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
+(* A type argument of a supertype, as declared, that is exact for exact type arguments of the subclass:
+   invariant, not of any ownership. `class ArrayList<T> : List<T>` has those; `class Holder<T> :
+   Consumer<in Box<T>>` doesn't. *)
+Definition exact_template_argument (r: EType): bool :=
+    match r with
+    | TypeArgument Model.invariant o _ => match o with any_ownership => false | _ => true end
+    | _ => false
+    end.
+
+Lemma template_not_loose: forall sub ys, length ys = length (parameter_ids env sub) ->
+    (forall y, In y ys -> is_loose y = false) -> forall k,
+    (forall t, depth t <= k -> template_type env sub t = true -> mentions_loosely_bound (bindings_of env sub ys) t = false)
+    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true -> mentions_loosely_bound (bindings_of env sub ys) r = false).
 Proof.
-    intros n mr c cvars ovars ma ys u mo xs n0 Ps As nf U K Hc Hids Hnd Hbounds Hfy Hrec Hlx Hxs Hobj HPs HAs Hfold Hfinal
-        b Hbdef HbP.
+    intros sub ys Hl Hys k. induction k as [|k [IHt IHa]].
+    { split; intros t Hd Ht; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
+    assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k -> template_type env sub (RootResolved m c targs) = true ->
+        existsb (mentions_loosely_bound (bindings_of env sub ys)) targs = false).
+    { intros m c targs Hd Ht. destruct (root_template env sub m c targs Ht) as [_ Htargs].
+      apply not_true_iff_false. intros E. apply existsb_exists in E. destruct E as [a [Ha E]].
+      pose proof (argument_depth_below m c targs a Ha). rewrite (IHa a ltac:(lia) (Htargs a Ha)) in E. discriminate E. }
+    split.
+    - intros t Hd Ht. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
+      + rewrite mentions_class. exact (Hroot m c targs Hd Ht).
+      + rewrite depth_nullable in Hd. rewrite mentions_nullable, mentions_class. exact (Hroot m c targs ltac:(lia) Ht').
+    - intros r Hd Hr. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn]]]]]]].
+      + destruct (nth_error_same_length _ ys i p (eq_sym Hl) Hi) as [y Hy].
+        rewrite (mentions_parameter_template _ p bp y (lookup_parameter env wf sub ys i p y Hi Hy)).
+        apply Hys. eapply nth_error_In. exact Hy.
+      + simpl in Hd |- *. apply IHt; [lia|exact Hn].
+Qed.
+
+(* The type arguments of a supertype, for exact type arguments of the subclass, are exact where the
+   supertype is declared with exact ones *)
+Lemma supertype_arguments_exact: forall e c xs, e <> c -> e <> nothing -> base_type_is_subtype_of env e c = true ->
+    length xs = length (parameter_ids env e) -> (forall x, In x xs -> exact_argument env x = true) ->
+    (forall r, In r (supertype_arguments env e c) -> exact_template_argument r = true) ->
+    forall z, In z (parameterized_supertype_arguments env e xs c) -> exact_argument env z = true.
+Proof.
+    intros e c xs Hne Hn Hb Hl Hxs Hex z Hz.
+    destruct (wf_supertypes_are_templates env wf e c Hne Hn Hb) as [_ Ht].
+    rewrite parameterized_supertype_arguments_eq in Hz. apply in_map_iff in Hz. destruct Hz as [r [<- Hr]].
+    assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true).
+    { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o nx| |]; try discriminate E.
+      simpl in E |- *. apply andb_true_iff in E. apply E. }
+    assert (Hta: forall x, In x xs -> is_type_argument x = true)
+        by (intros x Hx; apply (argument_in_fragment_is_type_argument env), Hfxs, Hx).
+    destruct (template_kind env e r (Ht r Hr)) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
+    - destruct (nth_error_same_length _ xs i p (eq_sym Hl) Hi) as [x Hx].
+      rewrite (selects env wf e xs p bp i x Hi Hx (Hta x (nth_error_In _ _ Hx))). apply Hxs. eapply nth_error_In. exact Hx.
+    - pose proof (Hex _ Hr) as Hexr. simpl in Hexr. destruct v; try discriminate Hexr.
+      rewrite (instantiate_template_argument env _ Model.invariant o n Ho (template_shape env e n Hn')).
+      assert (Hnl: forall x, In x xs -> is_loose x = false).
+      { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o' nx| |]; try discriminate E.
+        destruct o'; try discriminate E; reflexivity. }
+      rewrite (proj1 (template_not_loose e xs Hl Hnl (depth n)) n (le_n _) Hn').
+      simpl. destruct o; try discriminate Ho; try discriminate Hexr;
+          rewrite (template_type_instance_in_fragment env wf e xs n Hl Hfxs Hn'); reflexivity.
+Qed.
+
+Lemma forall2_diag: forall {A: Type} (R: A -> A -> Prop) (l: list A), (forall x, In x l -> R x x) -> Forall2 R l l.
+Proof.
+    intros A R l H. induction l as [|x l IH]; constructor; [apply H; left; reflexivity|].
+    apply IH. intros y Hy. apply H. right. exact Hy.
+Qed.
+
+Lemma uniform_fuel_list: forall {A: Type} (l: list A) (Q: nat -> A -> Prop),
+    (forall f f' x, f <= f' -> Q f x -> Q f' x) -> (forall x, In x l -> exists f, Q f x) ->
+    exists f, forall x, In x l -> Q f x.
+Proof.
+    intros A l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
+    destruct (H x (or_introl eq_refl)) as [f1 H1]. destruct (IH (fun y Hy => H y (or_intror Hy))) as [f2 H2].
+    exists (max f1 f2). intros y [<-|Hy]; [apply (Hm f1); [lia|exact H1]|apply (Hm f2); [lia|exact (H2 y Hy)]].
+Qed.
+
+(* The type parameters a type mentions, in references to them and as ownership, are among vars, with
+   the bounds vars have for them *)
+Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => refs_within vars a /\ acc) True arguments
+    | Nullable n => refs_within vars n
+    | Generic (mkGenericRef _ p bound) | TypeVariable (mkGenericRef _ p bound) => In (p, bound) vars
+    | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
+    | _ => True
+    end.
+
+Lemma fold_and_in: forall (Q: EType -> Prop) (l: list EType), fold_right (fun a acc => Q a /\ acc) True l -> forall a, In a l -> Q a.
+Proof. intros Q l H. induction l as [|x l IH]; intros a Ha; [destruct Ha|]. destruct H as [Hx H]. destruct Ha as [<-|Ha]; auto. Qed.
+
+Lemma fold_and_map: forall (Q: EType -> Prop) (f: EType -> EType) (l: list EType),
+    (forall a, In a l -> Q (f a)) -> fold_right (fun a acc => Q a /\ acc) True (map f l).
+Proof. intros Q f l H. induction l as [|x l IH]; [exact I|]. split; [apply H; left; reflexivity|]. apply IH. intros a Ha. apply H. right. exact Ha. Qed.
+
+Lemma refs_to_generic: forall vars t, refs_within vars t -> refs_within vars (to_generic t).
+Proof.
+    intros vars t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
+    destruct t as [m c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try exact H.
+    - apply fold_and_map. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|].
+      exact (fold_and_in _ args H a Ha).
+    - apply (IH (esize n)); [simpl; lia|reflexivity|exact H].
+    - destruct H as [Ho Hn]. split; [exact Ho|]. apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn].
+Qed.
+
+Lemma bound_in_from_refs: forall vars b K t, refs_within vars t ->
+    (forall p bound, In (p, bound) vars -> binds_exactly env b K [] p bound = true) ->
+    (forall q, In q (map fst vars) -> ownership_bound b (parameter_ownership q) = true) ->
+    bound_in env b K [] t = true.
+Proof.
+    intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H Hp Ho.
+    destruct t as [m c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try reflexivity.
+    - apply forallb_forall. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity| |exact Hp|exact Ho].
+      exact (fold_and_in _ args H a Ha).
+    - apply (IH (esize n)); [simpl; lia|reflexivity|exact H|exact Hp|exact Ho].
+    - exact (Hp p bnd H).
+    - destruct H as [Hq Hn]. apply andb_true_iff. split.
+      + destruct o as [| | |q]; try reflexivity. exact (Ho q (Hq q eq_refl)).
+      + apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn|exact Hp|exact Ho].
+Qed.
+
+Lemma lookup_map_vars: forall (l: list (TypeParameterId * EType)) (g: TypeParameterId * EType -> EType) p bound,
+    NoDup (map fst l) -> In (p, bound) l -> lookup_binding (map (fun v => (fst v, g v)) l) p = Some (g (p, bound)).
+Proof.
+    intros l g. induction l as [|[q bq] l IH]; intros p bound Hnd Hin; [destruct Hin|].
+    inversion Hnd as [|? ? Hnotin Hnd']. subst. simpl. destruct Hin as [E|Hin].
+    - injection E as -> ->. rewrite param_eqb_refl. reflexivity.
+    - destruct (param_eqb p q) eqn:E.
+      + apply param_eqb_eq in E. subst q. exfalso. apply Hnotin. exact (in_map fst _ _ Hin).
+      + exact (IH p bound Hnd' Hin).
+Qed.
+
+Lemma lookup_combine_none: forall (ids: list TypeParameterId) (xs: list EType) p, ~ In p ids -> lookup_binding (combine ids xs) p = None.
+Proof.
+    intros ids. induction ids as [|q ids IH]; intros [|x xs] p H; try reflexivity. simpl.
+    destruct (param_eqb p q) eqn:E; [apply param_eqb_eq in E; subst q; exfalso; apply H; left; reflexivity|].
+    apply IH. intros Hin. apply H. right. exact Hin.
+Qed.
+
+(* What unifying the receiver leaves, and how the object relates to the receiver, as references to
+   the class the function is declared in *)
+Lemma receiver_and_object: forall n mr c cvars ovars ma ca ys u mo e xs zs n0,
+    c <> nothing -> ca <> nothing -> e <> nothing ->
+    map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> in_fragment env bound = true) ->
+    in_fragment env (RootResolved ma ca ys) = true ->
+    unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
+        (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
+    in_fragment env (RootResolved mo e xs) = true ->
+    is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
+    zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
+    (forall z, In z zs -> exact_argument env z = true) ->
+    exists ys' n1,
+        length ys' = length cvars /\ length zs = length cvars
+        /\ (forall y, In y ys' -> argument_in_fragment env y = true)
+        /\ (forall i p bound y, nth_error cvars i = Some (p, bound) -> nth_error ys' i = Some y ->
+            lookup_state u p = Some (mkVariableState bound y y true true))
+        /\ (forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound bound bottom_type false false))
+        /\ wf_states u
+        /\ Forall2 (fun z y => unify env n1 y z (Ongoing []) = Some (Ongoing [])) zs ys'.
+Proof.
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx.
     set (s0 := map (fun '(q, bnd) => (q, mkVariableState bnd bnd bottom_type false (existsb (param_eqb q) (map fst cvars))))
         (cvars ++ ovars)).
     assert (Hs0: for_inference_of (cvars ++ ovars) (map fst cvars) = Ongoing s0) by reflexivity.
     rewrite Hs0 in Hrec.
-    destruct (root_in_fragment env ma c ys Hfy) as [Hly Hys].
     rewrite map_app in Hnd.
     assert (Hndc: NoDup (map fst cvars)) by exact (nodup_app_l _ _ Hnd).
     assert (Hcls: forall p bound, In (p, bound) cvars -> existsb (param_eqb p) (map fst cvars) = true).
@@ -1199,23 +1339,34 @@ Proof.
     { intros p bound Hin. apply not_true_iff_false. intros E. apply existsb_exists in E. destruct E as [q [Hq Hpq]].
       apply param_eqb_eq in Hpq. subst q. exact (nodup_app_disjoint _ _ p Hnd Hq (in_map fst _ _ Hin)). }
     assert (Hnd': NoDup (map fst (cvars ++ ovars))) by (rewrite map_app; exact Hnd).
-    (* the receiver binds the type parameters of the class exactly *)
+    (* the receiver, as a reference to c, binds the type parameters of c exactly *)
     destruct n as [|n]; [discriminate Hrec|].
     rewrite unify_classes in Hrec.
-    replace (base_type_is_subtype_of env c c) with true in Hrec by (unfold base_type_is_subtype_of; rewrite class_eqb_refl; reflexivity).
-    destruct (Model.is_subtype_of _ _); [|discriminate Hrec].
-    rewrite (class_eqb_false c nothing Hc), class_eqb_refl in Hrec. unfold unify_arguments in Hrec.
-    assert (Hl: length ys = length cvars) by (rewrite Hly, <- Hids, length_map; reflexivity).
+    destruct (base_type_is_subtype_of env ca c) eqn:Hbca; [|discriminate Hrec].
+    destruct (Model.is_subtype_of _ _) eqn:Hmr; [|discriminate Hrec].
+    rewrite (class_eqb_false ca nothing Hca) in Hrec. unfold unify_arguments in Hrec.
+    set (ys' := if class_eqb ca c then ys else parameterized_supertype_arguments env ca ys c) in Hrec.
+    assert (Hys': length ys' = length (parameter_ids env c) /\ forall y, In y ys' -> argument_in_fragment env y = true).
+    { unfold ys'. destruct (Class_eq_dec ca c) as [<-|Hne]; [rewrite class_eqb_refl; exact (root_in_fragment env ma ca ys Hfy)|].
+      rewrite (class_eqb_false _ _ Hne). destruct (root_in_fragment env ma ca ys Hfy) as [Hly0 Hys0].
+      exact (supertype_arguments_in_fragment env wf ca c ys Hne Hca Hbca Hly0 Hys0). }
+    destruct Hys' as [Hly Hys].
+    assert (Hl: length ys' = length cvars) by (rewrite Hly, <- Hids, length_map; reflexivity).
     assert (Hfresh: forall p bound, In (p, bound) cvars ->
         lookup_state s0 p = Some (mkVariableState bound bound bottom_type false true) /\ in_fragment env bound = true).
     { intros p bound Hin. split; [|exact (Hbounds p bound (in_or_app _ _ _ (or_introl Hin)))].
       unfold s0. rewrite (lookup_for_inference _ _ p bound Hnd' (in_or_app _ _ _ (or_introl Hin))), (Hcls p bound Hin). reflexivity. }
-    destruct (capture_arguments env wf n cvars ys s0 u Hndc Hl Hys Hfresh Hrec) as [Hcap Hoth].
+    destruct (capture_arguments env wf n cvars ys' s0 u Hndc Hl Hys Hfresh Hrec) as [Hcap Hoth].
+    assert (Hownu: forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound bound bottom_type false false)).
+    { intros p bound Hin.
+      assert (Hnin: ~ In p (map fst cvars)) by (intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
+      rewrite (Hoth p Hnin). unfold s0. rewrite (lookup_for_inference _ _ p bound Hnd' (in_or_app _ _ _ (or_intror Hin))).
+      rewrite (Hown p bound Hin). reflexivity. }
     (* the variable states are those unify works with *)
     assert (Hwfu: wf_states u).
     { intros p st Hp. destruct (in_dec Nat.eq_dec p (map fst cvars)) as [Hin|Hnin].
       - apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
-        destruct (In_nth_error _ _ Hin) as [i Hi]. destruct (nth_error_same_length cvars ys i _ ltac:(lia) Hi) as [y Hy].
+        destruct (In_nth_error _ _ Hin) as [i Hi]. destruct (nth_error_same_length cvars ys' i _ ltac:(lia) Hi) as [y Hy].
         rewrite (Hcap i p bound y Hi Hy) in Hp. injection Hp as <-. cbn [upper_bound lower_bound is_exact].
         pose proof (argument_in_fragment_no_vars y (Hys y (nth_error_In _ _ Hy))) as Hny.
         split; [exact Hny|]. split; [exact Hny|]. intros E; discriminate E.
@@ -1225,53 +1376,207 @@ Proof.
         rewrite (Hown p bound Hin2). cbn [upper_bound lower_bound is_exact is_capturable].
         pose proof (Hbounds p bound Hin) as Hfb.
         split; [exact (in_fragment_no_vars bound Hfb)|]. split; [reflexivity|]. intros _. split; [reflexivity|].
-        exists 2. apply (below_all env wf [] bound 2 Hfb). lia. }
-    destruct (invocation_sound nf Ps As u U b K Hwfu (fun P HP => conj (HPs P HP) (HbP P HP)) HAs Hfold) as [HwfU Hsound].
-    destruct (fold_keeps_exact_unify nf _ u U Hfold) as [Hkeep Hkeep2].
-    (* the type arguments of the object, assignable to those of the receiver *)
-    assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true).
-    { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o nx| |]; try discriminate E.
+        split; [exists 2; apply (below_all env wf [] bound 2 Hfb); lia|]. intros x f _ Ex. exists f. exact Ex. }
+    (* the type arguments of the object as c, assignable to those of the receiver as c *)
+    assert (Hfzs: forall z, In z zs -> argument_in_fragment env z = true).
+    { intros z Hz. pose proof (Hzx z Hz) as E. destruct z as [| | | |[] o nz| |]; try discriminate E.
       simpl in E |- *. apply andb_true_iff in E. apply E. }
-    assert (Hfo: in_fragment env (RootResolved mo c xs) = true).
-    { change (Nat.eqb (length xs) (length (parameter_ids env c)) && forallb (argument_in_fragment env) xs = true).
-      rewrite Hlx, Nat.eqb_refl. apply forallb_forall, Hfxs. }
+    assert (HfD: in_fragment env (RootResolved mr c ys') = true).
+    { change (Nat.eqb (length ys') (length (parameter_ids env c)) && forallb (argument_in_fragment env) ys' = true).
+      rewrite Hly, Nat.eqb_refl. apply forallb_forall, Hys. }
+    set (k := depth (RootResolved mr c ys')).
+    assert (HD: unify env (S k) (RootResolved mr c ys') (RootResolved ma ca ys) (Ongoing []) = Some (Ongoing [])).
+    { rewrite unify_classes, Hbca, (mutability_of_class env mr c ys' (map receiver_leaf cvars)), Hmr, (class_eqb_false ca nothing Hca).
+      fold ys'. unfold unify_arguments. apply (fold_of_pairs env). apply forall2_diag. intros y Hy.
+      apply (proj2 (reflexivity_with_arguments env k)); [exact (Hys y Hy)|].
+      pose proof (argument_depth_below mr c ys' y Hy). unfold k. lia. }
     unfold is_assignable_to, empty_unification in Hobj.
-    destruct (unify env n0 (RootResolved ma c ys) (RootResolved mo c xs) (Ongoing [])) as [[w|]|] eqn:Eo; try discriminate Hobj.
+    destruct (unify env n0 (RootResolved ma ca ys) (RootResolved mo e xs) (Ongoing [])) as [[w|]|] eqn:Eo; try discriminate Hobj.
     pose proof (proj1 (keeps_states_with_arguments env wf n0) _ _ [] w Hfy Hfo Eo) as ->.
-    destruct n0 as [|n0]; [discriminate Eo|].
-    rewrite unify_classes in Eo.
-    replace (base_type_is_subtype_of env c c) with true in Eo by (unfold base_type_is_subtype_of; rewrite class_eqb_refl; reflexivity).
-    destruct (Model.is_subtype_of _ _); [|discriminate Eo].
-    rewrite (class_eqb_false c nothing Hc), class_eqb_refl in Eo.
-    pose proof (pairwise_of_arguments env n0 ys xs [] ltac:(lia)
-        (fun t a w0 Ht Ha E => proj2 (keeps_states_with_arguments env wf n0) t a [] w0 (Hys t Ht) (Hfxs a Ha) E) Eo) as Hp.
+    pose proof (proj1 (transitivity_with_arguments env wf (n0 + S k)) _ _ _ n0 (S k) [] (le_n _) Hfo Hfy HfD Eo HD) as ED.
+    replace (n0 + S k) with (S (n0 + k)) in ED by lia.
+    rewrite unify_classes in ED.
+    destruct (base_type_is_subtype_of env e c) eqn:Hbe; [|discriminate ED].
+    match type of ED with context [if Model.is_subtype_of ?x ?y then _ else _] =>
+        destruct (Model.is_subtype_of x y); [|discriminate ED] end.
+    rewrite (class_eqb_false e nothing He), <- Hzs in ED.
+    assert (Hlz: length zs = length ys').
+    { rewrite Hly. subst zs. destruct (Class_eq_dec e c) as [<-|Hne].
+      - rewrite class_eqb_refl. exact (proj1 (root_in_fragment env mo e xs Hfo)).
+      - rewrite (class_eqb_false _ _ Hne). destruct (root_in_fragment env mo e xs Hfo) as [Hlx Hxs].
+        exact (proj1 (supertype_arguments_in_fragment env wf e c xs Hne He Hbe Hlx Hxs)). }
+    pose proof (pairwise_of_arguments env (n0 + k) ys' zs [] ltac:(lia)
+        (fun t a w0 Ht Ha E => proj2 (keeps_states_with_arguments env wf (n0 + k)) t a [] w0 (Hys t Ht) (Hfzs a Ha) E) ED) as Hp.
+    exists ys', (n0 + k). split; [exact Hl|]. split; [lia|]. split; [exact Hys|]. split; [exact Hcap|]. split; [exact Hownu|].
+    split; [exact Hwfu|]. exact Hp.
+Qed.
+
+(*
+ * Calling a member function is sound: the function is declared in class c; the receiver is a reference
+ * to a class ca below c, whose type arguments, as those of c, are captured by the type parameters of
+ * c; the object called on is of a class e below ca, its type arguments as those of c exact (as they
+ * are where e declares its supertypes with exact type arguments: supertype_arguments_exact) and
+ * within the bounds of the type parameters of c. Inferring the type parameters of the function from
+ * the arguments gives them lower and upper bounds, and their final values. Whatever argument is
+ * accepted for a parameter fits the parameter with the type parameters of c replaced by the type
+ * arguments of the object as c, and those of the function by their final values.
+ *)
+Theorem member_call_through_subtypes_sound: forall n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U,
+    c <> nothing -> ca <> nothing -> e <> nothing ->
+    map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> in_fragment env bound = true) ->
+    (* the receiver, unified with the receiver parameter *)
+    in_fragment env (RootResolved ma ca ys) = true ->
+    unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
+        (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
+    (* the object it is; its type arguments as those of c are exact, and within the bounds *)
+    in_fragment env (RootResolved mo e xs) = true ->
+    is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
+    zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
+    (forall z, In z zs -> exact_argument env z = true) ->
+    (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
+        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
+    (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
+    (forall P, In P Ps -> ifrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall A, In A As -> afrag env A = true /\ closed A = true) ->
+    fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
+    (* the final values of the type parameters of the function are types of the fragment *)
+    (forall p bound, In (p, bound) ovars -> in_fragment env (final_value_of U p) = true) ->
+    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
+    forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
+Proof.
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
+        HPs HAs Hfold Hfinal b Hbdef.
+    destruct (receiver_and_object n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx)
+        as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu Hp]]]]]]]].
+    pose proof Hnd as Hnd'. rewrite map_app in Hnd.
+    set (vars := cvars ++ ovars) in *.
+    (* the variable states unify ends with, with the bounds themselves for the type parameters *)
+    set (b0 := map (fun v => (fst v, TypeArgument Model.invariant ref (snd v))) vars).
+    destruct (uniform_fuel_list vars (fun f v => unify env f (snd v) (snd v) (Ongoing []) = Some (Ongoing [])))
+        as [K0 HK0].
+    { intros f f' v Hle E. exact (unify_fuel_monotone env f f' _ _ _ _ Hle E). }
+    { intros [p bound] Hin. exists (depth bound).
+      exact (proj1 (reflexivity_with_arguments env (depth bound)) bound [] (Hbounds p bound Hin) (le_n _)). }
+    assert (Hb0: forall P, In P Ps -> bound_in env b0 K0 [] (to_generic P) = true).
+    { intros P HP. apply (bound_in_from_refs vars); [exact (refs_to_generic vars P (proj2 (HPs P HP)))| |].
+      - intros p bound Hin. unfold binds_exactly, b0. rewrite (lookup_map_vars vars _ p bound Hnd' Hin). cbn [snd].
+        rewrite (Hbounds p bound Hin). unfold respects. pose proof (HK0 (p, bound) Hin) as E0. cbn [snd] in E0. rewrite E0. reflexivity.
+      - intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
+        simpl. unfold b0. rewrite (lookup_map_vars vars _ q bound Hnd' Hin). reflexivity. }
+    destruct (invocation_sound nf Ps As u U b0 K0 Hwfu (fun P HP => conj (proj1 (HPs P HP)) (Hb0 P HP)) HAs Hfold) as [HwfU _].
+    destruct (fold_keeps_exact_unify nf _ u U Hfold) as [Hkeep Hkeep2].
+    (* the type parameters of the function: their final values, below their bounds *)
+    assert (Hfin: forall p bound, In (p, bound) ovars -> exists st, lookup_state U p = Some st /\ is_exact st = false
+        /\ final_value_of U p = final_value st /\ fits st ref (final_value st)
+        /\ exists f, unify env f bound (final_value st) (Ongoing []) = Some (Ongoing [])).
+    { intros p bound Hin. destruct (Hkeep2 p _ (Hownu p bound Hin) eq_refl eq_refl) as [st2 [HlU [He2 [_ Hst2]]]].
+      pose proof (Hfinal p bound Hin) as Hff. unfold final_value_of in Hff. rewrite HlU in Hff.
+      pose proof (final_value_fits U p st2 ref HwfU HlU He2 Hff) as Hfit.
+      exists st2. split; [exact HlU|]. split; [exact He2|]. split; [unfold final_value_of; rewrite HlU; reflexivity|].
+      split; [exact Hfit|].
+      destruct (HwfU p st2 HlU) as [_ [_ Hw]]. destruct (Hw He2) as [_ [_ Hbs]].
+      unfold fits in Hfit. rewrite He2 in Hfit. destruct Hfit as [_ [K2 E2]].
+      destruct (Hbs _ K2 Hff E2) as [f Ef]. cbn [static_upper_bound] in Hst2. rewrite Hst2 in Ef. exists f. exact Ef. }
+    (* the type arguments of b, within the bounds *)
+    assert (Hlookup: forall p bound, In (p, bound) vars -> exists o x, lookup_binding b p = Some (TypeArgument Model.invariant o x)
+        /\ is_exact_ownership o = true /\ in_fragment env x = true
+        /\ exists f, unify env f bound x (Ongoing []) = Some (Ongoing [])).
+    { intros p bound Hin. rewrite Hbdef, lookup_app. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
+      - destruct (In_nth_error _ _ Hin) as [i Hi].
+        assert (Hpi: nth_error (parameter_ids env c) i = Some p) by (rewrite <- Hids, nth_error_map, Hi; reflexivity).
+        destruct (nth_error_same_length cvars zs i _ ltac:(lia) Hi) as [z Hz].
+        rewrite (lookup_parameter env wf c zs i p z Hpi Hz).
+        destruct (Hzb i p bound z Hi Hz) as [o [x [f [-> Ef]]]].
+        pose proof (Hzx _ (nth_error_In _ _ Hz)) as Hex. simpl in Hex. apply andb_true_iff in Hex. destruct Hex as [Ho Hx].
+        exists o, x. repeat split; try assumption. exists f. exact Ef.
+      - assert (Hnin: ~ In p (parameter_ids env c))
+            by (rewrite <- Hids; intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
+        rewrite (lookup_combine_none _ zs p Hnin: lookup_binding (bindings_of env c zs) p = None).
+        assert (Hndo: NoDup (map fst ovars)).
+        { clear -Hnd. revert Hnd. generalize (map fst ovars). induction (map fst cvars) as [|x l IH]; intros l2 H; [exact H|].
+          inversion H. apply IH. assumption. }
+        rewrite (lookup_map_vars ovars (fun v => TypeArgument Model.invariant ref (final_value_of U (fst v))) p bound Hndo Hin).
+        cbn [fst]. exists ref, (final_value_of U p). split; [reflexivity|]. split; [reflexivity|].
+        split; [exact (Hfinal p bound Hin)|].
+        destruct (Hfin p bound Hin) as [st [_ [_ [-> [_ Ef]]]]]. exact Ef. }
+    destruct (uniform_fuel_list vars (fun f v => forall o x, lookup_binding b (fst v) = Some (TypeArgument Model.invariant o x) ->
+        unify env f (snd v) x (Ongoing []) = Some (Ongoing []))) as [K HK].
+    { intros f f' v Hle E o x Hx. exact (unify_fuel_monotone env f f' _ _ _ _ Hle (E o x Hx)). }
+    { intros [p bound] Hin. destruct (Hlookup p bound Hin) as [o [x [Hl' [_ [_ [f Ef]]]]]].
+      exists f. intros o' x' Hx'. cbn [fst snd] in Hx' |- *. rewrite Hl' in Hx'. injection Hx' as <- <-. exact Ef. }
+    assert (Hb: forall P, In P Ps -> bound_in env b K [] (to_generic P) = true).
+    { intros P HP. apply (bound_in_from_refs vars); [exact (refs_to_generic vars P (proj2 (HPs P HP)))| |].
+      - intros p bound Hin. destruct (Hlookup p bound Hin) as [o [x [Hl' [Ho [Hx _]]]]].
+        unfold binds_exactly. rewrite Hl', Ho, Hx. unfold respects. pose proof (HK (p, bound) Hin o x Hl') as E1. cbn [snd] in E1. rewrite E1. reflexivity.
+      - intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
+        destruct (Hlookup q bound Hin) as [o [x [Hl' [Ho _]]]]. simpl. rewrite Hl'. exact Ho. }
+    destruct (invocation_sound nf Ps As u U b K Hwfu (fun P HP => conj (proj1 (HPs P HP)) (Hb P HP)) HAs Hfold) as [_ Hsound].
     (* the type arguments satisfy the variable states unify ends with *)
-    apply Hsound. intros p o x Hpb. rewrite Hbdef, lookup_app in Hpb.
-    destruct (lookup_binding (bindings_of env c xs) p) as [a|] eqn:Ec.
-    - (* a type parameter of the class: the type argument of the object, captured by that of the receiver *)
-      injection Hpb as Ea. subst a. destruct (lookup_combine_nth _ xs p _ Ec) as [i [Hi Hx]].
-      change (nth_error (parameter_ids env c) i = Some p) in Hi. rewrite <- Hids, nth_error_map in Hi.
-      destruct (nth_error cvars i) as [[p1 bound]|] eqn:Ev; [|discriminate Hi]. simpl in Hi. injection Hi as ->.
-      destruct (nth_error_same_length xs ys i _ ltac:(lia) Hx) as [y Hy].
-      pose proof (Hxs _ (nth_error_In _ _ Hx)) as Hex. simpl in Hex. apply andb_true_iff in Hex. destruct Hex as [_ Hfx].
+    apply Hsound. intros p o x Hpb.
+    assert (Hin: exists bound, In (p, bound) vars).
+    { rewrite Hbdef, lookup_app in Hpb. destruct (lookup_binding (bindings_of env c zs) p) as [a|] eqn:Ec.
+      - destruct (lookup_combine_nth _ zs p _ Ec) as [i [Hi _]]. change (nth_error (parameter_ids env c) i = Some p) in Hi.
+        rewrite <- Hids, nth_error_map in Hi. destruct (nth_error cvars i) as [[p1 bound]|] eqn:Ev; [|discriminate Hi].
+        simpl in Hi. injection Hi as ->. exists bound. apply in_or_app. left. exact (nth_error_In _ _ Ev).
+      - destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of U q)) p _ Hpb) as [_ Hin].
+        apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
+        exists bound. apply in_or_app. right. exact Hin. }
+    destruct Hin as [bound Hin]. unfold vars in Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
+    - (* a type parameter of c: the type argument of the object, captured by that of the receiver *)
+      destruct (In_nth_error _ _ Hin) as [i Hi].
+      assert (Hpi: nth_error (parameter_ids env c) i = Some p) by (rewrite <- Hids, nth_error_map, Hi; reflexivity).
+      destruct (nth_error_same_length cvars zs i _ ltac:(lia) Hi) as [z Hz].
+      destruct (nth_error_same_length cvars ys' i _ ltac:(lia) Hi) as [y Hy].
+      rewrite Hbdef, lookup_app, (lookup_parameter env wf c zs i p z Hpi Hz) in Hpb. injection Hpb as ->.
+      pose proof (Hzx _ (nth_error_In _ _ Hz)) as Hex. simpl in Hex. apply andb_true_iff in Hex. destruct Hex as [_ Hfx].
       split; [exact Hfx|]. exists (mkVariableState bound y y true true).
-      split; [exact (Hkeep p _ (Hcap i p bound y Ev Hy) eq_refl)|].
+      split; [exact (Hkeep p _ (Hcap i p bound y Hi Hy) eq_refl)|].
       pose proof (Hys y (nth_error_In _ _ Hy)) as Hfy2.
       destruct y as [| | | |vb ob X| |]; try discriminate Hfy2.
-      unfold fits. cbn [is_exact upper_bound lower_bound]. exists vb, ob, X, n0. split; [reflexivity|]. split; [reflexivity|].
-      split; [exact Hfy2|]. apply (unify_fuel_monotone env n0); [lia|].
-      exact (Forall2_nth_error _ xs ys i _ _ Hp Hx Hy).
+      unfold fits. cbn [is_exact upper_bound lower_bound]. exists vb, ob, X, n1. split; [reflexivity|]. split; [reflexivity|].
+      split; [exact Hfy2|]. apply (unify_fuel_monotone env n1); [lia|].
+      exact (Forall2_nth_error _ zs ys' i _ _ Hp Hz Hy).
     - (* a type parameter of the function: its final value *)
-      destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of U q)) p _ Hpb) as [Ea Hin].
-      injection Ea as Eo2 Ex2. subst o x. apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
-      pose proof (Hfinal p bound Hin) as Hff. split; [exact Hff|].
-      assert (Hnin: ~ In p (map fst cvars)) by (intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
-      assert (Hlu: lookup_state u p = Some (mkVariableState bound bound bottom_type false false)).
-      { rewrite (Hoth p Hnin). unfold s0. rewrite (lookup_for_inference _ _ p bound Hnd' (in_or_app _ _ _ (or_intror Hin))).
-        rewrite (Hown p bound Hin). reflexivity. }
-      destruct (Hkeep2 p _ Hlu eq_refl eq_refl) as [st2 [HlU [He2 _]]].
-      exists st2. split; [exact HlU|]. unfold final_value_of in Hff |- *. rewrite HlU in Hff |- *.
-      exact (final_value_fits U p st2 ref HwfU HlU He2 Hff).
+      assert (Hnin: ~ In p (parameter_ids env c))
+          by (rewrite <- Hids; intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
+      rewrite Hbdef, lookup_app, (lookup_combine_none _ zs p Hnin: lookup_binding (bindings_of env c zs) p = None) in Hpb.
+      destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of U q)) p _ Hpb) as [Ea _].
+      injection Ea as Eo2 Ex2. subst o x.
+      destruct (Hfin p bound Hin) as [st [HlU [_ [Hfv [Hfit _]]]]].
+      split; [exact (Hfinal p bound Hin)|]. exists st. split; [exact HlU|]. rewrite Hfv. exact Hfit.
+Qed.
+
+(* The same, where the receiver and the object are of the class the function is declared in *)
+Theorem member_call_with_type_parameters_sound: forall n mr c cvars ovars ma ys u mo xs n0 Ps As nf U,
+    c <> nothing -> map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> in_fragment env bound = true) ->
+    (* the receiver, unified with the receiver parameter *)
+    in_fragment env (RootResolved ma c ys) = true ->
+    unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma c ys)
+        (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
+    (* the object it is, of exact type arguments within the bounds *)
+    length xs = length (parameter_ids env c) -> (forall x, In x xs -> exact_argument env x = true) ->
+    (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error xs i = Some z ->
+        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
+    is_assignable_to env n0 (RootResolved mo c xs) (RootResolved ma c ys) = Some true ->
+    (* the parameters and the arguments, accepted in turn *)
+    (forall P, In P Ps -> ifrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall A, In A As -> afrag env A = true /\ closed A = true) ->
+    fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
+    (* the final values of the type parameters of the function are types of the fragment *)
+    (forall p bound, In (p, bound) ovars -> in_fragment env (final_value_of U p) = true) ->
+    forall b, b = bindings_of env c xs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
+    forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
+Proof.
+    intros n mr c cvars ovars ma ys u mo xs n0 Ps As nf U Hc Hids Hnd Hbounds Hfy Hrec Hlx Hxs Hxb Hobj HPs HAs Hfold Hfinal
+        b Hbdef.
+    assert (Hfo: in_fragment env (RootResolved mo c xs) = true).
+    { change (Nat.eqb (length xs) (length (parameter_ids env c)) && forallb (argument_in_fragment env) xs = true).
+      rewrite Hlx, Nat.eqb_refl. apply forallb_forall. intros x Hx. pose proof (Hxs x Hx) as E.
+      destruct x as [| | | |[] o nx| |]; try discriminate E. simpl in E |- *. apply andb_true_iff in E. apply E. }
+    exact (member_call_through_subtypes_sound n mr c cvars ovars ma c ys u mo c xs xs n0 Ps As nf U Hc Hc Hc Hids Hnd Hbounds
+        Hfy Hrec Hfo Hobj ltac:(rewrite class_eqb_refl; reflexivity) Hxs Hxb HPs HAs Hfold Hfinal b Hbdef).
 Qed.
 
 End Constraints.
