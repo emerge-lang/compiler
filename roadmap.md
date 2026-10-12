@@ -215,6 +215,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The error message is wrong, too: the value is out-variant, not in-variant. This is a usability problem,
     not a soundness one; it's sound to refuse the call.
+27. F-bounded type parameters: `fn max<T : Comparable<T>>(a: T, b: T) -> T`, `class Node<T : Comparable<T>>`
+    * today the bound of a type parameter is resolved without the parameter itself in scope, so these
+      are rejected (`Cannot resolve type T`). Only the parameter itself is to become resolvable, nested
+      in type arguments; `T : T`, `T : T?` and `T : T & A` stay errors, as do references to later
+      type parameters
+    * making it resolvable alone overflows the stack: validate, hashCode/equals and the backend IR walk
+      effective bounds structurally, and must stop at references to type parameters
+    * inference with F-bounded type variables loops: each new lower bound is checked against the upper
+      bound `Comparable<T>`, which mentions the variable itself. This needs a design of its own; the
+      type system proofs are prepared for F-bounds and should get the F-bounded cases along with it
 
 -----
 
