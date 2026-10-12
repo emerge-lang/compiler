@@ -280,6 +280,10 @@ fun Diagnosis.cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSu
     add(CyclicInheritanceDiagnostic(type.declaration, involvingSupertype))
 }
 
+fun Diagnosis.expansiveInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration) {
+    add(ExpansiveInheritanceDiagnostic(type.declaration, involvingSupertype))
+}
+
 fun Diagnosis.duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseType>) {
     add(DuplicateBaseTypesDiagnostic(packageName, duplicates.map { it.declaration }))
 }

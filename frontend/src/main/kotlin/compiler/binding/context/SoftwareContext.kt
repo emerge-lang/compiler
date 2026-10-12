@@ -22,7 +22,9 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.basetype.findExpansiveSupertypes
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.expansiveInheritance
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -98,6 +100,10 @@ class SoftwareContext {
 
         modules.forEach { it.semanticAnalysisPhase1(diagnosis) }
         packages.values.forEach() { it.semanticAnalysisPhase1(diagnosis) }
+        val baseTypes = packages.values.flatMap { it.types }
+        findExpansiveSupertypes(baseTypes).forEach { supertype ->
+            diagnosis.expansiveInheritance(baseTypes.first { supertype in it.superTypes.clauses }, supertype)
+        }
         modules.forEach { it.semanticAnalysisPhase2(diagnosis) }
         packages.values.forEach() { it.semanticAnalysisPhase2(diagnosis) }
         modules.forEach { it.semanticAnalysisPhase3(diagnosis) }

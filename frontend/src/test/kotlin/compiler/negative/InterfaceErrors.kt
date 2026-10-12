@@ -6,6 +6,7 @@ import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.binding.basetype.BoundBaseType
 import compiler.diagnostic.CyclicInheritanceDiagnostic
 import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
+import compiler.diagnostic.ExpansiveInheritanceDiagnostic
 import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
 import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -96,6 +97,51 @@ class InterfaceErrors : FreeSpec({
                 interface D : C {}
             """.trimIndent())
                 .shouldFind<CyclicInheritanceDiagnostic>()
+        }
+    }
+
+    "expansive inheritance" - {
+        "a type parameter nested deeper in a supertype of its own type" {
+            validateModule("""
+                interface C<T> {}
+                interface N<Z> : C<N<N<Z>>> {}
+            """.trimIndent())
+                .shouldFind<ExpansiveInheritanceDiagnostic>()
+        }
+
+        "a type parameter nested deeper in a supertype of its own type, in-variant" {
+            validateModule("""
+                interface C<T> {}
+                interface N<Z> : C<in N<N<Z>>> {}
+            """.trimIndent())
+                .shouldFind<ExpansiveInheritanceDiagnostic>()
+        }
+
+        "through another type" {
+            validateModule("""
+                interface Box<T> {}
+                interface C<T> {}
+                interface A<T> : C<B<T>> {}
+                interface B<T> : C<A<Box<T>>> {}
+            """.trimIndent())
+                .shouldFind<ExpansiveInheritanceDiagnostic>()
+        }
+
+        "a type parameter nested in a supertype of another type is fine" {
+            validateModule("""
+                interface Box<T> {}
+                interface A<T> {}
+                interface B<T> : A<Box<T>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "a type itself as type argument of its supertype is fine" {
+            validateModule("""
+                interface Comparable<T> {}
+                interface Node<T> : Comparable<Node<T>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 
