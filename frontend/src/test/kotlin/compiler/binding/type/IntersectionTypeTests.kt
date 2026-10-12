@@ -2,6 +2,7 @@ package compiler.compiler.binding.type
 
 import compiler.binding.AccessorKind
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.NullableTypeReference
 import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.shouldHaveNoDiagnostics
@@ -86,6 +87,32 @@ class IntersectionTypeTests : FreeSpec({
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("A & B"))
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("A & C"))
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("B & C"))
+        }
+    }
+
+    "combining" - {
+        "intersecting an intersection and a nullable type" {
+            val type = swCtx.parseType("A & B").intersect(swCtx.parseType("C?"))
+            type.shouldBeInstanceOf<BoundIntersectionTypeReference>().components.map { it.toString() } shouldBe listOf("read testmodule.A", "read testmodule.B", "read testmodule.C")
+        }
+
+        "intersecting a nullable intersection and a type" {
+            val type = swCtx.parseType("A? & B?").intersect(swCtx.parseType("C"))
+            type.shouldBeInstanceOf<BoundIntersectionTypeReference>().components.map { it.toString() } shouldBe listOf("read testmodule.A", "read testmodule.B", "read testmodule.C")
+        }
+
+        "intersecting a nullable intersection and a nullable type" {
+            val type = swCtx.parseType("A? & B?").intersect(swCtx.parseType("C?"))
+            type
+                .shouldBeInstanceOf<NullableTypeReference>()
+                .nested
+                .shouldBeInstanceOf<BoundIntersectionTypeReference>().components.map { it.toString() } shouldBe listOf("read testmodule.A", "read testmodule.B", "read testmodule.C")
+        }
+
+        "the closest common supertype of an intersection and a nullable type is nullable" {
+            val nullableC = swCtx.parseType("C?")
+            val supertype = swCtx.parseType("A & B").closestCommonSupertypeWith(nullableC)
+            nullableC should beAssignableTo(supertype)
         }
     }
 

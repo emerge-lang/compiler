@@ -78,5 +78,32 @@ class TypeInferenceErrors : FreeSpec({
                     .shouldFind<ReturnTypeMismatchDiagnostic>()
             }
         }
+
+        "the closest common supertype of a type parameter and Nothing of a mutability that doesn't fit it isn't the type parameter" {
+            validateModule(declarations + "\n" + """
+                fn f<T : const A>(t: T, n: mut Nothing) -> T {
+                    return pick(t, n)
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "an intersection as the upper bound" {
+            validateModule(declarations + "\n" + """
+                fn f(a: Box<in A & E>) {
+                    takeOne(a)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "an intersection and a nullable type as upper bounds" {
+            validateModule(declarations + "\n" + """
+                fn f(a: Box<in A & E>, b: Box<in C?>) {
+                    takeTwo(a, b)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 })

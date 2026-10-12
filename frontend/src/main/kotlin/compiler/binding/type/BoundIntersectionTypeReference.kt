@@ -109,7 +109,7 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
-        return mapComponents(simplify = true) { it.closestCommonSupertypeWith(other) }
+        return intersectMappedComponents { it.closestCommonSupertypeWith(other) }
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
@@ -192,11 +192,11 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        return mapComponents(simplify = true) { it.instantiateAllParameters(context) }
+        return intersectMappedComponents { it.instantiateAllParameters(context) }
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return mapComponents(simplify = true) { it.instantiateFreeVariables(context) }
+        return intersectMappedComponents { it.instantiateFreeVariables(context) }
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -232,7 +232,7 @@ class BoundIntersectionTypeReference private constructor(
         return ofComponents(context, null, newComponents)
     }
 
-    private inline fun mapComponents(simplify: Boolean = false, crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
+    private inline fun mapComponents(crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
         val mappedComponents = ArrayList<BoundTypeReference>(components.size)
         var anyChanged = false
         for (component in components) {
@@ -250,24 +250,24 @@ class BoundIntersectionTypeReference private constructor(
         val commonMutability = mutabilityOfComponents(mappedComponents)
         val mutabilityAdjustedComponents = mappedComponents.map { it.withMutability(commonMutability) }
 
-        if (!simplify) {
-            return BoundIntersectionTypeReference(
-                context,
-                astNode,
-                mutabilityAdjustedComponents,
-                commonMutability,
-            )
-        }
-
-        val simplifiedMappedComponents = simplifyComponents(mappedComponents, context) ?: mappedComponents
-        simplifiedMappedComponents.singleOrNull()?.let { return it }
-
         return BoundIntersectionTypeReference(
             context,
-            null,
-            simplifiedMappedComponents,
-            mutabilityOfComponents(simplifiedMappedComponents),
+            astNode,
+            mutabilityAdjustedComponents,
+            commonMutability,
         )
+    }
+
+    /**
+     * @return the intersection of the components, each transformed by [componentTransform]; `this` if none changed
+     */
+    private inline fun intersectMappedComponents(componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
+        val mappedComponents = components.map(componentTransform)
+        if (mappedComponents == components) {
+            return this
+        }
+
+        return ofComponents(context, null, mappedComponents.flatMap { it.intersectedComponents() }, simplify = true)
     }
 
     private val _backendIr by lazy {
@@ -357,29 +357,7 @@ class BoundIntersectionTypeReference private constructor(
          * |`read T & const Any`   | `mut T`        |
          */
         fun BoundTypeReference.intersect(other: BoundTypeReference): BoundTypeReference {
-            if (this is BoundIntersectionTypeReference) {
-                if (other is BoundIntersectionTypeReference) {
-                    var newComponents = this.components + other.components
-                    var mutability = this.mutability
-                    if (mutability != other.mutability) {
-                        mutability = mutabilityOfComponents(newComponents)
-                        newComponents = newComponents.map { it.withMutability(mutability) }
-                    }
-                    return BoundIntersectionTypeReference(context, null, newComponents, mutability).simplify()
-                }
-            } else if (other is BoundIntersectionTypeReference) {
-                return other.intersect(this)
-            }
-
             when (this) {
-                is BoundIntersectionTypeReference -> {
-                    check(other !is BoundIntersectionTypeReference) {
-                        "This case should never happen, is prevented by the guard code above"
-                    }
-                    val newMutability = mutability.intersect(other.mutability)
-                    val newComponents = this.components.map { it.withMutability(newMutability) } + other.withMutability(newMutability)
-                    return BoundIntersectionTypeReference(context, null, newComponents, newMutability).simplify()
-                }
                 is BoundTypeArgument -> {
                     val compoundVariance = when(other) {
                         is BoundTypeArgument -> variance.intersect(other.variance)
@@ -395,14 +373,28 @@ class BoundIntersectionTypeReference private constructor(
                         intersectionType,
                     )
                 }
+                is BoundIntersectionTypeReference,
                 is GenericTypeReference,
                 is RootResolvedTypeReference,
                 is NullableTypeReference,
                 is TypeVariable,
                 is ErroneousType, -> {
-                    return ofComponents(context, null, listOf(this, other), true)
+                    return ofComponents(context, null, this.intersectedComponents() + other.intersectedComponents(), true)
                 }
             }
+        }
+
+        /**
+         * The components of the intersection this type is, each nullable iff this type is; this type alone otherwise.
+         * Intersecting all of them amounts to intersecting this type.
+         */
+        private fun BoundTypeReference.intersectedComponents(): List<BoundTypeReference> = when (this) {
+            is BoundIntersectionTypeReference -> components
+            is NullableTypeReference -> when (nested) {
+                is BoundIntersectionTypeReference -> nested.components.map { NullableTypeReference(it) }
+                else -> listOf(this)
+            }
+            else -> listOf(this)
         }
 
         private fun simplifyIsEffectivelyBottomType(components: List<BoundTypeReference>): Boolean {

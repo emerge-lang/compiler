@@ -247,6 +247,40 @@ class TypeErrors : FreeSpec({
                 .shouldHaveNoDiagnostics(setOf(Diagnostic.Severity.CONSECUTIVE, Diagnostic.Severity.WARNING))
         }
 
+        "an intersection with a type parameter, instantiated" - {
+            val holder = """
+                interface A {}
+                interface B {}
+                interface E {}
+                class Holder<T> {
+                    var value: A & T = init
+                }
+            """.trimIndent()
+
+            "in the class itself" {
+                validateModule(holder)
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with a nullable type, is non-nullable" {
+                validateModule(holder + "\n" + """
+                    fn f(h: Holder<E?>) -> A & E {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with an intersection" {
+                validateModule(holder + "\n" + """
+                    fn f(h: Holder<B & E>) -> A & B & E {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
         "a type parameter to another type parameter, by its bound" - {
             "an intersection of the other type parameter" {
                 validateModule("""
