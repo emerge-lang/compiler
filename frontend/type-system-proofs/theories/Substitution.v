@@ -51,21 +51,7 @@ Hypothesis wf: wellformed env.
 Definition is_exact_ownership (o: Ownership): bool :=
     match o with owned | ref => true | _ => false end.
 
-(* Nothing is `exclusive Nothing`, nowhere else *)
-Definition is_bottom (m: option Mutability) (arguments: list EType): bool :=
-    match m, arguments with Some exclusive, [] => true | _, _ => false end.
-
-Fixpoint nothing_is_bottom (t: EType): bool :=
-    match t with
-    | RootResolved m c arguments =>
-        (if class_eqb c nothing then is_bottom m arguments else true) && forallb nothing_is_bottom arguments
-    | Nullable n => nothing_is_bottom n
-    | TypeArgument _ _ n => nothing_is_bottom n
-    | _ => true
-    end.
-
-Hypothesis supertypes_mention_nothing_as_bottom: forall sub super t,
-    In t (supertype_arguments env sub super) -> nothing_is_bottom t = true.
+Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 
 (* Without type parameters *)
 Fixpoint closed (t: EType): bool :=

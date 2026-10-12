@@ -77,6 +77,31 @@ Proof.
     destruct (g a), (h (k a)), (existsb g l), (existsb h (map k l)); reflexivity.
 Qed.
 
+(* No type variables, also not in the bounds of type parameters *)
+Fixpoint no_vars (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb no_vars arguments
+    | Nullable n => no_vars n
+    | Generic (mkGenericRef _ _ bound) => no_vars bound
+    | Error _ _ => true
+    | TypeArgument _ _ n => no_vars n
+    | TypeVariable _ => false
+    | Intersection components => forallb no_vars components
+    end.
+
+(* Nothing is `exclusive Nothing`, nowhere else *)
+Definition is_bottom (m: option Mutability) (arguments: list EType): bool :=
+    match m, arguments with Some exclusive, [] => true | _, _ => false end.
+
+Fixpoint nothing_is_bottom (t: EType): bool :=
+    match t with
+    | RootResolved m c arguments =>
+        (if class_eqb c nothing then is_bottom m arguments else true) && forallb nothing_is_bottom arguments
+    | Nullable n => nothing_is_bottom n
+    | TypeArgument _ _ n => nothing_is_bottom n
+    | _ => true
+    end.
+
 Section Transitivity.
 
 Variable env: Environment.
@@ -191,6 +216,10 @@ Record wellformed: Prop := {
         a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
         base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
         supertype_arguments a c = map (instantiate env (bindings_of env b (supertype_arguments a b))) (supertype_arguments b c);
+    (* the type arguments of supertypes mention no type variables, and Nothing only as `exclusive Nothing` *)
+    wf_supertypes_mention_no_variables: forall sub super t, In t (supertype_arguments sub super) -> no_vars t = true;
+    wf_supertypes_mention_nothing_as_bottom: forall sub super t,
+        In t (supertype_arguments sub super) -> nothing_is_bottom t = true;
 }.
 
 Hypothesis wf: wellformed.

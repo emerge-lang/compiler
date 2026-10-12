@@ -34,8 +34,7 @@ Section Reflexivity.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
-Hypothesis supertypes_mention_no_variables: forall sub super t,
-    In t (supertype_arguments env sub super) -> no_vars t = true.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 Lemma forall2_refl: forall {A: Type} (R: A -> A -> Prop) l, (forall a, In a l -> R a a) -> Forall2 R l l.
 Proof.
@@ -56,12 +55,12 @@ Proof.
         assert (Hn: never_fails env na na) by (apply (IH (esize na)); [simpl in Hs |- *; lia|reflexivity|exact Ha]).
         apply never_fails_step. intros f s. rewrite gunify_type_arguments by exact Ha.
         rewrite ownership_is_assignable_to_itself.
-        apply (compare_variances_never_fails env supertypes_mention_no_variables); [exact (gfrag_no_vars env _ Ha)|exact (gfrag_no_vars env _ Ha)|].
+        apply (compare_variances_never_fails env wf); [exact (gfrag_no_vars env _ Ha)|exact (gfrag_no_vars env _ Ha)|].
         destruct va; [split|..]; exact Hn. }
       apply never_fails_step. intros f s. rewrite unify_classes.
       replace (base_type_is_subtype_of env c c) with true by (unfold base_type_is_subtype_of; rewrite class_eqb_refl; reflexivity).
       rewrite mutability_is_subtype_of_refl. destruct (class_eqb c nothing); [discriminate|]. rewrite class_eqb_refl.
-      apply (arguments_never_fail env supertypes_mention_no_variables); [reflexivity|exact (arguments_gfrag_no_vars env _ Hargs)|exact (arguments_gfrag_no_vars env _ Hargs)|].
+      apply (arguments_never_fail env wf); [reflexivity|exact (arguments_gfrag_no_vars env _ Hargs)|exact (arguments_gfrag_no_vars env _ Hargs)|].
       exact (forall2_refl _ args Hall).
     - (* a nullable type: the type it wraps *)
       apply andb_true_iff in H. destruct H as [_ Hn].
@@ -71,7 +70,7 @@ Proof.
       apply never_fails_step. intros f s. rewrite step_generic_generic, param_eqb_refl, mutability_is_subtype_of_refl.
       destruct (is_nullable bound); discriminate.
     - (* an intersection: each component takes it through itself *)
-      apply (inter_target_never_fails env supertypes_mention_no_variables); [exact (gfrag_components_no_vars env _ H)|simpl; exact (gfrag_components_no_vars env _ H)|exact I|].
+      apply (inter_target_never_fails env wf); [exact (gfrag_components_no_vars env _ H)|simpl; exact (gfrag_components_no_vars env _ H)|exact I|].
       intros c Hc. destruct (intersection_gfrag env cs H) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
       pose proof (esize_in cs c Hc) as Hs.
       assert (Hcc: never_fails env c c) by (apply (IH (esize c)); [simpl; lia|reflexivity|exact Hgc]).
@@ -87,16 +86,15 @@ Section FinalValues.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
-Hypothesis supertypes_mention_nothing_as_bottom: forall sub super t,
-    In t (supertype_arguments env sub super) -> nothing_is_bottom t = true.
-Hypothesis supertypes_mention_no_variables: forall sub super t,
-    In t (supertype_arguments env sub super) -> no_vars t = true.
+Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 Hypothesis intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect env a b) = true.
 Hypothesis supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true ->
     no_vars (closest_common_supertype_with env a b) = true.
 Variable declared: TypeParameterId -> EType.
-Hypothesis declared_gfrag: forall p, gfrag env (declared p) = true.
-Hypothesis declared_mutability: forall p m, mutability_of env (with_mutability env m (declared p)) = m.
+Hypothesis declared_wf: bounds_wellformed env declared.
+Let declared_gfrag := bw_gfrag env declared declared_wf.
+Let declared_mutability := bw_mutability env declared declared_wf.
 
 (* The conjectures of Conjectures.v *)
 Hypothesis terminates: unify_terminates.
@@ -137,17 +135,17 @@ Lemma accepts: forall x y, of_fragment x -> of_fragment y ->
     never_fails env y x -> exists n, unify env n y x (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x y [Hx Hrx] [Hy Hry] Hnf.
-    destruct (terminates env declared wf supertypes_mention_no_variables declared_gfrag declared_mutability finite not_expansive
+    destruct (terminates env declared wf declared_wf finite not_expansive
         y x [] Hy Hx Hry Hrx) as [n Hn].
     exists n. specialize (Hnf n []).
     destruct (unify env n y x (Ongoing [])) as [[u|]|] eqn:E; [|contradiction Hnf; reflexivity|contradiction Hn; reflexivity].
-    rewrite (gkeeps env supertypes_mention_no_variables n y x [] u Hy Hx E). reflexivity.
+    rewrite (gkeeps env wf n y x [] u Hy Hx E). reflexivity.
 Qed.
 
 Lemma reflexive: forall x, of_fragment x -> exists n, unify env n x x (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x Hx. apply accepts; [exact Hx|exact Hx|].
-    apply reflexive_never_fails; [exact supertypes_mention_no_variables|apply Hx].
+    apply reflexive_never_fails; [exact wf|apply Hx].
 Qed.
 
 Lemma assignable_unify: forall n x y, gfrag env x = true -> gfrag env y = true ->
@@ -155,13 +153,13 @@ Lemma assignable_unify: forall n x y, gfrag env x = true -> gfrag env y = true -
 Proof.
     intros n x y Hx Hy H. unfold is_assignable_to, empty_unification in H.
     destruct (unify env n y x (Ongoing [])) as [[u|]|] eqn:E; simpl in H; try discriminate H.
-    rewrite (gkeeps env supertypes_mention_no_variables n y x [] u Hy Hx E). reflexivity.
+    rewrite (gkeeps env wf n y x [] u Hy Hx E). reflexivity.
 Qed.
 
 Lemma unify_assignable: forall n x y, unify env n y x (Ongoing []) = Some (Ongoing []) -> is_assignable_to env n x y = Some true.
 Proof. intros n x y H. unfold is_assignable_to, empty_unification. rewrite H. reflexivity. Qed.
 
-Let transitive := transitivity_terminating env wf supertypes_mention_no_variables declared declared_gfrag declared_mutability
+Let transitive := transitivity_terminating env wf declared declared_wf
     terminates finite not_expansive.
 
 (* What is assignable to the intersection of a bound and a type is assignable to each of them *)
@@ -221,7 +219,7 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold.
-    exact (member_call_through_subtypes_sound env wf supertypes_mention_nothing_as_bottom supertypes_mention_no_variables
+    exact (member_call_through_subtypes_sound env wf
         of_fragment (fun x H => proj1 H) in_fragment_of_fragment reflexive
         of_fragment in_fragment_of_fragment
         (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))

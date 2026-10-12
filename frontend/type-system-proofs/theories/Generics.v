@@ -29,12 +29,18 @@ Import ListNotations.
 (* proven is that unify never rejects (transitivity_never_fails, which explains this).              *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* The declared bounds of the type parameters: types of the fragment, each of the mutability applied
+   to it (no core scalar in an intersection that is a bound) *)
+Record bounds_wellformed (env: Environment) (declared: TypeParameterId -> EType): Prop := {
+    bw_gfrag: forall p, gfrag env (declared p) = true;
+    bw_mutability: forall p m, mutability_of env (with_mutability env m (declared p)) = m;
+}.
+
 Section Generics.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
-Hypothesis supertypes_mention_no_variables: forall sub super t,
-    In t (supertype_arguments env sub super) -> no_vars t = true.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* The fragment                                                                                    *)
@@ -78,7 +84,7 @@ Lemma gkeeps: forall n t a s u, gfrag t = true -> gfrag a = true ->
     unify env n t a (Ongoing s) = Some (Ongoing u) -> u = s.
 Proof.
     intros n t a s u Ht Ha H.
-    pose proof (unify_free env supertypes_mention_no_variables n t a s s _ (gfrag_no_vars t Ht) (gfrag_no_vars a Ha) H) as E.
+    pose proof (unify_free env wf n t a s s _ (gfrag_no_vars t Ht) (gfrag_no_vars a Ha) H) as E.
     rewrite H in E. injection E as ->. reflexivity.
 Qed.
 
@@ -86,14 +92,14 @@ Lemma gkeeps_arguments: forall n t a s u, argument_gfrag t = true -> argument_gf
     unify env n t a (Ongoing s) = Some (Ongoing u) -> u = s.
 Proof.
     intros n t a s u Ht Ha H.
-    pose proof (unify_free env supertypes_mention_no_variables n t a s s _ (argument_gfrag_no_vars t Ht)
+    pose proof (unify_free env wf n t a s s _ (argument_gfrag_no_vars t Ht)
         (argument_gfrag_no_vars a Ha) H) as E.
     rewrite H in E. injection E as ->. reflexivity.
 Qed.
 
 Lemma gat_states: forall n t a s s', no_vars t = true -> no_vars a = true ->
     unify env n t a (Ongoing s) = Some (Ongoing s) -> unify env n t a (Ongoing s') = Some (Ongoing s').
-Proof. intros n t a s s' Ht Ha H. exact (unify_free env supertypes_mention_no_variables n t a s s' _ Ht Ha H). Qed.
+Proof. intros n t a s s' Ht Ha H. exact (unify_free env wf n t a s s' _ Ht Ha H). Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Supertypes of class types of the fragment                                                       *)
@@ -219,7 +225,7 @@ Lemma free_result: forall n t a s, no_vars t = true -> no_vars a = true ->
     unify env n t a (Ongoing s) = None \/ unify env n t a (Ongoing s) = Some (Ongoing s).
 Proof.
     intros n t a s Ht Ha H. destruct (unify env n t a (Ongoing s)) as [[u|]|] eqn:E; [|congruence|left; reflexivity].
-    right. pose proof (unify_free env supertypes_mention_no_variables n t a s s _ Ht Ha E) as E'. rewrite E in E'.
+    right. pose proof (unify_free env wf n t a s s _ Ht Ha E) as E'. rewrite E in E'.
     exact E'.
 Qed.
 
@@ -256,7 +262,7 @@ Proof.
     destruct (no_vars_filter cs Hcs) as [Hvar Hnonvar].
     assert (Hk: forall c u, In c cs -> unify env n c a (Ongoing s) = Some (Ongoing u) -> u = s).
     { intros c u Hc E. rewrite forallb_forall in Hcs.
-      pose proof (unify_free env supertypes_mention_no_variables n c a s s _ (Hcs c Hc) Ha E) as E'. rewrite E in E'.
+      pose proof (unify_free env wf n c a s s _ (Hcs c Hc) Ha E) as E'. rewrite E in E'.
       injection E' as ->. reflexivity. }
     destruct a as [| | | | | |]; try contradiction; cbn zeta in H; rewrite Hvar, Hnonvar in H;
         destruct (fold_unify (fun inner c => unify env n c _ inner) cs (Ongoing s)) as [[s2|]|] eqn:E; try discriminate H;
@@ -695,8 +701,9 @@ Qed.
    gives it that mutability: no core scalar (whose references are always immutable) shares a
    declared bound with types of other mutabilities, as in an intersection. *)
 Variable declared: TypeParameterId -> EType.
-Hypothesis declared_gfrag: forall p, gfrag (declared p) = true.
-Hypothesis declared_mutability: forall p m, mutability_of env (with_mutability env m (declared p)) = m.
+Hypothesis declared_wf: bounds_wellformed env declared.
+Let declared_gfrag := bw_gfrag env declared declared_wf.
+Let declared_mutability := bw_mutability env declared declared_wf.
 
 (* Every reference to a type parameter in the type has an effective bound made from the declared
    one, as GenericTypeReference and MappedEffectiveBoundGenericTypeReference make them *)
@@ -853,7 +860,7 @@ Qed.
 Lemma keeps_nv: forall n t a s w, no_vars t = true -> no_vars a = true ->
     unify env n t a (Ongoing s) = Some (Ongoing w) -> w = s.
 Proof.
-    intros n t a s w Ht Ha H. pose proof (unify_free env supertypes_mention_no_variables n t a s s _ Ht Ha H) as E.
+    intros n t a s w Ht Ha H. pose proof (unify_free env wf n t a s s _ Ht Ha H) as E.
     rewrite H in E. injection E as ->. reflexivity.
 Qed.
 

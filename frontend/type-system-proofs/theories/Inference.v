@@ -22,7 +22,7 @@ Import ListNotations.
 (*                                                                                                *)
 (* The types of the parameters are those of Substitution.v, with type variables in place of the    *)
 (* type parameters (to_generic relates the two); the types of the arguments are those of            *)
-(* Transitivity.v, Nothing only as `exclusive Nothing` (Substitution.nothing_is_bottom): Nothing    *)
+(* Transitivity.v, Nothing only as `exclusive Nothing` (Transitivity.nothing_is_bottom): Nothing    *)
 (* is assignable to an out-variant type argument whatever its mutability, and there are no values  *)
 (* of type Nothing.                                                                                 *)
 (* ---------------------------------------------------------------------------------------------- *)
@@ -38,8 +38,7 @@ Section Inference.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
-Hypothesis supertypes_mention_nothing_as_bottom: forall sub super t,
-    In t (supertype_arguments env sub super) -> nothing_is_bottom t = true.
+Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 
 (* The type parameters of a type, as type variables *)
 Fixpoint to_generic (t: EType): EType :=
@@ -601,7 +600,7 @@ Proof.
     assert (Hys': forall y, In y (map to_generic ys) -> argument_sfrag env y = true /\ bound_in env b K s y = true).
     { intros y' Hy'. apply in_map_iff in Hy'. destruct Hy' as [y [<- Hy]]. destruct (Hys y Hy) as [Hf Hb]. split; [|exact Hb].
       destruct y as [| | | |v o n| |]; try discriminate Hf. exact (ifrag_sfrag n Hf). }
-    destruct (supertype_arguments_commute env wf supertypes_mention_nothing_as_bottom b K s sub super (map to_generic ys)
+    destruct (supertype_arguments_commute env wf b K s sub super (map to_generic ys)
         Hne Hn Hbase ltac:(rewrite length_map; exact Hl) Hys') as [Hcomm Hnorm].
     split.
     - replace (map (instantiate env b) ys) with (map (instantiate env b) (map to_generic ys))

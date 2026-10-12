@@ -33,18 +33,6 @@ Import ListNotations.
 (* makes up type variables.                                                                        *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* No type variables, also not in the bounds of type parameters *)
-Fixpoint no_vars (t: EType): bool :=
-    match t with
-    | RootResolved _ _ arguments => forallb no_vars arguments
-    | Nullable n => no_vars n
-    | Generic (mkGenericRef _ _ bound) => no_vars bound
-    | Error _ _ => true
-    | TypeArgument _ _ n => no_vars n
-    | TypeVariable _ => false
-    | Intersection components => forallb no_vars components
-    end.
-
 Fixpoint esize (t: EType): nat :=
     match t with
     | RootResolved _ _ arguments => S (list_sum (map esize arguments))
@@ -74,9 +62,9 @@ Proof. intros [| | | | | |]; reflexivity. Qed.
 Section Variables.
 
 Variable env: Environment.
+Hypothesis wf: wellformed env.
 
-Hypothesis supertypes_mention_no_variables: forall sub super t,
-    In t (supertype_arguments env sub super) -> no_vars t = true.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
 Proof.
@@ -495,10 +483,8 @@ Section Constraints.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
-Hypothesis supertypes_mention_nothing_as_bottom: forall sub super t,
-    In t (supertype_arguments env sub super) -> nothing_is_bottom t = true.
-Hypothesis supertypes_mention_no_variables: forall sub super t,
-    In t (supertype_arguments env sub super) -> no_vars t = true.
+Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 (* The types the type variables are replaced with: of the fragment of Fragment.v, those of the fragment
    of Transitivity.v among them, and each assignable to itself *)
@@ -553,15 +539,15 @@ Proof. intros a. apply (proj2 (fragment_no_vars (argument_depth a))). lia. Qed.
 (* unify on types without type variables, at other variable states *)
 Lemma at_states: forall n t a s s', no_vars t = true -> no_vars a = true ->
     unify env n t a (Ongoing s) = Some (Ongoing s) -> unify env n t a (Ongoing s') = Some (Ongoing s').
-Proof. intros n t a s s' Ht Ha H. exact (unify_free env supertypes_mention_no_variables n t a s s' _ Ht Ha H). Qed.
+Proof. intros n t a s s' Ht Ha H. exact (unify_free env wf n t a s s' _ Ht Ha H). Qed.
 
 Lemma keeps_free: forall n t a s u, no_vars t = true -> no_vars a = true ->
     unify env n t a (Ongoing s) = Some (Ongoing u) -> u = s /\ unify env n t a (Ongoing []) = Some (Ongoing []).
 Proof.
     intros n t a s u Ht Ha H. split.
-    - pose proof (unify_free env supertypes_mention_no_variables n t a s s _ Ht Ha H) as E. rewrite H in E.
+    - pose proof (unify_free env wf n t a s s _ Ht Ha H) as E. rewrite H in E.
       injection E as ->. reflexivity.
-    - exact (unify_free env supertypes_mention_no_variables n t a s [] _ Ht Ha H).
+    - exact (unify_free env wf n t a s [] _ Ht Ha H).
 Qed.
 
 (* A type the variable is replaced with, within what the state of the variable allows: the types the
@@ -817,7 +803,7 @@ Proof.
     { intros ca ct aargs Hne Hcn Hbase Hl Ha a Hin.
       assert (Hta: forall y, In y aargs -> is_type_argument y = true)
           by (intros y Hy; apply (argument_in_fragment_is_type_argument env), Ha, Hy).
-      destruct (supertype_arguments_to_generic env wf supertypes_mention_nothing_as_bottom ca ct aargs Hne Hcn Hbase Hl Hta)
+      destruct (supertype_arguments_to_generic env wf ca ct aargs Hne Hcn Hbase Hl Hta)
           as [_ [_ [Hnb Hcl]]].
       destruct (supertype_arguments_in_fragment env wf ca ct aargs Hne Hcn Hbase Hl (fun y Hy => proj1 (Ha y Hy))) as [_ Hf].
       split; [exact (Hf a Hin)|]. split; [apply Hnb; [intros y Hy; apply Ha, Hy|exact Hin]|apply Hcl; [intros y Hy; apply Ha, Hy|exact Hin]]. }
@@ -937,7 +923,7 @@ Proof.
                 try discriminate Heq.
             - injection Heq as <- <- <-. exact Hl.
             - unfold bottom_type in Heq. injection Heq as _ -> _. rewrite class_eqb_refl in Hcn. discriminate Hcn. }
-          destruct (supertype_commute_variables env wf supertypes_mention_nothing_as_bottom b K [] cp ca pargs Hne
+          destruct (supertype_commute_variables env wf b K [] cp ca pargs Hne
               (class_eqb_false_neq _ _ Hcn) Hbase Hlp Hpargs) as [Hcomm Hnormp].
           split; [exact Hnormp|exact Hcomm]. }
         destruct Hnorm' as [Hnormp Hcomm].
