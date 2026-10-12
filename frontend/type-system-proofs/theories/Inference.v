@@ -410,6 +410,7 @@ Hypothesis Hcover: forall p o x, lookup_binding b p = Some (TypeArgument Model.i
         /\ upper_bound st = TypeArgument vb ob X /\ lower_bound st = TypeArgument vb ob X
         /\ in_fragment env X = true
         /\ unify env (S K) (TypeArgument vb ob X) (TypeArgument Model.invariant o x) (Ongoing s) = Some (Ongoing s).
+Hypothesis Hbf: bindings_in_fragment env b.
 
 Definition inst (t: EType): EType := inst_nested env b (to_generic t).
 
@@ -457,7 +458,7 @@ Lemma bound_variable: forall p bound, bound_in env b K s (Generic (mkGenericRef 
         /\ upper_bound st = TypeArgument vb ob X /\ lower_bound st = TypeArgument vb ob X /\ in_fragment env X = true
         /\ unify env (S K) (TypeArgument vb ob X) (TypeArgument Model.invariant o x) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros p bound H. simpl in H. destruct (binds_exactly_some env b K s p bound H) as [o [x [E [_ [Hx _]]]]].
+    intros p bound H. simpl in H. destruct (binds_exactly_some env b K s p bound H) as [o [x [E _]]]. pose proof (Hbf p o x E) as Hx.
     destruct (Hcover p o x E) as [st [vb [ob [X [Hl [He [Hu [Hlo [HX Hc]]]]]]]]].
     exists o, x, st, vb, ob, X. repeat split; assumption.
 Qed.
@@ -821,7 +822,7 @@ Proof.
       rewrite (instantiate_argument vt ot nt HP Hbn).
       rewrite (unify_type_arguments_exact n vt ot nt va oa na (ifrag_not_capturable nt HP Hbn)) in H.
       destruct (ownership_is_assignable_to oa ot) eqn:Ho; [|discriminate H].
-      assert (Hfi: in_fragment env (inst nt) = true) by exact (instance_in_fragment env wf b K s (to_generic nt) (ifrag_sfrag nt HP) Hbn).
+      assert (Hfi: in_fragment env (inst nt) = true) by exact (instance_in_fragment env wf b K s Hbf (to_generic nt) (ifrag_sfrag nt HP) Hbn).
       rewrite (unify_type_arguments env (F + 2 + S K) vt _ (inst nt) va oa na s (fragment_not_variable env _ Hfi)).
       pose proof (instantiation_preserves_ownership_assignability b oa ot Ho) as Ho'.
       rewrite (ownership_not_instantiated oa Hoa) in Ho'. rewrite Ho'.
@@ -995,10 +996,10 @@ Qed.
 (* Member calls                                                                                    *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma bound_in_transfer: forall b K s K' s', K <= K' -> forall k t, sdepth t <= k -> sfrag env t = true ->
+Lemma bound_in_transfer: forall b K s K' s', bindings_in_fragment env b -> K <= K' -> forall k t, sdepth t <= k -> sfrag env t = true ->
     bound_in env b K s t = true -> bound_in env b K' s' t = true.
 Proof.
-    intros b K s K' s' HK k. induction k as [|k IH]; intros t Hd Ht Hb.
+    intros b K s K' s' Hbf HK k. induction k as [|k IH]; intros t Hd Ht Hb.
     { destruct (sfrag_cases env t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]]; simpl in Hd; lia. }
     destruct (sfrag_cases env t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [bound [-> [Hfb Hcb]]]]]]].
     - change (forallb (bound_in env b K' s') args = true). apply forallb_forall. intros a Ha.
@@ -1010,8 +1011,8 @@ Proof.
     - reflexivity.
     - assert (Hd': sdepth (RootResolved m c args) <= k) by (simpl in Hd |- *; lia). exact (IH _ Hd' Ht' Hb).
     - simpl in Hb |- *. unfold binds_exactly, respects in Hb |- *.
-      destruct (lookup_binding b p) as [[| | | |[] o x| |]|]; try discriminate Hb.
-      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb. apply andb_true_iff in Hb. destruct Hb as [_ Hx].
+      destruct (lookup_binding b p) as [[| | | |[] o x| |]|] eqn:Ex; try discriminate Hb.
+      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb. pose proof (Hbf p o x Ex) as Hx.
       destruct (unify env K bound x (Ongoing s)) as [[w|]|] eqn:E; try discriminate Hr.
       destruct (proj1 (closed_facts env wf b K s (sdepth bound)) bound (le_n _) Hfb Hcb) as [HFb _].
       pose proof (proj1 (keeps_states_with_arguments env wf K) bound x s w HFb Hx E) as ->.
@@ -1028,6 +1029,15 @@ Proof.
     - apply param_eqb_eq in E. subst q. injection H as <-. exists 0. split; reflexivity.
     - destruct (IH xs p a H) as [i [Hi Hx]]. exists (S i). split; assumption.
 Qed.
+
+(* The type arguments of a class type of the fragment, as bindings, are of the fragment *)
+Lemma bindings_of_in_fragment: forall c xs, (forall x, In x xs -> argument_in_fragment env x = true) ->
+    bindings_in_fragment env (bindings_of env c xs).
+Proof.
+    intros c xs Hxs p o x E. destruct (lookup_combine_nth _ _ p _ E) as [i [_ Hx]].
+    exact (Hxs _ (nth_error_In _ _ Hx)).
+Qed.
+
 
 Definition exact_argument (x: EType): bool :=
     match x with
@@ -1097,12 +1107,13 @@ Proof.
       pose proof (Forall2_nth_error _ xs ys i _ _ Hp Hx Hy) as Ex.
       apply (unify_fuel_monotone env n0); [unfold K'; lia|].
       exact (proj2 (states_irrelevant n0) _ _ [] u Hfy' (Hfxs _ (nth_error_In _ _ Hx)) Ex). }
+    pose proof (bindings_of_in_fragment c xs Hfxs) as Hbf.
     assert (Hb': bound_in env (bindings_of env c xs) K' u (to_generic P) = true)
-        by exact (bound_in_transfer _ K [] K' u ltac:(unfold K'; lia) _ _ (le_n _) (ifrag_sfrag P HP) Hb).
-    destruct (proj1 (inference_with_arguments (bindings_of env c xs) K' u Hcover fuel) P A u' HP HA HcA Hb' H) as [-> Hi].
+        by exact (bound_in_transfer _ K [] K' u Hbf ltac:(unfold K'; lia) _ _ (le_n _) (ifrag_sfrag P HP) Hb).
+    destruct (proj1 (inference_with_arguments (bindings_of env c xs) K' u Hcover Hbf fuel) P A u' HP HA HcA Hb' H) as [-> Hi].
     exists (fuel * S (S K') + 2). unfold is_assignable_to, empty_unification.
     assert (HfI: in_fragment env (inst (bindings_of env c xs) P) = true)
-        by exact (instance_in_fragment env wf (bindings_of env c xs) K' u (to_generic P) (ifrag_sfrag P HP) Hb').
+        by exact (instance_in_fragment env wf (bindings_of env c xs) K' u Hbf (to_generic P) (ifrag_sfrag P HP) Hb').
     rewrite (proj1 (states_irrelevant _) _ _ u [] HfI (proj1 (afrag_parts A HA)) Hi). reflexivity.
 Qed.
 
