@@ -32,6 +32,7 @@ it shows and why; the tables below are the map.
 | `Generics.v`         | transitivity with type parameters and intersections, in the form of never rejecting            | `transitivity_never_fails`                                              |
 | `Conjectures.v`      | the conjectures below, and what follows from them directly                                     | `transitivity_terminating`                                              |
 | `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
+| `SubstitutionTerminating.v` | substitution with intersections as assignees, where unify terminates                      | `substitution_terminating`                                              |
 
 ### Fragments
 
@@ -41,7 +42,9 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 |---------------|-------------------|---------------------------------------------------------------------------------------------------------|
 | `in_fragment` | `Transitivity.v`  | class types with as many type arguments as type parameters, of any variance and ownership; nullable class types |
 | `gfrag`       | `Fragment.v`      | `in_fragment`, plus references to type parameters and non-empty intersections of class types and non-null references, as `ofComponents` builds them; well-formed references are `refs_wf` (`Generics.v`) |
-| `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters with their own mutability and nullability (`T`, `m T`, `T!`) or nullable (`T?`), bounded by such a type, which may mention other type parameters |
+| `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters with their own mutability and nullability (`T`, `m T`, `T!`) or nullable (`T?`), bounded by such a type or an intersection of them, nullable or not; the bound may mention other type parameters |
+| `tfrag`       | `Substitution.v`  | the types instantiated at the top, rather than in a type argument: `sfrag`, and intersections of class types and non-null references of it, nullable or not, as `ofComponents` builds them |
+| `cfrag`       | `Substitution.v`  | what the types of `tfrag` become: `in_fragment`, and intersections of class types of it, nullable or not |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters, bounded by types without type parameters |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
 
@@ -58,7 +61,7 @@ of the theorems, mostly bundled in records:
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
 | `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
 | `intersect_is_below_both`, `closest_common_supertype_is_above_both` | `Conjectures.v` | conjecture: the intersection is below both types, the closest common supertype above both |
-| `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
+| `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
 lets be anything; so the conjectures about them are properties of an environment that a theorem
@@ -67,8 +70,9 @@ anything. `unify_terminates` is a claim about the model alone, a theorem yet to 
 
 ### Not covered yet
 
-- Substitution with type variables, intersections, and F-bounded type parameters (`T : Comparable<T>`):
-  `Substitution.v` instantiates class types and references to type parameters bounded by them.
+- Substitution with type variables, intersections in type arguments (`Box<A & T>`), and F-bounded type
+  parameters (`T : Comparable<T>`); also with intersections that have a component that is, instantiated,
+  a core scalar (see `SubstitutionTerminating.v`).
 - Supertypes declared with variant type arguments (`Holder<T> : Consumer<in Box<T>>`), as far as member
   calls through them go: that takes a model of overriding.
 - Declaration-site variance, which emerge doesn't have.

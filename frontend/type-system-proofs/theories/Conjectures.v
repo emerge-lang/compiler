@@ -113,13 +113,14 @@ Qed.
 End Bounds.
 
 (* ---------------------------------------------------------------------------------------------- *)
-(* Termination                                                                                     *)
+(* Termination                                                                                    *)
 (*                                                                                                *)
-(* unify isn't known to terminate on all types: with expansive inheritance and contravariance, as   *)
-(* in `interface N<Z> : C<in N<N<Z>>>`, checking subtyping can go on forever (Kennedy and Pierce,    *)
-(* "On Decidability of Nominal Subtyping with Variance"). The frontend rejects expansive            *)
-(* inheritance (findExpansiveSupertypes). Kennedy and Pierce show subtyping decidable without it;   *)
-(* that unify terminates then is conjectured here, for a program's finite class table.             *)
+(* unify isn't known to terminate on all types: with expansive inheritance and contravariance, as *)
+(* in `interface N<Z> : C<in N<N<Z>>>`, checking subtyping can go on forever (Kennedy and Pierce, *)
+(* "On Decidability of Nominal Subtyping with Variance"). The frontend rejects expansive          *)
+(* inheritance (findExpansiveSupertypes, in compiler/binding/basetype/ExpansiveInheritance.kt).   *)
+(* Kennedy and Pierce show subtyping decidable without it; that unify terminates then is          *)
+(* conjectured here, for a program's finite class table (unify_terminates).                       *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* The type parameters a type mentions, each with whether nested in a type argument of a class type
@@ -171,7 +172,8 @@ Definition finitely_many_templates: Prop :=
 
 End Expansive.
 
-(* unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive *)
+(* unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive, as
+   ExpansiveInheritance.kt makes sure *)
 Definition unify_terminates: Prop :=
     forall env declared,
         wellformed env ->

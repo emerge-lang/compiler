@@ -311,8 +311,10 @@ Proof.
       destruct n as [m c args| | | | | |]; try discriminate Hn.
       apply andb_true_iff in Hn. destruct Hn as [_ Hn].
       right. right. left. exists m, c, args. split; [reflexivity|]. unfold ifrag. rewrite Hs, Hn. reflexivity.
-    - right. right. right. exists p, bnd. change (sfrag env bnd && true = true) in Hs.
-      rewrite andb_true_r in Hs. split; [reflexivity|split; [exact Hs|exact Hn]].
+    - right. right. right. exists p, bnd. change (tfrag env bnd && as_written env None false bnd = true) in Hs.
+      apply andb_true_iff in Hs. destruct Hs as [Hs _].
+      destruct (tfrag_cases env bnd Hs) as [Hs'|[[cs [-> _]]|[cs [-> _]]]]; [|discriminate Hn|discriminate Hn].
+      split; [reflexivity|split; [exact Hs'|exact Hn]].
 Qed.
 
 Lemma ifrag_root_args: forall m c args, ifrag (RootResolved m c args) = true ->
@@ -391,6 +393,22 @@ Proof.
       all: first
           [ exact (IHt _ _ s s' Ht Ha H) | exact (IHt _ _ s s' Ha Ht H)
           | exact (IHt _ _ s s' Ht (top_in_fragment env wf) H) | exact (IHt _ _ s s' (bottom_in_fragment env wf) Ht H) ].
+Qed.
+
+Lemma cfrag_states_irrelevant: forall n t a s s', cfrag env t = true -> in_fragment env a = true ->
+    unify env n t a (Ongoing s) = Some (Ongoing s) -> unify env n t a (Ongoing s') = Some (Ongoing s').
+Proof.
+    assert (Hi: forall n ys a s s', class_components env ys = true -> in_fragment env a = true ->
+        unify env n (Intersection ys) a (Ongoing s) = Some (Ongoing s) -> unify env n (Intersection ys) a (Ongoing s') = Some (Ongoing s')).
+    { intros [|n] ys a s s' Hys Ha H; [discriminate H|].
+      destruct (inter_accepts env wf n ys a s s Hys Ha H) as [_ [Hn Hall]].
+      apply (inter_takes env n ys a s' Hys Ha Hn). intros c Hc.
+      exact (proj1 (states_irrelevant n) c a s s' (proj2 (proj2 (class_components_facts env ys Hys) c Hc)) Ha (Hall c Hc)). }
+    intros n t a s s' Ht Ha H. destruct (cfrag_cases env t Ht) as [Ht'|[[ys [-> Hys]]|[ys [-> Hys]]]].
+    - exact (proj1 (states_irrelevant n) t a s s' Ht' Ha H).
+    - exact (Hi n ys a s s' Hys Ha H).
+    - destruct n as [|n]; [discriminate H|]. rewrite (unify_nullable_target env) in H |- * by exact Ha.
+      exact (Hi n ys _ s s' Hys (in_fragment_without_null env _ Ha) H).
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -998,21 +1016,30 @@ Qed.
 (* Member calls                                                                                    *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma bound_in_transfer: forall b K s K' s', bindings_in_fragment env b -> K <= K' -> forall k t, sdepth t <= k -> sfrag env t = true ->
+Lemma bound_in_transfer: forall b K s K' s', bindings_in_fragment env b -> K <= K' -> forall k t, sdepth t <= k -> tfrag env t = true ->
     bound_in env b K s t = true -> bound_in env b K' s' t = true.
 Proof.
-    intros b K s K' s' Hbf HK k. induction k as [|k IH]; intros t Hd Ht Hb.
-    { destruct (sfrag_cases env t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
+    intros b K s K' s' Hbf HK k. induction k as [|k IH]; intros t Hd Ht0 Hb.
+    { destruct (tfrag_cases env t Ht0) as [Ht|[[cs [-> _]]|[cs [-> _]]]]; [|simpl in Hd; lia|simpl in Hd; lia].
+      destruct (sfrag_cases env t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
           first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
+    (* an intersection: each of its components *)
+    assert (Hinter: forall cs, sdepth (Intersection cs) <= S k -> components_sfrag env cs = true ->
+        bound_in env b K s (Intersection cs) = true -> bound_in env b K' s' (Intersection cs) = true).
+    { intros cs Hd' Hcs Hb'. change (forallb (bound_in env b K' s') cs = true). apply forallb_forall. intros c Hc.
+      pose proof (sdepth_component cs c Hc) as Hdc. destruct (proj2 (components_sfrag_facts env cs Hcs) c Hc) as [_ Hsc].
+      apply IH; [lia|exact (sfrag_tfrag env c Hsc)|exact (bound_in_component env b K s cs c Hb' Hc)]. }
+    destruct (tfrag_cases env t Ht0) as [Ht|[[cs [-> Hcs]]|[cs [-> Hcs]]]];
+        [|exact (Hinter cs Hd Hcs Hb)|exact (Hinter cs ltac:(simpl in Hd |- *; lia) Hcs Hb)].
     destruct (sfrag_cases env t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
     - change (forallb (bound_in env b K' s') args = true). apply forallb_forall. intros a Ha.
       pose proof (bound_in_root env b K s m c args Hb a Ha) as Hba. pose proof (Hargs a Ha) as Hfa.
       pose proof (sdepth_below m c args a Ha) as Hda.
       destruct a as [| | | |v o n| |]; try discriminate Hfa. simpl in Hfa, Hba |- *.
       change (argument_sdepth (TypeArgument v o n)) with (S (sdepth n)) in Hda.
-      apply andb_true_iff in Hba. destruct Hba as [Ho Hn]. rewrite Ho. apply IH; [lia|exact Hfa|exact Hn].
+      apply andb_true_iff in Hba. destruct Hba as [Ho Hn]. rewrite Ho. apply IH; [lia|exact (sfrag_tfrag env n Hfa)|exact Hn].
     - reflexivity.
-    - assert (Hd': sdepth (RootResolved m c args) <= k) by (simpl in Hd |- *; lia). exact (IH _ Hd' Ht' Hb).
+    - assert (Hd': sdepth (RootResolved m c args) <= k) by (simpl in Hd |- *; lia). exact (IH _ Hd' (sfrag_tfrag env _ Ht') Hb).
     - destruct Hg as [Hfb _]. destruct (binds_ref_some env b K s g Hb) as [o' [x' [_ [_ [_ [_ Hbe]]]]]].
       assert (Hbe': bound_in env b K' s' (effective_bound g) = true).
       { apply IH; [|exact Hfb|exact Hbe]. destruct g as [gm nn p bound]. simpl in Hd |- *. lia. }
@@ -1026,13 +1053,13 @@ Proof.
       pose proof (inst_ref_in_fragment env (mkGenericRef gm nn p bound) x (Hbf _ o x Ex)) as Hx.
       destruct (unify env K (inst_nested env b bound) (inst_ref env (mkGenericRef gm nn p bound) x) (Ongoing s)) as [[w|]|] eqn:E;
           try discriminate Hr.
-      pose proof (instance_in_fragment env wf b K s Hbf bound Hfb Hbe) as HFb.
-      pose proof (proj1 (keeps_states_with_arguments env wf K) _ _ s w HFb Hx E) as ->.
+      pose proof (proj1 (instance_facts env wf b K s Hbf _ bound (le_n _) Hfb Hbe)) as HFb.
+      pose proof (cfrag_keeps env wf K _ _ s w HFb Hx E) as ->.
       rewrite (unify_fuel_monotone env K K' _ _ (Ongoing s') (Ongoing s') HK
-          (proj1 (states_irrelevant K) _ _ s s' HFb Hx E)).
+          (cfrag_states_irrelevant K _ _ s s' HFb Hx E)).
       reflexivity.
     - change (bound_in env b K' s' (Generic g) = true).
-      apply IH; [change (S (sdepth (Generic g)) <= S k) in Hd; lia|exact (generic_sfrag_sfrag env g Hg)|exact Hb].
+      apply IH; [change (S (sdepth (Generic g)) <= S k) in Hd; lia|exact (sfrag_tfrag env _ (generic_sfrag_sfrag env g Hg))|exact Hb].
 Qed.
 
 Lemma lookup_combine_nth: forall (ids: list TypeParameterId) (xs: list EType) p a,
@@ -1123,7 +1150,7 @@ Proof.
       exact (proj2 (states_irrelevant n0) _ _ [] u Hfy' (Hfxs _ (nth_error_In _ _ Hx)) Ex). }
     pose proof (bindings_of_in_fragment c xs Hfxs) as Hbf.
     assert (Hb': bound_in env (bindings_of env c xs) K' u (to_generic P) = true)
-        by exact (bound_in_transfer _ K [] K' u Hbf ltac:(unfold K'; lia) _ _ (le_n _) (ifrag_sfrag P HP) Hb).
+        by exact (bound_in_transfer _ K [] K' u Hbf ltac:(unfold K'; lia) _ _ (le_n _) (sfrag_tfrag env _ (ifrag_sfrag P HP)) Hb).
     destruct (proj1 (inference_with_arguments (bindings_of env c xs) K' u Hcover Hbf fuel) P A u' HP HA HcA Hb' H) as [-> Hi].
     exists (fuel * S (S K') + 2). unfold is_assignable_to, empty_unification.
     assert (HfI: in_fragment env (inst (bindings_of env c xs) P) = true)
