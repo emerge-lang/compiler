@@ -41,7 +41,7 @@ class NullableTypeReference private constructor(
         return when (nullability) {
             TypeReference.Nullability.NULLABLE -> this
             TypeReference.Nullability.UNSPECIFIED -> this
-            TypeReference.Nullability.NOT_NULLABLE -> nested
+            TypeReference.Nullability.NOT_NULLABLE -> nested.withCombinedNullability(nullability)
         }
     }
 

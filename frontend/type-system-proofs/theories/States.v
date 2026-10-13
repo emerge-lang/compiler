@@ -36,7 +36,7 @@ Definition relabel (s': VariableStates) (r: Unification): Unification :=
 
 Lemma no_vars_without_null: forall t, no_vars (without_null t) = no_vars t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH|apply IH].
 Qed.
 
 Lemma no_vars_rewrap: forall t, no_vars (rewrap_nullable t) = no_vars t.

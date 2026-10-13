@@ -183,7 +183,7 @@ Definition rewrap_nullable (t: EType): EType :=
 (* BoundTypeReference.withCombinedNullability(NOT_NULLABLE): `V!` for a type parameter V *)
 Fixpoint without_null (t: EType): EType :=
     match t with
-    | Nullable n => n
+    | Nullable n => without_null n
     | Generic (mkGenericRef gm nn p bound) => Generic (mkGenericRef gm (nn || is_nullable bound) p (without_null bound))
     | TypeArgument v o n => TypeArgument v o (without_null n)
     | _ => t

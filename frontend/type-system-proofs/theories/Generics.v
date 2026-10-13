@@ -315,7 +315,7 @@ Proof. intros cs H. apply forallb_forall. intros c Hc. apply gfrag_no_vars, (gfr
 Lemma gfrag_without_null: forall t, gfrag t = true -> gfrag (without_null t) = true.
 Proof.
     fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H; simpl in H |- *; try exact H; try discriminate H.
-    - apply andb_true_iff in H. apply H.
+    - apply andb_true_iff in H. exact (IH n (proj2 H)).
     - exact (IH b H).
 Qed.
 
@@ -329,7 +329,7 @@ Qed.
 Lemma without_null_not_nullable: forall t, gfrag t = true -> is_nullable (without_null t) = false.
 Proof.
     fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try discriminate H.
-    - apply andb_true_iff in H. apply non_null_not_nullable, H.
+    - apply andb_true_iff in H. exact (IH n (proj2 H)).
     - exact (IH b H).
 Qed.
 
@@ -498,7 +498,9 @@ Proof.
     fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] t' Ht Ht' H; simpl in H, Ht; try contradiction.
     - destruct t' as [| | | | | |]; try contradiction. exact H.
     - apply andb_true_iff in Ht. destruct Ht as [Hn Hfn].
+      change (without_null (Nullable n)) with (without_null n). rewrite (without_null_id n Hfn (non_null_not_nullable n Hn)).
       destruct t' as [m' c' a'|n'|[gm' nn' p' b']|me' msg'|v' o' n'|g'|cs']; simpl in H, Ht' |- *; try discriminate Ht'; try exact H.
+      { apply andb_true_iff in Ht'. rewrite (without_null_id n' (proj2 Ht') (non_null_not_nullable n' (proj1 Ht'))). exact H. }
       assert (Hb': is_nullable b' = false).
       { apply not_true_iff_false. intros E.
         pose proof (vle_nullable n (Generic (mkGenericRef gm' nn' p' b')) H E) as Ex. rewrite (non_null_not_nullable n Hn) in Ex. discriminate Ex. }
@@ -581,10 +583,12 @@ Proof.
       assert (IHn: vle (with_mutability env m1 n) (with_mutability env m2 n)).
       { apply (IH (esize n)) with (nn1 := false) (nn2 := false); [cbn [esize]; lia|reflexivity|exact Hfn|exact Hm|].
         unfold adjust. rewrite Hnot. discriminate. }
+      assert (Hid: forall m, without_null (with_mutability env m n) = with_mutability env m n)
+          by (intros m; exact (without_null_id _ (gfrag_with_mutability m n Hfn) (Hnot m))).
       rewrite Hs1, Hs2 in *. destruct nn1, nn2; simpl in Hn |- *.
-      + exact IHn.
-      + destruct (with_mutability env m1 n) eqn:E; try exact IHn; pose proof (Hnot m1) as Hx; rewrite E in Hx; discriminate Hx.
-      + rewrite (Hnot m2) in Hn. discriminate (Hn eq_refl).
+      + rewrite !Hid. exact IHn.
+      + rewrite Hid. destruct (with_mutability env m1 n) eqn:E; try exact IHn; pose proof (Hnot m1) as Hx; rewrite E in Hx; discriminate Hx.
+      + rewrite Hid, (Hnot m2) in Hn. discriminate (Hn eq_refl).
       + exact IHn.
     - simpl in H. rewrite Hs1, Hs2. destruct nn1, nn2; simpl; (split; [reflexivity|]);
           [apply (IH (esize b)) with (nn1 := true) (nn2 := true)
@@ -755,6 +759,7 @@ Qed.
 Lemma refs_wf_without_null: forall t, gfrag t = true -> refs_wf t -> refs_wf (without_null t).
 Proof.
     fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H Hr; simpl in H, Hr |- *; try exact Hr; try discriminate H.
+    { apply andb_true_iff in H. exact (IH n (proj2 H) Hr). }
     destruct Hr as [Hb [m [nn0 E]]]. split; [exact (IH b H Hb)|]. exists m, true. rewrite E.
     unfold adjust. destruct nn0; [|reflexivity].
     apply without_null_twice, gfrag_with_mutability, declared_gfrag.

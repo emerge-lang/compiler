@@ -325,6 +325,15 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
+            "is non-nullable, also bounded by a nullable type parameter" {
+                validateModule("""
+                    fn f<U : Any?, V : U?>(p: V!) -> Any {
+                        return p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
             "doesn't take the possibly null type parameter" {
                 validateModule("""
                     fn f<V : Any?>(p: V) {

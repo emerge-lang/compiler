@@ -677,6 +677,7 @@ Lemma without_null_keeps: forall t,
     mutability_of env (without_null t) = mutability_of env t /\ can_refer_to_object (without_null t) = can_refer_to_object t.
 Proof.
     fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try (split; reflexivity).
+    - simpl. destruct (IH n) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
     - simpl. destruct (IH b) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
     - simpl. destruct (IH n) as [Hm _]. rewrite Hm. split; reflexivity.
 Qed.
