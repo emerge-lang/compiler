@@ -71,6 +71,13 @@ lets be anything; so the conjectures about them are properties of an environment
 takes as a premise, never axioms, which would be false of some environment and so let Rocq prove
 anything. `unify_terminates` is a claim about the model alone, a theorem yet to be proven.
 
+Proving `unify_terminates` is not straightforward (no size of the types decreases, see `Conjectures.v`),
+so it stays a conjecture. Were it false, the frontend would not finish on, and so reject, programs where
+it runs unify itself. The theorems resting on it are about unifications it never runs: of instances of
+generic code and of final values of inference. For those, unify never rejecting is proven without it;
+only that it also accepts rests on it. That is a gap in the proof, not a known way to accept an unsound
+program.
+
 ### Not covered yet
 
 - Substitution with type variables, and F-bounded type parameters (`T : Comparable<T>`); also with

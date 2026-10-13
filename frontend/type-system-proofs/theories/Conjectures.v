@@ -172,8 +172,28 @@ Definition finitely_many_templates: Prop :=
 
 End Expansive.
 
-(* unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive, as
-   ExpansiveInheritance.kt makes sure *)
+(*
+ * unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive, as
+ * ExpansiveInheritance.kt makes sure.
+ *
+ * Why this stays a conjecture: Kennedy and Pierce show the goals reachable from a query finite where
+ * inheritance isn't expansive, for a much smaller calculus. Here no size of the types decreases:
+ * normalizing an assignee to a supertype grows its type arguments (`B<E> : A<Box<E>>`), and an
+ * in-variant type argument swaps target and assignee. A measure would have to come from the rank of
+ * non_expansive, and cover effective bounds, intersections, nullability and Nothing as well. That
+ * declared supertypes have no variance on their type arguments (wf_supertypes_are_exact) helps:
+ * inheritance alone brings in no contravariance, which their undecidable examples rest on; `in`
+ * comes only from the types written, or nested in the type arguments of supertypes.
+ *
+ * What it would take if it didn't hold: where the frontend runs unify, it would not finish (a stack
+ * overflow), and so reject a program, never accept one. The theorems resting on it, though, are about
+ * unifications the frontend never runs: of the instances of generic code (SubstitutionTerminating.v,
+ * SubstitutionWide.v) and of the final values of inference (FinalValues.v). For those, unify never
+ * rejecting is proven without it (transitivity_never_fails, instances_never_fail); what rests on it is
+ * that unify also accepts. A unification that neither fails nor ends is a derivation in the
+ * coinductive reading of subtyping, which Kennedy and Pierce discuss, and which suits nominal types;
+ * so this would be a gap in the proof, not a known way for an unsound program to be accepted.
+ *)
 Definition unify_terminates: Prop :=
     forall env declared,
         wellformed env ->
