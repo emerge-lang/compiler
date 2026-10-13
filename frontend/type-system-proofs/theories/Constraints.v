@@ -560,7 +560,7 @@ Proof.
       { pose proof (instantiation_preserves_ownership_assignability b oa ot Ho) as Ho'.
         rewrite (ownership_not_instantiated b oa Hoa) in Ho'. exact Ho'. }
       assert (Hfi: is_type_variable (inst env b nt) = false)
-          by exact (instance_not_variable env wf b K [] (to_generic nt) (ifrag_sfrag env nt HP) Hbn).
+          by exact (instance_not_variable env b K [] (to_generic nt) (ifrag_sfrag env nt HP) Hbn).
       assert (Hgoal: forall f, compare_variances (unify env f) vt va (inst env b nt) na [] = Some (Ongoing []) ->
           unify env (S f) (instantiate env b (TypeArgument vt ot nt)) (TypeArgument va oa na) (Ongoing []) = Some (Ongoing [])).
       { intros f E. rewrite (instantiate_argument env b K [] vt ot nt HP Hbn).

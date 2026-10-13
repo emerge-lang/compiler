@@ -41,7 +41,7 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 |---------------|-------------------|---------------------------------------------------------------------------------------------------------|
 | `in_fragment` | `Transitivity.v`  | class types with as many type arguments as type parameters, of any variance and ownership; nullable class types |
 | `gfrag`       | `Fragment.v`      | `in_fragment`, plus references to type parameters and non-empty intersections of class types and non-null references, as `ofComponents` builds them; well-formed references are `refs_wf` (`Generics.v`) |
-| `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters of no mutability of their own, bounded by such a type without type parameters |
+| `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters as written (`T`, `m T`, `T!`) or nullable (`T?`), bounded by such a type without type parameters |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters     |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
 
@@ -67,8 +67,12 @@ anything. `unify_terminates` is a claim about the model alone, a theorem yet to 
 
 ### Not covered yet
 
-- Substitution with type variables, intersections and F-bounded type parameters (`T : Comparable<T>`):
-  `Substitution.v` instantiates class types and type parameters bounded by them.
+- Substitution with type variables, intersections, bounds that mention other type parameters, and F-bounded
+  type parameters (`T : Comparable<T>`): `Substitution.v` instantiates class types and references to type
+  parameters bounded by them.
+- References to type parameters that got their mutability applied rather than written (a member of type `T`
+  read through a `read` reference, say): `GenericTypeReference.instantiateAllParameters` applies only the
+  mutability written, so instantiating such a reference loses the mutability applied.
 - Supertypes declared with variant type arguments (`Holder<T> : Consumer<in Box<T>>`), as far as member
   calls through them go: that takes a model of overriding.
 - Declaration-site variance, which emerge doesn't have.

@@ -54,7 +54,7 @@ Fixpoint to_generic (t: EType): EType :=
 Fixpoint no_generics (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb no_generics arguments
-    | Nullable n => no_generics n
+    | Nullable n => is_class n && no_generics n
     | TypeVariable (mkGenericRef None false _ _) => true
     | TypeArgument _ _ n => no_generics n
     | _ => false
@@ -103,7 +103,7 @@ Proof.
         * apply existsb_map_ext. intros a Ha. apply Hall, Ha.
         * apply existsb_map_ext. intros a Ha. apply Hall, Ha.
         * rewrite map_map. f_equal. apply map_ext_in. intros a Ha. apply Hall, Ha.
-      + simpl in Hk. destruct (IH n ltac:(lia) Ht) as [H1 [H2 [H3 H4]]]. repeat split; intros; simpl; rewrite ?H1, ?H2, ?H3, ?H4; reflexivity.
+      + simpl in Hk. destruct (IH n ltac:(lia) (proj2 (proj1 (andb_true_iff _ _) Ht))) as [H1 [H2 [H3 H4]]]. repeat split; intros; simpl; rewrite ?H1, ?H2, ?H3, ?H4; reflexivity.
       + simpl in Hk. destruct (IH n ltac:(lia) Ht) as [H1 [H2 [H3 H4]]].
         repeat split; intros; simpl; rewrite ?H1, ?H2, ?H3, ?H4; reflexivity.
       + repeat split; reflexivity.
@@ -294,7 +294,7 @@ Proof.
     intros t H. unfold ifrag in H. apply andb_true_iff in H. destruct H as [Hs Hn].
     destruct t as [m c args|n|[gm0 nn0 p0 bnd0]|m msg|v o n|[[gm|] [|] p bnd]|cs]; simpl in Hn; try discriminate Hn;
         try (simpl in Hs; discriminate Hs).
-    - destruct (sfrag_cases env _ Hs) as [[m' [c' [args' [Heq [Hc [Hl Hargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [? [Heq _]]]]]];
+    - destruct (sfrag_cases env _ Hs) as [[m' [c' [args' [Heq [Hc [Hl Hargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
           try discriminate Heq.
       + injection Heq as <- <- Hargs'. left. exists m, c, args. split; [reflexivity|]. split; [exact Hc|].
         split; [rewrite <- Hargs', length_map in Hl; exact Hl|].
@@ -305,10 +305,13 @@ Proof.
         unfold ifrag. rewrite Ha', Hna. reflexivity.
       + unfold bottom_type in Heq. injection Heq as -> -> Hargs'. destruct args; [|discriminate Hargs'].
         right. left. reflexivity.
-    - change (is_class (to_generic n) && sfrag env (to_generic n) = true) in Hs. apply andb_true_iff in Hs. destruct Hs as [Hc Hs].
-      destruct n as [m c args| | | | | |]; try discriminate Hc.
+    - change ((is_class (to_generic n) || is_generic (to_generic n)) && sfrag env (to_generic n) = true) in Hs.
+      apply andb_true_iff in Hs. destruct Hs as [Hc Hs].
+      destruct n as [m c args| | | | | |]; try discriminate Hn.
+      apply andb_true_iff in Hn. destruct Hn as [_ Hn].
       right. right. left. exists m, c, args. split; [reflexivity|]. unfold ifrag. rewrite Hs, Hn. reflexivity.
-    - right. right. right. exists p, bnd. change (sfrag env bnd && closed bnd = true) in Hs. apply andb_true_iff in Hs.
+    - right. right. right. exists p, bnd. change (sfrag env bnd && closed bnd && true = true) in Hs.
+      rewrite andb_true_r in Hs. apply andb_true_iff in Hs.
       split; [reflexivity|exact Hs].
 Qed.
 
@@ -999,8 +1002,9 @@ Lemma bound_in_transfer: forall b K s K' s', bindings_in_fragment env b -> K <= 
     bound_in env b K s t = true -> bound_in env b K' s' t = true.
 Proof.
     intros b K s K' s' Hbf HK k. induction k as [|k IH]; intros t Hd Ht Hb.
-    { destruct (sfrag_cases env t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]]; simpl in Hd; lia. }
-    destruct (sfrag_cases env t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [bound [-> [Hfb Hcb]]]]]]].
+    { destruct (sfrag_cases env t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
+          first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
+    destruct (sfrag_cases env t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
     - change (forallb (bound_in env b K' s') args = true). apply forallb_forall. intros a Ha.
       pose proof (bound_in_root env b K s m c args Hb a Ha) as Hba. pose proof (Hargs a Ha) as Hfa.
       pose proof (sdepth_below m c args a Ha) as Hda.
@@ -1009,15 +1013,18 @@ Proof.
       apply andb_true_iff in Hba. destruct Hba as [Ho Hn]. rewrite Ho. apply IH; [lia|exact Hfa|exact Hn].
     - reflexivity.
     - assert (Hd': sdepth (RootResolved m c args) <= k) by (simpl in Hd |- *; lia). exact (IH _ Hd' Ht' Hb).
-    - simpl in Hb |- *. unfold binds_exactly, respects in Hb |- *.
-      destruct (lookup_binding b p) as [[| | | |[] o x| |]|] eqn:Ex; try discriminate Hb.
-      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb. pose proof (Hbf p o x Ex) as Hx.
-      destruct (unify env K bound x (Ongoing s)) as [[w|]|] eqn:E; try discriminate Hr.
-      destruct (proj1 (closed_facts env wf b K s (sdepth bound)) bound (le_n _) Hfb Hcb) as [HFb _].
-      pose proof (proj1 (keeps_states_with_arguments env wf K) bound x s w HFb Hx E) as ->.
-      rewrite (unify_fuel_monotone env K K' bound x (Ongoing s') (Ongoing s') HK
-          (proj1 (states_irrelevant K) bound x s s' HFb Hx E)).
+    - destruct Hg as [Hfb [Hcb _]]. change (binds_ref env b K s g = true) in Hb. change (binds_ref env b K' s' g = true).
+      unfold binds_ref, respects in Hb |- *.
+      destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|] eqn:Ex; try discriminate Hb.
+      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb. pose proof (inst_ref_in_fragment env g x (Hbf _ o x Ex)) as Hx.
+      destruct (unify env K (effective_bound g) (inst_ref env g x) (Ongoing s)) as [[w|]|] eqn:E; try discriminate Hr.
+      pose proof (closed_in_fragment env wf b K s _ Hfb Hcb) as HFb.
+      pose proof (proj1 (keeps_states_with_arguments env wf K) _ _ s w HFb Hx E) as ->.
+      rewrite (unify_fuel_monotone env K K' _ _ (Ongoing s') (Ongoing s') HK
+          (proj1 (states_irrelevant K) _ _ s s' HFb Hx E)).
       reflexivity.
+    - change (bound_in env b K' s' (Generic g) = true).
+      apply IH; [change (S (sdepth (Generic g)) <= S k) in Hd; lia|exact (generic_sfrag_sfrag env g Hg)|exact Hb].
 Qed.
 
 Lemma lookup_combine_nth: forall (ids: list TypeParameterId) (xs: list EType) p a,
