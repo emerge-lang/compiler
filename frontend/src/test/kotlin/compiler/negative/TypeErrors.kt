@@ -281,6 +281,38 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "an argument to an intersection with a type parameter bound already, another component covering it" - {
+            val types = """
+                interface A {}
+                interface E {}
+                fn f<T>(p: E & T) {}
+                class D<T> {
+                    u: E & T = init
+                    fn m(self, p: E & T) {}
+                }
+            """.trimIndent()
+
+            "is taken" {
+                validateModule(types + "\n" + """
+                    fn test(x: E & A, d: D<A>) {
+                        f::<A>(x)
+                        f(x)
+                        d.m(d.u)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of the wrong type parameter, isn't" {
+                validateModule(types + "\n" + """
+                    fn test(x: E) {
+                        f::<A>(x)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
         "a bound that mentions an earlier type parameter" - {
             val types = """
                 interface A {}

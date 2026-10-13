@@ -167,7 +167,13 @@ class BoundIntersectionTypeReference private constructor(
                         .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
                 }
                 return varComponents.fold(carry3) { innerCarry, component ->
-                    component.unify(newAssignee, assignmentLocation, innerCarry)
+                    val withCoveredSubtracted = component.unify(newAssignee, assignmentLocation, innerCarry)
+                    if (newAssignee === assigneeType || withCoveredSubtracted.getErrorsNotIn(innerCarry).none()) {
+                        withCoveredSubtracted
+                    } else {
+                        // the variable may be bound already, too narrowly for what is subtracted
+                        component.unify(assigneeType, assignmentLocation, innerCarry)
+                    }
                 }
             }
         }
