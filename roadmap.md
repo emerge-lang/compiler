@@ -225,6 +225,18 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * inference with F-bounded type variables loops: each new lower bound is checked against the upper
       bound `Comparable<T>`, which mentions the variable itself. This needs a design of its own; the
       type system proofs are prepared for F-bounds and should get the F-bounded cases along with it
+28. assignability after instantiating type parameters is stricter than it needs to be:
+    * an instantiated `T` is the invariant type argument it is bound to, and two of those are only assignable
+      when they are equal: in `class C<T, U : T> { u: U; fn m(self, p: T) }`, `c.m(c.u)` is rejected for a
+      `c: C<A, B>`, though B is a subtype of A. Instantiated at the top level, rather than in a type argument,
+      an invariant type argument could stand for its type
+    * unifying with an intersection unifies its type variables with what the other components don't cover
+      already (`Any`, mostly). That clashes with a type variable captured exactly from the receiver: in
+      `class D<T> { u: E & T; fn m(self, p: E & T) }`, `d.m(d.u)` is rejected for a `d: D<A>`
+    * `BoundIntersectionTypeReference.ofComponents` gives each component the mutability common to all of them,
+      which a core scalar doesn't take: with `S32` an `I`, `read I & U` takes `S32 & U`, but with `U` bound to
+      `mut Foo`, `mut I & mut Foo` takes no `S32 & exclusive Foo`. An intersection with a component that has no
+      subtypes could simplify to that component, or to `Nothing`
 
 -----
 
