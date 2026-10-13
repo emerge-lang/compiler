@@ -33,6 +33,7 @@ it shows and why; the tables below are the map.
 | `Conjectures.v`      | the conjectures below, and what follows from them directly                                     | `transitivity_terminating`                                              |
 | `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
 | `SubstitutionTerminating.v` | substitution with intersections as assignees, where unify terminates                      | `substitution_terminating`                                              |
+| `SubstitutionWide.v` | substitution with intersections in type arguments, where unify terminates                       | `substitution_wide`                                                     |
 
 ### Fragments
 
@@ -45,6 +46,8 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `sfrag`       | `Substitution.v`  | the types instantiated by the substitution: class types (Nothing only as `exclusive Nothing`), nullable class types, and references to type parameters with their own mutability and nullability (`T`, `m T`, `T!`) or nullable (`T?`), bounded by such a type or an intersection of them, nullable or not; the bound may mention other type parameters |
 | `tfrag`       | `Substitution.v`  | the types instantiated at the top, rather than in a type argument: `sfrag`, and intersections of class types and non-null references of it, nullable or not, as `ofComponents` builds them |
 | `cfrag`       | `Substitution.v`  | what the types of `tfrag` become: `in_fragment`, and intersections of class types of it, nullable or not |
+| `wtfrag`      | `SubstitutionWide.v` | `tfrag`, with intersections in type arguments, too (`Box<A & T>`)                                     |
+| `ground`      | `SubstitutionWide.v` | what the types of `wtfrag` become: `gfrag` without type parameters                                   |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters, bounded by types without type parameters |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
 
@@ -70,9 +73,8 @@ anything. `unify_terminates` is a claim about the model alone, a theorem yet to 
 
 ### Not covered yet
 
-- Substitution with type variables, intersections in type arguments (`Box<A & T>`), and F-bounded type
-  parameters (`T : Comparable<T>`); also with intersections that have a component that is, instantiated,
-  a core scalar (see `SubstitutionTerminating.v`).
+- Substitution with type variables, and F-bounded type parameters (`T : Comparable<T>`); also with
+  intersections that have a component that is, instantiated, a core scalar (see `SubstitutionTerminating.v`).
 - Supertypes declared with variant type arguments (`Holder<T> : Consumer<in Box<T>>`), as far as member
   calls through them go: that takes a model of overriding.
 - Declaration-site variance, which emerge doesn't have.
