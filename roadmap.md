@@ -233,6 +233,20 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       which a core scalar doesn't take: with `S32` an `I`, `read I & U` takes `S32 & U`, but with `U` bound to
       `mut Foo`, `mut I & mut Foo` takes no `S32 & exclusive Foo`. An intersection with a component that has no
       subtypes could simplify to that component, or to `Nothing`
+29. classes whose instances are always const: `class Foo : const Any {}`; the core scalars, hardcoded so today, would
+    be declared that way, too. For any `T : const Foo`, `mut T`, `const T` and `read T` are the same then
+    * sound as long as nothing can mutate such an object: const-ness carries over to all subtypes (an interface
+      declared `: const Any` takes const implementations only), member functions are checked with the receiver
+      collapsed to const (`self: mut _` is `const Foo`), and fields can't be reassigned and read as const
+    * today, a value of such a class fits no `mut` target (`S32` isn't a `mut Any`). That is behind two gaps in the
+      type system proofs, which the feature widens from the scalars to every const class: substitution excludes
+      `mut T` with `T` bound to such a class, and the intersection corner of item 28. Letting such a value fit a
+      target of any mutability but `exclusive` closes both: a `mut` promise on an object nobody can mutate is empty
+    * `exclusive` doesn't collapse harmlessly: it promises no aliases, which a shared const object can't keep.
+      Either reject `exclusive T` instantiated with a const class, or make sure nothing (moving to another
+      thread, reference counting in the backend) relies on uniqueness for const objects
+    * the proofs assume a declared bound takes any mutability applied to it (`bounds_wellformed.bw_mutability`,
+      `Substitution.as_written`); bounds of const classes need that weakened to "that mutability, or const"
 
 -----
 
