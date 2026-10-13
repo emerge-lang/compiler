@@ -317,6 +317,19 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
             }
+
+            "a member of the one, instantiated, is a value of the other" {
+                validateModule(types + "\n" + """
+                    class Holder<U, T : U> {
+                        t: T = init
+                        fn take(self, u: U) {}
+                    }
+                    fn h(x: Holder<A, B>) {
+                        x.take(x.t)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
         }
 
         "a type parameter to another type parameter, by its bound" - {

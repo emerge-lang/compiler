@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
@@ -171,6 +172,14 @@ class TypeUnification private constructor(
             ?: state.upperBound
 
         return raw.instantiateFreeVariables(this)
+    }
+
+    /**
+     * [getFinalValueFor], where a parameter bound to an invariant type argument is that type
+     */
+    fun getFinalTypeFor(parameter: BoundTypeParameter): BoundTypeReference {
+        val value = getFinalValueFor(parameter)
+        return if (value is BoundTypeArgument && value.variance == TypeVariance.UNSPECIFIED) value.type else value
     }
 
     val bindings: Iterable<Pair<BoundTypeParameter, BoundTypeReference>> = object : Iterable<Pair<BoundTypeParameter, BoundTypeReference>> {

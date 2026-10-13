@@ -207,7 +207,7 @@ class GenericTypeReference private constructor(
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        var instantiated = context.getFinalValueFor(this.parameter)
+        var instantiated = context.getFinalTypeFor(this.parameter)
         if (givenMutability != null) {
             // a value of type `m T` is a T of a mutability that fits m
             instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))

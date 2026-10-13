@@ -145,7 +145,7 @@ class TypeVariable private constructor(
             return this
         }
 
-        return context.getFinalValueFor(this.parameter)
+        return context.getFinalTypeFor(this.parameter)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
