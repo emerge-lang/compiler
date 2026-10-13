@@ -337,9 +337,11 @@ Theorem substitution_terminating: forall fuel t a,
     tfrag env t = true -> tfrag env a = true -> bound_in env b K [] t = true -> bound_in env b K [] a = true ->
     scalar_free a ->
     is_assignable_to env fuel a t = Some true ->
-    exists f, is_assignable_to env f (inst_nested env b a) (inst_nested env b t) = Some true.
+    exists f, is_assignable_to env f (instantiate env b a) (instantiate env b t) = Some true.
 Proof.
-    intros fuel t a Ht Ha Hbt Hba Hsc H. unfold is_assignable_to, empty_unification in *.
+    intros fuel t a Ht Ha Hbt Hba Hsc H.
+    rewrite <- (inst_nested_instantiate env b K [] t Ht Hbt), <- (inst_nested_instantiate env b K [] a Ha Hba).
+    unfold is_assignable_to, empty_unification in *.
     destruct (unify env fuel t a (Ongoing [])) as [[u|]|] eqn:Eu; try discriminate H.
     pose proof (instances_never_fail fuel t a u Ht Ha Hbt Hba Hsc Eu) as Hnf.
     pose proof (proj1 (instance_facts env wf b K [] Hbf _ t (le_n _) Ht Hbt)) as HT.

@@ -258,6 +258,20 @@ Fixpoint mentions_loosely_bound_in_arguments (bindings: Bindings) (t: EType): bo
     | _ => false
     end.
 
+Definition nests_argument (t: EType): bool :=
+    match t with
+    | TypeArgument _ _ _ | Nullable (TypeArgument _ _ _) => true
+    | _ => false
+    end.
+
+(* TypeUnification.getFinalTypeFor: a type parameter bound exactly is the type it is bound to. That
+   is no type argument (BoundTypeArgument checks); where it would be, the type argument stays *)
+Definition final_argument (argument: EType): EType :=
+    match argument with
+    | TypeArgument _ _ x => if is_loose argument || nests_argument x then argument else x
+    | _ => argument
+    end.
+
 (* BoundIntersectionTypeReference.intersectedComponents: the components of the intersection a type is,
    each nullable iff the type is; the type alone otherwise *)
 Definition intersected_components (t: EType): list EType :=
@@ -298,7 +312,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     | Generic (mkGenericRef given narrowed p bound) =>
         let final_value :=
             match lookup_binding bindings p with
-            | Some argument => argument
+            | Some argument => final_argument argument
             | None => instantiate bindings bound
             end in
         let of_mutability :=
@@ -347,7 +361,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     (* TypeVariable.instantiateAllParameters *)
     | TypeVariable (mkGenericRef _ _ p bound) =>
         match lookup_binding bindings p with
-        | Some argument => argument
+        | Some argument => final_argument argument
         | None => instantiate bindings bound
         end
     | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))

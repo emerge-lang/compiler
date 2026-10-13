@@ -494,7 +494,8 @@ Lemma instantiate_parameter_template: forall bindings p bp y,
     instantiate env bindings (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))) = y.
 Proof.
     intros bindings p bp [| | | |vy oy ny| |] H Hy; simpl in Hy; try discriminate Hy.
-    simpl. rewrite H. destruct vy; reflexivity.
+    simpl. rewrite H. destruct vy; try reflexivity. destruct oy; try reflexivity;
+        destruct ny as [| [] | | | | |]; reflexivity.
 Qed.
 
 (* The type parameter `T` of `sub`, instantiated with the type arguments of a reference to `sub`, is

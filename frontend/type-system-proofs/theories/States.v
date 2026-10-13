@@ -80,6 +80,9 @@ Proof.
     - simpl in H. rewrite forallb_forall in H. exact (H c Hc).
 Qed.
 
+Lemma no_vars_final_argument: forall a, no_vars a = true -> no_vars (final_argument a) = true.
+Proof. intros [| | | |v o x| |] H; try exact H. unfold final_argument. destruct (_ || _); exact H. Qed.
+
 Lemma no_vars_instantiate: forall b t, (forall p a, lookup_binding b p = Some a -> no_vars a = true) ->
     no_vars t = true -> no_vars (instantiate env b t) = true.
 Proof.
@@ -88,8 +91,8 @@ Proof.
     - simpl. apply forallb_forall. intros a Ha. apply in_map_iff in Ha. destruct Ha as [a' [<- Ha']].
       rewrite forallb_forall in H. apply (IH (esize a')); [pose proof (esize_in args a' Ha'); simpl; lia|reflexivity|apply H, Ha'].
     - simpl. rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
-    - simpl. assert (Hf: no_vars (match lookup_binding b p with Some a => a | None => instantiate env b bnd end) = true).
-      { destruct (lookup_binding b p) eqn:E; [exact (Hb p e E)|]. apply (IH (esize bnd)); simpl; auto; lia. }
+    - simpl. assert (Hf: no_vars (match lookup_binding b p with Some a => final_argument a | None => instantiate env b bnd end) = true).
+      { destruct (lookup_binding b p) eqn:E; [exact (no_vars_final_argument e (Hb p e E))|]. apply (IH (esize bnd)); simpl; auto; lia. }
       destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hf).
     - reflexivity.
     - simpl. assert (Hn: no_vars (instantiate env b n) = true) by (apply (IH (esize n)); simpl; auto; lia).

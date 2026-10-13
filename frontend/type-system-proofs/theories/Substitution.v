@@ -30,14 +30,15 @@ Import ListNotations.
 (*   SubstitutionTerminating.v;                                                                   *)
 (* - without type inference (no type variables), intersections in type arguments or erroneous     *)
 (*   types.                                                                                       *)
-(* A reference becomes the type argument with the mutability and nullability of the reference     *)
-(* applied (inst_ref), as a type of its own; in a type argument, it becomes the type in it        *)
-(* (inst_nested). An intersection becomes the intersection of the instances of its components,    *)
-(* each a type of its own, so a class type (cfrag). The instance of a reference is within the     *)
-(* bound of the reference, instantiated (binds_ref): for `T`, the type argument is within the     *)
-(* bound of T with the type parameters in it replaced by their type arguments, which is how       *)
-(* Kotlin checks type arguments. Not so for `mut T` with T bound to a scalar, whose values are    *)
-(* immutable whatever the mutability; `mut T` takes no value then, but Nothing.                   *)
+(* Bound exactly, a type parameter is the type it is bound to (TypeUnification.getFinalTypeFor):  *)
+(* a reference becomes that type, with the mutability and nullability of the reference applied    *)
+(* (inst_ref); an intersection, the intersection of the instances of its components, which are    *)
+(* class types (cfrag). inst_nested says so shape by shape; it is what instantiate makes of the   *)
+(* types (inst_nested_instantiate). The instance of a reference is within the bound of the        *)
+(* reference, instantiated (binds_ref): for `T`, the type argument is within the bound of T with  *)
+(* the type parameters in it replaced by their type arguments, which is how Kotlin checks type    *)
+(* arguments. Not so for `mut T` with T bound to a scalar, whose values are immutable whatever    *)
+(* the mutability; `mut T` takes no value then, but Nothing.                                      *)
 (* A type parameter accepts a non-nullable Nothing of a mutability that fits its bound, also one  *)
 (* an instantiation of it doesn't accept: of the bound `read Any`, it takes `mut Nothing`, which  *)
 (* isn't a `const C`. Nothing is never instantiated, though, so that doesn't matter for the       *)
@@ -953,13 +954,72 @@ Lemma inst_nested_nullable_generic: forall g v o x,
     lookup_binding b (param_of g) = Some (TypeArgument v o x) -> inst_nested b (Nullable (Generic g)) = rewrap_nullable (inst_ref g x).
 Proof. intros g v o x H. unfold inst_nested. rewrite H. reflexivity. Qed.
 
+(* A type of the fragment of Fragment.v, with a mutability or `!` applied, is no type argument *)
+Lemma gfrag_inst_ref_flat: forall g x, gfrag env x = true -> nests_argument (inst_ref g x) = false.
+Proof.
+    intros g x Hx. unfold inst_ref, inst_fit.
+    destruct (gfrag_cases env x Hx) as [[m [c [args ->]]]|[[n [-> [Hn _]]]|[[gm [nn [p [bound [-> _]]]]]|[cs ->]]]];
+        destruct (given_mutability g), (is_narrowed g); try reflexivity;
+        destruct n as [| | [] | | | |]; simpl in Hn; try discriminate Hn; reflexivity.
+Qed.
+
+(* Bound exactly, a reference instantiates to the instance of the reference *)
+Lemma instantiate_exact_generic: forall g o' x,
+    lookup_binding b (param_of g) = Some (TypeArgument Model.invariant o' x) -> is_exact_ownership o' = true ->
+    gfrag env x = true -> instantiate env b (Generic g) = inst_ref g x /\ mentions_loosely_bound b (Generic g) = false.
+Proof.
+    intros [gm nn p bound] o' x E Ho Hx. cbn [param_of] in E.
+    assert (Hn: nests_argument x = false) by (pose proof (gfrag_inst_ref_flat (mkGenericRef None false p bound) x Hx) as H; exact H).
+    assert (Hl: is_loose (TypeArgument Model.invariant o' x) = false) by (destruct o'; first [reflexivity|discriminate Ho]).
+    simpl. rewrite E. unfold final_argument. rewrite Hl, Hn. split; [|reflexivity]. unfold inst_ref, inst_fit. reflexivity.
+Qed.
+
+(* A type argument whose type, instantiated, is no type argument, and mentions nothing bound loosely *)
+Lemma instantiate_argument_plain: forall v o n y, instantiate env b n = y -> mentions_loosely_bound_in_arguments b n = false ->
+    nests_argument y = false -> instantiate env b (TypeArgument v o n) = TypeArgument v (instantiate_ownership b o) y.
+Proof.
+    intros v o n y Hi Hm Hn. simpl. rewrite Hi, Hm.
+    destruct y as [| [] | | | | |]; try discriminate Hn; reflexivity.
+Qed.
+
 (* A reference, instantiated in a type argument, takes the place of the type in it *)
 Lemma instantiate_generic_argument: forall v o g o' x,
-    lookup_binding b (param_of g) = Some (TypeArgument Model.invariant o' x) ->
+    lookup_binding b (param_of g) = Some (TypeArgument Model.invariant o' x) -> is_exact_ownership o' = true -> gfrag env x = true ->
     instantiate env b (TypeArgument v o (Generic g)) = TypeArgument v (instantiate_ownership b o) (inst_ref g x)
     /\ instantiate env b (TypeArgument v o (Nullable (Generic g))) = TypeArgument v (instantiate_ownership b o) (rewrap_nullable (inst_ref g x)).
 Proof.
-    intros v o [[m|] [|] p bound] o' x E; simpl in E |- *; rewrite E; destruct v; split; reflexivity.
+    intros v o g o' x E Ho Hx. destruct (instantiate_exact_generic g o' x E Ho Hx) as [Hi _].
+    pose proof (gfrag_inst_ref_flat g x Hx) as Hn. split.
+    - exact (instantiate_argument_plain v o _ _ Hi eq_refl Hn).
+    - apply instantiate_argument_plain; [change (rewrap_nullable (instantiate env b (Generic g)) = rewrap_nullable (inst_ref g x)); rewrite Hi; reflexivity|reflexivity|].
+      destruct (inst_ref g x) as [| [] | | | | |]; first [reflexivity|discriminate Hn].
+Qed.
+
+(* Within the fragment, the instance is what the frontend instantiates the type to *)
+Lemma inst_nested_instantiate: forall t, tfrag t = true -> bound_in t = true -> inst_nested b t = instantiate env b t.
+Proof.
+    assert (Hgen: forall g, bound_in (Generic g) = true -> inst_nested b (Generic g) = instantiate env b (Generic g)).
+    { intros g Hb. destruct (binds_ref_some g Hb) as [o [x [E [Ho [Hx _]]]]].
+      rewrite (inst_nested_generic g _ o x E). symmetry. exact (proj1 (instantiate_exact_generic g o x E Ho Hx)). }
+    assert (Hinter: forall cs, components_sfrag cs = true -> bound_in (Intersection cs) = true ->
+        inst_nested b (Intersection cs) = instantiate env b (Intersection cs)).
+    { intros cs Hcs Hb. destruct (components_sfrag_facts cs Hcs) as [_ Hc].
+      change (inst_nested b (Intersection cs)) with (inst_intersection b cs). unfold inst_intersection.
+      change (instantiate env b (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env b) cs))).
+      f_equal. f_equal. apply map_ext_in. intros c Hin. rewrite (inst_component_nested c (proj1 (Hc c Hin))).
+      pose proof (proj1 (Hc c Hin)) as Hsh.
+      destruct c as [m d args|n|g|me msg|v o n|g|cs']; try discriminate Hsh; [reflexivity|].
+      exact (Hgen g (bound_in_component cs _ Hb Hin)). }
+    intros t Ht Hb. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+    - destruct (sfrag_cases t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]]; try reflexivity.
+      + exact (Hgen g Hb).
+      + destruct (binds_ref_some g Hb) as [o [x [E [Ho [Hx _]]]]]. rewrite (inst_nested_nullable_generic g _ o x E).
+        change (instantiate env b (Nullable (Generic g))) with (rewrap_nullable (instantiate env b (Generic g))).
+        rewrite (proj1 (instantiate_exact_generic g o x E Ho Hx)). reflexivity.
+    - exact (Hinter cs Hcs Hb).
+    - change (inst_nested b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested b (Intersection cs))).
+      change (instantiate env b (Nullable (Intersection cs))) with (rewrap_nullable (instantiate env b (Intersection cs))).
+      rewrite (Hinter cs Hcs Hb). reflexivity.
 Qed.
 
 (* Nothing is bound loosely, so instantiating widens no type argument *)
@@ -1008,10 +1068,10 @@ Proof.
     - simpl in Hm |- *. rewrite Hm. reflexivity.
     - reflexivity.
     - simpl in Hm |- *. rewrite Hm. reflexivity.
-    - destruct (binds_ref_some g Hb) as [o' [x [E _]]].
-      rewrite (inst_nested_generic g _ o' x E). exact (proj1 (instantiate_generic_argument v o g o' x E)).
-    - destruct (binds_ref_some g Hb) as [o' [x [E _]]].
-      rewrite (inst_nested_nullable_generic g _ o' x E). exact (proj2 (instantiate_generic_argument v o g o' x E)).
+    - destruct (binds_ref_some g Hb) as [o' [x [E [Ho [Hx _]]]]].
+      rewrite (inst_nested_generic g _ o' x E). exact (proj1 (instantiate_generic_argument v o g o' x E Ho Hx)).
+    - destruct (binds_ref_some g Hb) as [o' [x [E [Ho [Hx _]]]]].
+      rewrite (inst_nested_nullable_generic g _ o' x E). exact (proj2 (instantiate_generic_argument v o g o' x E Ho Hx)).
 Qed.
 
 Lemma bound_in_argument: forall v o n, bound_in (TypeArgument v o n) = true -> ownership_bound o = true /\ bound_in n = true.
@@ -1927,9 +1987,11 @@ Theorem substitution_lemma: forall b K E fuel t a,
     bindings_in_fragment b ->
     tfrag t = true -> sfrag a = true -> bound_in b K [] t = true -> bound_in b K [] a = true ->
     is_assignable_to env fuel a t = Some true ->
-    is_assignable_to env (fuel * S (S K) + E) (inst_nested b a) (inst_nested b t) = Some true.
+    is_assignable_to env (fuel * S (S K) + E) (instantiate env b a) (instantiate env b t) = Some true.
 Proof.
-    intros b K E fuel t a HE2 HE Hbf Ht Ha Hbt Hba H. unfold is_assignable_to, empty_unification in *.
+    intros b K E fuel t a HE2 HE Hbf Ht Ha Hbt Hba H.
+    rewrite <- (inst_nested_instantiate b K [] t Ht Hbt), <- (inst_nested_instantiate b K [] a (sfrag_tfrag a Ha) Hba).
+    unfold is_assignable_to, empty_unification in *.
     destruct (unify env fuel t a (Ongoing [])) as [[u|]|] eqn:Eu; try discriminate H.
     destruct (tfrag_cases t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
     - destruct (proj1 (substitution_with_arguments b K [] E HE2 HE Hbf fuel) t a u Hs Ha Hbt Hba Eu) as [_ Hi].

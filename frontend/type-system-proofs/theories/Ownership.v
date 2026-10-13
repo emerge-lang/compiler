@@ -643,7 +643,7 @@ Lemma supertype_arguments_of_a_single_parameter_class: forall sub super T bound 
 Proof.
     intros sub super T bound ms os o mt ct Hparams Hsuper.
     unfold parameterized_supertype_arguments, bindings_of. rewrite Hsuper, Hparams. simpl.
-    rewrite param_eqb_refl. reflexivity.
+    rewrite param_eqb_refl. destruct o; reflexivity.
 Qed.
 
 (* `class OwnedList<T> : List<owned T>`: ownership declared explicitly in the supertype stays *)
