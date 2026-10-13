@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -67,6 +68,49 @@ class MutabilityErrors : FreeSpec({
                     it.targetType.toString() shouldBe "mut testmodule.A"
                     it.sourceType.toString() shouldBe "const testmodule.A"
                 }
+        }
+    }
+
+    "a member of a type parameter type, through a reference of a mutability" - {
+        val holder = """
+            interface A {}
+            class Holder<T> {
+                var value: T = init
+            }
+        """.trimIndent()
+
+        "through a read reference, is read" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> mut A {
+                    return h.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "through a read reference, is no T" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> T {
+                    return h.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "through a read reference, is a read T" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> read T {
+                    return h.value
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "through a mut reference, is mut" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: mut Holder<T>) -> mut A {
+                    return h.value
+                }
+            """.trimIndent()) should haveNoDiagnostics()
         }
     }
 

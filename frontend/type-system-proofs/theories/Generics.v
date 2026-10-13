@@ -521,7 +521,7 @@ Lemma with_mutability_shape: forall m t, gfrag t = true ->
     match t with
     | RootResolved _ c args => exists m', with_mutability env m t = RootResolved m' c args
     | Nullable n => with_mutability env m t = Nullable (with_mutability env m n)
-    | Generic (mkGenericRef gm nn p b) => with_mutability env m t = Generic (mkGenericRef gm nn p (with_mutability env m b))
+    | Generic (mkGenericRef gm nn p b) => with_mutability env m t = Generic (mkGenericRef (Some m) nn p (with_mutability env m b))
     | Intersection cs => with_mutability env m t = Intersection (map (with_mutability env m) cs)
     | _ => False
     end.

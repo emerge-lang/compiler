@@ -101,7 +101,7 @@ class TypeVariable private constructor(
         assignmentLocation: Span,
         carry: TypeUnification
     ): TypeUnification {
-        val givenMutability = asGeneric.original.mutability
+        val givenMutability = asGeneric.givenMutability
         if (givenMutability != null && assigneeType !is TypeVariable && assigneeType !is ErroneousType) {
             val assigneeMutability = if (assigneeType is BoundTypeArgument && assigneeType.variance == TypeVariance.IN) TypeMutability.READONLY else assigneeType.mutability
             if (!assigneeMutability.isAssignableTo(givenMutability)) {

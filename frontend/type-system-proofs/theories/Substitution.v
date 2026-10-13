@@ -21,8 +21,8 @@ Import ListNotations.
 (* - class types, whose type arguments are of any variance and ownership, and contain types of     *)
 (*   the fragment; Nothing only as `exclusive Nothing`;                                            *)
 (* - nullable class types;                                                                         *)
-(* - references to type parameters as written, `T`, `m T` or `T!` (as_written), and nullable ones,*)
-(*   `T?`, whose bound is such a type without type parameters;                                     *)
+(* - references to type parameters, `T`, `m T` or `T!`, the mutability and `!` written or applied *)
+(*   (as_written), and nullable ones, `T?`, whose bound is such a type without type parameters;   *)
 (* - without type inference (no type variables), intersections or erroneous types.               *)
 (* A reference becomes the type argument with the mutability and nullability of the reference      *)
 (* applied (inst_ref), as a type of its own; in a type argument, it becomes the type in it          *)
@@ -71,8 +71,9 @@ Fixpoint closed (t: EType): bool :=
 Definition is_generic (t: EType): bool :=
     match t with Generic _ => true | _ => false end.
 
-(* A reference to a type parameter as written: the mutability given to it (`mut T`) is that of its
-   effective bound, and the `!` that narrowed it made the effective bound non-nullable *)
+(* A reference to a type parameter as written, or as the compiler applied a mutability or `!` to it:
+   the mutability given to it (`mut T`) is that of its effective bound, and the `!` that narrowed it
+   made the effective bound non-nullable *)
 Definition as_written (given: option Mutability) (narrowed: bool) (bound: EType): bool :=
     match given with Some m => Mutability_beq (mutability_of env bound) m | None => true end
     && (negb narrowed || negb (is_nullable bound)).

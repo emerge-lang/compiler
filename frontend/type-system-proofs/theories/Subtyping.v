@@ -195,8 +195,8 @@ Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     | RootResolved _ c arguments =>
         RootResolved (Some (if is_core_scalar (declaration_of env c) then immutable else m)) c arguments
     | Nullable n => rewrap_nullable (with_mutability m n)
-    | Generic (mkGenericRef gm nn p bound) => Generic (mkGenericRef gm nn p (with_mutability m bound))
-    | TypeVariable (mkGenericRef gm nn p bound) => TypeVariable (mkGenericRef gm nn p (with_mutability m bound))
+    | Generic (mkGenericRef _ nn p bound) => Generic (mkGenericRef (Some m) nn p (with_mutability m bound))
+    | TypeVariable (mkGenericRef _ nn p bound) => TypeVariable (mkGenericRef (Some m) nn p (with_mutability m bound))
     | Error _ _ => t
     | TypeArgument v o n => TypeArgument v o (with_mutability m n)
     | Intersection components => Intersection (map (with_mutability m) components)
