@@ -72,7 +72,7 @@ Proof.
     - simpl. rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
     - simpl. assert (Hf: no_vars (match lookup_binding b p with Some a => a | None => instantiate env b bnd end) = true).
       { destruct (lookup_binding b p) eqn:E; [exact (Hb p e E)|]. apply (IH (esize bnd)); simpl; auto; lia. }
-      destruct gm; [apply no_vars_set_mutability|]; exact Hf.
+      destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hf).
     - reflexivity.
     - simpl. assert (Hn: no_vars (instantiate env b n) = true) by (apply (IH (esize n)); simpl; auto; lia).
       destruct (instantiate env b n) as [mi ci ai|ni|gi|mei msgi|vi oi ni|gi|csi] eqn:E;

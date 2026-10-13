@@ -92,9 +92,9 @@ Lemma to_generic_facts: forall k t, vsize t <= k -> no_generics t = true ->
     /\ (forall b, instantiate env b (to_generic t) = instantiate env b t).
 Proof.
     induction k as [|k IH]; intros t Hk Ht.
-    - destruct t as [| |[]| | |[[|] p bnd]|]; simpl in Hk, Ht; try lia; try discriminate Ht.
+    - destruct t as [| |[]| | |[[|] [|] p bnd]|]; simpl in Hk, Ht; try lia; try discriminate Ht.
       repeat split; reflexivity.
-    - destruct t as [m c args|n|[]|m msg|v o n|[[|] p bnd]|cs]; simpl in Ht; try discriminate Ht.
+    - destruct t as [m c args|n|[]|m msg|v o n|[[|] [|] p bnd]|cs]; simpl in Ht; try discriminate Ht.
       + assert (Hall: forall a, In a args -> (forall b, mentions_loosely_bound b (to_generic a) = mentions_loosely_bound b a)
             /\ (forall b, instantiate env b (to_generic a) = instantiate env b a)).
         { intros a Ha. pose proof (vsize_below m c args a Ha).

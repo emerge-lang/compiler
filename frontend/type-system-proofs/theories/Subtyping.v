@@ -274,17 +274,20 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     match t with
     | RootResolved m c arguments => RootResolved m c (map (instantiate bindings) arguments)
     | Nullable n => rewrap_nullable (instantiate bindings n)
-    | Generic (mkGenericRef given _ p bound) =>
+    | Generic (mkGenericRef given narrowed p bound) =>
         let final_value :=
             match lookup_binding bindings p with
             | Some argument => argument
             | None => instantiate bindings bound
             end in
-        match given with
-        (* a value of type `m T` is a T of a mutability that fits m *)
-        | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
-        | None => final_value
-        end
+        let of_mutability :=
+            match given with
+            (* a value of type `m T` is a T of a mutability that fits m *)
+            | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
+            | None => final_value
+            end in
+        (* `T!` *)
+        if narrowed then without_null of_mutability else of_mutability
     | Error _ _ => t
     (* BoundTypeArgument.instantiateAllParameters. When the nested type becomes a type argument of its
        own (a type parameter replaced by its binding), their variances merge: `out T` with T bound to

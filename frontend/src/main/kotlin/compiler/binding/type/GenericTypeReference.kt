@@ -176,7 +176,11 @@ sealed class GenericTypeReference : BoundTypeReference {
             // a value of type `m T` is a T of a mutability that fits m
             instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
         }
-        return instantiated.withCombinedNullability(original.nullability)
+        // `T!` is non-nullable through its effective bound, also where the `!` wasn't written
+        if (!isNullable && parameter.bound.isNullable) {
+            return instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        }
+        return instantiated
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {

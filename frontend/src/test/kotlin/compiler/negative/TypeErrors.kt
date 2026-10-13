@@ -342,6 +342,30 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic>()
             }
+
+            "instantiated with a nullable type, is non-nullable" {
+                validateModule("""
+                    class Holder<V : Any?> {
+                        var value: V! = init
+                    }
+                    fn f(h: Holder<S32?>) -> S32 {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "instantiated with a nullable type, is the nullable type where it is nullable" {
+                validateModule("""
+                    class Holder<V : Any?> {
+                        var value: V = init
+                    }
+                    fn f(h: Holder<S32?>) -> S32 {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
         }
 
         "a type parameter with a mutability" - {
