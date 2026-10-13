@@ -871,6 +871,54 @@ class ClassErrors : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
+        "overriding a function of a supertype with type arguments" - {
+            val types = """
+                interface A {}
+                class B : A {}
+                class Box<T> {
+                    v: T = init
+                }
+                interface Consumer<T> {
+                    fn consume(self, p: T)
+                }
+            """.trimIndent()
+
+            "takes the parameter types with the type arguments in place" {
+                validateModule(types + "\n" + """
+                    class H : Consumer<B> {
+                        override fn consume(self, p: B) {}
+                    }
+                    class G<T> : Consumer<Box<T>> {
+                        override fn consume(self, p: Box<T>) {}
+                    }
+                    fn use(h: H, g: G<B>, box: Box<B>) {
+                        h.consume(B())
+                        g.consume(box)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "through two supertypes" {
+                validateModule(types + "\n" + """
+                    interface BoxConsumer<E> : Consumer<Box<E>> {}
+                    class G : BoxConsumer<B> {
+                        override fn consume(self, p: Box<B>) {}
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take other parameter types" {
+                validateModule(types + "\n" + """
+                    class H : Consumer<B> {
+                        override fn consume(self, p: A) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
+            }
+        }
+
         "duplicate inheritance from same base type" {
             validateModule("""
                 interface A {}
