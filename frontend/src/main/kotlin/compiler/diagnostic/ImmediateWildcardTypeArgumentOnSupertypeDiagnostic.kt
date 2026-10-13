@@ -9,13 +9,13 @@ class ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(
     val parameter: TypeParameter?,
 ) : Diagnostic(
     Severity.ERROR,
-    "Wildcards are not supported as arguments of immediate supertypes; use variance and the actual bound instead: ${getSubstituteNotation(parameter)}",
+    "Wildcards are not supported as arguments of immediate supertypes; use a type within the bound instead: ${getSubstituteNotation(parameter)}",
     erroneousArg.span ?: Span.UNKNOWN
 ) {
     private companion object {
         fun getSubstituteNotation(parameter: TypeParameter?): String {
             val boundStr = parameter?.bound?.toString() ?: "Any"
-            return "out $boundStr"
+            return boundStr
         }
     }
 }

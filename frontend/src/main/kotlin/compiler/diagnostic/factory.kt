@@ -272,6 +272,10 @@ fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: AstTypeArgument
     add(ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(argument, parameter))
 }
 
+fun Diagnosis.immediateVariantTypeArgumentOnSupertype(argument: AstTypeArgument) {
+    add(ImmediateVariantTypeArgumentOnSupertypeDiagnostic(argument))
+}
+
 fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }

@@ -781,10 +781,12 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> : Consumer<in Box<T>> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
             fn test(exact: Holder<A>, variant: Holder<out A>) {
-                x: Consumer<in exclusive Nothing> = variant
-                y: Consumer<in exclusive Nothing> = exact
+                x: Consumer<in exclusive Nothing> = variant.consumer
+                y: Consumer<in exclusive Nothing> = exact.consumer
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()
@@ -797,9 +799,11 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> : Consumer<in Box<T>> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
             fn test(variant: Holder<out A>) {
-                x: Consumer<out read Any?> = variant
+                x: Consumer<out read Any?> = variant.consumer
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()
@@ -810,9 +814,11 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> : Consumer<in Box<T>> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
             fn test(variant: Holder<out A>) {
-                x: Consumer<out const Any?> = variant
+                x: Consumer<out const Any?> = variant.consumer
             }
         """.trimIndent())
             .shouldFind<ValueNotAssignableDiagnostic>()

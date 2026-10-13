@@ -112,7 +112,7 @@ class InterfaceErrors : FreeSpec({
         "a type parameter nested deeper in a supertype of its own type, in-variant" {
             validateModule("""
                 interface C<T> {}
-                interface N<Z> : C<in N<N<Z>>> {}
+                interface N<Z> : C<C<in N<N<Z>>>> {}
             """.trimIndent())
                 .shouldFind<ExpansiveInheritanceDiagnostic>()
         }

@@ -17,6 +17,7 @@ import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.IllegalFunctionBodyDiagnostic
 import compiler.diagnostic.IllegalSupertypeDiagnostic
+import compiler.diagnostic.ImmediateVariantTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.ImmediateWildcardTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
@@ -867,6 +868,30 @@ class ClassErrors : FreeSpec({
                 interface I<T> {}
                 interface J<T> {}
                 class C : I<J<*>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "variance on an immediate argument to supertype declaration" {
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                class C : I<in A> {}
+            """.trimIndent())
+                .shouldFind<ImmediateVariantTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                class C : I<out A> {}
+            """.trimIndent())
+                .shouldFind<ImmediateVariantTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                interface J<T> {}
+                class C : I<J<out A>> {}
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
