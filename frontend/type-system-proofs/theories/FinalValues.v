@@ -48,7 +48,7 @@ Qed.
 Lemma reflexive_never_fails: forall t, gfrag env t = true -> never_fails env t t.
 Proof.
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [m c args|n|[gm p bound]|me msg|v o n|g|cs]; simpl in H; try discriminate H.
+    destruct t as [m c args|n|[gm nn p bound]|me msg|v o n|g|cs]; simpl in H; try discriminate H.
     - (* a class type: its type arguments, each for itself *)
       destruct (root_gfrag env m c args H) as [Hl Hargs].
       assert (Hall: forall a, In a args -> never_fails env a a).
@@ -77,7 +77,7 @@ Proof.
       pose proof (esize_in cs c Hc) as Hs.
       assert (Hcc: never_fails env c c) by (apply (IH (esize c)); [simpl; lia|reflexivity|exact Hgc]).
       apply never_fails_step. intros f s.
-      destruct (component_cases env c Hcomp Hgc) as [[mc [dc [cargs ->]]]|[gm [p [bound [-> _]]]]].
+      destruct (component_cases env c Hcomp Hgc) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]].
       + rewrite step_root_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
       + rewrite step_generic_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
 Qed.

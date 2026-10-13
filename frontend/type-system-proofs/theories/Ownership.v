@@ -504,7 +504,7 @@ Qed.
 Lemma generic_unifies_with_itself: forall fuel g states,
     unify env (S fuel) (Generic g) (Generic g) (Ongoing states) = Some (Ongoing states).
 Proof.
-    intros fuel [gm p b] states. simpl. unfold param_eqb. rewrite Nat.eqb_refl, mutability_is_subtype_of_refl.
+    intros fuel [gm nn p b] states. simpl. unfold param_eqb. rewrite Nat.eqb_refl, mutability_is_subtype_of_refl.
     destruct (is_nullable b); reflexivity.
 Qed.
 
@@ -523,7 +523,7 @@ Proof.
     rewrite class_eqb_refl, mutability_is_subtype_of_refl. simpl.
     destruct (class_eqb c nothing); [reflexivity|]. unfold unify_arguments. simpl.
     unfold unify, unify_step, unify_type_argument. cbn -[ownership_is_assignable_to unify_generic].
-    rewrite Ho. destruct g as [gm p b].
+    rewrite Ho. destruct g as [gm nn p b].
     destruct o, v; cbn -[ownership_is_assignable_to];
         try unfold param_eqb; rewrite ?Nat.eqb_refl, ?mutability_is_subtype_of_refl; cbn;
         rewrite ?Nat.eqb_refl, ?mutability_is_subtype_of_refl; destruct (is_nullable b); reflexivity.
@@ -635,7 +635,7 @@ Proof. intros a b H. unfold class_eqb. destruct (Class_eq_dec a b); [contradicti
    instantiated with T bound to `o X` *)
 Lemma supertype_arguments_of_a_single_parameter_class: forall sub super T bound ms os o mt ct,
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant os (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant os (Generic (mkGenericRef None false T bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant
         (instantiate_ownership [(T, TypeArgument Model.invariant o (RootResolved mt ct []))] os)
@@ -649,7 +649,7 @@ Qed.
 (* `class OwnedList<T> : List<owned T>`: ownership declared explicitly in the supertype stays *)
 Corollary explicit_ownership_of_supertype_arguments_stays: forall sub super T bound ms o mt ct,
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant owned (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant owned (Generic (mkGenericRef None false T bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant owned (RootResolved mt ct [])].
 Proof. intros. erewrite supertype_arguments_of_a_single_parameter_class by eassumption. reflexivity. Qed.
@@ -657,7 +657,7 @@ Proof. intros. erewrite supertype_arguments_of_a_single_parameter_class by eassu
 (* `class MyList<T> : List<T>`: the ownership of the type argument carries over *)
 Corollary ownership_of_type_arguments_carries_over_to_supertypes: forall sub super T bound ms o mt ct,
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant o (RootResolved mt ct [])].
 Proof.
@@ -690,7 +690,7 @@ Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super 
     base_type_is_subtype_of env sub super = true ->
     is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
     is_assignable_to env fuel
         (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])
         (RootResolved m super [TypeArgument Model.invariant o (RootResolved mt ct [])])
@@ -713,7 +713,7 @@ Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super T bound ms o
     base_type_is_subtype_of env sub super = true ->
     is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))] ->
+    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
     ownership_is_assignable_to o o' = false ->
     is_assignable_to env fuel
         (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])

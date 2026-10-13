@@ -66,8 +66,8 @@ Fixpoint mutability_of (t: EType): Mutability :=
         if is_core_scalar (declaration_of env c) then immutable else or_readonly m
     | Nullable n => mutability_of n
     (* the given mutability is applied to the effective bound, which carries it from there *)
-    | Generic (mkGenericRef _ _ bound)
-    | TypeVariable (mkGenericRef _ _ bound) => mutability_of bound
+    | Generic (mkGenericRef _ _ _ bound)
+    | TypeVariable (mkGenericRef _ _ _ bound) => mutability_of bound
     | Error m _ => or_readonly m
     | TypeArgument _ _ n => mutability_of n
     (* readonly is the neutral element of intersect_mutability *)
@@ -79,8 +79,8 @@ Fixpoint is_nullable (t: EType): bool :=
     match t with
     | RootResolved _ _ _ => false
     | Nullable _ => true
-    | Generic (mkGenericRef _ _ bound)
-    | TypeVariable (mkGenericRef _ _ bound) => is_nullable bound
+    | Generic (mkGenericRef _ _ _ bound)
+    | TypeVariable (mkGenericRef _ _ _ bound) => is_nullable bound
     | Error _ _ => false
     | TypeArgument _ _ n => is_nullable n
     | Intersection _ => false
@@ -91,8 +91,8 @@ Fixpoint base_type_of_lower_bound (t: EType): Class :=
     match t with
     | RootResolved _ c _ => c
     | Nullable n => base_type_of_lower_bound n
-    | Generic (mkGenericRef _ _ bound)
-    | TypeVariable (mkGenericRef _ _ bound) => base_type_of_lower_bound bound
+    | Generic (mkGenericRef _ _ _ bound)
+    | TypeVariable (mkGenericRef _ _ _ bound) => base_type_of_lower_bound bound
     | Error _ _ => nothing
     | TypeArgument _ _ n => base_type_of_lower_bound n
     | Intersection components => closest_common_super_class env (map base_type_of_lower_bound components)
@@ -110,7 +110,7 @@ Fixpoint has_base_type (c: Class) (other: EType): bool :=
 (* GenericTypeReference.hasSameBaseTypeAs *)
 Fixpoint is_generic_of (p: TypeParameterId) (other: EType): bool :=
     match other with
-    | Generic (mkGenericRef _ p' _) => param_eqb p p'
+    | Generic (mkGenericRef _ _ p' _) => param_eqb p p'
     | Nullable n => is_generic_of p n
     | _ => false
     end.
@@ -120,12 +120,12 @@ Fixpoint has_same_base_type_as (t other: EType): bool :=
     match t with
     | RootResolved _ c _ => has_base_type c other
     | Nullable n => has_same_base_type_as n other
-    | Generic (mkGenericRef _ p _) => is_generic_of p other
+    | Generic (mkGenericRef _ _ p _) => is_generic_of p other
     | Error _ _ => true
     | TypeArgument _ _ n => has_same_base_type_as n other
     (* Kotlin compares for equality; comparing the parameters is close enough for base types *)
-    | TypeVariable (mkGenericRef _ p _) =>
-        match other with TypeVariable (mkGenericRef _ p' _) => param_eqb p p' | _ => false end
+    | TypeVariable (mkGenericRef _ _ p _) =>
+        match other with TypeVariable (mkGenericRef _ _ p' _) => param_eqb p p' | _ => false end
     | Intersection components => existsb (fun c => has_same_base_type_as c other) components
     end.
 
@@ -148,8 +148,8 @@ Fixpoint is_non_nullable_nothing (t: EType): bool :=
     match t with
     | RootResolved _ c _ => class_eqb c nothing
     | Nullable _ => false
-    | Generic (mkGenericRef _ _ bound)
-    | TypeVariable (mkGenericRef _ _ bound) => is_non_nullable_nothing bound
+    | Generic (mkGenericRef _ _ _ bound)
+    | TypeVariable (mkGenericRef _ _ _ bound) => is_non_nullable_nothing bound
     | Error _ _ => false
     | TypeArgument _ _ n => is_non_nullable_nothing n
     | Intersection components =>
@@ -184,7 +184,7 @@ Definition rewrap_nullable (t: EType): EType :=
 Fixpoint without_null (t: EType): EType :=
     match t with
     | Nullable n => n
-    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (without_null bound))
+    | Generic (mkGenericRef gm nn p bound) => Generic (mkGenericRef gm (nn || is_nullable bound) p (without_null bound))
     | TypeArgument v o n => TypeArgument v o (without_null n)
     | _ => t
     end.
@@ -195,8 +195,8 @@ Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     | RootResolved _ c arguments =>
         RootResolved (Some (if is_core_scalar (declaration_of env c) then immutable else m)) c arguments
     | Nullable n => rewrap_nullable (with_mutability m n)
-    | Generic (mkGenericRef gm p bound) => Generic (mkGenericRef gm p (with_mutability m bound))
-    | TypeVariable (mkGenericRef gm p bound) => TypeVariable (mkGenericRef gm p (with_mutability m bound))
+    | Generic (mkGenericRef gm nn p bound) => Generic (mkGenericRef gm nn p (with_mutability m bound))
+    | TypeVariable (mkGenericRef gm nn p bound) => TypeVariable (mkGenericRef gm nn p (with_mutability m bound))
     | Error _ _ => t
     | TypeArgument v o n => TypeArgument v o (with_mutability m n)
     | Intersection components => Intersection (map (with_mutability m) components)
@@ -238,8 +238,8 @@ Fixpoint mentions_loosely_bound (bindings: Bindings) (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => existsb (mentions_loosely_bound bindings) arguments
     | Nullable n => mentions_loosely_bound bindings n
-    | Generic (mkGenericRef _ p _)
-    | TypeVariable (mkGenericRef _ p _) =>
+    | Generic (mkGenericRef _ _ p _)
+    | TypeVariable (mkGenericRef _ _ p _) =>
         match lookup_binding bindings p with
         | Some argument => is_loose argument
         | None => false
@@ -274,7 +274,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     match t with
     | RootResolved m c arguments => RootResolved m c (map (instantiate bindings) arguments)
     | Nullable n => rewrap_nullable (instantiate bindings n)
-    | Generic (mkGenericRef given p bound) =>
+    | Generic (mkGenericRef given _ p bound) =>
         let final_value :=
             match lookup_binding bindings p with
             | Some argument => argument
@@ -321,7 +321,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
     (* TypeVariable.instantiateAllParameters *)
-    | TypeVariable (mkGenericRef _ p bound) =>
+    | TypeVariable (mkGenericRef _ _ p bound) =>
         match lookup_binding bindings p with
         | Some argument => argument
         | None => instantiate bindings bound
@@ -472,7 +472,7 @@ Definition plus_exact_binding (unify: UnifyFn) (states: VariableStates) (paramet
    variance stands for all the types it does. *)
 Definition capturable (t: EType) (states: VariableStates): option TypeParameterId :=
     match t with
-    | TypeVariable (mkGenericRef _ p _) =>
+    | TypeVariable (mkGenericRef _ _ p _) =>
         match lookup_state states p with
         | Some state => if is_capturable state && negb (is_exact state) then Some p else None
         | None => None
@@ -540,9 +540,9 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
             else parameterized_supertype_arguments assignee_base_type assignee_arguments base_type in
         unify_arguments unify arguments normalized_assignee_arguments states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
-    | Generic (mkGenericRef _ _ bound) => unify self bound (Ongoing states)
+    | Generic (mkGenericRef _ _ _ bound) => unify self bound (Ongoing states)
     | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     (* a possibly null value to a non-null reference *)
     | Nullable _ => Some Failed
     | Intersection components => intersection_flipped_unify unify self components states
@@ -555,7 +555,7 @@ Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states
     | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
     (* null is taken care of: what's left is whether `V!` is a subtype of nested *)
     | Generic _ => unify nested (without_null assignee) (Ongoing states)
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | _ => unify nested assignee (Ongoing states)
     end.
 
@@ -569,10 +569,10 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     | RootResolved _ _ _ =>
         if is_non_nullable_nothing assignee && Model.is_subtype_of (mutability_of assignee) (mutability_of self)
         then Some (Ongoing states) else Some Failed
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
     (* the same type parameter, of a mutability and nullability that fit; another one by its bound *)
-    | Generic (mkGenericRef _ q bound) =>
+    | Generic (mkGenericRef _ _ q bound) =>
         if param_eqb q parameter
         then if Model.is_subtype_of (mutability_of assignee) (mutability_of self) && (negb (is_nullable assignee) || is_nullable self)
              then Some (Ongoing states) else Some Failed
@@ -583,7 +583,7 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
 (* ErroneousType.unify: acts like Any *)
 Definition unify_erroneous (unify: UnifyFn) (self: EType) (m: Mutability) (assignee: EType) (states: VariableStates): option Unification :=
     match assignee with
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | _ => unify (as_any m) assignee (Ongoing states)
     end.
 
@@ -636,7 +636,7 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
     | Generic _ => unify type assignee (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     end.
 
 (* TypeVariable.unify *)
@@ -647,7 +647,7 @@ Definition assignee_mutability (assignee: EType): Mutability :=
 (* For `m T`, the variable T takes values of a mutability that fits m, only *)
 Definition given_mutability_fits (self assignee: EType): bool :=
     match self with
-    | TypeVariable (mkGenericRef (Some m) _ _) => Model.is_subtype_of (assignee_mutability assignee) m
+    | TypeVariable (mkGenericRef (Some m) _ _ _) => Model.is_subtype_of (assignee_mutability assignee) m
     | _ => true
     end.
 
@@ -680,7 +680,7 @@ Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list E
     | Nullable nested =>
         (* a possibly null value to a non-null reference *)
         if negb (is_nullable self) then Some Failed else unify self nested (Ongoing states)
-    | TypeVariable (mkGenericRef _ p _) => type_variable_flipped_unify unify self p states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | _ =>
         let var_components := filter is_type_variable components in
@@ -712,10 +712,10 @@ Definition unify_step (unify: UnifyFn) (target assignee: EType) (states: Variabl
     match target with
     | RootResolved _ base_type arguments => unify_root_resolved unify target base_type arguments assignee states
     | Nullable nested => unify_nullable unify target nested assignee states
-    | Generic (mkGenericRef _ parameter _) => unify_generic unify target parameter assignee states
+    | Generic (mkGenericRef _ _ parameter _) => unify_generic unify target parameter assignee states
     | Error m _ => unify_erroneous unify target (or_readonly m) assignee states
     | TypeArgument variance ownership type => unify_type_argument unify target variance ownership type assignee states
-    | TypeVariable (mkGenericRef _ parameter _) => unify_type_variable unify target parameter assignee states
+    | TypeVariable (mkGenericRef _ _ parameter _) => unify_type_variable unify target parameter assignee states
     | Intersection components => unify_intersection unify target components assignee states
     end.
 
@@ -934,7 +934,7 @@ Proof. reflexivity. Qed.
 Example instantiating_widens_nested_type_arguments: forall box x T bound,
     instantiate [(T, TypeArgument output ref (RootResolved None x []))]
         (RootResolved None box [TypeArgument invariant ref
-            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))])])
+            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))])])
     = RootResolved None box [TypeArgument output ref
         (RootResolved None box [TypeArgument output ref (RootResolved None x [])])].
 Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
@@ -943,7 +943,7 @@ Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 Example instantiating_voids_nested_in_variant_type_arguments: forall consumer box x T bound,
     instantiate [(T, TypeArgument output ref (RootResolved None x []))]
         (RootResolved None consumer [TypeArgument input ref
-            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None T bound))])])
+            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))])])
     = RootResolved None consumer [TypeArgument input ref bottom_type].
 Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 

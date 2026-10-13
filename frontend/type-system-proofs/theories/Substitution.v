@@ -70,7 +70,7 @@ Fixpoint sfrag (t: EType): bool :=
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
     | Nullable n => is_class n && sfrag n
-    | Generic (mkGenericRef None _ bound) => sfrag bound && closed bound
+    | Generic (mkGenericRef None false _ bound) => sfrag bound && closed bound
     | _ => false
     end.
 
@@ -82,7 +82,7 @@ Fixpoint sdepth (t: EType): nat :=
     | RootResolved _ _ arguments =>
         S (list_max (map (fun a => match a with TypeArgument _ _ n => S (sdepth n) | _ => 0 end) arguments))
     | Nullable n => S (sdepth n)
-    | Generic (mkGenericRef _ _ bound) => S (sdepth bound)
+    | Generic (mkGenericRef _ _ _ bound) => S (sdepth bound)
     | _ => 0
     end.
 
@@ -93,7 +93,7 @@ Definition argument_sdepth (a: EType): nat :=
    type argument *)
 Definition inst_nested (b: Bindings) (n: EType): EType :=
     match n with
-    | Generic (mkGenericRef _ p _) =>
+    | Generic (mkGenericRef _ _ p _) =>
         match lookup_binding b p with
         | Some (TypeArgument _ _ x) => x
         | _ => n
@@ -139,7 +139,7 @@ Fixpoint bound_in (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb bound_in arguments
     | Nullable n => bound_in n
-    | Generic (mkGenericRef _ p bound) => binds_exactly p bound
+    | Generic (mkGenericRef _ _ p bound) => binds_exactly p bound
     | TypeArgument _ o n => ownership_bound o && bound_in n
     | _ => true
     end.
@@ -153,9 +153,9 @@ Lemma sfrag_cases: forall t, sfrag t = true ->
         /\ length arguments = length (parameter_ids env c) /\ forall a, In a arguments -> argument_sfrag a = true)
     \/ t = bottom_type
     \/ (exists m c arguments, t = Nullable (RootResolved m c arguments) /\ sfrag (RootResolved m c arguments) = true)
-    \/ (exists p bound, t = Generic (mkGenericRef None p bound) /\ sfrag bound = true /\ closed bound = true).
+    \/ (exists p bound, t = Generic (mkGenericRef None false p bound) /\ sfrag bound = true /\ closed bound = true).
 Proof.
-    intros [m c args|[m c args| | | | | |]| [[gm|] p bound] | | | |] H; simpl in H; try discriminate H.
+    intros [m c args|[m c args| | | | | |]| [[gm|] [|] p bound] | | | |] H; simpl in H; try discriminate H.
     - destruct (class_eqb c nothing) eqn:Hc.
       + right. left. apply class_eqb_true in Hc. subst c.
         destruct m as [[]|], args; simpl in H; try discriminate H. reflexivity.
@@ -589,17 +589,17 @@ Qed.
 (* unify on the fragment, one step                                                                 *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma unify_root_generic: forall n m c args gm q bound,
-    unify env (S n) (RootResolved m c args) (Generic (mkGenericRef gm q bound)) (Ongoing s)
+Lemma unify_root_generic: forall n m c args gm nn q bound,
+    unify env (S n) (RootResolved m c args) (Generic (mkGenericRef gm nn q bound)) (Ongoing s)
     = unify env n (RootResolved m c args) bound (Ongoing s).
 Proof. reflexivity. Qed.
 
 (* A type parameter, made non-null, to the class type; that is, its bound, which is closed *)
-Lemma unify_nullable_generic: forall n m c args gm q bound u, sfrag bound = true -> closed bound = true ->
-    unify env (S n) (Nullable (RootResolved m c args)) (Generic (mkGenericRef gm q bound)) (Ongoing s) = Some u ->
+Lemma unify_nullable_generic: forall n m c args gm nn q bound u, sfrag bound = true -> closed bound = true ->
+    unify env (S n) (Nullable (RootResolved m c args)) (Generic (mkGenericRef gm nn q bound)) (Ongoing s) = Some u ->
     unify env n (Nullable (RootResolved m c args)) bound (Ongoing s) = Some u.
 Proof.
-    intros n m c args gm q bound u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_nullable in H.
+    intros n m c args gm nn q bound u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_nullable in H.
     cbn [without_null] in H. destruct n as [|n]; [discriminate H|]. rewrite unify_root_generic in H.
     destruct (sfrag_cases bound Hf) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
         [exact H|exact H|exact H|
@@ -607,21 +607,21 @@ Proof.
 Qed.
 
 Lemma unify_generic_root: forall n p bound m c args,
-    unify env (S n) (Generic (mkGenericRef None p bound)) (RootResolved m c args) (Ongoing s)
+    unify env (S n) (Generic (mkGenericRef None false p bound)) (RootResolved m c args) (Ongoing s)
     = if class_eqb c nothing && Model.is_subtype_of (mutability_of env (RootResolved m c args))
-        (mutability_of env (Generic (mkGenericRef None p bound)))
+        (mutability_of env (Generic (mkGenericRef None false p bound)))
       then Some (Ongoing s) else Some Failed.
 Proof. reflexivity. Qed.
 
 Lemma unify_generic_nullable: forall n p bound na,
-    unify env (S n) (Generic (mkGenericRef None p bound)) (Nullable na) (Ongoing s) = Some Failed.
+    unify env (S n) (Generic (mkGenericRef None false p bound)) (Nullable na) (Ongoing s) = Some Failed.
 Proof. reflexivity. Qed.
 
 (* A type parameter, whose bound is no type parameter, is assignable to nothing but itself; unless it
    is bounded by Nothing *)
 Lemma unify_generic_generic: forall n p bp q bq u,
     sfrag bq = true -> closed bq = true ->
-    unify env (S n) (Generic (mkGenericRef None p bp)) (Generic (mkGenericRef None q bq)) (Ongoing s) = Some (Ongoing u) ->
+    unify env (S n) (Generic (mkGenericRef None false p bp)) (Generic (mkGenericRef None false q bq)) (Ongoing s) = Some (Ongoing u) ->
     (q = p \/ bq = bottom_type) /\ u = s.
 Proof.
     intros n p bp q bq u Hf Hc H. rewrite unify_step_once in H. unfold unify_step, unify_generic in H.
@@ -634,9 +634,9 @@ Proof.
       + destruct (_ && _) in H; [injection H; auto|discriminate H].
 Qed.
 
-Lemma inst_nested_generic: forall gm p bound v o x,
-    lookup_binding b p = Some (TypeArgument v o x) -> inst_nested b (Generic (mkGenericRef gm p bound)) = x.
-Proof. intros gm p bound v o x H. simpl. rewrite H. reflexivity. Qed.
+Lemma inst_nested_generic: forall gm nn p bound v o x,
+    lookup_binding b p = Some (TypeArgument v o x) -> inst_nested b (Generic (mkGenericRef gm nn p bound)) = x.
+Proof. intros gm nn p bound v o x H. simpl. rewrite H. reflexivity. Qed.
 
 Lemma respects_unify: forall x bound, in_fragment env x = true -> in_fragment env bound = true -> respects x bound = true ->
     unify env K bound x (Ongoing s) = Some (Ongoing s).
@@ -694,9 +694,9 @@ Proof.
     split.
     - intros t a u Ht Ha Hbt Hba H.
       (* a type parameter assigned to a class type: its type argument is assignable to the bound *)
-      assert (Hvia: forall q bnd, sfrag bnd = true -> closed bnd = true -> bound_in (Generic (mkGenericRef None q bnd)) = true ->
+      assert (Hvia: forall q bnd, sfrag bnd = true -> closed bnd = true -> bound_in (Generic (mkGenericRef None false q bnd)) = true ->
           unify env n t bnd (Ongoing s) = Some (Ongoing u) ->
-          u = s /\ unify env (S (P + E + S K)) (inst_nested b t) (inst_nested b (Generic (mkGenericRef None q bnd))) (Ongoing s)
+          u = s /\ unify env (S (P + E + S K)) (inst_nested b t) (inst_nested b (Generic (mkGenericRef None false q bnd))) (Ongoing s)
               = Some (Ongoing s)).
       { intros q bnd Hfb Hcb Hbq Hu.
         destruct (proj1 (closed_facts (sdepth bnd)) bnd (le_n _) Hfb Hcb) as [HTb [Hib [Hbb _]]].
@@ -705,7 +705,7 @@ Proof.
         { destruct (sfrag_cases bnd Hfb) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [? [-> _]]]]]];
               [exact Hib|exact Hib|exact Hib|discriminate Hcb]. }
         rewrite Hnb in Hi. simpl in Hbq. destruct (binds_exactly_some q bnd Hbq) as [o [x [Ex [_ [_ Hr]]]]]. pose proof (Hbf q o x Ex) as Hx.
-        rewrite (inst_nested_generic None q bnd _ o x Ex). split; [reflexivity|].
+        rewrite (inst_nested_generic None false q bnd _ o x Ex). split; [reflexivity|].
         apply (unify_fuel_monotone env (K + (P + E))); [lia|].
         apply (proj1 (transitivity_with_arguments env wf (K + (P + E))) x bnd (inst_nested b t) K (P + E) s (le_n _));
             [exact Hx|exact HTb|apply instance_in_fragment; assumption|apply respects_unify; assumption|exact Hi]. }
@@ -778,16 +778,16 @@ Proof.
       + rewrite unify_generic_root, class_eqb_refl in H. cbn [andb] in H.
         destruct (Model.is_subtype_of _ _); [|discriminate H]. injection H as <-. split; [reflexivity|].
         simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex _]]]. pose proof (Hbf p o x Ex) as Hx.
-        rewrite (inst_nested_generic None p bt _ o x Ex). apply below_all; [exact Hx|lia].
+        rewrite (inst_nested_generic None false p bt _ o x Ex). apply below_all; [exact Hx|lia].
       + rewrite unify_generic_nullable in H. discriminate H.
       + destruct (unify_generic_generic n p bt q ba u Hfba Hcba H) as [[->| ->] ->]; split; [reflexivity| |reflexivity|].
         * simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex _]]]. pose proof (Hbf p o x Ex) as Hx.
-          rewrite (inst_nested_generic None p bt _ o x Ex), (inst_nested_generic None p ba _ o x Ex).
+          rewrite (inst_nested_generic None false p bt _ o x Ex), (inst_nested_generic None false p ba _ o x Ex).
           apply (proj1 (reflexivity_with_arguments env _)); [exact Hx|]. pose proof (HE p o x Ex). lia.
         * (* a type parameter bounded by Nothing: its type argument is no more than Nothing *)
           simpl in Hbt. destruct (binds_exactly_some p bt Hbt) as [o [x [Ex _]]]. pose proof (Hbf p o x Ex) as Hx.
           simpl in Hba. destruct (binds_exactly_some q bottom_type Hba) as [oq [xq [Eq [_ [_ Hrq]]]]]. pose proof (Hbf q oq xq Eq) as Hxq.
-          rewrite (inst_nested_generic None p bt _ o x Ex), (inst_nested_generic None q bottom_type _ oq xq Eq).
+          rewrite (inst_nested_generic None false p bt _ o x Ex), (inst_nested_generic None false q bottom_type _ oq xq Eq).
           apply (unify_fuel_monotone env (K + 2)); [lia|].
           apply (proj1 (transitivity_with_arguments env wf (K + 2)) xq bottom_type x K 2 s (le_n _));
               [exact Hxq|exact (bottom_in_fragment env wf)|exact Hx| |apply below_all; [exact Hx|lia]].

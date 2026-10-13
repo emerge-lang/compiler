@@ -181,7 +181,7 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => refs_within vars a /\ acc) True arguments
     | Nullable n => refs_within vars n
-    | Generic (mkGenericRef _ p bound) | TypeVariable (mkGenericRef _ p bound) => In (p, bound) vars
+    | Generic (mkGenericRef _ _ p bound) | TypeVariable (mkGenericRef _ _ p bound) => In (p, bound) vars
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
     | _ => True
     end.
@@ -189,7 +189,7 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
 Lemma refs_to_generic: forall vars t, refs_within vars t -> refs_within vars (to_generic t).
 Proof.
     intros vars t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [m c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try exact H.
+    destruct t as [m c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try exact H.
     - apply fold_and_map. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|].
       exact (fold_and_in _ args H a Ha).
     - apply (IH (esize n)); [simpl; lia|reflexivity|exact H].
@@ -202,7 +202,7 @@ Lemma bound_in_from_refs: forall vars b K t, refs_within vars t ->
     bound_in env b K [] t = true.
 Proof.
     intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H Hp Ho.
-    destruct t as [m c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try reflexivity.
+    destruct t as [m c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try reflexivity.
     - apply forallb_forall. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity| |exact Hp|exact Ho].
       exact (fold_and_in _ args H a Ha).
     - apply (IH (esize n)); [simpl; lia|reflexivity|exact H|exact Hp|exact Ho].

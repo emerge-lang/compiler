@@ -20,7 +20,7 @@ Fixpoint esize (t: EType): nat :=
     match t with
     | RootResolved _ _ arguments => S (list_sum (map esize arguments))
     | Nullable n => S (esize n)
-    | Generic (mkGenericRef _ _ bound) | TypeVariable (mkGenericRef _ _ bound) => S (esize bound)
+    | Generic (mkGenericRef _ _ _ bound) | TypeVariable (mkGenericRef _ _ _ bound) => S (esize bound)
     | Error _ _ => 1
     | TypeArgument _ _ n => S (esize n)
     | Intersection components => S (list_sum (map esize components))
@@ -36,7 +36,7 @@ Definition relabel (s': VariableStates) (r: Unification): Unification :=
 
 Lemma no_vars_without_null: forall t, no_vars (without_null t) = no_vars t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
 Qed.
 
 Lemma no_vars_rewrap: forall t, no_vars (rewrap_nullable t) = no_vars t.
@@ -52,7 +52,7 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
 Proof.
     intros m t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [mt c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H |- *; try discriminate H.
+    destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try discriminate H.
     - exact H.
     - rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
     - apply (IH (esize bnd)); simpl; auto; lia.
@@ -66,7 +66,7 @@ Lemma no_vars_instantiate: forall b t, (forall p a, lookup_binding b p = Some a 
     no_vars t = true -> no_vars (instantiate env b t) = true.
 Proof.
     intros b t Hb. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [mt c args|n|[gm p bnd]|me msg|v o n|[gm p bnd]|cs]; simpl in H; try discriminate H.
+    destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H; try discriminate H.
     - simpl. apply forallb_forall. intros a Ha. apply in_map_iff in Ha. destruct Ha as [a' [<- Ha']].
       rewrite forallb_forall in H. apply (IH (esize a')); [pose proof (esize_in args a' Ha'); simpl; lia|reflexivity|apply H, Ha'].
     - simpl. rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
@@ -197,11 +197,11 @@ Lemma unify_step_free: forall t a s s' r, no_vars t = true -> no_vars a = true -
     unify_step env f t a s = Some r -> unify_step env f t a s' = Some (relabel s' r).
 Proof.
     intros t a s s' r Ht Ha H.
-    destruct t as [mt ct targs|tn|[gt pt bt]|mte msgt|vt ot tt|[gt pt bt]|tcs]; simpl in Ht; try discriminate Ht;
+    destruct t as [mt ct targs|tn|[gt nnt pt bt]|mte msgt|vt ot tt|[gt nnt pt bt]|tcs]; simpl in Ht; try discriminate Ht;
         unfold unify_step in H |- *.
     - (* a class type *)
       unfold unify_root_resolved in H |- *.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha.
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha.
       + destruct (negb (base_type_is_subtype_of env ca ct)); [injection H as <-; reflexivity|].
         destruct (negb (Model.is_subtype_of _ _)); [injection H as <-; reflexivity|].
         destruct (class_eqb ca nothing); [injection H as <-; reflexivity|].
@@ -214,11 +214,11 @@ Proof.
       + (eapply flipped_free; [|exact Ha|exact H]; nv).
     - (* a nullable type *)
       unfold unify_nullable in H |- *.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha;
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
           try free H.
     - (* a type parameter *)
       unfold unify_generic in H |- *.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha;
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
           try free H.
       + destruct (is_non_nullable_nothing env _ && _); injection H as <-; reflexivity.
       + injection H as <-. reflexivity.
@@ -227,10 +227,10 @@ Proof.
       + (eapply flipped_free; [|exact Ha|exact H]; nv).
     - (* an erroneous type *)
       unfold unify_erroneous in H |- *.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha; free H.
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha; free H.
     - (* a type argument *)
       unfold unify_type_argument in H |- *.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha;
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
           cbn beta iota zeta in H |- *;
           try (destruct (Variance_beq vt output); cbn [negb andb] in H |- *;
                [destruct (is_non_nullable_nothing env _); injection H as <-; reflexivity|]);
@@ -244,11 +244,11 @@ Proof.
     - (* an intersection *)
       unfold unify_intersection in H |- *.
       destruct (no_vars_filter tcs Ht) as [Hv Hnv].
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; simpl in Ha; try discriminate Ha;
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
           try (destruct (negb (is_nullable _)); [injection H as <-; reflexivity|]; free H);
           try free H.
       + inter (RootResolved ma ca aargs) H Ht Hv Hnv tcs s s'.
-      + inter (Generic (mkGenericRef ga pa ba)) H Ht Hv Hnv tcs s s'.
+      + inter (Generic (mkGenericRef ga nna pa ba)) H Ht Hv Hnv tcs s s'.
       + inter (TypeArgument va oa ta) H Ht Hv Hnv tcs s s'.
       + inter (Intersection acs) H Ht Hv Hnv tcs s s'.
 Qed.
@@ -374,7 +374,7 @@ Qed.
 Lemma capturable_some: forall t s p, capturable t s = Some p ->
     exists st, lookup_state s p = Some st /\ is_exact st = false /\ is_capturable st = true.
 Proof.
-    intros [| | | | |[gm q bnd]|] s p H; simpl in H; try discriminate H.
+    intros [| | | | |[gm nn q bnd]|] s p H; simpl in H; try discriminate H.
     destruct (lookup_state s q) as [st|] eqn:E; [|discriminate H].
     destruct (is_capturable st && negb (is_exact st)) eqn:Ec; [|discriminate H]. injection H as <-.
     exists st. split; [exact E|]. apply andb_true_iff in Ec. destruct Ec as [Ec1 Ec].
@@ -406,7 +406,7 @@ Ltac keeps H :=
 Lemma unify_step_keeps_exact: forall t a s s', unify_step env f t a s = Some (Ongoing s') -> keeps_exact s s'.
 Proof.
     intros t a s s' H.
-    destruct t as [mt ct targs|tn|[gt pt bt]|mte msgt|vt ot tt|[gt pt bt]|tcs]; unfold unify_step in H.
+    destruct t as [mt ct targs|tn|[gt nnt pt bt]|mte msgt|vt ot tt|[gt nnt pt bt]|tcs]; unfold unify_step in H.
     - unfold unify_root_resolved in H. destruct a; cbn beta iota zeta in H; keeps H.
     - unfold unify_nullable in H. destruct a; cbn beta iota zeta in H; keeps H.
     - unfold unify_generic in H. destruct a; cbn beta iota zeta in H; keeps H.
@@ -427,7 +427,7 @@ Proof.
       + rewrite Hff in H. discriminate H.
     - unfold unify_type_variable in H. destruct a; cbn beta iota zeta in H; keeps H.
     - unfold unify_intersection in H.
-      destruct a as [ma ca aargs|an|[ga pa ba]|mae msga|va oa ta|[ga pa ba]|acs]; cbn beta iota zeta in H;
+      destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; cbn beta iota zeta in H;
           try (keeps H; fail).
       all: match type of H with context [fold_unify ?h ?l (Ongoing ?q0)] =>
           destruct (fold_unify h l (Ongoing q0)) as [[s2|]|] eqn:E1; cbn beta iota in H; try discriminate H;

@@ -77,7 +77,7 @@ Fixpoint no_vars (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb no_vars arguments
     | Nullable n => no_vars n
-    | Generic (mkGenericRef _ _ bound) => no_vars bound
+    | Generic (mkGenericRef _ _ _ bound) => no_vars bound
     | Error _ _ => true
     | TypeArgument _ _ n => no_vars n
     | TypeVariable _ => false
@@ -150,7 +150,7 @@ Definition is_parameter_ownership (o: Ownership): bool :=
 (* The type parameter a type argument is, as it is: `T` *)
 Definition template_parameter (t: EType): option TypeParameterId :=
     match t with
-    | TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p' _)) =>
+    | TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p' _)) =>
         if param_eqb p p' then Some p else None
     | _ => None
     end.
@@ -415,18 +415,18 @@ Qed.
 (* ---------------------------------------------------------------------------------------------- *)
 
 Lemma template_parameter_some: forall t p,
-    template_parameter t = Some p -> exists bp, t = TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp)).
+    template_parameter t = Some p -> exists bp, t = TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp)).
 Proof.
     intros [| | | |v o n| |] p H; simpl in H; try discriminate H.
     destruct v; simpl in H; try discriminate H. destruct o as [| | |q]; simpl in H; try discriminate H.
-    destruct n as [| |[[gm|] p' bp]| | | |]; simpl in H; try discriminate H.
+    destruct n as [| |[[gm|] [|] p' bp]| | | |]; simpl in H; try discriminate H.
     destruct (param_eqb q p') eqn:E; [|discriminate H]. injection H as <-. apply param_eqb_eq in E. subst p'.
     exists bp. reflexivity.
 Qed.
 
 Lemma template_kind: forall sub t,
     template_argument sub t = true ->
-    (exists p bp k, t = TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp))
+    (exists p bp k, t = TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))
         /\ nth_error (parameter_ids sub) k = Some p)
     \/ (exists v o n, t = TypeArgument v o n /\ template_parameter t = None
         /\ is_parameter_ownership o = false /\ template_type sub n = true).
@@ -491,7 +491,7 @@ Proof. intros. apply (lookup_in_bindings (parameter_ids sub) ys k); auto. Qed.
 
 Lemma instantiate_parameter_template: forall bindings p bp y,
     lookup_binding bindings p = Some y -> is_type_argument y = true ->
-    instantiate env bindings (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp))) = y.
+    instantiate env bindings (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))) = y.
 Proof.
     intros bindings p bp [| | | |vy oy ny| |] H Hy; simpl in Hy; try discriminate Hy.
     simpl. rewrite H. destruct vy; reflexivity.
@@ -501,7 +501,7 @@ Qed.
    the one in its place *)
 Lemma selects: forall sub ys p bp k y,
     nth_error (parameter_ids sub) k = Some p -> nth_error ys k = Some y -> is_type_argument y = true ->
-    instantiate env (bindings_of env sub ys) (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp))) = y.
+    instantiate env (bindings_of env sub ys) (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))) = y.
 Proof.
     intros sub ys p bp k y Hp Hy Hta. apply instantiate_parameter_template; [|exact Hta].
     exact (lookup_parameter sub ys k p y Hp Hy).
@@ -509,7 +509,7 @@ Qed.
 
 Lemma mentions_parameter_template: forall bindings p bp y,
     lookup_binding bindings p = Some y ->
-    mentions_loosely_bound bindings (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp))) = is_loose y.
+    mentions_loosely_bound bindings (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))) = is_loose y.
 Proof. intros bindings p bp y H. simpl. rewrite H. reflexivity. Qed.
 
 Lemma instantiate_class: forall b m c arguments,
@@ -1541,7 +1541,7 @@ Proof.
     - destruct (template_kind sub t (Ht t (or_introl eq_refl))) as [[p [bp [k [-> Hk]]]]|[v [o [n [-> [Hnone [Ho Hn']]]]]]].
       + destruct (nth_error_same_length _ xs k p (eq_sym Hl) Hk) as [x Hx].
         rewrite (selects sub xs p bp k x Hk Hx) by (apply argument_in_fragment_is_type_argument, Hxs; eapply nth_error_In; exact Hx).
-        assert (Htp: template_parameter (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None p bp))) = Some p)
+        assert (Htp: template_parameter (TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bp))) = Some p)
             by (simpl; unfold param_eqb; rewrite Nat.eqb_refl; reflexivity).
         unfold template_meets in Hpt. rewrite Htp in Hpt.
         intros o Ho. specialize (Hpt o Ho).

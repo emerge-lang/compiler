@@ -126,7 +126,7 @@ End Bounds.
    in it; not those in the bounds of references *)
 Fixpoint parameter_occurrences (nested: bool) (t: EType): list (TypeParameterId * bool) :=
     match t with
-    | Generic (mkGenericRef _ p _) => [(p, nested)]
+    | Generic (mkGenericRef _ _ p _) => [(p, nested)]
     | RootResolved _ _ arguments => flat_map (parameter_occurrences true) arguments
     | TypeArgument _ _ n => parameter_occurrences nested n
     | Nullable n => parameter_occurrences nested n

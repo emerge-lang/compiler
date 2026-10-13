@@ -44,7 +44,7 @@ Fixpoint gfrag (t: EType): bool :=
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => gfrag n | _ => false end) arguments
     | Nullable n => non_null n && gfrag n
-    | Generic (mkGenericRef _ _ bound) => gfrag bound
+    | Generic (mkGenericRef _ _ _ bound) => gfrag bound
     | Intersection components =>
         negb (Nat.eqb (length components) 0) && forallb (fun c => is_component c && gfrag c) components
     | _ => false
@@ -81,27 +81,27 @@ Qed.
 Lemma gfrag_cases: forall t, gfrag t = true ->
     (exists m c arguments, t = RootResolved m c arguments)
     \/ (exists n, t = Nullable n /\ non_null n = true /\ gfrag n = true)
-    \/ (exists gm p bound, t = Generic (mkGenericRef gm p bound) /\ gfrag bound = true)
+    \/ (exists gm nn p bound, t = Generic (mkGenericRef gm nn p bound) /\ gfrag bound = true)
     \/ (exists cs, t = Intersection cs).
 Proof.
-    intros [m c args|n|[gm p bound]|me msg|v o n|g|cs] H; simpl in H; try discriminate H.
+    intros [m c args|n|[gm nn p bound]|me msg|v o n|g|cs] H; simpl in H; try discriminate H.
     - left. eauto.
     - right. left. apply andb_true_iff in H. exists n. split; [reflexivity|exact H].
-    - right. right. left. eauto.
+    - right. right. left. exists gm, nn, p, bound. split; [reflexivity|exact H].
     - right. right. right. eauto.
 Qed.
 
 Lemma component_cases: forall c, is_component c = true -> gfrag c = true ->
     (exists m d arguments, c = RootResolved m d arguments)
-    \/ (exists gm p bound, c = Generic (mkGenericRef gm p bound) /\ is_nullable bound = false /\ gfrag bound = true).
+    \/ (exists gm nn p bound, c = Generic (mkGenericRef gm nn p bound) /\ is_nullable bound = false /\ gfrag bound = true).
 Proof.
-    intros [m d args|n|[gm p bound]|me msg|v o n|g|cs] Hc H; simpl in Hc, H; try discriminate Hc.
+    intros [m d args|n|[gm nn p bound]|me msg|v o n|g|cs] Hc H; simpl in Hc, H; try discriminate Hc.
     - left. eauto.
-    - right. exists gm, p, bound. split; [reflexivity|]. split; [apply negb_true_iff; exact Hc|exact H].
+    - right. exists gm, nn, p, bound. split; [reflexivity|]. split; [apply negb_true_iff; exact Hc|exact H].
 Qed.
 
 Lemma non_null_not_nullable: forall t, non_null t = true -> is_nullable t = false.
-Proof. intros [| |[gm p b]| | | |] H; simpl in H |- *; try discriminate H; try reflexivity. apply negb_true_iff, H. Qed.
+Proof. intros [| |[gm nn p b]| | | |] H; simpl in H |- *; try discriminate H; try reflexivity. apply negb_true_iff, H. Qed.
 
 Lemma in_fragment_gfrag: forall k,
     (forall t, depth t <= k -> in_fragment env t = true -> gfrag t = true)

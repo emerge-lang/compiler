@@ -55,7 +55,7 @@ Fixpoint no_generics (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb no_generics arguments
     | Nullable n => no_generics n
-    | TypeVariable (mkGenericRef None _ _) => true
+    | TypeVariable (mkGenericRef None false _ _) => true
     | TypeArgument _ _ n => no_generics n
     | _ => false
     end.
@@ -289,10 +289,10 @@ Lemma ifrag_cases: forall t, ifrag t = true ->
         /\ length args = length (parameter_ids env c) /\ forall a, In a args -> argument_ifrag a = true)
     \/ t = bottom_type
     \/ (exists m c args, t = Nullable (RootResolved m c args) /\ ifrag (RootResolved m c args) = true)
-    \/ (exists p bound, t = TypeVariable (mkGenericRef None p bound) /\ sfrag env bound = true /\ closed bound = true).
+    \/ (exists p bound, t = TypeVariable (mkGenericRef None false p bound) /\ sfrag env bound = true /\ closed bound = true).
 Proof.
     intros t H. unfold ifrag in H. apply andb_true_iff in H. destruct H as [Hs Hn].
-    destruct t as [m c args|n|[gm0 p0 bnd0]|m msg|v o n|[[gm|] p bnd]|cs]; simpl in Hn; try discriminate Hn;
+    destruct t as [m c args|n|[gm0 nn0 p0 bnd0]|m msg|v o n|[[gm|] [|] p bnd]|cs]; simpl in Hn; try discriminate Hn;
         try (simpl in Hs; discriminate Hs).
     - destruct (sfrag_cases env _ Hs) as [[m' [c' [args' [Heq [Hc [Hl Hargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [? [Heq _]]]]]];
           try discriminate Heq.
@@ -428,7 +428,7 @@ Proof.
 Qed.
 
 Lemma inst_variable: forall p bound v o x, lookup_binding b p = Some (TypeArgument v o x) ->
-    inst (TypeVariable (mkGenericRef None p bound)) = x.
+    inst (TypeVariable (mkGenericRef None false p bound)) = x.
 Proof. intros p bound v o x H. unfold inst. simpl. rewrite H. reflexivity. Qed.
 
 Lemma instantiate_argument: forall v o n, ifrag n = true -> bound_in env b K s (to_generic n) = true ->
@@ -451,7 +451,7 @@ Proof.
     destruct (ownership_is_assignable_to oa ot); [|reflexivity]. rewrite Hc. destruct vt, va; reflexivity.
 Qed.
 
-Lemma bound_variable: forall p bound, bound_in env b K s (Generic (mkGenericRef None p bound)) = true ->
+Lemma bound_variable: forall p bound, bound_in env b K s (Generic (mkGenericRef None false p bound)) = true ->
     exists o x st vb ob X, lookup_binding b p = Some (TypeArgument Model.invariant o x) /\ in_fragment env x = true
         /\ lookup_state s p = Some st /\ is_exact st = true
         /\ upper_bound st = TypeArgument vb ob X /\ lower_bound st = TypeArgument vb ob X /\ in_fragment env X = true
@@ -463,7 +463,7 @@ Proof.
 Qed.
 
 Lemma variable_not_capturable: forall p bound st, lookup_state s p = Some st -> is_exact st = true ->
-    capturable (TypeVariable (mkGenericRef None p bound)) s = None.
+    capturable (TypeVariable (mkGenericRef None false p bound)) s = None.
 Proof. intros p bound st Hl He. simpl. rewrite Hl, He, andb_false_r. reflexivity. Qed.
 
 Lemma ifrag_not_capturable: forall t, ifrag t = true -> bound_in env b K s (to_generic t) = true -> capturable t s = None.
@@ -477,7 +477,7 @@ Qed.
 (* A type variable bound exactly as the target: its binding *)
 Lemma unify_variable_target: forall n p bound st A u, lookup_state s p = Some st -> is_exact st = true ->
     in_fragment env A = true ->
-    unify env (S n) (TypeVariable (mkGenericRef None p bound)) A (Ongoing s) = Some (Ongoing u) ->
+    unify env (S n) (TypeVariable (mkGenericRef None false p bound)) A (Ongoing s) = Some (Ongoing u) ->
     unify env n (lower_bound st) A (Ongoing s) = Some (Ongoing u).
 Proof.
     intros n p bound st A u Hl He HA H. rewrite unify_step_once in H.
@@ -490,7 +490,7 @@ Qed.
 (* ... and as the assignee *)
 Lemma unify_variable_assignee: forall n p bound st A u, lookup_state s p = Some st -> is_exact st = true ->
     in_fragment env A = true ->
-    unify env (S n) A (TypeVariable (mkGenericRef None p bound)) (Ongoing s) = Some (Ongoing u) ->
+    unify env (S n) A (TypeVariable (mkGenericRef None false p bound)) (Ongoing s) = Some (Ongoing u) ->
     unify env n A (upper_bound st) (Ongoing s) = Some (Ongoing u).
 Proof.
     intros n p bound st A u Hl He HA H. rewrite unify_step_once in H.
@@ -873,7 +873,7 @@ End Exact.
 (* The type of the receiver parameter of a member function: its class, with the type parameters of
    the class as type variables. Kotlin has no ownership yet; any ownership takes them all. *)
 Definition receiver_leaf (v: TypeParameterId * EType): EType :=
-    TypeArgument Model.invariant any_ownership (TypeVariable (mkGenericRef None (fst v) (snd v))).
+    TypeArgument Model.invariant any_ownership (TypeVariable (mkGenericRef None false (fst v) (snd v))).
 
 (* The variable states for inferring the type parameters of the class of a receiver: none bound yet,
    all may be captured *)

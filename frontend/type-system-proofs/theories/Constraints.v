@@ -174,7 +174,7 @@ Qed.
 
 Lemma not_capturable: forall s t, wf_states s -> capturable t s = None.
 Proof.
-    intros s [| | | | |[gm p bnd]|] Hs; try reflexivity. simpl.
+    intros s [| | | | |[gm nn p bnd]|] Hs; try reflexivity. simpl.
     destruct (lookup_state s p) as [st|] eqn:E; [|reflexivity].
     destruct (is_exact st) eqn:Ee; [rewrite andb_false_r; reflexivity|].
     destruct (Hs p st E) as [_ [_ He]]. rewrite (proj1 (He Ee)). reflexivity.
@@ -186,7 +186,7 @@ Qed.
 
 (* What the variable takes: above the lower bound, which is above it *)
 Lemma target_leaf: forall n p bnd st A s s', wf_states s -> lookup_state s p = Some st -> afrag env A = true ->
-    unify env (S n) (TypeVariable (mkGenericRef None p bnd)) A (Ongoing s) = Some (Ongoing s') ->
+    unify env (S n) (TypeVariable (mkGenericRef None false p bnd)) A (Ongoing s) = Some (Ongoing s') ->
     wf_states s' /\ (forall b, satisfies b s' -> satisfies b s)
     /\ (forall o x, xfrag x -> (forall st', lookup_state s' p = Some st' -> fits st' o x) ->
         exists f, unify env f x A (Ongoing []) = Some (Ongoing [])).
@@ -222,7 +222,7 @@ Qed.
 
 (* What the variable is assigned to: below the upper bound, which is below it *)
 Lemma assignee_leaf: forall n p bnd st A s s', wf_states s -> lookup_state s p = Some st -> in_fragment env A = true ->
-    unify env (S n) A (TypeVariable (mkGenericRef None p bnd)) (Ongoing s) = Some (Ongoing s') ->
+    unify env (S n) A (TypeVariable (mkGenericRef None false p bnd)) (Ongoing s) = Some (Ongoing s') ->
     wf_states s' /\ (forall b, satisfies b s' -> satisfies b s)
     /\ (forall o x, xfrag x -> (forall st', lookup_state s' p = Some st' -> fits st' o x) ->
         exists f, unify env f A x (Ongoing []) = Some (Ongoing [])).
@@ -306,7 +306,7 @@ Proof.
 Qed.
 
 Lemma state_of_target: forall n p bnd A s r, in_fragment env A = true ->
-    unify env (S n) (TypeVariable (mkGenericRef None p bnd)) A (Ongoing s) = Some (Ongoing r) -> exists st, lookup_state s p = Some st.
+    unify env (S n) (TypeVariable (mkGenericRef None false p bnd)) A (Ongoing s) = Some (Ongoing r) -> exists st, lookup_state s p = Some st.
 Proof.
     intros n p bnd A s r HA H. destruct (lookup_state s p) as [st|] eqn:E; [eauto|exfalso].
     rewrite unify_step_once in H.
@@ -316,7 +316,7 @@ Proof.
 Qed.
 
 Lemma state_of_assignee: forall n p bnd A s r, in_fragment env A = true ->
-    unify env (S n) A (TypeVariable (mkGenericRef None p bnd)) (Ongoing s) = Some (Ongoing r) -> exists st, lookup_state s p = Some st.
+    unify env (S n) A (TypeVariable (mkGenericRef None false p bnd)) (Ongoing s) = Some (Ongoing r) -> exists st, lookup_state s p = Some st.
 Proof.
     intros n p bnd A s r HA H. destruct (lookup_state s p) as [st|] eqn:E; [eauto|exfalso].
     rewrite unify_step_once in H.

@@ -166,10 +166,19 @@ Inductive EType :=
     (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
     | Intersection (components: list EType)
 (* GenericTypeReference; the mutability is `original.mutability`. The effective bound is the bound
-   of the parameter, with the mutability and nullability of this reference applied. *)
+   of the parameter, with the mutability and nullability of this reference applied. narrowed: a `!`
+   made the effective bound non-nullable, where the bound of the parameter is nullable. *)
 with GenericRef :=
-    | mkGenericRef (mutability: option Mutability) (param: TypeParameterId) (effective_bound: EType)
+    | mkGenericRef (mutability: option Mutability) (narrowed: bool) (param: TypeParameterId) (effective_bound: EType)
 .
+
+(* GenericTypeReference.original.mutability, .parameter and .effectiveBound, and whether a `!`
+   narrowed it. New proofs go through these rather than taking a GenericRef apart, so they need not
+   change when it changes shape. *)
+Definition given_mutability (g: GenericRef): option Mutability := match g with mkGenericRef m _ _ _ => m end.
+Definition is_narrowed (g: GenericRef): bool := match g with mkGenericRef _ nn _ _ => nn end.
+Definition param_of (g: GenericRef): TypeParameterId := match g with mkGenericRef _ _ p _ => p end.
+Definition effective_bound (g: GenericRef): EType := match g with mkGenericRef _ _ _ b => b end.
 
 (* The declaration of a type parameter (BoundTypeParameter), the counterpart to a GenericRef. *)
 Record TypeParameterDecl := {

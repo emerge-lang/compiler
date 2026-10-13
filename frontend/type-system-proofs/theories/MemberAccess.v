@@ -53,8 +53,8 @@ Definition is_exact_argument (x: EType): bool :=
 (* A type parameter, as it is or nullable: `T`, `T?` *)
 Definition leaf_parameter (n: EType): option TypeParameterId :=
     match n with
-    | Generic (mkGenericRef None p _) => Some p
-    | Nullable (Generic (mkGenericRef None p _)) => Some p
+    | Generic (mkGenericRef None false p _) => Some p
+    | Nullable (Generic (mkGenericRef None false p _)) => Some p
     | _ => None
     end.
 
@@ -160,7 +160,7 @@ Proof.
 Qed.
 
 Lemma instantiate_parameter: forall b p bp a,
-    lookup_binding b p = Some a -> instantiate env b (Generic (mkGenericRef None p bp)) = a.
+    lookup_binding b p = Some a -> instantiate env b (Generic (mkGenericRef None false p bp)) = a.
 Proof. intros b p bp a H. simpl. rewrite H. reflexivity. Qed.
 
 (* A value assigned to a type argument *)
@@ -180,8 +180,8 @@ Lemma parameter_member: forall n' s c xs ys p bp,
     Forall2 (fun x y => unify env n' y x (Ongoing s) = Some (Ongoing s)) xs ys ->
     existsb (param_eqb p) (parameter_ids env c) = true ->
     exists o X v oy Y n'',
-        instantiate env (bindings_of env c xs) (Generic (mkGenericRef None p bp)) = TypeArgument Model.invariant o X
-        /\ instantiate env (bindings_of env c ys) (Generic (mkGenericRef None p bp)) = TypeArgument v oy Y
+        instantiate env (bindings_of env c xs) (Generic (mkGenericRef None false p bp)) = TypeArgument Model.invariant o X
+        /\ instantiate env (bindings_of env c ys) (Generic (mkGenericRef None false p bp)) = TypeArgument v oy Y
         /\ in_fragment env X = true /\ in_fragment env Y = true /\ n' = S n''
         /\ compare_variances (unify env n'') v Model.invariant Y X s = Some (Ongoing s).
 Proof.
@@ -322,9 +322,9 @@ Proof.
 Qed.
 
 Lemma leaf_cases: forall n p, leaf_parameter n = Some p ->
-    (exists bp, n = Generic (mkGenericRef None p bp)) \/ (exists bp, n = Nullable (Generic (mkGenericRef None p bp))).
+    (exists bp, n = Generic (mkGenericRef None false p bp)) \/ (exists bp, n = Nullable (Generic (mkGenericRef None false p bp))).
 Proof.
-    intros [|[| |[[gm|] q bq]| | | |]|[[gm|] q bq]| | | |] p H; simpl in H; try discriminate H; injection H as ->; eauto.
+    intros [|[| |[[gm|] [|] q bq]| | | |]|[[gm|] [|] q bq]| | | |] p H; simpl in H; try discriminate H; injection H as ->; eauto.
 Qed.
 
 Definition nullable_leaf (n: EType): bool := match n with Nullable _ => true | _ => false end.
@@ -604,10 +604,10 @@ Proof.
         * split; [exact HX|]. split; [exact HY|]. exists n''. exact Hcmp.
       + (* a nullable type parameter *)
         unfold read_member.
-        change (instantiate env (bindings_of env c xs) (Nullable (Generic (mkGenericRef None p bp))))
-            with (rewrap_nullable (instantiate env (bindings_of env c xs) (Generic (mkGenericRef None p bp)))).
-        change (instantiate env (bindings_of env c ys) (Nullable (Generic (mkGenericRef None p bp))))
-            with (rewrap_nullable (instantiate env (bindings_of env c ys) (Generic (mkGenericRef None p bp)))).
+        change (instantiate env (bindings_of env c xs) (Nullable (Generic (mkGenericRef None false p bp))))
+            with (rewrap_nullable (instantiate env (bindings_of env c xs) (Generic (mkGenericRef None false p bp)))).
+        change (instantiate env (bindings_of env c ys) (Nullable (Generic (mkGenericRef None false p bp))))
+            with (rewrap_nullable (instantiate env (bindings_of env c ys) (Generic (mkGenericRef None false p bp)))).
         rewrite Ex, Ey. cbn [rewrap_nullable read_type].
         split; [apply rewrap_in_fragment; exact HX|].
         destruct v; unfold compare_variances in Hcmp; cbn [read_type].
@@ -682,10 +682,10 @@ Proof.
         exists (fuel + n''). apply (proj1 (transitivity_with_arguments env wf (fuel + n'')) V Y X fuel n'' s); auto.
       + (* a nullable type parameter: takes null for an out-variant type argument, too *)
         unfold write_member, read_member in *. cbn [mentions_loosely_bound_in_arguments] in HW.
-        change (instantiate env (bindings_of env c ys) (Nullable (Generic (mkGenericRef None p bp))))
-            with (rewrap_nullable (instantiate env (bindings_of env c ys) (Generic (mkGenericRef None p bp)))) in HW.
-        change (instantiate env (bindings_of env c xs) (Nullable (Generic (mkGenericRef None p bp))))
-            with (rewrap_nullable (instantiate env (bindings_of env c xs) (Generic (mkGenericRef None p bp)))).
+        change (instantiate env (bindings_of env c ys) (Nullable (Generic (mkGenericRef None false p bp))))
+            with (rewrap_nullable (instantiate env (bindings_of env c ys) (Generic (mkGenericRef None false p bp)))) in HW.
+        change (instantiate env (bindings_of env c xs) (Nullable (Generic (mkGenericRef None false p bp))))
+            with (rewrap_nullable (instantiate env (bindings_of env c xs) (Generic (mkGenericRef None false p bp)))).
         rewrite Ey in HW. rewrite Ex. cbn [rewrap_nullable read_type] in HW |- *.
         assert (HXY: Variance_beq v output = false -> unify env n'' X Y (Ongoing s) = Some (Ongoing s)).
         { intros Hv. destruct v; unfold compare_variances in Hcmp; try discriminate Hv.

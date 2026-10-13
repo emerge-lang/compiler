@@ -668,7 +668,7 @@ Fixpoint can_refer_to_object (t: EType): bool :=
     match t with
     | RootResolved _ c _ => negb (class_eqb c nothing)
     | Nullable n => can_refer_to_object n
-    | Generic (mkGenericRef _ _ bound) => can_refer_to_object bound
+    | Generic (mkGenericRef _ _ _ bound) => can_refer_to_object bound
     | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
     | Intersection components => forallb can_refer_to_object components
     end.
@@ -676,15 +676,15 @@ Fixpoint can_refer_to_object (t: EType): bool :=
 Lemma without_null_keeps: forall t,
     mutability_of env (without_null t) = mutability_of env t /\ can_refer_to_object (without_null t) = can_refer_to_object t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm p b]|m msg|v o n|g|cs]; try (split; reflexivity).
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try (split; reflexivity).
     - simpl. destruct (IH b) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
     - simpl. destruct (IH n) as [Hm _]. rewrite Hm. split; reflexivity.
 Qed.
 
-Lemma generic_mutability_below_bound: forall g p b,
-    is_subtype_of (mutability_of env (Generic (mkGenericRef g p b))) (mutability_of env b) = true.
+Lemma generic_mutability_below_bound: forall g nn p b,
+    is_subtype_of (mutability_of env (Generic (mkGenericRef g nn p b))) (mutability_of env b) = true.
 Proof.
-    intros g p b. apply mutability_is_subtype_of_refl.
+    intros g nn p b. apply mutability_is_subtype_of_refl.
 Qed.
 
 Lemma fold_intersect_below_acc: forall l acc, is_subtype_of (fold_left intersect_mutability l acc) acc = true.
@@ -777,11 +777,11 @@ Proof.
     induction fuel as [|fuel IH]; intros target assignee states u H Ht Ha; [discriminate H|].
     change (unify env (S fuel) target assignee (Ongoing states))
         with (unify_step env (unify env fuel) target assignee states) in H.
-    destruct target as [tm tc targs|tn|[tg tp tb]|tm tmsg|tv to tt|[tg tp tb]|tcs]; simpl in Ht; try discriminate Ht;
+    destruct target as [tm tc targs|tn|[tg tnn tp tb]|tm tmsg|tv to tt|[tg tnn tp tb]|tcs]; simpl in Ht; try discriminate Ht;
         cbv beta iota delta [unify_step] in H.
     - (* RootResolved *)
       cbv beta iota delta [unify_root_resolved] in H.
-      destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + destruct (negb (base_type_is_subtype_of env ac tc)); [discriminate H|].
         match type of H with context [negb (is_subtype_of ?x ?y)] => destruct (is_subtype_of x y) eqn:E end;
             [reflexivity|discriminate H].
@@ -793,16 +793,16 @@ Proof.
     - (* Nullable *)
       cbv beta iota delta [unify_nullable] in H.
       change (mutability_of env (Nullable tn)) with (mutability_of env tn).
-      destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + eapply IH; eassumption.
       + change (mutability_of env (Nullable an)) with (mutability_of env an). eapply IH; eassumption.
       + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
-        assert (Hnested: unify env fuel tn (without_null (Generic (mkGenericRef ag ap ab))) (Ongoing states) = Some (Ongoing u) ->
-            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ap ab))) (mutability_of env tn) = true).
-        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ap ab))) as [Hm Hc]. rewrite <- Hm.
+        assert (Hnested: unify env fuel tn (without_null (Generic (mkGenericRef ag ann ap ab))) (Ongoing states) = Some (Ongoing u) ->
+            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ann ap ab))) (mutability_of env tn) = true).
+        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ann ap ab))) as [Hm Hc]. rewrite <- Hm.
           eapply IH; [exact Hu|exact Ht|rewrite Hc; exact Ha]. }
         assert (Hself: unify env fuel (Nullable tn) ab (Ongoing states) = Some (Ongoing u) ->
-            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ap ab))) (mutability_of env tn) = true).
+            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ann ap ab))) (mutability_of env tn) = true).
         { intros Hu. eapply mutability_subtype_trans; [apply generic_mutability_below_bound|].
           change (mutability_of env tn) with (mutability_of env (Nullable tn)).
           eapply IH; [exact Hu|exact Ht|exact Ha]. }
@@ -810,7 +810,7 @@ Proof.
       + eapply IH; eassumption.
     - (* Generic *)
       cbv beta iota delta [unify_generic] in H.
-      destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + simpl in H. apply negb_true_iff in Ha. rewrite Ha in H. discriminate H.
       + discriminate H.
       + destruct (param_eqb ap tp).
@@ -829,7 +829,7 @@ Proof.
         intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hc]].
         destruct (fold_unify_each _ _ _ _ _ Hfold c Hc) as [s1 [s1' Hu]].
         eapply IH; [exact Hu| |exact Ha]. rewrite forallb_forall in Ht. apply Ht, Hc. }
-      destruct assignee as [am ac aargs|an|[ag ap ab]|am amsg|av ao aty|[ag ap ab]|acs]; simpl in Ha; try discriminate Ha;
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha;
           try (simpl in H; discriminate H);
           rewrite Hnonvar in H;
           (destruct (fold_unify _ tcs (Ongoing states)) as [[s2|]|] eqn:Efold; try discriminate H);
