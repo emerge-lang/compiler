@@ -226,9 +226,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       bound `Comparable<T>`, which mentions the variable itself. This needs a design of its own; the
       type system proofs are prepared for F-bounds and should get the F-bounded cases along with it
 28. assignability after instantiating type parameters is stricter than it needs to be:
-    * unifying with an intersection unifies its type variables with what the other components don't cover
-      already (`Any`, mostly). That clashes with a type variable captured exactly from the receiver: in
-      `class D<T> { u: E & T; fn m(self, p: E & T) }`, `d.m(d.u)` is rejected for a `d: D<A>`
     * `BoundIntersectionTypeReference.ofComponents` gives each component the mutability common to all of them,
       which a core scalar doesn't take: with `S32` an `I`, `read I & U` takes `S32 & U`, but with `U` bound to
       `mut Foo`, `mut I & mut Foo` takes no `S32 & exclusive Foo`. An intersection with a component that has no
