@@ -205,11 +205,11 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
     in_fragment env (RootResolved ma ca ys) = true ->
     unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
         (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
-    (* the object it is; its type arguments as those of c are exact, and within the bounds *)
+    (* the object it is; its type arguments are exact, and as those of c within the bounds *)
     in_fragment env (RootResolved mo e xs) = true ->
     is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
     zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
-    (forall z, In z zs -> exact_argument env z = true) ->
+    (forall x, In x xs -> exact_argument env x = true) ->
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)

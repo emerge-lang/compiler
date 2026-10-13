@@ -192,6 +192,15 @@ Definition supertype_arguments (sub super: Class): list EType :=
     end.
 
 (* What the class declarations of a program are assumed to satisfy *)
+(* A type argument of a supertype, as declared, that is exact for exact type arguments of the subclass:
+   invariant, not of any ownership. `class ArrayList<T> : List<T>` has those; `class Holder<T> :
+   Consumer<in Box<T>>` doesn't. *)
+Definition exact_template_argument (r: EType): bool :=
+    match r with
+    | TypeArgument Model.invariant o _ => match o with any_ownership => false | _ => true end
+    | _ => false
+    end.
+
 Record wellformed: Prop := {
     wf_supertypes_are_transitive: forall a b c,
         In b (supertypes_of env a) -> In c (supertypes_of env b) -> In c (supertypes_of env a);
@@ -215,6 +224,10 @@ Record wellformed: Prop := {
     wf_supertypes_mention_no_variables: forall sub super t, In t (supertype_arguments sub super) -> no_vars t = true;
     wf_supertypes_mention_nothing_as_bottom: forall sub super t,
         In t (supertype_arguments sub super) -> nothing_is_bottom t = true;
+    (* the type arguments of supertypes are exact: the frontend rejects variance on those of the
+       supertypes a class declares (ImmediateVariantTypeArgumentOnSupertypeDiagnostic), and those of
+       the supertypes of supertypes are made from them *)
+    wf_supertypes_are_exact: forall sub super t, In t (supertype_arguments sub super) -> exact_template_argument t = true;
 }.
 
 Hypothesis wf: wellformed.

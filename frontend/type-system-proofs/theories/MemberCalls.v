@@ -100,15 +100,6 @@ Proof.
     - intros [P A] _. apply unify_keeps_failure.
 Qed.
 
-(* A type argument of a supertype, as declared, that is exact for exact type arguments of the subclass:
-   invariant, not of any ownership. `class ArrayList<T> : List<T>` has those; `class Holder<T> :
-   Consumer<in Box<T>>` doesn't. *)
-Definition exact_template_argument (r: EType): bool :=
-    match r with
-    | TypeArgument Model.invariant o _ => match o with any_ownership => false | _ => true end
-    | _ => false
-    end.
-
 Lemma template_not_loose: forall sub ys, length ys = length (parameter_ids env sub) ->
     (forall y, In y ys -> is_loose y = false) -> forall k,
     (forall t, depth t <= k -> template_type env sub t = true -> mentions_loosely_bound (bindings_of env sub ys) t = false)
@@ -158,6 +149,33 @@ Proof.
       rewrite (proj1 (template_not_loose e xs Hl Hnl (depth n)) n (le_n _) Hn').
       simpl. destruct o; try discriminate Ho; try discriminate Hexr;
           rewrite (template_type_instance_in_fragment env wf e xs n Hl Hfxs Hn'); reflexivity.
+Qed.
+
+(* The object is of a class below the one the function is declared in *)
+Lemma object_below: forall n mr c targs ma ca ys st u mo e xs n0,
+    unify env n (RootResolved mr c targs) (RootResolved ma ca ys) (Ongoing st) = Some (Ongoing u) ->
+    is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
+    base_type_is_subtype_of env e c = true.
+Proof.
+    intros n mr c targs ma ca ys st u mo e xs n0 Hrec Hobj.
+    destruct n as [|n]; [discriminate Hrec|]. rewrite unify_classes in Hrec.
+    destruct (base_type_is_subtype_of env ca c) eqn:Hbca; [|discriminate Hrec].
+    unfold is_assignable_to, empty_unification in Hobj.
+    destruct n0 as [|n0]; [discriminate Hobj|]. rewrite unify_classes in Hobj.
+    destruct (base_type_is_subtype_of env e ca) eqn:Hbe; [|discriminate Hobj].
+    exact (base_type_is_subtype_of_trans env wf e ca c Hbe Hbca).
+Qed.
+
+(* The type arguments of the object, as those of a class it is below, are exact *)
+Lemma object_arguments_exact: forall c mo e xs zs, e <> nothing -> base_type_is_subtype_of env e c = true ->
+    in_fragment env (RootResolved mo e xs) = true -> (forall x, In x xs -> exact_argument env x = true) ->
+    zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
+    forall z, In z zs -> exact_argument env z = true.
+Proof.
+    intros c mo e xs zs He Hbe Hfo Hxs ->. destruct (Class_eq_dec e c) as [<-|Hne]; [rewrite class_eqb_refl; exact Hxs|].
+    rewrite (class_eqb_false _ _ Hne).
+    apply (supertype_arguments_exact e c xs Hne He Hbe (proj1 (root_in_fragment env mo e xs Hfo)) Hxs).
+    intros r Hr. exact (wf_supertypes_are_exact env wf e c r Hr).
 Qed.
 
 Lemma forall2_diag: forall {A: Type} (R: A -> A -> Prop) (l: list A), (forall x, In x l -> R x x) -> Forall2 R l l.
@@ -338,9 +356,9 @@ Qed.
 (*
  * Calling a member function is sound: the function is declared in class c; the receiver is a reference
  * to a class ca below c, whose type arguments, as those of c, are captured by the type parameters of
- * c; the object called on is of a class e below ca, its type arguments as those of c exact (as they
- * are where e declares its supertypes with exact type arguments: supertype_arguments_exact) and
- * within the bounds of the type parameters of c. Inferring the type parameters of the function from
+ * c; the object called on is of a class e below ca, its type arguments exact, and so as those of c
+ * (object_arguments_exact: the type arguments of supertypes are exact), within the bounds of the
+ * type parameters of c. Inferring the type parameters of the function from
  * the arguments gives them lower and upper bounds, and their final values. Whatever argument is
  * accepted for a parameter fits the parameter with the type parameters of c replaced by the type
  * arguments of the object as c, and those of the function by their final values.
@@ -353,11 +371,11 @@ Theorem member_call_through_subtypes_sound: forall n mr c cvars ovars ma ca ys u
     in_fragment env (RootResolved ma ca ys) = true ->
     unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
         (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
-    (* the object it is; its type arguments as those of c are exact, and within the bounds *)
+    (* the object it is; its type arguments are exact, and as those of c within the bounds *)
     in_fragment env (RootResolved mo e xs) = true ->
     is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
     zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
-    (forall z, In z zs -> exact_argument env z = true) ->
+    (forall x, In x xs -> exact_argument env x = true) ->
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
@@ -370,8 +388,9 @@ Theorem member_call_through_subtypes_sound: forall n mr c cvars ovars ma ca ys u
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
     forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
-    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hxx Hzb
         HPs HAs Hfold Hfinal b Hbdef.
+    pose proof (object_arguments_exact c mo e xs zs He (object_below n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) Hfo Hxx Hzs) as Hzx.
     destruct (receiver_and_object n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx)
         as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu Hp]]]]]]]].
     pose proof Hnd as Hnd'. rewrite map_app in Hnd.

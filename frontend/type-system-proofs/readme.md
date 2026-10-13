@@ -58,7 +58,7 @@ of the theorems, mostly bundled in records:
 
 | assumption                                     | where             | what it says                                                                                       |
 |------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------|
-| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, mentioning no type variables, and Nothing only as `exclusive Nothing` |
+| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing` |
 | `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`, and take the mutability applied to them     |
 | `supertypes_repeat_prescriptions`              | `Transitivity.v`  | for `prescriptions_carry_over_to_supertypes` only: supertypes repeat prescribed ownerships        |
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
@@ -75,8 +75,6 @@ anything. `unify_terminates` is a claim about the model alone, a theorem yet to 
 
 - Substitution with type variables, and F-bounded type parameters (`T : Comparable<T>`); also with
   intersections that have a component that is, instantiated, a core scalar (see `SubstitutionTerminating.v`).
-- Supertypes declared with variant type arguments (`Holder<T> : Consumer<in Box<T>>`), as far as member
-  calls through them go: that takes a model of overriding.
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs
