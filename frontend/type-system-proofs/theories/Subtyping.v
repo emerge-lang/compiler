@@ -741,7 +741,13 @@ Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list E
                         else covered_any in
                     (new_assignee, states3)
                 end in
-            fold_unify (fun inner component => unify component new_assignee inner) var_components (Ongoing states3)
+            (* where a variable takes no Any, as it may be bound to something narrower already, it
+               takes the assignee itself *)
+            fold_unify (fun inner component =>
+                match unify component new_assignee inner with
+                | Some Failed => unify component assignee inner
+                | r => r
+                end) var_components (Ongoing states3)
         end
     end.
 
@@ -818,7 +824,13 @@ Ltac solve_pointwise Hfg :=
     intros; cbn beta in *;
     first
         [ apply Hfg; assumption
-        | match goal with x: _ * _ |- _ => destruct x end; apply Hfg; assumption ].
+        | match goal with x: _ * _ |- _ => destruct x end; apply Hfg; assumption
+        (* a call of f whose failure falls back on another one *)
+        | match goal with Hm: context [match ?h ?t ?a ?c with _ => _ end] |- _ =>
+            let E := fresh "E" in
+            destruct (h t a c) as [[?|]|] eqn:E; cbn iota in Hm;
+            [rewrite (Hfg _ _ _ _ E); exact Hm|rewrite (Hfg _ _ _ _ E); cbn iota; apply Hfg; exact Hm|discriminate Hm]
+          end ].
 
 (* Given `H: <expression calling f> = Some u`, shows `<the same expression calling g> = Some u`, by
    following the evaluation of both in lockstep: the goal is the same expression, so every case

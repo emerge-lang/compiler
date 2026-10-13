@@ -459,9 +459,17 @@ Proof.
       all: match type of H with context [find_first ?h ?l] =>
           destruct (find_first h l) as [[[c s3]|]|] eqn:E2; cbn beta iota in H; try discriminate H
           end.
+      (* a type variable among the components, unified with Any, or with the assignee where that fails *)
       all: match type of H with fold_unify ?h ?l (Ongoing ?q3) = _ =>
           assert (K3: keeps_exact q3 s') by
-              (apply (fold_keeps_exact h l q3 s'); [intros x y1 y2 _ E0; exact (Hf _ _ _ _ E0)|intros x _; apply Hff|exact H])
+              (apply (fold_keeps_exact h l q3 s');
+               [ intros x y1 y2 _ E0; cbn beta in E0;
+                 match type of E0 with context [match f ?t ?a ?c with _ => _ end] =>
+                     destruct (f t a c) as [[?|]|] eqn:E3 in E0; cbn iota in E0;
+                     [injection E0 as <-; exact (Hf _ _ _ _ E3)|first [discriminate E0|exact (Hf _ _ _ _ E0)]|discriminate E0]
+                 end
+               | intros x _; cbn beta; rewrite Hff; cbn iota; first [reflexivity|apply Hff]
+               | exact H])
           end.
       all: try exact (keeps_exact_trans _ _ _ K1 K3).
       all: apply (keeps_exact_trans s s2 s'); [exact K1|]; apply (keeps_exact_trans s2 s3 s'); [|exact K3];
