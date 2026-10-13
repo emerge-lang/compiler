@@ -50,12 +50,13 @@ Fixpoint to_generic (t: EType): EType :=
     | _ => t
     end.
 
-(* No type parameters but as type variables, of no mutability of their own *)
+(* No type parameters but as type variables, of no mutability of their own and bounded by types
+   without type parameters *)
 Fixpoint no_generics (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb no_generics arguments
     | Nullable n => is_class n && no_generics n
-    | TypeVariable (mkGenericRef None false _ _) => true
+    | TypeVariable (mkGenericRef None false _ bound) => closed bound
     | TypeArgument _ _ n => no_generics n
     | _ => false
     end.
@@ -310,9 +311,8 @@ Proof.
       destruct n as [m c args| | | | | |]; try discriminate Hn.
       apply andb_true_iff in Hn. destruct Hn as [_ Hn].
       right. right. left. exists m, c, args. split; [reflexivity|]. unfold ifrag. rewrite Hs, Hn. reflexivity.
-    - right. right. right. exists p, bnd. change (sfrag env bnd && closed bnd && true = true) in Hs.
-      rewrite andb_true_r in Hs. apply andb_true_iff in Hs.
-      split; [reflexivity|exact Hs].
+    - right. right. right. exists p, bnd. change (sfrag env bnd && true = true) in Hs.
+      rewrite andb_true_r in Hs. split; [reflexivity|split; [exact Hs|exact Hn]].
 Qed.
 
 Lemma ifrag_root_args: forall m c args, ifrag (RootResolved m c args) = true ->
@@ -460,7 +460,7 @@ Lemma bound_variable: forall p bound, bound_in env b K s (Generic (mkGenericRef 
         /\ upper_bound st = TypeArgument vb ob X /\ lower_bound st = TypeArgument vb ob X /\ in_fragment env X = true
         /\ unify env (S K) (TypeArgument vb ob X) (TypeArgument Model.invariant o x) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros p bound H. simpl in H. destruct (binds_exactly_some env b K s p bound H) as [o [x [E _]]]. pose proof (Hbf p o x E) as Hx.
+    intros p bound H. destruct (binds_ref_some env b K s (mkGenericRef None false p bound) H) as [o [x [E _]]]. cbn [param_of] in E. pose proof (Hbf p o x E) as Hx.
     destruct (Hcover p o x E) as [st [vb [ob [X [Hl [He [Hu [Hlo [HX Hc]]]]]]]]].
     exists o, x, st, vb, ob, X. repeat split; assumption.
 Qed.
@@ -1013,12 +1013,20 @@ Proof.
       apply andb_true_iff in Hba. destruct Hba as [Ho Hn]. rewrite Ho. apply IH; [lia|exact Hfa|exact Hn].
     - reflexivity.
     - assert (Hd': sdepth (RootResolved m c args) <= k) by (simpl in Hd |- *; lia). exact (IH _ Hd' Ht' Hb).
-    - destruct Hg as [Hfb [Hcb _]]. change (binds_ref env b K s g = true) in Hb. change (binds_ref env b K' s' g = true).
-      unfold binds_ref, respects in Hb |- *.
-      destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|] eqn:Ex; try discriminate Hb.
-      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb. pose proof (inst_ref_in_fragment env g x (Hbf _ o x Ex)) as Hx.
-      destruct (unify env K (effective_bound g) (inst_ref env g x) (Ongoing s)) as [[w|]|] eqn:E; try discriminate Hr.
-      pose proof (closed_in_fragment env wf b K s _ Hfb Hcb) as HFb.
+    - destruct Hg as [Hfb _]. destruct (binds_ref_some env b K s g Hb) as [o' [x' [_ [_ [_ [_ Hbe]]]]]].
+      assert (Hbe': bound_in env b K' s' (effective_bound g) = true).
+      { apply IH; [|exact Hfb|exact Hbe]. destruct g as [gm nn p bound]. simpl in Hd |- *. lia. }
+      destruct g as [gm nn p bound]. cbn [effective_bound] in Hfb, Hbe, Hbe'.
+      change (binds_ref env b K s (mkGenericRef gm nn p bound) && bound_in env b K s bound = true) in Hb.
+      change (binds_ref env b K' s' (mkGenericRef gm nn p bound) && bound_in env b K' s' bound = true).
+      rewrite Hbe', andb_true_r. apply andb_true_iff in Hb. destruct Hb as [Hb _].
+      unfold binds_ref, respects in Hb |- *. cbn [param_of effective_bound] in Hb |- *.
+      destruct (lookup_binding b p) as [[| | | |[] o x| |]|] eqn:Ex; try discriminate Hb.
+      apply andb_true_iff in Hb. destruct Hb as [Hb Hr]. rewrite Hb.
+      pose proof (inst_ref_in_fragment env (mkGenericRef gm nn p bound) x (Hbf _ o x Ex)) as Hx.
+      destruct (unify env K (inst_nested env b bound) (inst_ref env (mkGenericRef gm nn p bound) x) (Ongoing s)) as [[w|]|] eqn:E;
+          try discriminate Hr.
+      pose proof (instance_in_fragment env wf b K s Hbf bound Hfb Hbe) as HFb.
       pose proof (proj1 (keeps_states_with_arguments env wf K) _ _ s w HFb Hx E) as ->.
       rewrite (unify_fuel_monotone env K K' _ _ (Ongoing s') (Ongoing s') HK
           (proj1 (states_irrelevant K) _ _ s s' HFb Hx E)).

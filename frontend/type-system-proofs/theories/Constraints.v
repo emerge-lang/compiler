@@ -460,7 +460,7 @@ Proof.
         destruct (state_of_target n p bnd A s s' HA' H) as [st Hl].
         destruct (target_leaf n p bnd st A s s' Hs Hl HA H) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb.
-        simpl in Hb. destruct (binds_exactly_some env b K [] p bnd Hb) as [o [x [Ex _]]].
+        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         destruct (Hsb p o x Ex) as [Hx [st' [Hl' Hfit]]].
         assert (Hfits: forall st'', lookup_state s' p = Some st'' -> fits st'' o x)
             by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).
@@ -521,7 +521,7 @@ Proof.
       + destruct (state_of_assignee n p bnd _ s s' HA' H) as [st Hl].
         destruct (assignee_leaf n p bnd st _ s s' Hs Hl HA' H) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb.
-        simpl in Hb. destruct (binds_exactly_some env b K [] p bnd Hb) as [o [x [Ex _]]].
+        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         destruct (Hsb p o x Ex) as [Hx [st' [Hl' Hfit]]].
         assert (Hfits: forall st'', lookup_state s' p = Some st'' -> fits st'' o x)
             by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).
@@ -544,7 +544,7 @@ Proof.
       + destruct (state_of_assignee n p bnd _ s s' HA' H) as [st Hl].
         destruct (assignee_leaf n p bnd st _ s s' Hs Hl HA' H) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb.
-        simpl in Hb. destruct (binds_exactly_some env b K [] p bnd Hb) as [o [x [Ex _]]].
+        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         destruct (Hsb p o x Ex) as [Hx [st' [Hl' Hfit]]].
         assert (Hfits: forall st'', lookup_state s' p = Some st'' -> fits st'' o x)
             by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).

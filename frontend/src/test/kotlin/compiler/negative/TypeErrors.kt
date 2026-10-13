@@ -281,6 +281,44 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "a bound that mentions an earlier type parameter" - {
+            val types = """
+                interface A {}
+                class B : A {}
+                class C {}
+                fn f<U, T : U>(t: T) -> U {
+                    return t
+                }
+                class Twin<U, T : U> {}
+            """.trimIndent()
+
+            "takes type arguments within the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn g(b: B) -> A {
+                        return f::<A, B>(b)
+                    }
+                    fn h(x: Twin<A, B>) {}
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of a function, doesn't take a type argument outside the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn g(c: C) {
+                        f::<A, C>(c)
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+
+            "of a class, doesn't take a type argument outside the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn h(x: Twin<A, C>) {}
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+        }
+
         "a type parameter to another type parameter, by its bound" - {
             "an intersection of the other type parameter" {
                 validateModule("""

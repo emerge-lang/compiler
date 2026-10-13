@@ -187,31 +187,26 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
     | _ => True
     end.
 
-Lemma refs_to_generic: forall vars t, refs_within vars t -> refs_within vars (to_generic t).
-Proof.
-    intros vars t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [m c args|n|[[gm|] [|] p bnd]|me msg|v o n|[[gm|] [|] p bnd]|cs]; simpl in H |- *; try exact H.
-    - apply fold_and_map. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|].
-      exact (fold_and_in _ args H a Ha).
-    - apply (IH (esize n)); [simpl; lia|reflexivity|exact H].
-    - destruct H as [Ho Hn]. split; [exact Ho|]. apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn].
-Qed.
-
-Lemma bound_in_from_refs: forall vars b K t, refs_within vars t ->
+Lemma bound_in_from_refs: forall vars b K t, (ifrag env t = true \/ argument_ifrag env t = true) -> refs_within vars t ->
     (forall p bound, In (p, bound) vars -> binds_exactly env b K [] p bound = true) ->
     (forall q, In q (map fst vars) -> ownership_bound b (parameter_ownership q) = true) ->
-    bound_in env b K [] t = true.
+    bound_in env b K [] (to_generic t) = true.
 Proof.
-    intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H Hp Ho.
-    destruct t as [m c args|n|[[gm|] [|] p bnd]|me msg|v o n|[[gm|] [|] p bnd]|cs]; simpl in H |- *; try reflexivity;
-        try contradiction.
-    - apply forallb_forall. intros a Ha. apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity| |exact Hp|exact Ho].
-      exact (fold_and_in _ args H a Ha).
-    - apply (IH (esize n)); [simpl; lia|reflexivity|exact H|exact Hp|exact Ho].
-    - exact (Hp p bnd H).
-    - destruct H as [Hq Hn]. apply andb_true_iff. split.
+    intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> Hf H Hp Ho.
+    destruct Hf as [Hf|Hf].
+    - destruct (ifrag_cases env t Hf) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [bnd [-> [Hfb Hcb]]]]]]].
+      + change (forallb (bound_in env b K []) (map to_generic args) = true). apply forallb_forall. intros a' Ha'.
+        apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
+        apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|right; exact (Hargs a Ha)| |exact Hp|exact Ho].
+        exact (fold_and_in _ args H a Ha).
+      + reflexivity.
+      + change (bound_in env b K [] (to_generic (RootResolved m c args)) = true).
+        apply (IH (esize (RootResolved m c args))); [simpl; lia|reflexivity|left; exact Ht'|exact H|exact Hp|exact Ho].
+      + simpl in H. change (bound_in env b K [] (Generic (mkGenericRef None false p bnd)) = true).
+        rewrite (binds_ref_closed env wf b K [] p bnd Hfb Hcb). exact (Hp p bnd H).
+    - destruct t as [| | | |v o n| |]; try discriminate Hf. simpl in Hf, H |- *. destruct H as [Hq Hn]. apply andb_true_iff. split.
       + destruct o as [| | |q]; try reflexivity. exact (Ho q (Hq q eq_refl)).
-      + apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn|exact Hp|exact Ho].
+      + apply (IH (esize n)); [simpl; lia|reflexivity|left; exact Hf|exact Hn|exact Hp|exact Ho].
 Qed.
 
 Lemma lookup_map_vars: forall (l: list (TypeParameterId * EType)) (g: TypeParameterId * EType -> EType) p bound,
@@ -389,7 +384,7 @@ Proof.
     { intros [p bound] Hin. exists (depth bound).
       exact (proj1 (reflexivity_with_arguments env (depth bound)) bound [] (Hbounds p bound Hin) (le_n _)). }
     assert (Hb0: forall P, In P Ps -> bound_in env b0 K0 [] (to_generic P) = true).
-    { intros P HP. apply (bound_in_from_refs vars); [exact (refs_to_generic vars P (proj2 (HPs P HP)))| |].
+    { intros P HP. apply (bound_in_from_refs vars _ _ P (or_introl (proj1 (HPs P HP))) (proj2 (HPs P HP))).
       - intros p bound Hin. unfold binds_exactly, b0. rewrite (lookup_map_vars vars _ p bound Hnd' Hin). cbn [snd].
         rewrite (in_fragment_is_gfrag env _ (Hbounds p bound Hin)). unfold respects. pose proof (HK0 (p, bound) Hin) as E0. cbn [snd] in E0. rewrite E0. reflexivity.
       - intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
@@ -441,7 +436,7 @@ Proof.
     { intros [p bound] Hin. destruct (Hlookup p bound Hin) as [o [x [Hl' [_ [_ [f Ef]]]]]].
       exists f. intros o' x' Hx'. cbn [fst snd] in Hx' |- *. rewrite Hl' in Hx'. injection Hx' as <- <-. exact Ef. }
     assert (Hb: forall P, In P Ps -> bound_in env b K [] (to_generic P) = true).
-    { intros P HP. apply (bound_in_from_refs vars); [exact (refs_to_generic vars P (proj2 (HPs P HP)))| |].
+    { intros P HP. apply (bound_in_from_refs vars _ _ P (or_introl (proj1 (HPs P HP))) (proj2 (HPs P HP))).
       - intros p bound Hin. destruct (Hlookup p bound Hin) as [o [x [Hl' [Ho [Hx _]]]]].
         unfold binds_exactly. rewrite Hl', Ho, Hx. unfold respects. pose proof (HK (p, bound) Hin o x Hl') as E1. cbn [snd] in E1. rewrite E1. reflexivity.
       - intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
