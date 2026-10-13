@@ -62,6 +62,24 @@ Proof.
       rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.
 
+Lemma no_vars_of_components: forall cs, (forall c, In c cs -> no_vars c = true) -> no_vars (of_components env cs) = true.
+Proof.
+    intros cs H. assert (Hi: forallb no_vars (map (fun c => with_mutability env
+            (fold_left intersect_mutability (map (mutability_of env) cs) readonly) (without_null c)) cs) = true).
+    { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
+      apply no_vars_set_mutability. rewrite no_vars_without_null. exact (H c' Hc'). }
+    destruct cs as [|c [|c' cs']]; [reflexivity|exact (H c (or_introl eq_refl))|].
+    unfold of_components. destruct (forallb is_nullable _); exact Hi.
+Qed.
+
+Lemma no_vars_intersected: forall t, no_vars t = true -> forall c, In c (intersected_components t) -> no_vars c = true.
+Proof.
+    intros t H c Hc. destruct t as [| [] | | | | |cs]; simpl in Hc;
+        try (destruct Hc as [<-|[]]; exact H).
+    - apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']]. simpl in H |- *. rewrite forallb_forall in H. exact (H c' Hc').
+    - simpl in H. rewrite forallb_forall in H. exact (H c Hc).
+Qed.
+
 Lemma no_vars_instantiate: forall b t, (forall p a, lookup_binding b p = Some a -> no_vars a = true) ->
     no_vars t = true -> no_vars (instantiate env b t) = true.
 Proof.
@@ -81,7 +99,8 @@ Proof.
           repeat match goal with |- context [match ?x with _ => _ end] => destruct x end;
           simpl in Hn |- *; rewrite ?no_vars_rewrap; simpl in Hn |- *;
           try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
-    - simpl. apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
+    - simpl. apply no_vars_of_components. intros c Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]].
+      apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. apply (no_vars_intersected _ ) in Hc; [exact Hc|].
       rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.
 

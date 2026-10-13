@@ -258,6 +258,26 @@ Fixpoint mentions_loosely_bound_in_arguments (bindings: Bindings) (t: EType): bo
     | _ => false
     end.
 
+(* BoundIntersectionTypeReference.intersectedComponents: the components of the intersection a type is,
+   each nullable iff the type is; the type alone otherwise *)
+Definition intersected_components (t: EType): list EType :=
+    match t with
+    | Intersection components => components
+    | Nullable (Intersection components) => map Nullable components
+    | _ => [t]
+    end.
+
+(* BoundIntersectionTypeReference.ofComponents, without simplifying: the components non-null, of
+   their common mutability; nullable iff all of them are *)
+Definition of_components (components: list EType): EType :=
+    match components with
+    | [component] => component
+    | _ =>
+        let m := fold_left intersect_mutability (map mutability_of components) readonly in
+        let non_nullable := Intersection (map (fun c => with_mutability m (without_null c)) components) in
+        if forallb is_nullable components then Nullable non_nullable else non_nullable
+    end.
+
 (*
  * BoundTypeReference.instantiateAllParameters, extended with ownership. Where it deviates:
  * - TypeUnification.getFinalValueFor instantiates the free variables in a binding. The bindings here
@@ -268,7 +288,8 @@ Fixpoint mentions_loosely_bound_in_arguments (bindings: Bindings) (t: EType): bo
  *   inference. So this is left out.
  * - A type parameter without a binding is replaced by its bound; Kotlin uses the declared bound,
  *   this the effective bound of the reference.
- * - BoundIntersectionTypeReference simplifies the instantiated intersection, this doesn't.
+ * - BoundIntersectionTypeReference simplifies the instantiated intersection, this doesn't; nor does
+ *   this keep the intersection as it is where no component changed.
  *)
 Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     match t with
@@ -329,7 +350,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
         | Some argument => argument
         | None => instantiate bindings bound
         end
-    | Intersection components => Intersection (map (instantiate bindings) components)
+    | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))
     end.
 
 (* RootResolvedTypeReference.inherentTypeBindings: each type parameter of the class is bound to the
