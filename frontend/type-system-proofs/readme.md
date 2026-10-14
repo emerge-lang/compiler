@@ -37,6 +37,7 @@ it shows and why; the tables below are the map.
 | `GenericArguments.v` | inference with the type parameters of the caller in the arguments: calls in generic code       | `member_call_in_generic_code_sound`                                     |
 | `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`                              |
+| `GenericReceivers.v` | calls in generic code on receivers mentioning the type parameters of the caller, at run time      | `member_call_on_generic_receiver`                                       |
 
 ### Fragments
 
@@ -90,8 +91,6 @@ program.
 - Intersections that have a component that is, instantiated, a core scalar, and references of a
   mutability core scalars don't have (`mut T`) to type parameters bound to one (see
   `SubstitutionTerminating.v`, `WithinBounds.v`).
-- Calls in generic code whose receiver mentions the type parameters of the caller (`list.add(x)` with
-  `list: List<T>`).
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs
