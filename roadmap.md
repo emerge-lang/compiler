@@ -233,19 +233,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     way. Const-ness carries over to all subtypes (`BoundBaseType.isConst`), references to such a class are always
     const (`self: mut Foo` is `const Foo`), and a value of it fits a reference of any mutability, `exclusive`
     included (`BoundTypeReference.assignmentMutability`): nobody can mutate the object, so whatever a reference
-    promises holds. Only `const` can be declared on a supertype; `read` and repeated `const` are reported as
+    promises holds. An intersection with a const component is const as well, otherwise of the strongest mutability
+    of its components. Only `const` can be declared on a supertype; `read` and repeated `const` are reported as
     redundant
-    * `exclusive` promises no aliases, which a shared const object doesn't keep. Nothing relies on that today (the
-      backend uses mutability for name mangling only); anything that will (moving to another thread, reference
-      counting) must treat const objects as shared
-    * the type system proofs assume a declared bound takes any mutability applied to it
-      (`bounds_wellformed.bw_mutability`, `Substitution.as_written`): `T : Number` with `interface Number : const Any`
-      is not covered. Kotlin compares two references to such a `T` by their assignment mutability, exclusive for
-      both, so `read T` fits `mut T`, which is sound (the values are const objects), but the proofs reason about
-      it through the bounds being ordered by mutability, which needs a different argument here
 30. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
+31. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
+    not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
+    Look for an equally concise and expressive term that says that more precisely
 -----
 
 ## Future features
