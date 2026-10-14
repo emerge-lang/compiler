@@ -717,17 +717,6 @@ Proof.
     intros z Hz. apply Hl. right. exact Hz.
 Qed.
 
-Lemma intersection_mutability: forall components,
-    mutability_of env (Intersection components) = fold_left intersect_mutability (map (mutability_of env) components) readonly.
-Proof. reflexivity. Qed.
-
-Lemma intersection_mutability_below_component: forall components c,
-    In c components -> is_subtype_of (mutability_of env (Intersection components)) (mutability_of env c) = true.
-Proof.
-    intros components c Hc. rewrite intersection_mutability.
-    apply fold_intersect_below_element, in_map, Hc.
-Qed.
-
 Lemma intersection_assignment_mutability: forall components,
     assignment_mutability env (Intersection components) = fold_left intersect_mutability (map (assignment_mutability env) components) readonly.
 Proof. reflexivity. Qed.
@@ -739,13 +728,28 @@ Proof.
     apply fold_intersect_below_element, in_map, Hc.
 Qed.
 
+(* An object of a const class is assigned as exclusive *)
+Lemma top_const_assigned_exclusive: forall t, top_const env t = true -> assignment_mutability env t = exclusive.
+Proof.
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|[gm nn p b]|cs] H; simpl in H |- *; try (apply IH; exact H).
+    - rewrite H. reflexivity.
+    - discriminate H.
+    - revert H. generalize readonly as acc. induction cs as [|c rest IHl]; intros acc H; simpl in H |- *; [discriminate H|].
+      destruct (top_const env c) eqn:E.
+      + rewrite (IH c E). apply mutability_subtype_of_exclusive.
+        eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
+      + exact (IHl _ H).
+Qed.
+
 (* A value is assigned as no more than its mutability: as exclusive, where it is an object of a const
    class *)
 Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
 Proof.
     fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|[gm nn p b]|cs]; simpl; try apply IH; try apply mutability_is_subtype_of_refl.
     - destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
-    - assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
+    - destruct (existsb (top_const env) cs) eqn:E.
+      { pose proof (top_const_assigned_exclusive (Intersection cs) E) as Hx. simpl in Hx. rewrite Hx. reflexivity. }
+      assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
           is_subtype_of (intersect_mutability a b) (intersect_mutability a' b') = true).
       { intros x x' y y' Hx Hy. apply intersect_mutability_greatest.
         - eapply mutability_subtype_trans; [apply intersect_mutability_left|exact Hx].

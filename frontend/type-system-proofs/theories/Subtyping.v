@@ -59,6 +59,17 @@ Definition base_type_is_subtype_of (sub super: Class): bool :=
 Definition or_readonly (m: option Mutability): Mutability :=
     match m with Some m => m | None => readonly end.
 
+(* Whether the type is a const class, or the values of it are of one: an intersection with such a
+   component, a reference to a type parameter bounded by one *)
+Fixpoint top_const (t: EType): bool :=
+    match t with
+    | RootResolved _ c _ => is_const (declaration_of env c)
+    | Nullable n | TypeArgument _ _ n => top_const n
+    | Generic (mkGenericRef _ _ _ b) | TypeVariable (mkGenericRef _ _ _ b) => top_const b
+    | Error _ _ => false
+    | Intersection cs => existsb top_const cs
+    end.
+
 (* BoundTypeReference.mutability *)
 Fixpoint mutability_of (t: EType): Mutability :=
     match t with
@@ -70,8 +81,11 @@ Fixpoint mutability_of (t: EType): Mutability :=
     | TypeVariable (mkGenericRef _ _ _ bound) => mutability_of bound
     | Error m _ => or_readonly m
     | TypeArgument _ _ n => mutability_of n
-    (* readonly is the neutral element of intersect_mutability *)
-    | Intersection components => fold_left intersect_mutability (map mutability_of components) readonly
+    (* readonly is the neutral element of intersect_mutability. Its values are objects of a const
+       class where one of the components is one: then it is const *)
+    | Intersection components =>
+        if existsb top_const components then immutable
+        else fold_left intersect_mutability (map mutability_of components) readonly
     end.
 
 (* BoundTypeReference.assignmentMutability: the mutability a value of the type is assigned as. That
@@ -205,7 +219,10 @@ Fixpoint without_null (t: EType): EType :=
     | _ => t
     end.
 
-(* BoundTypeReference.withMutability *)
+(* BoundTypeReference.withMutability. An intersection (BoundIntersectionTypeReference.mapComponents)
+   gives its components the mutability they are assigned as in common once they took the given one:
+   exclusive, where one of them is a const class, as in of_components. Kotlin applies that to the
+   components it applied the given mutability to; applying a mutability replaces the one before. *)
 Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     match t with
     | RootResolved _ c arguments =>
@@ -215,7 +232,9 @@ Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     | TypeVariable (mkGenericRef _ nn p bound) => TypeVariable (mkGenericRef (Some m) nn p (with_mutability m bound))
     | Error _ _ => t
     | TypeArgument v o n => TypeArgument v o (with_mutability m n)
-    | Intersection components => Intersection (map (with_mutability m) components)
+    | Intersection components =>
+        let common := fold_left intersect_mutability (map (fun c => assignment_mutability (with_mutability m c)) components) readonly in
+        Intersection (map (with_mutability common) components)
     end.
 
 (* What the type parameters are bound to: the type arguments of a reference, a TypeUnification's

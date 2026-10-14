@@ -239,12 +239,12 @@ Lemma within_adjust: forall K D m (nn: bool) Z, tfrag env D = true -> bound_in e
 Proof.
     intros K D m nn Z HD Hb HZ Hm [f H].
     (* intersections: each component takes what it took before *)
-    assert (Hinter: forall cs W, components_sfrag env cs = true -> bound_in env b K [] (Intersection cs) = true ->
+    assert (Hinter: forall m cs W, components_sfrag env cs = true -> bound_in env b K [] (Intersection cs) = true ->
         in_fragment env W = true -> Model.is_subtype_of (assignment_mutability env W) m = true ->
         forall f0, unify env f0 (inst_nested env b (Intersection cs)) W (Ongoing []) = Some (Ongoing []) ->
         is_nullable W = false /\ exists ys f', inst_nested env b (Intersection (map (with_mutability env m) cs)) = Intersection ys
             /\ unify env f' (Intersection ys) W (Ongoing []) = Some (Ongoing [])).
-    { clear f H. intros cs W Hcs Hbc HW HmW f0 E.
+    { clear f H Hm m. intros m cs W Hcs Hbc HW HmW f0 E.
       destruct (components_sfrag_facts env cs Hcs) as [Hl Hc].
       assert (Hcomp: forall c, In c cs ->
           (exists md d args, c = RootResolved md d args)
@@ -323,6 +323,19 @@ Proof.
         unfold common_mutability. apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|].
         intros k Hk. apply in_map_iff in Hk. destruct Hk as [y [<- Hy]]. apply in_map_iff in Hy. destruct Hy as [c' [<- Hin2]].
         exact (proj2 (proj2 (proj2 (Hc' c' Hin2))) _ HmW (HWy c' Hin2)). }
+    (* what an intersection takes is assigned as no more than the mutability its components take *)
+    assert (Hcommon: forall cs W f0, components_sfrag env cs = true -> bound_in env b K [] (Intersection cs) = true ->
+        in_fragment env W = true -> Model.is_subtype_of (assignment_mutability env W) m = true ->
+        unify env f0 (inst_nested env b (Intersection cs)) W (Ongoing []) = Some (Ongoing []) ->
+        Model.is_subtype_of (assignment_mutability env W)
+            (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) = true).
+    { intros cs W f0 Hcs Hbc HW HmW E.
+      destruct (instance_facts env wf b K [] Hbf _ (Intersection cs) (le_n _) Hcs Hbc) as [Hcf [Hmi _]].
+      pose proof (mutability_subtype_trans _ _ _ (cfrag_mutability env wf _ _ W _ _ Hcf HW E) Hmi) as HWc.
+      apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|]. intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]].
+      eapply mutability_subtype_trans; [|apply assignment_with_mutability_above].
+      apply intersect_mutability_greatest; [exact HmW|].
+      exact (mutability_subtype_trans _ _ _ HWc (fold_intersect_below_element _ _ _ (in_map _ _ _ Hin))). }
     destruct (tfrag_cases env D HD) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
     - destruct (sfrag_cases env D Hs) as [[md [c [args [-> _]]]]|[->|[[md [c [args [-> Hs']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + (* a class type *)
@@ -367,8 +380,10 @@ Proof.
               by (apply (inst_nested_nullable_generic env b _ Model.invariant o x); exact Ex).
           rewrite E''. exact (ref_lift f (mkGenericRef gm nng q bq) g' x m Z false Hx HZ eq_refl Hm _ (or_intror eq_refl) _ (or_intror eq_refl) H).
     - (* an intersection *)
-      destruct (Hinter cs Z Hcs Hb HZ Hm f H) as [HnZ [ys [f' [Eys H']]]].
-      replace (inst_nested env b (adjust env m nn (Intersection cs))) with (inst_nested env b (Intersection (map (with_mutability env m) cs)))
+      destruct (Hinter _ cs Z Hcs Hb HZ (Hcommon cs Z f Hcs Hb HZ Hm H) f H) as [HnZ [ys [f' [Eys H']]]].
+      replace (inst_nested env b (adjust env m nn (Intersection cs)))
+          with (inst_nested env b (Intersection (map (with_mutability env (fold_left intersect_mutability
+              (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly)) cs)))
           by (destruct nn; reflexivity).
       rewrite Eys. exists f'. destruct nn; [rewrite (without_null_non_null env Z HZ HnZ)|]; exact H'.
     - (* a nullable intersection *)
@@ -380,14 +395,16 @@ Proof.
             (bound_in_component env b K [] cs _ Hb Hin))) (component_non_null c Hsh)). }
       rewrite HeqY in H. cbn [rewrap_nullable] in H. rewrite (unify_nullable_target env f _ Z [] HZ) in H. rewrite <- HeqY in H.
       pose proof (in_fragment_without_null env Z HZ) as HZ'.
-      destruct (Hinter cs (without_null Z) Hcs Hb HZ' ltac:(rewrite (assignment_mutability_of_without_null env Z HZ); exact Hm) f H)
-          as [_ [ys [f' [Eys H']]]].
+      assert (HmZ': Model.is_subtype_of (assignment_mutability env (without_null Z)) m = true)
+          by (rewrite (assignment_mutability_of_without_null env Z HZ); exact Hm).
+      destruct (Hinter _ cs (without_null Z) Hcs Hb HZ' (Hcommon cs _ f Hcs Hb HZ' HmZ' H) f H) as [_ [ys [f' [Eys H']]]].
+      set (k := fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) in Eys.
       destruct nn.
-      + replace (inst_nested env b (adjust env m true (Nullable (Intersection cs)))) with (inst_nested env b (Intersection (map (with_mutability env m) cs)))
+      + replace (inst_nested env b (adjust env m true (Nullable (Intersection cs)))) with (inst_nested env b (Intersection (map (with_mutability env k) cs)))
             by reflexivity.
         rewrite Eys. exists f'. exact H'.
       + replace (inst_nested env b (adjust env m false (Nullable (Intersection cs))))
-            with (rewrap_nullable (inst_nested env b (Intersection (map (with_mutability env m) cs)))) by reflexivity.
+            with (rewrap_nullable (inst_nested env b (Intersection (map (with_mutability env k) cs)))) by reflexivity.
         rewrite Eys. exists (S f'). cbn [rewrap_nullable]. rewrite (unify_nullable_target env f' _ Z [] HZ). exact H'.
 Qed.
 
@@ -450,11 +467,11 @@ Proof. intros [| | | | | |]; reflexivity. Qed.
 
 Lemma rdepth_with_mutability: forall m t, rdepth (with_mutability env m t) = rdepth t.
 Proof.
-    intros m t. remember (esize t) as e eqn:He. revert t He. induction e as [e IH] using lt_wf_ind. intros t ->.
+    intros m t. remember (esize t) as e eqn:He. revert m t He. induction e as [e IH] using lt_wf_ind. intros m t ->.
     destruct t as [mt c args|n|[gm nn p bd]|me msg|v o n|[gm nn p bd]|cs]; try reflexivity.
-    - cbn [with_mutability rdepth]. rewrite rdepth_rewrap. exact (IH (esize n) ltac:(simpl; lia) n eq_refl).
-    - cbn [with_mutability rdepth]. rewrite (IH (esize bd) ltac:(simpl; lia) bd eq_refl). reflexivity.
-    - cbn [with_mutability rdepth]. rewrite (IH (esize n) ltac:(simpl; lia) n eq_refl). reflexivity.
+    - cbn [with_mutability rdepth]. rewrite rdepth_rewrap. exact (IH (esize n) ltac:(simpl; lia) m n eq_refl).
+    - cbn [with_mutability rdepth]. rewrite (IH (esize bd) ltac:(simpl; lia) m bd eq_refl). reflexivity.
+    - cbn [with_mutability rdepth]. rewrite (IH (esize n) ltac:(simpl; lia) m n eq_refl). reflexivity.
     - cbn [with_mutability rdepth]. rewrite map_map. do 2 f_equal. apply map_ext_in. intros c Hc.
       apply (IH (esize c)); [pose proof (esize_in cs c Hc); simpl; lia|reflexivity].
 Qed.

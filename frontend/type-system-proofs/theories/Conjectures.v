@@ -76,7 +76,6 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
-Let declared_mutability := bw_mutability env declared declared_wf.
 
 Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
 
@@ -210,7 +209,6 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
-Let declared_mutability := bw_mutability env declared declared_wf.
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
 Hypothesis not_expansive: non_expansive env.

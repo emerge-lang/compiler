@@ -65,7 +65,7 @@ of the theorems, mostly bundled in records:
 | assumption                                     | where             | what it says                                                                                       |
 |------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------|
 | `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing` |
-| `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`, and take the mutability applied to them: no const classes |
+| `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`                                             |
 | `supertypes_repeat_prescriptions`              | `Transitivity.v`  | for `prescriptions_carry_over_to_supertypes` only: supertypes repeat prescribed ownerships        |
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
 | `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
@@ -88,8 +88,6 @@ program.
 ### Not covered yet
 
 - F-bounded type parameters (`T : Comparable<T>`).
-- Type parameters whose declared bound is a const class, or has one as a component (`T : Number` with
-  `interface Number : const Any`); `bounds_wellformed` leaves them out (roadmap item 29).
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs

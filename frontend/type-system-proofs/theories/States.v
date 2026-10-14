@@ -51,7 +51,7 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 
 Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
 Proof.
-    intros m t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
+    intros m t. remember (esize t) as k eqn:Hk. revert m t Hk. induction k as [k IH] using lt_wf_ind. intros m t -> H.
     destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try discriminate H.
     - exact H.
     - rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.

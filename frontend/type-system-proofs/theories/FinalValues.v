@@ -96,7 +96,6 @@ Hypothesis supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true -
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
-Let declared_mutability := bw_mutability env declared declared_wf.
 
 (* The conjectures of Conjectures.v *)
 Hypothesis terminates: unify_terminates.

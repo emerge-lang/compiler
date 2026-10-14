@@ -86,10 +86,11 @@ Definition is_generic (t: EType): bool :=
     match t with Generic _ => true | _ => false end.
 
 (* A reference to a type parameter as written, or as the compiler applied a mutability or `!` to it:
-   the mutability given to it (`mut T`) is that of its effective bound, and the `!` that narrowed it
-   made the effective bound non-nullable *)
+   its effective bound is assigned as no more than the mutability given to it (`mut T`), as that or
+   as exclusive where the bound is const, and the `!` that narrowed it made the effective bound
+   non-nullable *)
 Definition as_written (given: option Mutability) (narrowed: bool) (bound: EType): bool :=
-    match given with Some m => Mutability_beq (mutability_of env bound) m | None => true end
+    match given with Some m => Model.is_subtype_of (assignment_mutability env bound) m | None => true end
     && (negb narrowed || negb (is_nullable bound)).
 
 (* A component of an intersection: a non-null class type, or a non-null reference to a type parameter *)
@@ -1403,8 +1404,7 @@ Proof.
       - unfold inst_fit at 2. destruct (given_mutability gt) as [m|] eqn:Eg.
         + rewrite Hk. apply intersect_mutability_greatest.
           * eapply mutability_subtype_trans; [apply inst_fit_mutability_below, Hx|apply (assignment_mutability_below env)].
-          * apply mutability_beq_eq in Hwtm. rewrite <- Hwtm, <- (mutability_inst_ref ga x Hx).
-            eapply mutability_subtype_trans; [exact (mutability_subtype_trans _ _ _ Hma Hm)|apply (assignment_mutability_below env)].
+          * rewrite <- (mutability_inst_ref ga x Hx). exact (mutability_subtype_trans _ _ _ (mutability_subtype_trans _ _ _ Hma Hm) Hwtm).
         + apply inst_fit_mutability_below, Hx.
       - assert (Hfx: forall g, assignment_mutability env (inst_fit g x) = assignment_mutability env x).
         { intros g. unfold inst_fit. destruct (given_mutability g); [apply Hk|reflexivity]. }
@@ -1436,7 +1436,7 @@ Proof.
       destruct (IH bound ltac:(simpl in Hd; lia) Hf) as [Hf' [Hm' Hn']].
       repeat split.
       - change (tfrag (without_null bound) && as_written gm (nn || is_nullable bound) (without_null bound) = true).
-        rewrite Hf'. unfold as_written in *. rewrite (proj1 (without_null_keeps env bound)), Hn'. apply andb_true_iff in Hw. destruct Hw as [Hwm _].
+        rewrite Hf'. unfold as_written in *. rewrite Hm', Hn'. apply andb_true_iff in Hw. destruct Hw as [Hwm _].
         rewrite Hwm. destruct (nn || is_nullable bound); reflexivity.
       - exact Hm'.
       - exact Hn'. }

@@ -133,7 +133,7 @@ Proof.
     destruct (generic_of_wtfrag env g Hw) as [Ht Haw]. rewrite without_null_generic.
     change (sfrag env (Generic (narrow_ref g)) = true). apply generic_sfrag_sfrag. destruct g as [gm nn p bd]. cbn [narrow_ref given_mutability is_narrowed effective_bound param_of] in Ht, Haw |- *.
     destruct (tfrag_without_null env (sdepth bd) bd (le_n _) Ht) as [Ht' [Hm' Hn']].
-    split; [exact Ht'|]. unfold as_written in Haw |- *. cbn [narrow_ref given_mutability is_narrowed effective_bound] in Haw |- *. rewrite (proj1 (without_null_keeps env bd)), Hn'. apply andb_true_iff in Haw. rewrite (proj1 Haw).
+    split; [exact Ht'|]. unfold as_written in Haw |- *. cbn [narrow_ref given_mutability is_narrowed effective_bound] in Haw |- *. rewrite Hm', Hn'. apply andb_true_iff in Haw. rewrite (proj1 Haw).
     rewrite orb_true_r. reflexivity.
 Qed.
 
