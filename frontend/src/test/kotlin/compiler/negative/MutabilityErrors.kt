@@ -293,5 +293,39 @@ class MutabilityErrors : FreeSpec({
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
+
+        "references to a type parameter bound to a const class fit each other whatever their mutability" {
+            validateModule("""
+                interface Number : const Any {}
+                fn test<T : Number>(a: read T, b: mut T) {
+                    x: exclusive T = a
+                    y: mut T = a
+                    z: exclusive Number = b
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a type parameter bound to an intersection with a const component is const, its values fit exclusive" {
+            validateModule("""
+                interface Number : const Any {}
+                interface Foo {}
+                fn test<T : Number & Foo>(a: read T) {
+                    x: exclusive T = a
+                    y: exclusive Foo = x
+                    z: exclusive Foo = a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an intersection with a const component is const" {
+            validateModule("""
+                interface Number : const Any {}
+                interface Foo {}
+                fn test(a: Number & Foo) {
+                    x: exclusive Foo = a
+                    y: exclusive Number = a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
     }
 })

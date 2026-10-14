@@ -26,7 +26,6 @@ class BoundIntersectionTypeReference private constructor(
     override val context: CTContext,
     val astNode: AstIntersectionType?,
     val components: List<BoundTypeReference>,
-    override val mutability: TypeMutability,
 ) : BoundTypeReference {
     init {
         check(components.none { it.isNullable }) {
@@ -40,6 +39,11 @@ class BoundIntersectionTypeReference private constructor(
 
     override val span = astNode?.span
     override val isNullable get()= false
+    override val mutability: TypeMutability = if (components.any { it.isOfConstClass }) {
+        TypeMutability.IMMUTABLE
+    } else {
+        components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+    }
     override val assignmentMutability get() = mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
     override val isNonNullableNothing by lazy {
@@ -261,7 +265,6 @@ class BoundIntersectionTypeReference private constructor(
             context,
             astNode,
             mutabilityAdjustedComponents,
-            commonMutability,
         )
     }
 
@@ -340,7 +343,6 @@ class BoundIntersectionTypeReference private constructor(
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                         .withMutability(mutability)
                 },
-                mutability,
             )
             if (simplify) {
                 nonNullableIntersection = (nonNullableIntersection as BoundIntersectionTypeReference).simplify()
@@ -350,6 +352,9 @@ class BoundIntersectionTypeReference private constructor(
 
         private fun nullabilityOfComponents(components: Iterable<BoundTypeReference>): Boolean = components.all { it.isNullable }
         private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.assignmentMutability }.reduce(TypeMutability::intersect)
+
+        private val BoundTypeReference.isOfConstClass: Boolean
+            get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.EXCLUSIVE
 
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,
