@@ -30,6 +30,7 @@ class BoundTypeArgument(
     }
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
+    override val assignmentMutability get() = type.assignmentMutability
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span

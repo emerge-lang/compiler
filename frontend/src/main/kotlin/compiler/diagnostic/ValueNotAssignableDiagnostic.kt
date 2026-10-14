@@ -59,6 +59,10 @@ open class ValueNotAssignableDiagnostic(
             return null
         }
 
+        if (sourceType.mutability.isAssignableTo(targetType.mutability)) {
+            return null
+        }
+
         when (sourceType.mutability) {
             TypeMutability.MUTABLE -> when (targetType.mutability) {
                 TypeMutability.IMMUTABLE -> return "A const value is needed here, this one is mut."

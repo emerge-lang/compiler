@@ -280,6 +280,14 @@ fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 
+fun Diagnosis.mutabilityOnSupertype(ref: AstSimpleTypeReference) {
+    add(MutabilityOnSupertypeDiagnostic(ref))
+}
+
+fun Diagnosis.redundantMutabilityOnSupertype(ref: AstSimpleTypeReference, reason: String) {
+    add(RedundantMutabilityOnSupertypeDiagnostic(ref, reason))
+}
+
 fun Diagnosis.cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration) {
     add(CyclicInheritanceDiagnostic(type.declaration, involvingSupertype))
 }

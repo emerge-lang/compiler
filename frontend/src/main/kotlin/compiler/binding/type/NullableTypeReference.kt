@@ -15,6 +15,7 @@ class NullableTypeReference private constructor(
     override val context = nested.context
     override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
+    override val assignmentMutability get() = nested.assignmentMutability
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true

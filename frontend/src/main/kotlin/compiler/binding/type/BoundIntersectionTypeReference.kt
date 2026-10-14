@@ -40,6 +40,7 @@ class BoundIntersectionTypeReference private constructor(
 
     override val span = astNode?.span
     override val isNullable get()= false
+    override val assignmentMutability get() = mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
     override val isNonNullableNothing by lazy {
         components.any { it.isNonNullableNothing } || simplifyIsEffectivelyBottomType(components)
@@ -348,7 +349,7 @@ class BoundIntersectionTypeReference private constructor(
         }
 
         private fun nullabilityOfComponents(components: Iterable<BoundTypeReference>): Boolean = components.all { it.isNullable }
-        private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+        private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.assignmentMutability }.reduce(TypeMutability::intersect)
 
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,

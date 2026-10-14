@@ -15,6 +15,7 @@ import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -171,10 +172,11 @@ class TypeErrors : FreeSpec({
                     class A<T : mut Any> {
                         prop: T
                     }
-                    fn foo(p: A<const S32>) {}
+                    class B {}
+                    fn foo(p: A<const B>) {}
                 """.trimIndent())
                     .shouldFind<TypeArgumentOutOfBoundsDiagnostic> {
-                        it.argument.toString() shouldBe "const S32"
+                        it.argument.toString() shouldBe "const testmodule.B"
                     }
             }
 
@@ -183,13 +185,26 @@ class TypeErrors : FreeSpec({
                     class A<T : mut Any> {
                         prop: T = init
                     }
-                    x = A(2)
+                    class B {}
+                    fn test(b: const B) {
+                        x = A(b)
+                    }
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
-                        it.sourceType.toString() shouldBe "const S32"
+                        it.sourceType.toString() shouldBe "const testmodule.B"
                         it.targetType.toString() shouldBe "mut Any"
                         it.reason shouldBe "cannot assign a const value to a mut reference"
                     }
+            }
+
+            "a const class fits any mutability" {
+                validateModule("""
+                    class A<T : mut Any> {
+                        prop: T = init
+                    }
+                    fn foo(p: A<S32>) {}
+                    x = A(2)
+                """.trimIndent()) should haveNoDiagnostics()
             }
         }
 

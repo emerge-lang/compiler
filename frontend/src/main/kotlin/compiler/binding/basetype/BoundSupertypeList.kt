@@ -3,6 +3,7 @@ package compiler.binding.basetype
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
@@ -16,6 +17,9 @@ import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.duplicateSupertype
 import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
+import compiler.diagnostic.mutabilityOnSupertype
+import compiler.diagnostic.redundantMutabilityOnSupertype
+import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import kotlinext.duplicatesBy
 
@@ -36,6 +40,19 @@ class BoundSupertypeList(
             .mapNotNull { it.resolvedReference?.baseType }
             .filter { it != context.swCtx.any }
             .toSet()
+    }
+
+    /** see [BoundBaseType.isConst] */
+    val isConst: Boolean by lazy {
+        if (clauses.any { it.astNode.mutability == TypeMutability.IMMUTABLE }) {
+            return@lazy true
+        }
+
+        handleCyclicInvocation(
+            context = this,
+            action = { clauses.any { it.resolvedReference?.baseType?.isConst == true } },
+            onCycle = { false /* cyclic inheritance is reported in phase 1 */ },
+        )
     }
 
     /**
@@ -88,6 +105,8 @@ class BoundSupertypeList(
                     diagnosis.duplicateSupertype(duped.first().asAstReference())
                 }
 
+            sean1ValidateMutabilities(diagnosis)
+
             inheritedMemberFunctions = clauses
                 .asSequence()
                 .filter { it !in preprocessedInheritanceTree.cycles }
@@ -103,6 +122,29 @@ class BoundSupertypeList(
                         .filter { it.inheritancePreclusionReason == null }
                 }
                 .toList()
+        }
+    }
+
+    private fun sean1ValidateMutabilities(diagnosis: Diagnosis) {
+        val constBaseTypes = clauses.mapNotNull { it.resolvedReference?.baseType?.takeIf { baseType -> baseType.isConst } }
+        var constDeclaredBefore = false
+        for (clause in clauses) {
+            val baseType = clause.resolvedReference?.baseType
+            when (clause.astNode.mutability) {
+                null -> {}
+                TypeMutability.READONLY -> diagnosis.redundantMutabilityOnSupertype(clause.astNode, "supertypes are read by default")
+                TypeMutability.MUTABLE,
+                TypeMutability.EXCLUSIVE -> diagnosis.mutabilityOnSupertype(clause.astNode)
+                TypeMutability.IMMUTABLE -> {
+                    val otherConst = constBaseTypes.firstOrNull { it != baseType }
+                    when {
+                        baseType != null && baseType.isConst -> diagnosis.redundantMutabilityOnSupertype(clause.astNode, "${baseType.simpleName} is const already")
+                        otherConst != null -> diagnosis.redundantMutabilityOnSupertype(clause.astNode, "${otherConst.simpleName} is const already")
+                        constDeclaredBefore -> diagnosis.redundantMutabilityOnSupertype(clause.astNode, "another supertype is declared const already")
+                    }
+                    constDeclaredBefore = true
+                }
+            }
         }
     }
 

@@ -220,4 +220,78 @@ class MutabilityErrors : FreeSpec({
                 }
         }
     }
+
+    "const classes" - {
+        "a value of a const class fits a reference of any mutability" {
+            validateModule("""
+                class Foo : const Any {}
+                fn test(s: S32, f: Foo) {
+                    a: mut Any = s
+                    b: exclusive Any = s
+                    c: read Any = s
+                    d: const Any = s
+                    e: mut Any = f
+                    g: exclusive Any = f
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "references to a const class are const whatever the mutability written" {
+            validateModule("""
+                class Foo : const Any {
+                    var a: S32 = init
+                }
+                fn test(f: mut Foo) {
+                    set f.a = 3
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "objects of a const class can be constructed" {
+            validateModule("""
+                class Foo : const Any {
+                    a: S32 = init
+                }
+                fn test() -> S32 {
+                    f = Foo(2)
+                    return f.a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "constness carries over to subtypes" {
+            validateModule("""
+                interface Number : const Any {}
+                class Foo : Number {
+                    var a: S32 = init
+                }
+                fn test(f: mut Foo) {
+                    set f.a = 3
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a value of a subtype of a const interface fits a reference of any mutability" {
+            validateModule("""
+                interface Number : const Any {}
+                class Foo : Number {}
+                fn test(f: Foo) -> mut Number {
+                    return f
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a type variable of a given mutability takes a value of a const class" {
+            validateModule("""
+                fn foo<T>(p: mut T) {}
+                fn bar<T>(p: exclusive T) {}
+                fn test(s: S32) {
+                    foo(s)
+                    bar(s)
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+    }
 })

@@ -440,6 +440,12 @@ class BoundBaseType(
             context.swCtx.bool,
         )
 
+    /**
+     * True iff this type is declared `const` on a supertype (`class Foo : const Any`), or inherits from one that
+     * is. All references to it are immutable, so nothing can mutate its objects.
+     */
+    val isConst: Boolean get() = superTypes.isConst
+
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(supertype: BoundBaseType): Boolean {
         if (supertype === this) return true

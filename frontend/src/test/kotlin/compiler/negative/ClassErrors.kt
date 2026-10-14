@@ -22,6 +22,8 @@ import compiler.diagnostic.ImmediateWildcardTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
+import compiler.diagnostic.MutabilityOnSupertypeDiagnostic
+import compiler.diagnostic.RedundantMutabilityOnSupertypeDiagnostic
 import compiler.diagnostic.MultipleClassDestructorsDiagnostic
 import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
 import compiler.diagnostic.NonVirtualMemberFunctionWithReceiverDiagnostic
@@ -951,6 +953,56 @@ class ClassErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<DuplicateSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "mutability on a supertype other than const" {
+            validateModule("""
+                interface A {}
+                class B : mut A {}
+            """.trimIndent())
+                .shouldFind<MutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "exclusive on a supertype" {
+            validateModule("""
+                interface A {}
+                class B : exclusive A {}
+            """.trimIndent())
+                .shouldFind<MutabilityOnSupertypeDiagnostic>()
+        }
+
+        "read on a supertype is redundant" {
+            validateModule("""
+                interface A {}
+                class B : read A {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "const on more than one supertype is redundant" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                class C : const A & const B {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "B"
+                }
+        }
+
+        "const on a supertype that is const already is redundant" {
+            validateModule("""
+                interface A : const Any {}
+                class B : const A {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                    it.reason shouldBe "A is const already"
                 }
         }
 

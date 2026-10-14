@@ -182,7 +182,7 @@ class BoundObjectMemberAssignmentStatement(
         targetObjectExpression.semanticAnalysisPhase3(diagnosis)
 
         targetObjectExpression.type?.let { memberOwnerType ->
-            if (!memberOwnerType.mutability.isMutable) {
+            if (initializationStateBefore != VariableInitialization.State.NOT_INITIALIZED && !memberOwnerType.mutability.isMutable) {
                 diagnosis.valueNotAssignable(
                     memberOwnerType.withMutability(TypeMutability.MUTABLE),
                     memberOwnerType,

@@ -103,7 +103,7 @@ class TypeVariable private constructor(
     ): TypeUnification {
         val givenMutability = asGeneric.givenMutability
         if (givenMutability != null && assigneeType !is TypeVariable && assigneeType !is ErroneousType) {
-            val assigneeMutability = if (assigneeType is BoundTypeArgument && assigneeType.variance == TypeVariance.IN) TypeMutability.READONLY else assigneeType.mutability
+            val assigneeMutability = if (assigneeType is BoundTypeArgument && assigneeType.variance == TypeVariance.IN) TypeMutability.READONLY else assigneeType.assignmentMutability
             if (!assigneeMutability.isAssignableTo(givenMutability)) {
                 return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a $assigneeMutability value to a $givenMutability reference", assignmentLocation))
             }

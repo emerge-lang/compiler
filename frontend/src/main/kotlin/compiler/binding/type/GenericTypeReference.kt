@@ -52,6 +52,7 @@ class GenericTypeReference private constructor(
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability: TypeMutability get() = effectiveBound.mutability
+    override val assignmentMutability: TypeMutability get() = effectiveBound.assignmentMutability
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
@@ -118,7 +119,7 @@ class GenericTypeReference private constructor(
             }
             is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                if (assigneeType.isNonNullableNothing && assigneeType.mutability.isAssignableTo(this.mutability)) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                if (assigneeType.isNonNullableNothing && assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability)) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
                     assigneeType,
                     "$assigneeType cannot be proven to be a subtype of $this",
@@ -140,7 +141,7 @@ class GenericTypeReference private constructor(
                     if (viaBound.getErrorsNotIn(carry).none()) {
                         return viaBound
                     }
-                } else if (assigneeType.mutability.isAssignableTo(this.mutability) && (!assigneeType.isNullable || this.isNullable)) {
+                } else if (assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability) && (!assigneeType.isNullable || this.isNullable)) {
                     return carry
                 }
                 return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
@@ -192,7 +193,7 @@ class GenericTypeReference private constructor(
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is RootResolvedTypeReference -> {
-                if (other.baseType == context.swCtx.nothing && other.mutability.isAssignableTo(this.mutability)) {
+                if (other.baseType == context.swCtx.nothing && other.assignmentMutability.isAssignableTo(this.assignmentMutability)) {
                     return this
                 }
 
@@ -237,7 +238,7 @@ class GenericTypeReference private constructor(
 
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
-            return this.mutability.isAssignableTo(other.mutability) && (!this.isNullable || other.isNullable)
+            return this.assignmentMutability.isAssignableTo(other.assignmentMutability) && (!this.isNullable || other.isNullable)
         }
 
         val bound = this.effectiveBound

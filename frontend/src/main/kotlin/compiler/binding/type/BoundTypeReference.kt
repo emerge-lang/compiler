@@ -45,6 +45,13 @@ sealed interface BoundTypeReference {
     val simpleName: String?
 
     val mutability: TypeMutability
+
+    /**
+     * The mutability values of this type are assigned as: [mutability], except for objects of a const class
+     * ([BoundBaseType.isConst]), which nothing can mutate; they fit references of any mutability.
+     */
+    val assignmentMutability: TypeMutability get() = mutability
+
     val span: Span?
 
     /**

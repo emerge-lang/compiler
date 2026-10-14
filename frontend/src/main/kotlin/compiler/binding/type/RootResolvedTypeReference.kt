@@ -35,7 +35,8 @@ class RootResolvedTypeReference private constructor(
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val isNullable = false
-    override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val mutability get() = if (baseType.isConst) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val assignmentMutability get() = if (baseType.isConst) TypeMutability.EXCLUSIVE else mutability
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
@@ -71,7 +72,7 @@ class RootResolvedTypeReference private constructor(
     )
 
     override fun withMutability(mutability: TypeMutability?): RootResolvedTypeReference {
-        val newMutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else mutability
+        val newMutability = if (baseType.isConst) TypeMutability.IMMUTABLE else mutability
         if (newMutability == this@RootResolvedTypeReference.mutability) {
             return this
         }
@@ -265,7 +266,7 @@ class RootResolvedTypeReference private constructor(
                 }
 
                 // the modifiers must be compatible
-                if (!(assigneeType.mutability isAssignableTo this.mutability)) {
+                if (!(assigneeType.assignmentMutability isAssignableTo this.assignmentMutability)) {
                     return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
