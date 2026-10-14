@@ -34,6 +34,9 @@ it shows and why; the tables below are the map.
 | `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
 | `SubstitutionTerminating.v` | substitution with intersections as assignees, where unify terminates                      | `substitution_terminating`                                              |
 | `SubstitutionWide.v` | substitution with intersections in type arguments, where unify terminates                       | `substitution_wide`                                                     |
+| `GenericArguments.v` | inference with the type parameters of the caller in the arguments: calls in generic code       | `member_call_in_generic_code_sound`                                     |
+| `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
+| `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`                              |
 
 ### Fragments
 
@@ -50,6 +53,8 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `ground`      | `SubstitutionWide.v` | what the types of `wtfrag` become: `gfrag` without type parameters                                   |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters, bounded by types without type parameters |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
+| `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, the references well-formed, Nothing only as `exclusive Nothing` (`bottom_only`), the type parameters of the caller none of those inferred |
+| `caller_type` | `GenericCode.v`   | the types of generic code: `wtfrag`, the references as `GenericTypeReference` makes them (`built`), to the type parameters of the caller |
 
 ### What the proofs assume
 
@@ -64,6 +69,7 @@ of the theorems, mostly bundled in records:
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
 | `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
 | `intersect_is_below_both`, `closest_common_supertype_is_above_both` | `Conjectures.v` | conjecture: the intersection is below both types, the closest common supertype above both |
+| `intersect_stays_in_generic_code`, `closest_common_supertype_stays_in_generic_code` | `GenericCode.v` | conjecture: both functions build types of generic code (`caller_type`) from types of it |
 | `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
@@ -80,8 +86,12 @@ program.
 
 ### Not covered yet
 
-- Substitution with type variables, and F-bounded type parameters (`T : Comparable<T>`); also with
-  intersections that have a component that is, instantiated, a core scalar (see `SubstitutionTerminating.v`).
+- F-bounded type parameters (`T : Comparable<T>`).
+- Intersections that have a component that is, instantiated, a core scalar, and references of a
+  mutability core scalars don't have (`mut T`) to type parameters bound to one (see
+  `SubstitutionTerminating.v`, `WithinBounds.v`).
+- Calls in generic code whose receiver mentions the type parameters of the caller (`list.add(x)` with
+  `list: List<T>`).
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs

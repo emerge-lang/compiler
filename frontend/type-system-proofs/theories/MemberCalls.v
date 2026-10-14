@@ -265,7 +265,9 @@ Lemma receiver_and_object: forall n mr c cvars ovars ma ca ys u mo e xs zs n0,
             lookup_state u p = Some (mkVariableState bound y y true true))
         /\ (forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound bound bottom_type false false))
         /\ wf_states u
-        /\ Forall2 (fun z y => unify env n1 y z (Ongoing []) = Some (Ongoing [])) zs ys'.
+        /\ Forall2 (fun z y => unify env n1 y z (Ongoing []) = Some (Ongoing [])) zs ys'
+        /\ (forall p st, lookup_state u p = Some st -> is_exact st = false ->
+            exists bound, In (p, bound) ovars /\ st = mkVariableState bound bound bottom_type false false).
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx.
     set (s0 := map (fun '(q, bnd) => (q, mkVariableState bnd bnd bottom_type false (existsb (param_eqb q) (map fst cvars))))
@@ -350,7 +352,15 @@ Proof.
     pose proof (pairwise_of_arguments env (n0 + k) ys' zs [] ltac:(lia)
         (fun t a w0 Ht Ha E => proj2 (keeps_states_with_arguments env wf (n0 + k)) t a [] w0 (Hys t Ht) (Hfzs a Ha) E) ED) as Hp.
     exists ys', (n0 + k). split; [exact Hl|]. split; [lia|]. split; [exact Hys|]. split; [exact Hcap|]. split; [exact Hownu|].
-    split; [exact Hwfu|]. exact Hp.
+    split; [exact Hwfu|]. split; [exact Hp|].
+    (* the variables not bound exactly: those of the function, as they were *)
+    intros p st Hp' Hex. destruct (in_dec Nat.eq_dec p (map fst cvars)) as [Hin|Hnin].
+    - apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
+      destruct (In_nth_error _ _ Hin) as [i Hi]. destruct (nth_error_same_length cvars ys' i _ ltac:(lia) Hi) as [y Hy].
+      rewrite (Hcap i p bound y Hi Hy) in Hp'. injection Hp' as <-. discriminate Hex.
+    - pose proof Hp' as Hp2. rewrite (Hoth p Hnin) in Hp2. unfold s0 in Hp2. destruct (lookup_for_inference_in _ _ p st Hp2) as [bound Hin].
+      apply in_app_or in Hin. destruct Hin as [Hin|Hin]; [exfalso; apply Hnin; exact (in_map fst _ _ Hin)|].
+      exists bound. split; [exact Hin|]. rewrite (Hownu p bound Hin) in Hp'. injection Hp' as <-. reflexivity.
 Qed.
 
 (*
@@ -392,7 +402,7 @@ Proof.
         HPs HAs Hfold Hfinal b Hbdef.
     pose proof (object_arguments_exact c mo e xs zs He (object_below n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) Hfo Hxx Hzs) as Hzx.
     destruct (receiver_and_object n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx)
-        as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu Hp]]]]]]]].
+        as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu [Hp _]]]]]]]]].
     pose proof Hnd as Hnd'. rewrite map_app in Hnd.
     set (vars := cvars ++ ovars) in *.
     (* the variable states unify ends with, with the bounds themselves for the type parameters *)
