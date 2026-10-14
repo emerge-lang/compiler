@@ -549,7 +549,7 @@ Proof.
           unify env (S F) (RootResolved m d Ay) (RootResolved m d Ax) (Ongoing s) = Some (Ongoing s)).
       { intros F Ay Ax HA. rewrite unify_classes. replace (base_type_is_subtype_of env d d) with true
             by (unfold base_type_is_subtype_of; rewrite class_eqb_refl; reflexivity).
-        rewrite (mutability_of_class env m d Ax Ay), mutability_is_subtype_of_refl.
+        rewrite (assignment_mutability_of_class env m d Ax Ay), mutability_is_subtype_of_refl.
         destruct (class_eqb d nothing); [reflexivity|]. rewrite class_eqb_refl. apply fold_pairs. exact HA. }
       split; [|apply not_true_iff_false; intros E; apply existsb_exists in E; destruct E as [a [Ha E]];
                rewrite (proj2 (IH a Ha)) in E; discriminate E].

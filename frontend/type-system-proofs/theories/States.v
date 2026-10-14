@@ -65,7 +65,7 @@ Qed.
 Lemma no_vars_of_components: forall cs, (forall c, In c cs -> no_vars c = true) -> no_vars (of_components env cs) = true.
 Proof.
     intros cs H. assert (Hi: forallb no_vars (map (fun c => with_mutability env
-            (fold_left intersect_mutability (map (mutability_of env) cs) readonly) (without_null c)) cs) = true).
+            (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly) (without_null c)) cs) = true).
     { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       apply no_vars_set_mutability. rewrite no_vars_without_null. exact (H c' Hc'). }
     destruct cs as [|c [|c' cs']]; [reflexivity|exact (H c (or_introl eq_refl))|].

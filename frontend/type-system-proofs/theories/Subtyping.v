@@ -63,7 +63,7 @@ Definition or_readonly (m: option Mutability): Mutability :=
 Fixpoint mutability_of (t: EType): Mutability :=
     match t with
     | RootResolved m c _ =>
-        if is_core_scalar (declaration_of env c) then immutable else or_readonly m
+        if is_const (declaration_of env c) then immutable else or_readonly m
     | Nullable n => mutability_of n
     (* the given mutability is applied to the effective bound, which carries it from there *)
     | Generic (mkGenericRef _ _ _ bound)
@@ -72,6 +72,22 @@ Fixpoint mutability_of (t: EType): Mutability :=
     | TypeArgument _ _ n => mutability_of n
     (* readonly is the neutral element of intersect_mutability *)
     | Intersection components => fold_left intersect_mutability (map mutability_of components) readonly
+    end.
+
+(* BoundTypeReference.assignmentMutability: the mutability a value of the type is assigned as. That
+   is its own, but exclusive for an object of a const class: nothing can mutate it, so it keeps what a
+   reference of any mutability promises, and it fits all of them. Its references stay immutable
+   (mutability_of), so that nothing reads or writes them as mutable. *)
+Fixpoint assignment_mutability (t: EType): Mutability :=
+    match t with
+    | RootResolved m c _ =>
+        if is_const (declaration_of env c) then exclusive else or_readonly m
+    | Nullable n => assignment_mutability n
+    | Generic (mkGenericRef _ _ _ bound)
+    | TypeVariable (mkGenericRef _ _ _ bound) => assignment_mutability bound
+    | Error m _ => or_readonly m
+    | TypeArgument _ _ n => assignment_mutability n
+    | Intersection components => fold_left intersect_mutability (map assignment_mutability components) readonly
     end.
 
 (* BoundTypeReference.isNullable *)
@@ -193,7 +209,7 @@ Fixpoint without_null (t: EType): EType :=
 Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     match t with
     | RootResolved _ c arguments =>
-        RootResolved (Some (if is_core_scalar (declaration_of env c) then immutable else m)) c arguments
+        RootResolved (Some (if is_const (declaration_of env c) then immutable else m)) c arguments
     | Nullable n => rewrap_nullable (with_mutability m n)
     | Generic (mkGenericRef _ nn p bound) => Generic (mkGenericRef (Some m) nn p (with_mutability m bound))
     | TypeVariable (mkGenericRef _ nn p bound) => TypeVariable (mkGenericRef (Some m) nn p (with_mutability m bound))
@@ -282,12 +298,13 @@ Definition intersected_components (t: EType): list EType :=
     end.
 
 (* BoundIntersectionTypeReference.ofComponents, without simplifying: the components non-null, of
-   their common mutability; nullable iff all of them are *)
+   their common mutability; nullable iff all of them are. That is the mutability they are assigned as
+   in common: exclusive, where one of them is a const class, as the values are its objects. *)
 Definition of_components (components: list EType): EType :=
     match components with
     | [component] => component
     | _ =>
-        let m := fold_left intersect_mutability (map mutability_of components) readonly in
+        let m := fold_left intersect_mutability (map assignment_mutability components) readonly in
         let non_nullable := Intersection (map (fun c => with_mutability m (without_null c)) components) in
         if forallb is_nullable components then Nullable non_nullable else non_nullable
     end.
@@ -569,7 +586,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
     match assignee with
     | RootResolved _ assignee_base_type assignee_arguments =>
         if negb (base_type_is_subtype_of assignee_base_type base_type) then Some Failed else
-        if negb (Model.is_subtype_of (mutability_of assignee) (mutability_of self)) then Some Failed else
+        if negb (Model.is_subtype_of (assignment_mutability assignee) (assignment_mutability self)) then Some Failed else
         (* Nothing is a subtype of every other possible type, which cannot be denoted in source code *)
         if class_eqb assignee_base_type nothing then Some (Ongoing states) else
         let normalized_assignee_arguments :=
@@ -605,14 +622,14 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     (* Nothing, of a mutability that fits *)
     | RootResolved _ _ _ =>
-        if is_non_nullable_nothing assignee && Model.is_subtype_of (mutability_of assignee) (mutability_of self)
+        if is_non_nullable_nothing assignee && Model.is_subtype_of (assignment_mutability assignee) (assignment_mutability self)
         then Some (Ongoing states) else Some Failed
     | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | TypeArgument variance _ type => unify self (read_type variance type) (Ongoing states)
     (* the same type parameter, of a mutability and nullability that fit; another one by its bound *)
     | Generic (mkGenericRef _ _ q bound) =>
         if param_eqb q parameter
-        then if Model.is_subtype_of (mutability_of assignee) (mutability_of self) && (negb (is_nullable assignee) || is_nullable self)
+        then if Model.is_subtype_of (assignment_mutability assignee) (assignment_mutability self) && (negb (is_nullable assignee) || is_nullable self)
              then Some (Ongoing states) else Some Failed
         else unify self bound (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
@@ -680,7 +697,7 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
 (* TypeVariable.unify *)
 (* What a value of the assignee can be read as, mutability-wise *)
 Definition assignee_mutability (assignee: EType): Mutability :=
-    match assignee with TypeArgument input _ _ => readonly | _ => mutability_of assignee end.
+    match assignee with TypeArgument input _ _ => readonly | _ => assignment_mutability assignee end.
 
 (* For `m T`, the variable T takes values of a mutability that fits m, only *)
 Definition given_mutability_fits (self assignee: EType): bool :=
@@ -966,7 +983,7 @@ Qed.
 
 (* exclusive Nothing is a subtype of every non-nullable class type. *)
 Theorem bottom_type_is_assignable_to_root_resolved: forall fuel m c arguments,
-    is_core_scalar (declaration_of env nothing) = false ->
+    is_const (declaration_of env nothing) = false ->
     is_assignable_to (S fuel) bottom_type (RootResolved m c arguments) = Some true.
 Proof.
     intros fuel m c arguments Hnothing. unfold is_assignable_to, bottom_type. simpl.

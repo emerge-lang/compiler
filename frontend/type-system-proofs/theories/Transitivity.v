@@ -210,8 +210,8 @@ Record wellformed: Prop := {
     wf_parameter_ids_are_distinct: forall c, NoDup (parameter_ids c);
     wf_nothing_has_no_type_parameters: parameter_ids nothing = [];
     wf_any_has_no_type_parameters: parameter_ids any = [];
-    wf_nothing_is_no_scalar: is_core_scalar (declaration_of env nothing) = false;
-    wf_any_is_no_scalar: is_core_scalar (declaration_of env any) = false;
+    wf_nothing_is_not_const: is_const (declaration_of env nothing) = false;
+    wf_any_is_not_const: is_const (declaration_of env any) = false;
     wf_supertypes_are_templates: forall sub super,
         sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
         length (supertype_arguments sub super) = length (parameter_ids super)
@@ -238,8 +238,8 @@ Let acyclic := wf_acyclic wf.
 Let parameter_ids_are_distinct := wf_parameter_ids_are_distinct wf.
 Let nothing_has_no_type_parameters := wf_nothing_has_no_type_parameters wf.
 Let any_has_no_type_parameters := wf_any_has_no_type_parameters wf.
-Let nothing_is_no_scalar := wf_nothing_is_no_scalar wf.
-Let any_is_no_scalar := wf_any_is_no_scalar wf.
+Let nothing_is_not_const := wf_nothing_is_not_const wf.
+Let any_is_not_const := wf_any_is_not_const wf.
 Let supertypes_are_templates := wf_supertypes_are_templates wf.
 Let supertypes_compose := wf_supertypes_compose wf.
 
@@ -363,7 +363,7 @@ Qed.
 Lemma unify_classes: forall n mt ct targs ma ca aargs s,
     unify env (S n) (RootResolved mt ct targs) (RootResolved ma ca aargs) (Ongoing s) =
     if base_type_is_subtype_of env ca ct then
-        if Model.is_subtype_of (mutability_of env (RootResolved ma ca aargs)) (mutability_of env (RootResolved mt ct targs))
+        if Model.is_subtype_of (assignment_mutability env (RootResolved ma ca aargs)) (assignment_mutability env (RootResolved mt ct targs))
         then if class_eqb ca nothing then Some (Ongoing s)
             else unify_arguments (unify env n) targs
                 (if class_eqb ca ct then aargs else parameterized_supertype_arguments env ca aargs ct) s
@@ -375,8 +375,8 @@ Proof.
     destruct (Model.is_subtype_of _ _); reflexivity.
 Qed.
 
-Lemma mutability_of_class: forall m c arguments arguments',
-    mutability_of env (RootResolved m c arguments) = mutability_of env (RootResolved m c arguments').
+Lemma assignment_mutability_of_class: forall m c arguments arguments',
+    assignment_mutability env (RootResolved m c arguments) = assignment_mutability env (RootResolved m c arguments').
 Proof. reflexivity. Qed.
 
 Lemma unify_class_nullable: forall n m c arguments na s,
@@ -975,10 +975,10 @@ Proof.
     unfold bottom_type in H. rewrite unify_classes in H.
     destruct (base_type_is_subtype_of env cz nothing) eqn:Hb; [|discriminate H].
     apply only_nothing_is_below_nothing in Hb. subst cz.
-    assert (Hmz: mutability_of env (RootResolved mz nothing zargs) = exclusive).
-    { destruct (Model.is_subtype_of (mutability_of env (RootResolved mz nothing zargs))
-          (mutability_of env (RootResolved (Some exclusive) nothing []))) eqn:Hm; [|discriminate H].
-      cbn [mutability_of] in Hm |- *. rewrite nothing_is_no_scalar in Hm |- *.
+    assert (Hmz: assignment_mutability env (RootResolved mz nothing zargs) = exclusive).
+    { destruct (Model.is_subtype_of (assignment_mutability env (RootResolved mz nothing zargs))
+          (assignment_mutability env (RootResolved (Some exclusive) nothing []))) eqn:Hm; [|discriminate H].
+      cbn [assignment_mutability] in Hm |- *. rewrite nothing_is_not_const in Hm |- *.
       destruct mz as [[]|]; simpl in Hm |- *; congruence. }
     assert (Hclass: forall f' mt ct targs, 1 <= f' ->
         unify env f' (RootResolved mt ct targs) (RootResolved mz nothing zargs) (Ongoing s) = Some (Ongoing s)).
@@ -1005,10 +1005,10 @@ Proof.
     subst cz.
     destruct (root_in_fragment _ _ _ Hz') as [Hlz _]. rewrite any_has_no_type_parameters in Hlz.
     destruct zargs; [|discriminate Hlz].
-    destruct (Model.is_subtype_of (mutability_of env (RootResolved (Some readonly) any []))
-        (mutability_of env (RootResolved mz any []))) eqn:Hm; [|discriminate H].
-    assert (Hmz: forall a, Model.is_subtype_of a (mutability_of env (RootResolved mz any [])) = true).
-    { cbn [mutability_of] in Hm |- *. rewrite any_is_no_scalar in Hm |- *.
+    destruct (Model.is_subtype_of (assignment_mutability env (RootResolved (Some readonly) any []))
+        (assignment_mutability env (RootResolved mz any []))) eqn:Hm; [|discriminate H].
+    assert (Hmz: forall a, Model.is_subtype_of a (assignment_mutability env (RootResolved mz any [])) = true).
+    { cbn [assignment_mutability] in Hm |- *. rewrite any_is_not_const in Hm |- *.
       destruct mz as [[]|]; simpl in Hm |- *; try discriminate Hm; intros []; reflexivity. }
     assert (Hclass: forall f' mt ct targs, 1 <= f' ->
         unify env f' (RootResolved mz any []) (RootResolved mt ct targs) (Ongoing s) = Some (Ongoing s)).
@@ -1125,7 +1125,7 @@ Proof.
         destruct (fragment_cases z Hz) as [[mz [cz [zargs ->]]]|[mz [cz [zargs [-> Hz']]]]].
         + destruct (root_in_fragment mz cz zargs Hz) as [_ Hzargs].
           rewrite unify_classes in H |- *.
-          rewrite (mutability_of_class m0 c (map (instantiate env (bindings_of env sub xs)) targs)
+          rewrite (assignment_mutability_of_class m0 c (map (instantiate env (bindings_of env sub xs)) targs)
               (map (instantiate env (bindings_of env sub ys)) targs)).
           destruct (base_type_is_subtype_of env c cz) eqn:Hb; [|discriminate H].
           destruct (Model.is_subtype_of _ _); [|discriminate H].
@@ -1169,7 +1169,7 @@ Proof.
             [|rewrite unify_class_nullable in H; discriminate H].
         destruct (root_in_fragment mz cz zargs Hz) as [Hlz Hzargs].
         rewrite unify_classes in H |- *.
-        rewrite (mutability_of_class m0 c (map (instantiate env (bindings_of env sub xs)) targs)
+        rewrite (assignment_mutability_of_class m0 c (map (instantiate env (bindings_of env sub xs)) targs)
             (map (instantiate env (bindings_of env sub ys)) targs)).
         destruct (base_type_is_subtype_of env cz c) eqn:Hb; [|discriminate H].
         destruct (Model.is_subtype_of _ _); [|discriminate H].
@@ -1339,9 +1339,9 @@ Proof.
         destruct (base_type_is_subtype_of env cx cy) eqn:Hb1; [|discriminate H1].
         destruct (base_type_is_subtype_of env cy cz) eqn:Hb2; [|discriminate H2].
         rewrite (base_type_is_subtype_of_trans cx cy cz Hb1 Hb2).
-        destruct (Model.is_subtype_of (mutability_of env (RootResolved mx cx xargs)) (mutability_of env (RootResolved my cy yargs))) eqn:Hm1;
+        destruct (Model.is_subtype_of (assignment_mutability env (RootResolved mx cx xargs)) (assignment_mutability env (RootResolved my cy yargs))) eqn:Hm1;
             [|discriminate H1].
-        destruct (Model.is_subtype_of (mutability_of env (RootResolved my cy yargs)) (mutability_of env (RootResolved mz cz zargs))) eqn:Hm2;
+        destruct (Model.is_subtype_of (assignment_mutability env (RootResolved my cy yargs)) (assignment_mutability env (RootResolved mz cz zargs))) eqn:Hm2;
             [|discriminate H2].
         rewrite (mutability_trans _ _ _ Hm1 Hm2).
         (* Nothing is assignable to every class type *)

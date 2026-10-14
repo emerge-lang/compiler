@@ -735,7 +735,7 @@ Proof.
         pose proof (root_parts mt ct targs Hft Hbt) as Htargs.
         destruct (Hargs ma ca aargs Hfa Hna Hca) as [Hla Haargs].
         rewrite unify_classes in Hu |- *.
-        rewrite (mutability_of_class env mt ct (map (instantiate env b) targs) targs).
+        rewrite (assignment_mutability_of_class env mt ct (map (instantiate env b) targs) targs).
         destruct (base_type_is_subtype_of env ca ct) eqn:Hbase; [|discriminate Hu].
         destruct (Model.is_subtype_of _ _); [|discriminate Hu].
         destruct (class_eqb ca nothing) eqn:Hcn; [injection Hu as <-; auto|].
@@ -786,7 +786,7 @@ Proof.
         pose proof (root_parts mp cp pargs Hfp Hbp) as Hpargs.
         destruct (Hargs ma ca aargs Hfa Hna Hca) as [_ Haargs].
         rewrite unify_classes in Hu |- *.
-        rewrite (mutability_of_class env mp cp (map (instantiate env b) pargs) pargs).
+        rewrite (assignment_mutability_of_class env mp cp (map (instantiate env b) pargs) pargs).
         destruct (base_type_is_subtype_of env cp ca) eqn:Hbase; [|discriminate Hu].
         destruct (Model.is_subtype_of _ _); [|discriminate Hu].
         destruct (class_eqb cp nothing) eqn:Hcn; [injection Hu as <-; auto|].

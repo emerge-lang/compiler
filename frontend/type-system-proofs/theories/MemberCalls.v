@@ -330,7 +330,7 @@ Proof.
       rewrite Hly, Nat.eqb_refl. apply forallb_forall, Hys. }
     set (k := depth (RootResolved mr c ys')).
     assert (HD: unify env (S k) (RootResolved mr c ys') (RootResolved ma ca ys) (Ongoing []) = Some (Ongoing [])).
-    { rewrite unify_classes, Hbca, (mutability_of_class env mr c ys' (map receiver_leaf cvars)), Hmr, (class_eqb_false ca nothing Hca).
+    { rewrite unify_classes, Hbca, (assignment_mutability_of_class env mr c ys' (map receiver_leaf cvars)), Hmr, (class_eqb_false ca nothing Hca).
       fold ys'. unfold unify_arguments. apply (fold_of_pairs env). apply forall2_diag. intros y Hy.
       apply (proj2 (reflexivity_with_arguments env k)); [exact (Hys y Hy)|].
       pose proof (argument_depth_below mr c ys' y Hy). unfold k. lia. }

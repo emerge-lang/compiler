@@ -193,8 +193,10 @@ Record TypeParameterDecl := {
 (* The declaration of a class (BoundBaseType), the counterpart to a Class reference. *)
 Record ClassDecl := {
     kind: ClassKind;
-    (* BoundBaseType.isCoreScalar: the numeric types and bool, whose references are always immutable *)
-    is_core_scalar: bool;
+    (* BoundBaseType.isConst: declared `: const Any` (or `: const` any other supertype), or a subtype
+       of such a class, like the numeric types and bool. Its references are always immutable, and
+       nothing can mutate its objects. *)
+    is_const: bool;
     type_parameters: list TypeParameterDecl;
     (* RootResolved references to the direct supertypes, their arguments in terms of type_parameters *)
     supertypes: list EType;

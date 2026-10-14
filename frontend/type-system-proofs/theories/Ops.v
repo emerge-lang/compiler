@@ -48,7 +48,7 @@ Qed.
 (* Assigning a value doesn't preserve immutability: `immutable Any` is assignable to `readonly Any`.
    The reference assigned to promises less, which is fine; see may_coexist below for what matters. *)
 Lemma immutability_is_affected_by_reassignment:
-    is_core_scalar (declaration_of env any) = false ->
+    is_const (declaration_of env any) = false ->
     ~ (forall a b: EType, forall fuel: nat,
         is_assignable_to env fuel a b = Some true ->
         can_assume_immutable a = true ->
@@ -60,7 +60,7 @@ Proof.
     assert (Hassignable: is_assignable_to env 1 a b = Some true).
     { unfold is_assignable_to, a, b. simpl. rewrite Hany. reflexivity. }
     assert (Ha: can_assume_immutable a = true).
-    { unfold can_assume_immutable, a. simpl. destruct (is_core_scalar _); reflexivity. }
+    { unfold can_assume_immutable, a. simpl. destruct (is_const _); reflexivity. }
     assert (Hb: can_assume_immutable b = false).
     { unfold can_assume_immutable, b. simpl. rewrite Hany. reflexivity. }
     rewrite (H a b 1 Hassignable Ha) in Hb. discriminate Hb.
@@ -682,6 +682,12 @@ Proof.
     - simpl. destruct (IH n) as [Hm _]. rewrite Hm. split; reflexivity.
 Qed.
 
+Lemma without_null_keeps_assignment_mutability: forall t,
+    assignment_mutability env (without_null t) = assignment_mutability env t.
+Proof.
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; apply IH.
+Qed.
+
 Lemma generic_mutability_below_bound: forall g nn p b,
     is_subtype_of (mutability_of env (Generic (mkGenericRef g nn p b))) (mutability_of env b) = true.
 Proof.
@@ -720,6 +726,37 @@ Lemma intersection_mutability_below_component: forall components c,
 Proof.
     intros components c Hc. rewrite intersection_mutability.
     apply fold_intersect_below_element, in_map, Hc.
+Qed.
+
+Lemma intersection_assignment_mutability: forall components,
+    assignment_mutability env (Intersection components) = fold_left intersect_mutability (map (assignment_mutability env) components) readonly.
+Proof. reflexivity. Qed.
+
+Lemma intersection_assignment_mutability_below_component: forall components c,
+    In c components -> is_subtype_of (assignment_mutability env (Intersection components)) (assignment_mutability env c) = true.
+Proof.
+    intros components c Hc. rewrite intersection_assignment_mutability.
+    apply fold_intersect_below_element, in_map, Hc.
+Qed.
+
+(* A value is assigned as no more than its mutability: as exclusive, where it is an object of a const
+   class *)
+Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
+Proof.
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|[gm nn p b]|cs]; simpl; try apply IH; try apply mutability_is_subtype_of_refl.
+    - destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
+    - assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
+          is_subtype_of (intersect_mutability a b) (intersect_mutability a' b') = true).
+      { intros x x' y y' Hx Hy. apply intersect_mutability_greatest.
+        - eapply mutability_subtype_trans; [apply intersect_mutability_left|exact Hx].
+        - eapply mutability_subtype_trans; [apply intersect_mutability_right|exact Hy]. }
+      exact ((fix F (l: list EType) (acc acc': Mutability) (H: is_subtype_of acc acc' = true) {struct l}:
+          is_subtype_of (fold_left intersect_mutability (map (assignment_mutability env) l) acc)
+              (fold_left intersect_mutability (map (mutability_of env) l) acc') = true :=
+          match l with
+          | [] => H
+          | x :: rest => F rest _ _ (Hmono _ _ _ _ H (IH x))
+          end) cs readonly readonly eq_refl).
 Qed.
 
 Lemma find_first_found: forall attempt candidates c states,
@@ -767,13 +804,14 @@ Qed.
 
 (*
  * If a value can be assigned to a reference, and both types can refer to an object, then the
- * mutability of the reference is a supertype of the mutability of the value.
+ * mutability of the reference is a supertype of the mutability the value is assigned as: its own,
+ * or exclusive for an object of a const class.
  *)
 Theorem unify_respects_mutability: forall fuel target assignee states u,
     unify env fuel target assignee (Ongoing states) = Some (Ongoing u) ->
     can_refer_to_object target = true ->
     can_refer_to_object assignee = true ->
-    is_subtype_of (mutability_of env assignee) (mutability_of env target) = true.
+    is_subtype_of (assignment_mutability env assignee) (assignment_mutability env target) = true.
 Proof.
     induction fuel as [|fuel IH]; intros target assignee states u H Ht Ha; [discriminate H|].
     change (unify env (S fuel) target assignee (Ongoing states))
@@ -787,25 +825,26 @@ Proof.
         match type of H with context [negb (is_subtype_of ?x ?y)] => destruct (is_subtype_of x y) eqn:E end;
             [reflexivity|discriminate H].
       + discriminate H.
-      + eapply mutability_subtype_trans; [apply generic_mutability_below_bound|]. eapply IH; eassumption.
+      + change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab). eapply IH; eassumption.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
-        eapply mutability_subtype_trans; [apply intersection_mutability_below_component, Hc|].
+        eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Nullable *)
       cbv beta iota delta [unify_nullable] in H.
-      change (mutability_of env (Nullable tn)) with (mutability_of env tn).
+      change (assignment_mutability env (Nullable tn)) with (assignment_mutability env tn).
       destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
       + eapply IH; eassumption.
-      + change (mutability_of env (Nullable an)) with (mutability_of env an). eapply IH; eassumption.
+      + change (assignment_mutability env (Nullable an)) with (assignment_mutability env an). eapply IH; eassumption.
       + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
         assert (Hnested: unify env fuel tn (without_null (Generic (mkGenericRef ag ann ap ab))) (Ongoing states) = Some (Ongoing u) ->
-            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ann ap ab))) (mutability_of env tn) = true).
-        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ann ap ab))) as [Hm Hc]. rewrite <- Hm.
+            is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
+        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ann ap ab))) as [_ Hc].
+          rewrite <- (without_null_keeps_assignment_mutability (Generic (mkGenericRef ag ann ap ab))).
           eapply IH; [exact Hu|exact Ht|rewrite Hc; exact Ha]. }
         assert (Hself: unify env fuel (Nullable tn) ab (Ongoing states) = Some (Ongoing u) ->
-            is_subtype_of (mutability_of env (Generic (mkGenericRef ag ann ap ab))) (mutability_of env tn) = true).
-        { intros Hu. eapply mutability_subtype_trans; [apply generic_mutability_below_bound|].
-          change (mutability_of env tn) with (mutability_of env (Nullable tn)).
+            is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
+        { intros Hu. change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab).
+          change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
           eapply IH; [exact Hu|exact Ht|exact Ha]. }
         destruct tn as [| |[]| | | |]; first [exact (Hnested H) | exact (Hself H)].
       + eapply IH; eassumption.
@@ -816,16 +855,16 @@ Proof.
       + discriminate H.
       + destruct (param_eqb ap tp).
         * destruct (_ && _) eqn:E2 in H; [|discriminate H]. apply andb_true_iff in E2. exact (proj1 E2).
-        * eapply mutability_subtype_trans; [apply generic_mutability_below_bound|]. eapply IH; [exact H|exact Ht|exact Ha].
+        * change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab). eapply IH; [exact H|exact Ht|exact Ha].
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
-        eapply mutability_subtype_trans; [apply intersection_mutability_below_component, Hc|].
+        eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Intersection *)
       cbv beta iota zeta delta [unify_intersection] in H.
       destruct (no_type_variables _ Ht) as [Hvar Hnonvar].
       assert (Hcomponents: forall s', fold_unify (fun inner c => unify env fuel c assignee inner) tcs (Ongoing states) = Some (Ongoing s') ->
-          is_subtype_of (mutability_of env assignee) (mutability_of env (Intersection tcs)) = true).
-      { intros s' Hfold. rewrite intersection_mutability.
+          is_subtype_of (assignment_mutability env assignee) (assignment_mutability env (Intersection tcs)) = true).
+      { intros s' Hfold. rewrite intersection_assignment_mutability.
         apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|].
         intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hc]].
         destruct (fold_unify_each _ _ _ _ _ Hfold c Hc) as [s1 [s1' Hu]].
@@ -838,12 +877,12 @@ Proof.
 Qed.
 
 (* The same, in terms of is_assignable_to: a value can only ever be aliased by references that
-   promise less. *)
+   promise less, unless it is an object of a const class, which keeps every promise. *)
 Theorem assignability_respects_mutability: forall fuel sub super,
     is_assignable_to env fuel sub super = Some true ->
     can_refer_to_object sub = true ->
     can_refer_to_object super = true ->
-    is_subtype_of (mutability_of env sub) (mutability_of env super) = true.
+    is_subtype_of (assignment_mutability env sub) (assignment_mutability env super) = true.
 Proof.
     intros fuel sub super H Hsub Hsuper. unfold is_assignable_to in H.
     destruct (unify env fuel super sub empty_unification) as [[u|]|] eqn:E; try discriminate H.

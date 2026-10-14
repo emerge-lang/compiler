@@ -688,7 +688,7 @@ Proof. reflexivity. Qed.
 Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super T bound ms o mt ct,
     3 <= fuel -> sub <> super -> sub <> nothing ->
     base_type_is_subtype_of env sub super = true ->
-    is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
+    is_const (declaration_of env sub) = is_const (declaration_of env super) ->
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
     parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
     is_assignable_to env fuel
@@ -696,11 +696,11 @@ Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super 
         (RootResolved m super [TypeArgument Model.invariant o (RootResolved mt ct [])])
     = Some true.
 Proof.
-    intros fuel m sub super T bound ms o mt ct Hfuel Hne Hnothing Hsub Hscalar Hparams Hsuper.
+    intros fuel m sub super T bound ms o mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper.
     destruct fuel as [|[|[|fuel]]]; try lia.
     unfold is_assignable_to, empty_unification. rewrite unify_step_once.
     unfold unify_step, unify_root_resolved. cbn beta iota.
-    rewrite Hsub. cbn [mutability_of]. rewrite Hscalar, mutability_is_subtype_of_refl. cbn [negb].
+    rewrite Hsub. cbn [assignment_mutability]. rewrite Hconst, mutability_is_subtype_of_refl. cbn [negb].
     rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
     rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
     unfold unify_arguments. cbn [fold_unify combine].
@@ -711,7 +711,7 @@ Qed.
 Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super T bound ms o o' mt ct,
     3 <= fuel -> sub <> super -> sub <> nothing ->
     base_type_is_subtype_of env sub super = true ->
-    is_core_scalar (declaration_of env sub) = is_core_scalar (declaration_of env super) ->
+    is_const (declaration_of env sub) = is_const (declaration_of env super) ->
     map param_id (type_parameters (declaration_of env sub)) = [T] ->
     parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
     ownership_is_assignable_to o o' = false ->
@@ -720,11 +720,11 @@ Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super T bound ms o
         (RootResolved m super [TypeArgument Model.invariant o' (RootResolved mt ct [])])
     = Some false.
 Proof.
-    intros fuel m sub super T bound ms o o' mt ct Hfuel Hne Hnothing Hsub Hscalar Hparams Hsuper Ho.
+    intros fuel m sub super T bound ms o o' mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper Ho.
     destruct fuel as [|[|[|fuel]]]; try lia.
     unfold is_assignable_to, empty_unification. rewrite unify_step_once.
     unfold unify_step, unify_root_resolved. cbn beta iota.
-    rewrite Hsub. cbn [mutability_of]. rewrite Hscalar, mutability_is_subtype_of_refl. cbn [negb].
+    rewrite Hsub. cbn [assignment_mutability]. rewrite Hconst, mutability_is_subtype_of_refl. cbn [negb].
     rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
     rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
     unfold unify_arguments. cbn [fold_unify combine].

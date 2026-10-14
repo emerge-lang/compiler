@@ -889,7 +889,7 @@ Proof.
         destruct (Model.is_subtype_of _ _) eqn:Hm; [|discriminate Hu].
         destruct (class_eqb ca nothing) eqn:Hcn.
         { injection Hu as <-. split; [exact Hs|]. split; [auto|]. intros _. exists 1.
-          rewrite unify_classes, Hbase, (mutability_of_class env mt ct (map (instantiate env b) targs) targs), Hm, Hcn. reflexivity. }
+          rewrite unify_classes, Hbase, (assignment_mutability_of_class env mt ct (map (instantiate env b) targs) targs), Hm, Hcn. reflexivity. }
         set (norm := if class_eqb ca ct then aargs else parameterized_supertype_arguments env ca aargs ct) in Hu.
         assert (Hnorm': forall a, In a norm -> argument_yfrag b a).
         { unfold norm. destruct (Class_eq_dec ca ct) as [<-|Hne]; [rewrite class_eqb_refl; exact Haargs|].
@@ -905,7 +905,7 @@ Proof.
         destruct (Hpairs targs norm s s' (instantiate env b) (fun a => a) Hp Hs Hu) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb. destruct (Hsound Hsb) as [f Hf].
         rewrite map_id in Hf. exists (S f).
-        rewrite unify_classes, Hbase, (mutability_of_class env mt ct (map (instantiate env b) targs) targs), Hm, Hcn.
+        rewrite unify_classes, Hbase, (assignment_mutability_of_class env mt ct (map (instantiate env b) targs) targs), Hm, Hcn.
         exact Hf. }
       destruct (ifrag_shapes P HP) as [[mt [ct [targs ->]]]|[[mt [ct [targs [-> HP']]]]|[p [bnd ->]]]].
       + destruct (gfrag_cases env A (proj1 (proj1 HA))) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[gm [nn [q [bq [-> _]]]]]|[cs ->]]]].
@@ -957,7 +957,7 @@ Proof.
         destruct (Model.is_subtype_of _ _) eqn:Hm; [|discriminate Hu].
         destruct (class_eqb cp nothing) eqn:Hcn.
         { injection Hu as <-. split; [exact Hs|]. split; [auto|]. intros _. exists 1.
-          rewrite unify_classes, Hbase, (mutability_of_class env mp cp (map (instantiate env b) pargs) pargs), Hm, Hcn. reflexivity. }
+          rewrite unify_classes, Hbase, (assignment_mutability_of_class env mp cp (map (instantiate env b) pargs) pargs), Hm, Hcn. reflexivity. }
         set (norm := if class_eqb cp ca then pargs else parameterized_supertype_arguments env cp pargs ca) in Hu.
         assert (Hnorm': (forall a, In a norm -> argument_ifrag env a = true /\ bound_in env b K [] (to_generic a) = true)
             /\ (if class_eqb cp ca then map (instantiate env b) pargs
@@ -983,7 +983,7 @@ Proof.
         destruct (Hpairs aargs norm s s' (fun a => a) (instantiate env b) Hp Hs Hu) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb. destruct (Hsound Hsb) as [f Hf].
         rewrite map_id in Hf. exists (S f).
-        rewrite unify_classes, Hbase, (mutability_of_class env mp cp (map (instantiate env b) pargs) pargs), Hm, Hcn.
+        rewrite unify_classes, Hbase, (assignment_mutability_of_class env mp cp (map (instantiate env b) pargs) pargs), Hm, Hcn.
         unfold unify_arguments. rewrite Hcomm. exact Hf. }
       destruct (ifrag_shapes P HP) as [[mp [cp [pargs ->]]]|[[mp [cp [pargs [-> HP']]]]|[p [bnd ->]]]].
       + destruct (gfrag_cases env A (proj1 (proj1 HA))) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[gm [nn [q [bq [-> _]]]]]|[cs ->]]]].
@@ -997,7 +997,7 @@ Proof.
           destruct (is_non_nullable_nothing env (RootResolved mp cp pargs) && _) eqn:Ec; [|discriminate H].
           injection H as <-. split; [exact Hs|]. split; [auto|]. intros _. exists 1.
           rewrite (inst_root env b _ _ _ (ifrag_no_generics env _ HP)), step_generic_root.
-          cbn [is_non_nullable_nothing mutability_of] in Ec |- *. rewrite Ec. reflexivity.
+          cbn [is_non_nullable_nothing assignment_mutability] in Ec |- *. rewrite Ec. reflexivity.
         * (* an intersection: each of its components takes it *)
           destruct (intersection_takes (fun c => below (inst env b (RootResolved mp cp pargs)) c) n cs mp cp pargs s s'
               (gfrag_components_no_vars env cs (proj1 (proj1 HA))) H) as [Hs' [Hext Hall]];
