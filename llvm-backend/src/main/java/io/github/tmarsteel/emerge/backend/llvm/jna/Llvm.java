@@ -7,7 +7,9 @@ import com.sun.jna.ptr.PointerByReference;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,26 +26,70 @@ public class Llvm {
                 return;
             }
             LLVM_DIR = llvmInstallationDirectory;
-            NativeLibrary.addSearchPath("LLVM-20", LLVM_DIR.resolve("lib").toString());
-            NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
             Map<String, Object> options = Map.of(
                     Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
             );
-            NativeLibrary llvmLib;
-            try {
-                llvmLib = NativeLibrary.getInstance("LLVM-20", options);
-            }
-            catch (UnsatisfiedLinkError ex) {
-                try {
-                    llvmLib = NativeLibrary.getInstance("LLVM-C", options);
+            NativeLibrary llvmLib = null;
+            UnsatisfiedLinkError failure = null;
+            // absolute paths are not subject to JNA's search order, so LLVM_DIR wins over the system path
+            for (Path candidate : candidateLibraryFiles(LLVM_DIR)) {
+                if (!Files.isRegularFile(candidate)) {
+                    continue;
                 }
-                catch (UnsatisfiedLinkError ex2) {
-                    ex.addSuppressed(ex2);
-                    throw ex;
+                try {
+                    llvmLib = NativeLibrary.getInstance(candidate.toAbsolutePath().toString(), options);
+                    break;
+                }
+                catch (UnsatisfiedLinkError ex) {
+                    if (failure == null) {
+                        failure = ex;
+                    } else {
+                        failure.addSuppressed(ex);
+                    }
+                }
+            }
+            if (llvmLib == null) {
+                // last resort: JNA's regular lookup, with LLVM_DIR as an additional search path
+                NativeLibrary.addSearchPath("LLVM-20", LLVM_DIR.resolve("lib").toString());
+                NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
+                try {
+                    llvmLib = NativeLibrary.getInstance("LLVM-20", options);
+                }
+                catch (UnsatisfiedLinkError ex) {
+                    try {
+                        llvmLib = NativeLibrary.getInstance("LLVM-C", options);
+                    }
+                    catch (UnsatisfiedLinkError ex2) {
+                        ex.addSuppressed(ex2);
+                        if (failure != null) {
+                            ex.addSuppressed(failure);
+                        }
+                        throw ex;
+                    }
                 }
             }
             Native.register(Llvm.class, llvmLib);
         }
+    }
+
+    private static List<Path> candidateLibraryFiles(Path llvmDir) {
+        Path bin = llvmDir.resolve("bin");
+        Path lib = llvmDir.resolve("lib");
+        if (Platform.isWindows()) {
+            return List.of(
+                    bin.resolve("LLVM-C.dll"),
+                    bin.resolve("libLLVM-20.dll"),
+                    bin.resolve("LLVM-20.dll")
+            );
+        }
+        return List.of(
+                lib.resolve("libLLVM-20.so"),
+                lib.resolve("libLLVM.so.20.1"),
+                lib.resolve("libLLVM-20.so.1"),
+                lib.resolve("libLLVM.so"),
+                lib.resolve("libLLVM-C.so"),
+                lib.resolve("libLLVM-C.so.20.1")
+        );
     }
 
     public static native void LLVMGetVersion(@NotNull @Unsigned IntByReference major, @NotNull @Unsigned IntByReference minor, @NotNull @Unsigned IntByReference path);
