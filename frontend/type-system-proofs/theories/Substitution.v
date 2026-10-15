@@ -24,7 +24,8 @@ Import ListNotations.
 (* - nullable class types;                                                                        *)
 (* - references to type parameters, `T`, `m T` or `T!`, the mutability and `!` written or applied *)
 (*   (as_written), and nullable ones, `T?`, whose bound is such a type or an intersection of      *)
-(*   them, nullable or not; it may mention other type parameters (`<U, T : Box<U>>`);             *)
+(*   them, nullable or not; it may mention other type parameters (`<U, T : Box<U>>`), and in type *)
+(*   arguments the parameter itself (`T : Comparable<T>`);                                        *)
 (* - at the top, rather than in a type argument, intersections of class types and non-null        *)
 (*   references, nullable or not, as ofComponents builds them (tfrag); as the assignee, they take *)
 (*   SubstitutionTerminating.v;                                                                   *)
@@ -100,28 +101,55 @@ Definition is_component_shape (c: EType): bool := (is_class c || is_generic c) &
 (* A reference without type variables in its bound, as there are none without type inference *)
 Definition no_type_variables (g: GenericRef): bool := match variables_of g with [] => true | _ => false end.
 
-(* The types instantiated, taking whether the effective bound of a reference is of the fragment from
-   bound_tfrag (see Subtyping.through) *)
-Fixpoint sfrag_h (bound_tfrag: GenericRef -> bool) (t: EType): bool :=
+(* The types instantiated. Whether the effective bound of a reference is of the fragment is told in
+   two parts: at its top, outside of type arguments, where the mutability and `!` of the reference
+   apply (top_tfrag, see Subtyping.through); and in the declared bound of the parameter
+   (param_tfrag, see Subtyping.through_param), which for an F-bound, `T : Comparable<T>`, mentions
+   the parameter itself in type arguments. *)
+
+(* The top of a type of the fragment, taking whether that of the effective bound of a reference is
+   from top_bound *)
+Fixpoint sfrag_top_h (top_bound: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved m c arguments =>
+        if class_eqb c nothing then is_bottom m arguments else Nat.eqb (length arguments) (length (parameter_ids env c))
+    | Nullable n => (is_class n || is_generic n) && sfrag_top_h top_bound n
+    | Generic g => as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g && top_bound g
+    | _ => false
+    end.
+
+Definition tfrag_top_h (top_bound: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | Intersection cs | Nullable (Intersection cs) =>
+        Nat.leb 2 (length cs) && forallb (fun c => is_component_shape c && sfrag_top_h top_bound c) cs
+    | _ => sfrag_top_h top_bound t
+    end.
+
+Definition top_tfrag (g: GenericRef): bool := through env tfrag_top_h false g.
+
+(* The types instantiated, taking whether the declared bound of a type parameter is of the fragment
+   from bound_tfrag *)
+Fixpoint sfrag_h (bound_tfrag: TypeParameterId -> bool) (t: EType): bool :=
     match t with
     | RootResolved m c arguments =>
         if class_eqb c nothing then is_bottom m arguments else
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => sfrag_h bound_tfrag n | _ => false end) arguments
     | Nullable n => (is_class n || is_generic n) && sfrag_h bound_tfrag n
-    | Generic g => bound_tfrag g && as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g
+    | Generic g => as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g
+        && top_tfrag g && bound_tfrag (param_of g)
     | _ => false
     end.
 
-Definition tfrag_h (bound_tfrag: GenericRef -> bool) (t: EType): bool :=
+Definition tfrag_h (bound_tfrag: TypeParameterId -> bool) (t: EType): bool :=
     match t with
     | Intersection cs | Nullable (Intersection cs) =>
         Nat.leb 2 (length cs) && forallb (fun c => is_component_shape c && sfrag_h bound_tfrag c) cs
     | _ => sfrag_h bound_tfrag t
     end.
 
-(* The effective bound of a reference is of the fragment; it may be an intersection, nullable or not *)
-Definition bound_tfrag (g: GenericRef): bool := through env tfrag_h false g.
+(* The declared bound of the type parameter is of the fragment *)
+Definition param_tfrag (p: TypeParameterId): bool := through_param env tfrag_h true p.
 
 Fixpoint sfrag (t: EType): bool :=
     match t with
@@ -130,7 +158,8 @@ Fixpoint sfrag (t: EType): bool :=
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
     | Nullable n => (is_class n || is_generic n) && sfrag n
-    | Generic g => bound_tfrag g && as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g
+    | Generic g => as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g
+        && top_tfrag g && param_tfrag (param_of g)
     | _ => false
     end.
 
@@ -150,33 +179,58 @@ Definition argument_sfrag (a: EType): bool :=
 
 Definition generic_sfrag (g: GenericRef): Prop :=
     tfrag (effective_bound env g) = true /\ as_written (given_mutability g) (is_narrowed g) (effective_bound env g) = true
-    /\ no_type_variables g = true.
+    /\ no_type_variables g = true /\ param_tfrag (param_of g) = true.
 
-(* The depth of a type, through the effective bounds of references, taking theirs from bound_depth *)
-Fixpoint sdepth_h (bound_depth: GenericRef -> nat) (t: EType): nat :=
+(* What is of the fragment below the top of a type: the type arguments, and the declared bounds of
+   the parameters of references *)
+Fixpoint srest (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments =>
-        S (list_max (map (fun a => match a with TypeArgument _ _ n => S (sdepth_h bound_depth n) | _ => 0 end) arguments))
-    | Nullable n => S (sdepth_h bound_depth n)
-    | Generic g => S (bound_depth g)
-    | Intersection components => S (list_max (map (sdepth_h bound_depth) components))
-    | _ => 0
+    | RootResolved _ c arguments =>
+        if class_eqb c nothing then true else forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
+    | Nullable n => srest n
+    | Generic g => param_tfrag (param_of g)
+    | _ => true
     end.
 
-Definition bound_depth (g: GenericRef): nat := through env sdepth_h 0 g.
+Definition trest (t: EType): bool :=
+    match t with
+    | Intersection cs | Nullable (Intersection cs) => forallb srest cs
+    | _ => srest t
+    end.
 
+(* The depth of a type, not through the bounds of references *)
 Fixpoint sdepth (t: EType): nat :=
     match t with
     | RootResolved _ _ arguments =>
         S (list_max (map (fun a => match a with TypeArgument _ _ n => S (sdepth n) | _ => 0 end) arguments))
     | Nullable n => S (sdepth n)
-    | Generic g => S (bound_depth g)
+    | Generic _ => 1
     | Intersection components => S (list_max (map sdepth components))
     | _ => 0
     end.
 
 Definition argument_sdepth (a: EType): nat :=
     match a with TypeArgument _ _ n => S (sdepth n) | _ => 0 end.
+
+(* The depth of the top of a type, outside of type arguments, through the effective bounds of
+   references, taking theirs from bound_tdepth (see Subtyping.through) *)
+Fixpoint tdepth_h (bound_tdepth: GenericRef -> nat) (t: EType): nat :=
+    match t with
+    | Nullable n => S (tdepth_h bound_tdepth n)
+    | Generic g => S (bound_tdepth g)
+    | Intersection components => S (list_max (map (tdepth_h bound_tdepth) components))
+    | _ => 0
+    end.
+
+Definition bound_tdepth (g: GenericRef): nat := through env tdepth_h 0 g.
+
+Fixpoint tdepth (t: EType): nat :=
+    match t with
+    | Nullable n => S (tdepth n)
+    | Generic g => S (bound_tdepth g)
+    | Intersection components => S (list_max (map tdepth components))
+    | _ => 0
+    end.
 
 (* The type argument x of a reference's type parameter, with the mutability of the reference applied *)
 Definition inst_fit (g: GenericRef) (x: EType): EType :=
@@ -233,82 +287,207 @@ Definition narrow_ref (g: GenericRef): GenericRef :=
 Lemma without_null_generic: forall g, without_null env (Generic g) = Generic (narrow_ref g).
 Proof. intros [gm nn p vs]. reflexivity. Qed.
 
-Lemma tfrag_top: forall t, tfrag t = tfrag_h bound_tfrag t.
+Let deep := wf_bounds_deep_ranked env wf.
+
+Lemma deep_ranked_param: forall p k g, Nat.ltb (rank_of env g) k || param_eqb (param_of g) p = true ->
+    param_of g = p \/ parameter_rank env (param_of g) < k.
 Proof.
-    assert (Hs: forall t, sfrag t = sfrag_h bound_tfrag t).
-    { fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
-      - destruct (class_eqb c nothing); [reflexivity|]. f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl.
-        rewrite IHa. destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n). reflexivity.
-      - rewrite (IH n). reflexivity. }
-    intros [m c args|n|g|me msg|v o n|g|cs]; unfold tfrag, tfrag_h; try apply Hs.
-    - destruct n as [| | | | | |cs]; try apply Hs. unfold components_sfrag. f_equal.
-      induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite Hs, IHc. reflexivity.
-    - unfold components_sfrag. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite Hs, IHc. reflexivity.
+    intros p k g H. apply orb_true_iff in H. destruct H as [H|H]; [right; apply Nat.ltb_lt, H|left; apply Nat.eqb_eq, H].
 Qed.
 
-Lemma sfrag_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
-    forall t, ranked_below env k t = true -> sfrag_h U1 t = sfrag_h U2 t.
+Lemma sfrag_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+    forall t, deep_ranked env p k t = true -> sfrag_h U1 t = sfrag_h U2 t.
 Proof.
-    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    intros p k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
     - destruct (class_eqb c nothing); [reflexivity|]. f_equal. induction args as [|a args IHa]; [reflexivity|].
       simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has]. rewrite (IHa Has).
       destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n Ha). reflexivity.
     - rewrite (IH n Ht). reflexivity.
-    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+    - rewrite (HU _ (deep_ranked_param p k g Ht)). reflexivity.
 Qed.
 
-Lemma tfrag_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
-    forall t, ranked_below env k t = true -> tfrag_h U1 t = tfrag_h U2 t.
+Lemma tfrag_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+    forall t, deep_ranked env p k t = true -> tfrag_h U1 t = tfrag_h U2 t.
 Proof.
-    intros k U1 U2 HU t Ht. pose proof (sfrag_h_agree k U1 U2 HU) as Hs.
+    intros p k U1 U2 HU t Ht. pose proof (sfrag_h_agree p k U1 U2 HU) as Hs.
     destruct t as [m c args|[m c args|n|g|me msg|v o n|g|cs]|g|me msg|v o n|g|cs]; unfold tfrag_h; try (apply Hs; exact Ht).
     all: f_equal; simpl in Ht; induction cs as [|c cs IHc]; try reflexivity; simpl in Ht |- *;
          apply andb_true_iff in Ht; destruct Ht as [Hc Hcs]; rewrite (Hs c Hc), (IHc Hcs); reflexivity.
 Qed.
 
-Lemma bound_tfrag_eq: forall g, bound_tfrag g = tfrag (effective_bound env g).
+Lemma sfrag_h_mono: forall U1 U2, (forall q, U1 q = true -> U2 q = true) ->
+    forall t, sfrag_h U1 t = true -> sfrag_h U2 t = true.
 Proof.
-    intros g. rewrite tfrag_top. unfold bound_tfrag at 1. rewrite (through_eq env ranked); [reflexivity|exact tfrag_h_agree].
+    intros U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht.
+    - destruct (class_eqb c nothing); [exact Ht|]. apply andb_true_iff in Ht. destruct Ht as [Hl Ha]. rewrite Hl. cbn [andb].
+      clear Hl. induction args as [|a args IHa]; [reflexivity|]. simpl in Ha |- *. apply andb_true_iff in Ha. destruct Ha as [Ha Has].
+      rewrite (IHa Has), andb_true_r. destruct a as [| | | | v o n| |]; try discriminate Ha. exact (IH n Ha).
+    - apply andb_true_iff in Ht. destruct Ht as [Hs Hn]. rewrite Hs, (IH n Hn). reflexivity.
+    - apply andb_true_iff in Ht. destruct Ht as [Ht Hp]. rewrite Ht, (HU _ Hp). reflexivity.
+Qed.
+
+Lemma tfrag_h_mono: forall U1 U2, (forall q, U1 q = true -> U2 q = true) ->
+    forall t, tfrag_h U1 t = true -> tfrag_h U2 t = true.
+Proof.
+    intros U1 U2 HU t Ht. pose proof (sfrag_h_mono U1 U2 HU) as Hs.
+    destruct t as [m c args|[m c args|n|g|me msg|v o n|g|cs]|g|me msg|v o n|g|cs]; unfold tfrag_h in Ht |- *; try (apply Hs; exact Ht).
+    all: apply andb_true_iff in Ht; destruct Ht as [Hl Hc]; rewrite Hl; cbn [andb]; clear Hl;
+         induction cs as [|c cs IHc]; try reflexivity; simpl in Hc |- *; apply andb_true_iff in Hc; destruct Hc as [Hc Hcs];
+         apply andb_true_iff in Hc; destruct Hc as [Hsh Hc]; rewrite Hsh, (Hs c Hc), (IHc Hcs); reflexivity.
+Qed.
+
+Lemma sfrag_top: forall t, sfrag t = sfrag_h param_tfrag t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
+    - destruct (class_eqb c nothing); [reflexivity|]. f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl.
+      rewrite IHa. destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n). reflexivity.
+    - rewrite (IH n). reflexivity.
+Qed.
+
+Lemma tfrag_top: forall t, tfrag t = tfrag_h param_tfrag t.
+Proof.
+    intros [m c args|n|g|me msg|v o n|g|cs]; unfold tfrag, tfrag_h; try apply sfrag_top.
+    - destruct n as [| | | | | |cs]; try apply sfrag_top. unfold components_sfrag. f_equal.
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite sfrag_top, IHc. reflexivity.
+    - unfold components_sfrag. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite sfrag_top, IHc. reflexivity.
+Qed.
+
+(* The declared bound of a type parameter is of the fragment exactly where param_tfrag says so *)
+Lemma param_tfrag_eq: forall p, param_tfrag p = tfrag (parameter_bound env p).
+Proof.
+    intros p. rewrite tfrag_top. unfold param_tfrag at 1.
+    exact (through_param_fix env tfrag_h deep tfrag_h_agree (fun U1 U2 t H => tfrag_h_mono U1 U2 H t) p).
+Qed.
+
+Lemma sfrag_top_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> sfrag_top_h U1 t = sfrag_top_h U2 t.
+Proof.
+    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - rewrite (IH n Ht). reflexivity.
+    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+Qed.
+
+Lemma tfrag_top_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> tfrag_top_h U1 t = tfrag_top_h U2 t.
+Proof.
+    intros k U1 U2 HU t Ht. pose proof (sfrag_top_h_agree k U1 U2 HU) as Hs.
+    destruct t as [m c args|[m c args|n|g|me msg|v o n|g|cs]|g|me msg|v o n|g|cs]; unfold tfrag_top_h; try (apply Hs; exact Ht).
+    all: f_equal; simpl in Ht; induction cs as [|c cs IHc]; try reflexivity; simpl in Ht |- *;
+         apply andb_true_iff in Ht; destruct Ht as [Hc Hcs]; rewrite (Hs c Hc), (IHc Hcs); reflexivity.
+Qed.
+
+(* The top of the effective bound of a reference is of the fragment exactly where top_tfrag says so *)
+Lemma top_tfrag_eq: forall g, top_tfrag g = tfrag_top_h top_tfrag (effective_bound env g).
+Proof. intros g. unfold top_tfrag at 1. rewrite (through_eq env ranked); [reflexivity|exact tfrag_top_h_agree]. Qed.
+
+(* A type is of the fragment where its top and what is below it are *)
+Lemma sfrag_split: forall t, sfrag t = sfrag_top_h top_tfrag t && srest t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
+    - destruct (class_eqb c nothing); [rewrite andb_true_r; reflexivity|reflexivity].
+    - rewrite (IH n), andb_assoc. reflexivity.
+Qed.
+
+Lemma forallb_and3: forall {A: Type} (f g h: A -> bool) l,
+    forallb (fun x => f x && (g x && h x)) l = forallb (fun x => f x && g x) l && forallb h l.
+Proof.
+    intros A f g h l. induction l as [|x l IH]; [reflexivity|]. simpl. rewrite IH.
+    destruct (f x), (g x), (h x); simpl; destruct (forallb (fun x => f x && g x) l), (forallb h l); reflexivity.
+Qed.
+
+Lemma tfrag_split: forall t, tfrag t = tfrag_top_h top_tfrag t && trest t.
+Proof.
+    assert (Hcs: forall cs, components_sfrag cs
+        = Nat.leb 2 (length cs) && forallb (fun c => is_component_shape c && sfrag_top_h top_tfrag c) cs && forallb srest cs).
+    { intros cs. unfold components_sfrag. rewrite <- andb_assoc. f_equal.
+      rewrite <- forallb_and3. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite sfrag_split, IHc. reflexivity. }
+    intros [m c args|[m c args|n|g|me msg|v o n|g|cs]|g|me msg|v o n|g|cs]; unfold tfrag, tfrag_top_h, trest;
+        try apply sfrag_split; apply Hcs.
+Qed.
+
+(* A mutability applied, or null removed, at the top, what is below it stays *)
+Lemma srest_with_mutability: forall m t, srest (with_mutability env m t) = srest t.
+Proof.
+    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; try reflexivity.
+    cbn [with_mutability with_mutability_h]. change (srest (Nullable n)) with (srest n). rewrite <- (IH m n).
+    destruct (with_mutability env m n); reflexivity.
+Qed.
+
+Lemma srest_without_null: forall t, srest (without_null env t) = srest t.
+Proof.
+    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; try reflexivity.
+    exact (IH n).
+Qed.
+
+(* What is below the top of a type of the fragment stays as it is with a mutability applied or null
+   removed *)
+Lemma trest_adjust: forall t, tfrag t = true ->
+    (forall m, trest (with_mutability env m t) = trest t) /\ trest (without_null env t) = trest t
+    /\ (forall m, trest (without_null env (with_mutability env m t)) = trest t).
+Proof.
+    assert (Hmap: forall k cs, forallb srest (map (with_mutability env k) cs) = forallb srest cs).
+    { intros k cs. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite srest_with_mutability, IHc. reflexivity. }
+    intros t Ht.
+    destruct t as [mt c args|[mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs];
+        simpl in Ht; try discriminate Ht; (split; [|split]); try intros m; try reflexivity; simpl; apply Hmap.
+Qed.
+
+(* The effective bound of a reference of the fragment is of the fragment: at its top as top_tfrag
+   says, and below it as the declared bound of the parameter is *)
+Lemma generic_bound_tfrag: forall g, sfrag (Generic g) = true -> tfrag (effective_bound env g) = true.
+Proof.
+    intros g H. simpl in H. apply andb_true_iff in H. destruct H as [H Hp]. apply andb_true_iff in H. destruct H as [H Ht].
+    apply andb_true_iff in H. destruct H as [_ Hv].
+    rewrite tfrag_split, <- top_tfrag_eq, Ht. cbn [andb]. rewrite param_tfrag_eq in Hp.
+    destruct g as [gm nn p [|v vs]]; [|discriminate Hv]. cbn [param_of] in Hp.
+    rewrite (effective_bound_eq env ranked). cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+    destruct (trest_adjust _ Hp) as [Hm [Hn Hmn]].
+    rewrite tfrag_split in Hp. apply andb_true_iff in Hp. destruct Hp as [_ Hr].
+    destruct nn, gm as [m|]; cbn iota; [rewrite Hmn|rewrite Hn|rewrite Hm|]; exact Hr.
 Qed.
 
 Lemma sfrag_generic: forall g,
-    sfrag (Generic g) = tfrag (effective_bound env g) && as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g.
-Proof.
-    intros g. change (sfrag (Generic g)) with (bound_tfrag g && as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g).
-    rewrite bound_tfrag_eq. reflexivity.
-Qed.
+    sfrag (Generic g) = as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g
+        && top_tfrag g && param_tfrag (param_of g).
+Proof. reflexivity. Qed.
 
 Lemma sfrag_generic_iff: forall g, sfrag (Generic g) = true <-> generic_sfrag g.
 Proof.
-    intros g. rewrite sfrag_generic. unfold generic_sfrag. rewrite !andb_true_iff. tauto.
+    intros g. split.
+    - intros H. pose proof (generic_bound_tfrag g H) as Hb. rewrite sfrag_generic in H. rewrite !andb_true_iff in H.
+      destruct H as [[[Hw Hv] _] Hp]. split; [exact Hb|]. split; [exact Hw|]. split; [exact Hv|exact Hp].
+    - intros [Hb [Hw [Hv Hp]]]. rewrite sfrag_generic, Hw, Hv, Hp, andb_true_r. cbn [andb].
+      rewrite top_tfrag_eq. rewrite tfrag_split in Hb. apply andb_true_iff in Hb. exact (proj1 Hb).
 Qed.
 
-Lemma sdepth_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
-    forall t, ranked_below env k t = true -> sdepth_h U1 t = sdepth_h U2 t.
+Lemma tdepth_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> tdepth_h U1 t = tdepth_h U2 t.
 Proof.
     intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
-    - f_equal. f_equal. induction args as [|a args IHa]; [reflexivity|].
-      simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has]. rewrite (IHa Has).
-      destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n Ha). reflexivity.
     - rewrite (IH n Ht). reflexivity.
     - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
     - f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
-Lemma sdepth_top: forall t, sdepth t = sdepth_h bound_depth t.
+Lemma tdepth_top: forall t, tdepth t = tdepth_h bound_tdepth t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
-    - f_equal. f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite IHa.
-      destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n). reflexivity.
     - rewrite (IH n). reflexivity.
     - f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
-Lemma sdepth_bound: forall g, sdepth (Generic g) = S (sdepth (effective_bound env g)).
+Lemma tdepth_bound: forall g, tdepth (Generic g) = S (tdepth (effective_bound env g)).
 Proof.
-    intros g. change (sdepth (Generic g)) with (S (bound_depth g)). rewrite sdepth_top. unfold bound_depth at 1.
-    rewrite (through_eq env ranked); [reflexivity|exact sdepth_h_agree].
+    intros g. change (tdepth (Generic g)) with (S (bound_tdepth g)). rewrite tdepth_top. unfold bound_tdepth at 1.
+    rewrite (through_eq env ranked); [reflexivity|exact tdepth_h_agree].
+Qed.
+
+Lemma tdepth_component: forall cs c, In c cs -> S (tdepth c) <= tdepth (Intersection cs).
+Proof.
+    intros cs c Hc. change (S (tdepth c) <= S (list_max (map tdepth cs))).
+    assert (H: Forall (fun k => k <= list_max (map tdepth cs)) (map tdepth cs)) by (apply list_max_le; lia).
+    rewrite Forall_forall in H. specialize (H (tdepth c) (in_map _ _ _ Hc)). lia.
 Qed.
 
 Lemma generic_sfrag_sfrag: forall g, generic_sfrag g -> sfrag (Generic g) = true.
@@ -874,44 +1053,84 @@ Definition ownership_bound (o: Ownership): bool :=
     | _ => true
     end.
 
-(* Every type parameter in the type is bound exactly, also those in the effective bounds of references,
-   whose bound_in takes that from bound_bound_in (see Subtyping.through) *)
-Fixpoint bound_in_h (bound_bound_in: GenericRef -> bool) (t: EType): bool :=
+(* Every type parameter in the type is bound exactly, also those in the effective bounds of
+   references: at their tops (top_bound_in), and in the declared bounds of their parameters
+   (param_bound_in), as for sfrag. The top of a type, taking whether that of the effective bound of
+   a reference is from top_bound: *)
+Fixpoint bound_in_top_h (top_bound: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | Nullable n => bound_in_top_h top_bound n
+    | Generic g => binds_ref g && no_type_variables g && top_bound g
+    | TypeArgument _ _ n => bound_in_top_h top_bound n
+    | Intersection components => forallb (bound_in_top_h top_bound) components
+    | _ => true
+    end.
+
+Definition top_bound_in (g: GenericRef): bool := through env bound_in_top_h true g.
+
+(* The types, taking whether the type parameters in the declared bound of a parameter are bound from
+   bound_bound_in *)
+Fixpoint bound_in_h (bound_bound_in: TypeParameterId -> bool) (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb (bound_in_h bound_bound_in) arguments
     | Nullable n => bound_in_h bound_bound_in n
-    | Generic g => binds_ref g && bound_bound_in g
+    | Generic g => binds_ref g && no_type_variables g && top_bound_in g && bound_bound_in (param_of g)
     | TypeArgument _ o n => ownership_bound o && bound_in_h bound_bound_in n
     | Intersection components => forallb (bound_in_h bound_bound_in) components
     | _ => true
     end.
 
-Definition bound_bound_in (g: GenericRef): bool := through env bound_in_h true g.
+(* The type parameters in the declared bound of the parameter are bound *)
+Definition param_bound_in (p: TypeParameterId): bool := through_param env bound_in_h true p.
 
 Fixpoint bound_in (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb bound_in arguments
     | Nullable n => bound_in n
-    | Generic g => binds_ref g && bound_bound_in g
+    | Generic g => binds_ref g && no_type_variables g && top_bound_in g && param_bound_in (param_of g)
     | TypeArgument _ o n => ownership_bound o && bound_in n
     | Intersection components => forallb bound_in components
     | _ => true
     end.
 
-Lemma bound_in_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
-    forall t, ranked_below env k t = true -> bound_in_h U1 t = bound_in_h U2 t.
+(* What is bound below the top of a type *)
+Fixpoint brest (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb bound_in arguments
+    | Nullable n => brest n
+    | Generic g => param_bound_in (param_of g)
+    | TypeArgument _ o n => ownership_bound o && brest n
+    | Intersection components => forallb brest components
+    | _ => true
+    end.
+
+Lemma bound_in_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+    forall t, deep_ranked env p k t = true -> bound_in_h U1 t = bound_in_h U2 t.
 Proof.
-    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    intros p k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
     - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
       rewrite (IH a Ha), (IHa Has). reflexivity.
     - exact (IH n Ht).
-    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+    - rewrite (HU _ (deep_ranked_param p k g Ht)). reflexivity.
     - rewrite (IH n Ht). reflexivity.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
-Lemma bound_in_top: forall t, bound_in t = bound_in_h bound_bound_in t.
+Lemma bound_in_h_mono: forall U1 U2, (forall q, U1 q = true -> U2 q = true) ->
+    forall t, bound_in_h U1 t = true -> bound_in_h U2 t = true.
+Proof.
+    intros U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
+      rewrite (IH a Ha), (IHa Has). reflexivity.
+    - exact (IH n Ht).
+    - apply andb_true_iff in Ht. destruct Ht as [Ht Hp]. rewrite Ht, (HU _ Hp). reflexivity.
+    - apply andb_true_iff in Ht. destruct Ht as [Ho Hn]. rewrite Ho, (IH n Hn). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma bound_in_top: forall t, bound_in t = bound_in_h param_bound_in t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
     - induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
@@ -920,10 +1139,69 @@ Proof.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
-Lemma bound_in_generic: forall g, bound_in (Generic g) = binds_ref g && bound_in (effective_bound env g).
+(* The type parameters in the declared bound of a parameter are bound exactly where param_bound_in
+   says so *)
+Lemma param_bound_in_eq: forall p, param_bound_in p = bound_in (parameter_bound env p).
 Proof.
-    intros g. change (bound_in (Generic g)) with (binds_ref g && bound_bound_in g). f_equal.
-    rewrite bound_in_top. unfold bound_bound_in at 1. rewrite (through_eq env ranked); [reflexivity|exact bound_in_h_agree].
+    intros p. rewrite bound_in_top. unfold param_bound_in at 1.
+    exact (through_param_fix env bound_in_h deep bound_in_h_agree (fun U1 U2 t H => bound_in_h_mono U1 U2 H t) p).
+Qed.
+
+Lemma bound_in_top_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> bound_in_top_h U1 t = bound_in_top_h U2 t.
+Proof.
+    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - exact (IH n Ht).
+    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+    - exact (IH n Ht).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma top_bound_in_eq: forall g, top_bound_in g = bound_in_top_h top_bound_in (effective_bound env g).
+Proof. intros g. unfold top_bound_in at 1. rewrite (through_eq env ranked); [reflexivity|exact bound_in_top_h_agree]. Qed.
+
+(* The type parameters in a type are bound where they are at its top and below it *)
+Lemma bound_in_split: forall t, bound_in t = bound_in_top_h top_bound_in t && brest t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
+    - exact (IH n).
+    - rewrite (IH n). destruct (ownership_bound o), (bound_in_top_h top_bound_in n), (brest n); reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc.
+      destruct (bound_in_top_h top_bound_in c), (brest c), (forallb (bound_in_top_h top_bound_in) cs), (forallb brest cs); reflexivity.
+Qed.
+
+Lemma brest_adjust: forall t,
+    (forall m, brest (with_mutability env m t) = brest t) /\ brest (without_null env t) = brest t.
+Proof.
+    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; split; try intros m; try reflexivity.
+    - cbn [with_mutability]. change (brest (Nullable n)) with (brest n). rewrite <- (proj1 (IH n) m).
+      destruct (with_mutability env m n); reflexivity.
+    - exact (proj2 (IH n)).
+    - simpl. rewrite (proj1 (IH n) m). reflexivity.
+    - simpl. rewrite (proj2 (IH n)). reflexivity.
+    - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
+      intros k. clear m. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj1 (IH c) k), IHc. reflexivity.
+Qed.
+
+(* The type parameters in the effective bound of a reference are bound: at its top as top_bound_in
+   says, and below it as in the declared bound of the parameter *)
+Lemma generic_bound_in: forall g, bound_in (Generic g) = true -> bound_in (effective_bound env g) = true.
+Proof.
+    intros g H. simpl in H. apply andb_true_iff in H. destruct H as [H Hp]. apply andb_true_iff in H. destruct H as [H Ht].
+    apply andb_true_iff in H. destruct H as [_ Hv].
+    rewrite bound_in_split, <- top_bound_in_eq, Ht. cbn [andb]. rewrite param_bound_in_eq, bound_in_split in Hp.
+    apply andb_true_iff in Hp. destruct Hp as [_ Hr].
+    destruct g as [gm nn p [|v vs]]; [|discriminate Hv]. cbn [param_of] in Hr.
+    rewrite (effective_bound_eq env ranked). cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+    destruct nn, gm as [m|]; cbn iota;
+        repeat first [rewrite (proj2 (brest_adjust _))|rewrite (proj1 (brest_adjust _))]; exact Hr.
+Qed.
+
+Lemma bound_in_generic: forall g, bound_in (Generic g) = true -> binds_ref g = true /\ bound_in (effective_bound env g) = true.
+Proof.
+    intros g H. split; [|exact (generic_bound_in g H)].
+    simpl in H. rewrite !andb_true_iff in H. exact (proj1 (proj1 (proj1 H))).
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -938,7 +1216,7 @@ Lemma sfrag_cases: forall t, sfrag t = true ->
     \/ (exists g, t = Generic g /\ generic_sfrag g)
     \/ (exists g, t = Nullable (Generic g) /\ generic_sfrag g).
 Proof.
-    assert (Hg: forall g, bound_tfrag g && as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g = true -> generic_sfrag g).
+    assert (Hg: forall g, as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g && top_tfrag g && param_tfrag (param_of g) = true -> generic_sfrag g).
     { intros g H. apply sfrag_generic_iff. exact H. }
     intros [m c args|[m c args| |g| | | |]| g | | | |] H; simpl in H; try discriminate H.
     - destruct (class_eqb c nothing) eqn:Hc.
@@ -1096,7 +1374,13 @@ Lemma binds_ref_closed: forall p, sfrag (parameter_bound env p) = true -> closed
     bound_in (Generic (mkGenericRef None false p [])) = binds_exactly p (parameter_bound env p).
 Proof.
     intros p Hf Hc. destruct (proj1 (closed_facts (sdepth _)) _ (le_n _) Hf Hc) as [_ [_ [Hb _]]].
-    rewrite bound_in_generic, (effective_bound_plain env ranked), Hb, andb_true_r. unfold binds_ref. cbn [param_of].
+    assert (Ht: top_bound_in (mkGenericRef None false p []) = true).
+    { rewrite top_bound_in_eq, (effective_bound_plain env ranked). clear -Hc. revert Hc. generalize (parameter_bound env p) as t.
+      fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try discriminate H;
+          [exact (IH n H)|apply andb_true_iff in H; exact (IH n (proj2 H))]. }
+    change (bound_in (Generic (mkGenericRef None false p [])))
+        with (binds_ref (mkGenericRef None false p []) && true && top_bound_in (mkGenericRef None false p []) && param_bound_in p).
+    rewrite Ht, param_bound_in_eq, Hb, !andb_true_r. unfold binds_ref. cbn [param_of].
     rewrite (effective_bound_plain env ranked), (inst_nested_closed _ Hf Hc). reflexivity.
 Qed.
 
@@ -1119,9 +1403,7 @@ Lemma binds_ref_some: forall g, bound_in (Generic g) = true ->
         /\ is_exact_ownership o = true /\ gfrag env x = true
         /\ respects (inst_ref g x) (inst_nested b (effective_bound env g)) = true /\ bound_in (effective_bound env g) = true.
 Proof.
-    intros g Hb. assert (H': binds_ref g = true /\ bound_in (effective_bound env g) = true)
-        by (rewrite bound_in_generic in Hb; apply andb_true_iff in Hb; exact Hb).
-    destruct H' as [H Hbe]. unfold binds_ref in H. destruct (lookup_binding b (param_of g)) as [a|]; [|discriminate H].
+    intros g Hb. destruct (bound_in_generic g Hb) as [H Hbe]. unfold binds_ref in H. destruct (lookup_binding b (param_of g)) as [a|]; [|discriminate H].
     destruct a as [| | | |v o x| |]; try discriminate H. destruct v; try discriminate H.
     apply andb_true_iff in H. destruct H as [H Hr]. apply andb_true_iff in H. destruct H as [Ho Hx].
     exists o, x. auto.
@@ -1573,25 +1855,24 @@ Proof.
 Qed.
 
 (* Without null, a type of the fragment is of it, of the same mutability, and non-null *)
-Lemma tfrag_without_null: forall k t, sdepth t <= k -> tfrag t = true ->
+Lemma tfrag_without_null: forall k t, tdepth t < k -> tfrag t = true ->
     tfrag (without_null env t) = true /\ assignment_mutability env (without_null env t) = assignment_mutability env t
     /\ is_nullable env (without_null env t) = false.
 Proof.
-    induction k as [|k IH].
-    { intros t Hd Ht. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> _]]|[cs [-> _]]]]; [|simpl in Hd; lia|simpl in Hd; lia].
-      destruct (sfrag_cases t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
-          first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
-    assert (Hgen: forall g, sdepth (Generic g) <= S k -> generic_sfrag g ->
+    induction k as [|k IH]; [intros t Hd; lia|].
+    assert (Hgen: forall g, tdepth (Generic g) < S k -> generic_sfrag g ->
         sfrag (Generic (narrow_ref g)) = true /\ assignment_mutability env (Generic (narrow_ref g)) = assignment_mutability env (Generic g)
         /\ is_nullable env (Generic (narrow_ref g)) = false).
-    { intros [gm nn p vs] Hd [Hf [Hw Hv]]. destruct vs; [|discriminate Hv]. rewrite sdepth_bound in Hd.
+    { intros [gm nn p vs] Hd [Hf [Hw [Hv Hp]]]. destruct vs; [|discriminate Hv]. rewrite tdepth_bound in Hd.
       destruct (IH (effective_bound env (mkGenericRef gm nn p [])) ltac:(lia) Hf) as [Hf' [Hm' Hn']].
-      unfold narrow_ref. cbn [given_mutability is_narrowed param_of variables_of].
-      rewrite sfrag_generic, !mutability_generic, (nullable_generic (mkGenericRef gm (nn || is_nullable env (Generic (mkGenericRef gm nn p []))) p [])),
-          !(effective_bound_narrowed env ranked), Hf', Hm', Hn'.
-      split; [|split; reflexivity]. cbn [given_mutability is_narrowed variables_of no_type_variables].
-      unfold as_written in Hw |- *. cbn [given_mutability is_narrowed] in Hw |- *. rewrite ?Hm', ?Hn'.
-      apply andb_true_iff in Hw. destruct Hw as [Hwm _]. rewrite Hwm, ?orb_true_r. reflexivity. }
+      assert (Ee: effective_bound env (narrow_ref (mkGenericRef gm nn p []))
+          = without_null env (effective_bound env (mkGenericRef gm nn p []))) by exact (effective_bound_narrowed env ranked gm nn p).
+      split; [|split].
+      - apply sfrag_generic_iff. split; [rewrite Ee; exact Hf'|]. split; [|split; [reflexivity|exact Hp]].
+        rewrite Ee. unfold as_written in Hw |- *. cbn [given_mutability is_narrowed narrow_ref] in Hw |- *. rewrite Hm', Hn'.
+        apply andb_true_iff in Hw. destruct Hw as [Hwm _]. rewrite Hwm, ?orb_true_r. reflexivity.
+      - rewrite !mutability_generic, Ee. exact Hm'.
+      - rewrite nullable_generic, Ee. exact Hn'. }
     intros t Hd Ht. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
     - destruct (sfrag_cases t Hs) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + split; [exact Ht|split; reflexivity].
@@ -1600,7 +1881,7 @@ Proof.
       + rewrite without_null_generic. exact (Hgen g Hd Hg).
       + change (without_null env (Nullable (Generic g))) with (without_null env (Generic g)). rewrite without_null_generic.
         change (assignment_mutability env (Nullable (Generic g))) with (assignment_mutability env (Generic g)).
-        apply Hgen; [change (S (sdepth (Generic g)) <= S k) in Hd; lia|exact Hg].
+        apply Hgen; [change (S (tdepth (Generic g)) < S k) in Hd; lia|exact Hg].
     - split; [exact Hcs|split; reflexivity].
     - split; [exact Hcs|split; reflexivity].
 Qed.
@@ -1638,23 +1919,20 @@ Proof.
 Qed.
 
 (* Instantiated, a type is of cfrag, of no more mutability than it is, and non-null where it is *)
-Lemma instance_facts: forall k t, sdepth t <= k -> tfrag t = true -> bound_in t = true ->
+Lemma instance_facts: forall k t, tdepth t < k -> tfrag t = true -> bound_in t = true ->
     cfrag (inst_nested b t) = true
     /\ Model.is_subtype_of (assignment_mutability env (inst_nested b t)) (assignment_mutability env t) = true
     /\ (is_nullable env t = false -> is_nullable env (inst_nested b t) = false).
 Proof.
-    induction k as [|k IH].
-    { intros t Hd Ht _. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> _]]|[cs [-> _]]]]; [|simpl in Hd; lia|simpl in Hd; lia].
-      destruct (sfrag_cases t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
-          first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
+    induction k as [|k IH]; [intros t Hd; lia|].
     (* an intersection *)
-    assert (Hinter: forall cs, sdepth (Intersection cs) <= S k -> components_sfrag cs = true -> bound_in (Intersection cs) = true ->
+    assert (Hinter: forall cs, tdepth (Intersection cs) < S k -> components_sfrag cs = true -> bound_in (Intersection cs) = true ->
         (exists ys, inst_nested b (Intersection cs) = Intersection ys /\ class_components ys = true)
         /\ Model.is_subtype_of (assignment_mutability env (inst_nested b (Intersection cs))) (assignment_mutability env (Intersection cs)) = true).
     { intros cs Hd Hcs Hb. destruct (components_sfrag_facts cs Hcs) as [_ Hc].
       assert (Hfacts: forall c, In c cs -> Model.is_subtype_of (assignment_mutability env (inst_nested b c)) (assignment_mutability env c) = true
           /\ is_nullable env (inst_nested b c) = false).
-      { intros c Hin. destruct (Hc c Hin) as [Hsh Hs]. pose proof (sdepth_component cs c Hin) as Hdc.
+      { intros c Hin. destruct (Hc c Hin) as [Hsh Hs]. pose proof (tdepth_component cs c Hin) as Hdc.
         destruct (IH c ltac:(lia) (sfrag_tfrag c Hs) (bound_in_component cs c Hb Hin)) as [_ [Hm Hn]].
         split; [exact Hm|apply Hn, component_non_null, Hsh]. }
       destruct (intersection_instance cs Hcs Hb (fun c Hin => proj2 (Hfacts c Hin))) as [Heq [Hcc Hcomp]].
@@ -1665,12 +1943,12 @@ Proof.
       eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, in_map, in_map, Hin|].
       exact (mutability_subtype_trans _ _ _ (with_mutability_below _ _ Hf Hk) Hm). }
     (* a reference *)
-    assert (Hgen: forall g, sdepth (Generic g) <= S k -> generic_sfrag g -> bound_in (Generic g) = true ->
+    assert (Hgen: forall g, tdepth (Generic g) < S k -> generic_sfrag g -> bound_in (Generic g) = true ->
         Model.is_subtype_of (assignment_mutability env (inst_nested b (Generic g))) (assignment_mutability env (Generic g)) = true
         /\ (is_nullable env (Generic g) = false -> is_nullable env (inst_nested b (Generic g)) = false)).
     { intros g Hd [Hf _] Hb. destruct (binds_ref_some g Hb) as [o [x [Ex [_ [_ [Hr Hbe]]]]]].
       pose proof (inst_ref_in_fragment g x (Hbf _ o x Ex)) as HI.
-      assert (Hde: sdepth (effective_bound env g) <= k) by (rewrite sdepth_bound in Hd; lia).
+      assert (Hde: tdepth (effective_bound env g) < k) by (rewrite tdepth_bound in Hd; lia).
       destruct (IH _ Hde Hf Hbe) as [HB [Hm Hn]].
       pose proof (respects_unify _ _ HI HB Hr) as Hra.
       rewrite (inst_nested_generic g _ o x Ex), mutability_generic, nullable_generic. split.
@@ -1687,7 +1965,7 @@ Proof.
         rewrite (inst_nested_nullable_generic g _ o x Ex), (rewrap_without_null _ HI). split; [|intros H0; discriminate H0].
         change (Model.is_subtype_of (assignment_mutability env (without_null env (inst_ref g x))) (assignment_mutability env (Generic g)) = true).
         rewrite (assignment_mutability_of_without_null _ HI), <- (inst_nested_generic g _ o x Ex).
-        exact (proj1 (Hgen g ltac:(change (S (sdepth (Generic g)) <= S k) in Hd; lia) Hg Hb)).
+        exact (proj1 (Hgen g ltac:(change (S (tdepth (Generic g)) < S k) in Hd; lia) Hg Hb)).
     - destruct (Hinter cs Hd Hcs Hb) as [[ys [Heq Hys]] Hm]. rewrite Heq in Hm |- *.
       split; [exact Hys|split; [exact Hm|intros _; reflexivity]].
     - destruct (Hinter cs ltac:(simpl in Hd |- *; lia) Hcs Hb) as [[ys [Heq Hys]] Hm].
@@ -1696,21 +1974,18 @@ Proof.
 Qed.
 
 (* Made non-null, a type is bound in, and its instance is its instance made non-null *)
-Lemma narrow_facts: forall k t, sdepth t <= k -> tfrag t = true -> bound_in t = true ->
+Lemma narrow_facts: forall k t, tdepth t < k -> tfrag t = true -> bound_in t = true ->
     bound_in (without_null env t) = true /\ inst_nested b (without_null env t) = without_null env (inst_nested b t).
 Proof.
-    induction k as [|k IH].
-    { intros t Hd Ht _. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> _]]|[cs [-> _]]]]; [|simpl in Hd; lia|simpl in Hd; lia].
-      destruct (sfrag_cases t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
-          first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
-    assert (Hgen: forall g, sdepth (Generic g) <= S k -> generic_sfrag g -> bound_in (Generic g) = true ->
+    induction k as [|k IH]; [intros t Hd; lia|].
+    assert (Hgen: forall g, tdepth (Generic g) < S k -> generic_sfrag g -> bound_in (Generic g) = true ->
         bound_in (Generic (narrow_ref g)) = true /\ inst_nested b (Generic (narrow_ref g)) = without_null env (inst_nested b (Generic g))).
-    { intros g Hd [Hf [Hw Hv]] Hb. destruct (binds_ref_some g Hb) as [o [x [Ex [Ho [Hx [Hr Hbe]]]]]].
+    { intros g Hd [Hf [Hw [Hv _]]] Hb. destruct (binds_ref_some g Hb) as [o [x [Ex [Ho [Hx [Hr Hbe]]]]]].
       pose proof (Hbf _ o x Ex) as HFx. pose proof (inst_ref_in_fragment g x HFx) as HI.
       destruct (instance_facts _ _ (le_n _) Hf Hbe) as [HB [_ HnB]].
       assert (Eeff: effective_bound env (narrow_ref g) = without_null env (effective_bound env g)).
       { destruct g as [gm nn p [|v vs]]; [|discriminate Hv]. exact (effective_bound_narrowed env ranked gm nn p). }
-      assert (Hde: sdepth (effective_bound env g) <= k) by (rewrite sdepth_bound in Hd; lia).
+      assert (Hde: tdepth (effective_bound env g) < k) by (rewrite tdepth_bound in Hd; lia).
       destruct (IH _ Hde Hf Hbe) as [Hbn Hin].
       (* the instance of the narrowed reference is that of the reference, made non-null *)
       assert (Hni: inst_ref (narrow_ref g) x = without_null env (inst_ref g x)).
@@ -1722,7 +1997,12 @@ Proof.
             try (symmetry; exact Hidem); try reflexivity.
         symmetry. exact (without_null_non_null _ (inst_fit_in_fragment g x HFx) (Hacc (HnB eq_refl) Hra)). }
       split.
-      - rewrite bound_in_generic, Eeff, Hbn, andb_true_r.
+      - assert (Hbg := Hb). simpl in Hbg. rewrite !andb_true_iff in Hbg. destruct Hbg as [[[_ Hvg] _] Hpg].
+        rewrite bound_in_split in Hbn. apply andb_true_iff in Hbn. destruct Hbn as [Htn _].
+        change (bound_in (Generic (narrow_ref g))) with (binds_ref (narrow_ref g) && no_type_variables (narrow_ref g)
+            && top_bound_in (narrow_ref g) && param_bound_in (param_of (narrow_ref g))).
+        rewrite top_bound_in_eq, Eeff, Htn. change (no_type_variables (narrow_ref g)) with (no_type_variables g).
+        change (param_of (narrow_ref g)) with (param_of g). rewrite Hvg, Hpg, !andb_true_r.
         unfold binds_ref. change (param_of (narrow_ref g)) with (param_of g). rewrite Eeff, Ex.
         change (is_exact_ownership o && gfrag env x
             && respects (inst_ref (narrow_ref g) x) (inst_nested b (without_null env (effective_bound env g))) = true).
@@ -1737,7 +2017,7 @@ Proof.
       + split; [exact Hb|reflexivity].
       + rewrite without_null_generic. exact (Hgen g Hd Hg Hb).
       + change (without_null env (Nullable (Generic g))) with (without_null env (Generic g)). rewrite without_null_generic.
-        destruct (Hgen g ltac:(change (S (sdepth (Generic g)) <= S k) in Hd; lia) Hg Hb) as [Hbn Hin]. split; [exact Hbn|].
+        destruct (Hgen g ltac:(change (S (tdepth (Generic g)) < S k) in Hd; lia) Hg Hb) as [Hbn Hin]. split; [exact Hbn|].
         rewrite Hin. destruct (binds_ref_some g Hb) as [o [x [Ex _]]].
         rewrite (inst_nested_generic g _ o x Ex), (inst_nested_nullable_generic g _ o x Ex).
         pose proof (inst_ref_in_fragment g x (Hbf _ o x Ex)) as HI. rewrite (rewrap_without_null _ HI).
@@ -2158,6 +2438,171 @@ Qed.
 End Main.
 
 End Bindings.
+
+(* Where the references whose type parameters are bound with one set of bindings are with another,
+   and so are the ownerships, every type parameter of a type of the fragment bound with the one is
+   bound with the other, too: also those in the bounds of references, at their tops and in the
+   declared bounds of their parameters *)
+Section Lift.
+
+Variable b1: Bindings.
+Variable K1: nat.
+Variable s1: VariableStates.
+Variable b2: Bindings.
+Variable K2: nat.
+Variable s2: VariableStates.
+Hypothesis Hrefs: forall g, sfrag (Generic g) = true -> bound_in b1 K1 s1 (Generic g) = true -> binds_ref b2 K2 s2 g = true.
+Hypothesis Hown: forall o, ownership_bound b1 o = true -> ownership_bound b2 o = true.
+
+Lemma top_bound_in_lift: forall g, sfrag (Generic g) = true -> bound_in b1 K1 s1 (Generic g) = true -> top_bound_in b2 K2 s2 g = true.
+Proof.
+    intros g. remember (rank_of env g) as r eqn:Er. revert g Er. induction r as [r IH] using lt_wf_ind. intros g -> Hs Hb.
+    rewrite (top_bound_in_eq b2 K2 s2). pose proof (generic_bound_tfrag g Hs) as Ht. pose proof (generic_bound_in b1 K1 s1 g Hb) as Hbe.
+    pose proof (effective_bound_ranked env ranked g) as Hrk.
+    (* the references at the top of the bound *)
+    assert (Href: forall q, sfrag (Generic q) = true -> bound_in b1 K1 s1 (Generic q) = true -> rank_of env q < rank_of env g ->
+        bound_in_top_h b2 K2 s2 (top_bound_in b2 K2 s2) (Generic q) = true).
+    { intros q Hsq Hbq Hrq. cbn [bound_in_top_h]. rewrite (Hrefs q Hsq Hbq), (IH _ Hrq q eq_refl Hsq Hbq).
+      apply sfrag_generic_iff in Hsq. destruct Hsq as [_ [_ [Hv _]]]. rewrite Hv. reflexivity. }
+    assert (Hcomp: forall c, is_component_shape c = true -> sfrag c = true -> bound_in b1 K1 s1 c = true ->
+        ranked_below env (rank_of env g) c = true -> bound_in_top_h b2 K2 s2 (top_bound_in b2 K2 s2) c = true).
+    { intros [m d args| |q| | | |] Hsh Hsc Hbc Hrc; try discriminate Hsh; [reflexivity|].
+      apply Href; [exact Hsc|exact Hbc|exact (ref_ranked env _ q Hrc)]. }
+    revert Ht Hbe Hrk. generalize (effective_bound env g) as t. intros t Ht Hbe Hrk.
+    destruct (tfrag_cases t Ht) as [Hs'|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+    - destruct (sfrag_cases t Hs') as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[[q [-> Hq]]|[q [-> Hq]]]]]];
+          try reflexivity.
+      + apply Href; [apply sfrag_generic_iff, Hq|exact Hbe|exact (ref_ranked env _ q Hrk)].
+      + change (bound_in_top_h b2 K2 s2 (top_bound_in b2 K2 s2) (Generic q) = true).
+        apply Href; [apply sfrag_generic_iff, Hq|exact Hbe|exact (ref_ranked env _ q Hrk)].
+    - cbn [bound_in_top_h]. apply forallb_forall. intros c Hc. simpl in Hrk. rewrite forallb_forall in Hrk.
+      destruct (proj2 (components_sfrag_facts cs Hcs) c Hc) as [Hsh Hsc].
+      exact (Hcomp c Hsh Hsc (bound_in_component b1 K1 s1 cs c Hbe Hc) (Hrk c Hc)).
+    - cbn [bound_in_top_h]. apply forallb_forall. intros c Hc. simpl in Hrk. rewrite forallb_forall in Hrk.
+      destruct (proj2 (components_sfrag_facts cs Hcs) c Hc) as [Hsh Hsc].
+      exact (Hcomp c Hsh Hsc (bound_in_component b1 K1 s1 cs c Hbe Hc) (Hrk c Hc)).
+Qed.
+
+Lemma bound_in_lift_h: forall p k U2,
+    (forall r, param_of r = p \/ parameter_rank env (param_of r) < k -> sfrag (Generic r) = true ->
+        bound_in b1 K1 s1 (Generic r) = true -> U2 (param_of r) = true) ->
+    forall t, tfrag t = true -> deep_ranked env p k t = true -> bound_in b1 K1 s1 t = true -> bound_in_h b2 K2 s2 U2 t = true.
+Proof.
+    intros p k U2 HU.
+    assert (Hgen: forall r, sfrag (Generic r) = true -> deep_ranked env p k (Generic r) = true -> bound_in b1 K1 s1 (Generic r) = true ->
+        bound_in_h b2 K2 s2 U2 (Generic r) = true).
+    { intros r Hs Hd Hb. cbn [bound_in_h]. rewrite (Hrefs r Hs Hb), (top_bound_in_lift r Hs Hb), (HU r (deep_ranked_param p k r Hd) Hs Hb).
+      apply sfrag_generic_iff in Hs. destruct Hs as [_ [_ [Hv _]]]. rewrite Hv. reflexivity. }
+    assert (Hs: forall d t, sdepth t <= d -> sfrag t = true -> deep_ranked env p k t = true -> bound_in b1 K1 s1 t = true ->
+        bound_in_h b2 K2 s2 U2 t = true).
+    { induction d as [|d IH]; intros t Hd Ht Hr Hb.
+      - destruct (sfrag_cases t Ht) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[? [-> _]]|[? [-> _]]]]]]; simpl in Hd; lia.
+      - destruct (sfrag_cases t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[[r [-> Hr']]|[r [-> Hr']]]]]].
+        + cbn [bound_in_h]. apply forallb_forall. intros a Ha. pose proof (bound_in_root b1 K1 s1 m c args Hb a Ha) as Hba.
+          pose proof (Hargs a Ha) as Hfa. pose proof (sdepth_below m c args a Ha) as Hda.
+          simpl in Hr. rewrite forallb_forall in Hr. pose proof (Hr a Ha) as Hra.
+          destruct a as [| | | |v o n| |]; try discriminate Hfa. simpl in Hfa, Hba, Hra |- *.
+          change (argument_sdepth (TypeArgument v o n)) with (S (sdepth n)) in Hda.
+          apply andb_true_iff in Hba. destruct Hba as [Ho Hn]. rewrite (Hown o Ho). apply IH; [lia|exact Hfa|exact Hra|exact Hn].
+        + reflexivity.
+        + change (bound_in_h b2 K2 s2 U2 (RootResolved m c args) = true). apply IH; [simpl in Hd |- *; lia|exact Ht'|exact Hr|exact Hb].
+        + apply Hgen; [apply sfrag_generic_iff, Hr'|exact Hr|exact Hb].
+        + change (bound_in_h b2 K2 s2 U2 (Generic r) = true). apply Hgen; [apply sfrag_generic_iff, Hr'|exact Hr|exact Hb]. }
+    intros t Ht Hr Hb. destruct (tfrag_cases t Ht) as [Hs'|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+    - exact (Hs _ _ (le_n _) Hs' Hr Hb).
+    - cbn [bound_in_h]. apply forallb_forall. intros c Hc. simpl in Hr. rewrite forallb_forall in Hr.
+      destruct (proj2 (components_sfrag_facts cs Hcs) c Hc) as [_ Hsc].
+      exact (Hs _ _ (le_n _) Hsc (Hr c Hc) (bound_in_component b1 K1 s1 cs c Hb Hc)).
+    - cbn [bound_in_h]. apply forallb_forall. intros c Hc. simpl in Hr. rewrite forallb_forall in Hr.
+      destruct (proj2 (components_sfrag_facts cs Hcs) c Hc) as [_ Hsc].
+      exact (Hs _ _ (le_n _) Hsc (Hr c Hc) (bound_in_component b1 K1 s1 cs c Hb Hc)).
+Qed.
+
+Lemma param_bound_in_lift: forall p, param_tfrag p = true -> param_bound_in b1 K1 s1 p = true -> param_bound_in b2 K2 s2 p = true.
+Proof.
+    intros p. remember (parameter_rank env p) as r eqn:Er. revert p Er. induction r as [r IH] using lt_wf_ind. intros p -> Ht Hb.
+    unfold param_bound_in at 1. rewrite (through_param_eq env (bound_in_h b2 K2 s2) true deep (bound_in_h_agree b2 K2 s2) p).
+    rewrite param_tfrag_eq in Ht. rewrite (param_bound_in_eq b1 K1 s1) in Hb.
+    apply (bound_in_lift_h p (parameter_rank env p)); [|exact Ht|apply deep|exact Hb].
+    intros r Hr Hs Hbr. destruct (param_eqb (param_of r) p) eqn:E; [reflexivity|].
+    destruct Hr as [Hr|Hr]; [subst p; unfold param_eqb in E; rewrite Nat.eqb_refl in E; discriminate E|].
+    apply (IH _ Hr _ eq_refl).
+    - apply sfrag_generic_iff in Hs. exact (proj2 (proj2 (proj2 Hs))).
+    - simpl in Hbr. rewrite !andb_true_iff in Hbr. exact (proj2 Hbr).
+Qed.
+
+Lemma bound_in_lift: forall t, tfrag t = true -> bound_in b1 K1 s1 t = true -> bound_in b2 K2 s2 t = true.
+Proof.
+    intros t Ht Hb. destruct (deep_ranked_exists env 0 t) as [k Hk]. rewrite (bound_in_top b2 K2 s2).
+    apply (bound_in_lift_h 0 k); [|exact Ht|exact Hk|exact Hb].
+    intros r _ Hs Hbr. apply param_bound_in_lift.
+    - apply sfrag_generic_iff in Hs. exact (proj2 (proj2 (proj2 Hs))).
+    - simpl in Hbr. rewrite !andb_true_iff in Hbr. exact (proj2 Hbr).
+Qed.
+
+End Lift.
+
+(* The same, for any type, where the references bound with the one set of bindings are with the
+   other whatever they are *)
+Section LiftAny.
+
+Variable b1: Bindings.
+Variable K1: nat.
+Variable s1: VariableStates.
+Variable b2: Bindings.
+Variable K2: nat.
+Variable s2: VariableStates.
+Hypothesis Hrefs: forall g, binds_ref b1 K1 s1 g = true -> binds_ref b2 K2 s2 g = true.
+Hypothesis Hown: forall o, ownership_bound b1 o = true -> ownership_bound b2 o = true.
+
+Lemma top_bound_in_lift_any: forall g, bound_in b1 K1 s1 (Generic g) = true -> top_bound_in b2 K2 s2 g = true.
+Proof.
+    intros g. remember (rank_of env g) as r eqn:Er. revert g Er. induction r as [r IH] using lt_wf_ind. intros g -> Hb.
+    rewrite (top_bound_in_eq b2 K2 s2). pose proof (generic_bound_in b1 K1 s1 g Hb) as Hbe.
+    pose proof (effective_bound_ranked env ranked g) as Hrk. revert Hbe Hrk. generalize (effective_bound env g) as t.
+    fix IHt 1. intros [m c args|n|q|me msg|v o n|q|cs] Hbe Hrk; simpl in Hbe, Hrk |- *; try reflexivity.
+    - exact (IHt n Hbe Hrk).
+    - pose proof Hbe as Hbq. rewrite !andb_true_iff in Hbe. destruct Hbe as [[[Hq Hv] _] _]. rewrite (Hrefs q Hq), Hv.
+      exact (IH _ (ref_ranked env _ q Hrk) q eq_refl Hbq).
+    - apply andb_true_iff in Hbe. exact (IHt n (proj2 Hbe) Hrk).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hbe, Hrk |- *. apply andb_true_iff in Hbe, Hrk.
+      rewrite (IHt c (proj1 Hbe) (proj1 Hrk)), (IHc (proj2 Hbe) (proj2 Hrk)). reflexivity.
+Qed.
+
+Lemma bound_in_lift_h_any: forall p k U2,
+    (forall r, param_of r = p \/ parameter_rank env (param_of r) < k -> bound_in b1 K1 s1 (Generic r) = true -> U2 (param_of r) = true) ->
+    forall t, deep_ranked env p k t = true -> bound_in b1 K1 s1 t = true -> bound_in_h b2 K2 s2 U2 t = true.
+Proof.
+    intros p k U2 HU. fix IH 1. intros [m c args|n|r|me msg|v o n|r|cs] Hr Hb; simpl in Hr, Hb |- *; try reflexivity.
+    - induction args as [|a args IHa]; [reflexivity|]. simpl in Hr, Hb |- *. apply andb_true_iff in Hr, Hb.
+      rewrite (IH a (proj1 Hr) (proj1 Hb)), (IHa (proj2 Hr) (proj2 Hb)). reflexivity.
+    - exact (IH n Hr Hb).
+    - pose proof Hb as Hbr. rewrite !andb_true_iff in Hb. destruct Hb as [[[Hq Hv] _] _].
+      rewrite (Hrefs r Hq), Hv, (top_bound_in_lift_any r Hbr), (HU r (deep_ranked_param p k r Hr) Hbr). reflexivity.
+    - apply andb_true_iff in Hb. rewrite (Hown o (proj1 Hb)), (IH n Hr (proj2 Hb)). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hr, Hb |- *. apply andb_true_iff in Hr, Hb.
+      rewrite (IH c (proj1 Hr) (proj1 Hb)), (IHc (proj2 Hr) (proj2 Hb)). reflexivity.
+Qed.
+
+Lemma param_bound_in_lift_any: forall p, param_bound_in b1 K1 s1 p = true -> param_bound_in b2 K2 s2 p = true.
+Proof.
+    intros p. remember (parameter_rank env p) as r eqn:Er. revert p Er. induction r as [r IH] using lt_wf_ind. intros p -> Hb.
+    unfold param_bound_in at 1. rewrite (through_param_eq env (bound_in_h b2 K2 s2) true deep (bound_in_h_agree b2 K2 s2) p).
+    rewrite (param_bound_in_eq b1 K1 s1) in Hb.
+    apply (bound_in_lift_h_any p (parameter_rank env p)); [|apply deep|exact Hb].
+    intros r Hr Hbr. destruct (param_eqb (param_of r) p) eqn:E; [reflexivity|].
+    destruct Hr as [Hr|Hr]; [subst p; unfold param_eqb in E; rewrite Nat.eqb_refl in E; discriminate E|].
+    apply (IH _ Hr _ eq_refl). simpl in Hbr. rewrite !andb_true_iff in Hbr. exact (proj2 Hbr).
+Qed.
+
+Lemma bound_in_lift_any: forall t, bound_in b1 K1 s1 t = true -> bound_in b2 K2 s2 t = true.
+Proof.
+    intros t Hb. destruct (deep_ranked_exists env 0 t) as [k Hk]. rewrite (bound_in_top b2 K2 s2).
+    apply (bound_in_lift_h_any 0 k); [|exact Hk|exact Hb].
+    intros r _ Hbr. apply param_bound_in_lift_any. simpl in Hbr. rewrite !andb_true_iff in Hbr. exact (proj2 Hbr).
+Qed.
+
+End LiftAny.
 
 (*
  * The substitution lemma: within the fragment, a type that is assignable to another stays so, with

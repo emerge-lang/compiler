@@ -98,6 +98,24 @@ Fixpoint nothing_is_bottom (t: EType): bool :=
     | _ => true
     end.
 
+Fixpoint esize (t: EType): nat :=
+    match t with
+    | RootResolved _ _ arguments => S (list_sum (map esize arguments))
+    | Nullable n => S (esize n)
+    | Generic _ | TypeVariable _ => 1
+    | Error _ _ => 1
+    | TypeArgument _ _ n => S (esize n)
+    | Intersection components => S (list_sum (map esize components))
+    end.
+
+Lemma esize_in: forall (l: list EType) a, In a l -> esize a <= list_sum (map esize l).
+Proof.
+    intros l a H. induction l as [|x l IH]; [destruct H|]. simpl. destruct H as [->|H]; [lia|]. specialize (IH H). lia.
+Qed.
+
+Lemma no_vars_rewrap: forall t, no_vars (rewrap_nullable t) = no_vars t.
+Proof. intros [| | | | | |]; reflexivity. Qed.
+
 Section Transitivity.
 
 Variable env: Environment.
@@ -229,8 +247,11 @@ Record wellformed: Prop := {
        supertypes a class declares (ImmediateVariantTypeArgumentOnSupertypeDiagnostic), and those of
        the supertypes of supertypes are made from them *)
     wf_supertypes_are_exact: forall sub super t, In t (supertype_arguments sub super) -> exact_template_argument t = true;
-    (* a bound mentions only type parameters declared before (Kotlin resolves it with only those in scope) *)
+    (* at the top of a bound, outside of type arguments, it mentions only type parameters declared before
+       (Kotlin resolves it with only those in scope) *)
     wf_bounds_ranked: bounds_ranked env;
+    (* in type arguments, it may mention the parameter itself, too (F-bounds, `T : Comparable<T>`) *)
+    wf_bounds_deep_ranked: bounds_deep_ranked env;
     (* a bound is a type as written, without type variables (BoundTypeParameter.bound) *)
     wf_bounds_mention_no_variables: forall p, no_vars (parameter_bound env p) = true;
 }.
@@ -247,6 +268,33 @@ Let nothing_is_not_const := wf_nothing_is_not_const wf.
 Let any_is_not_const := wf_any_is_not_const wf.
 Let supertypes_are_templates := wf_supertypes_are_templates wf.
 Let supertypes_compose := wf_supertypes_compose wf.
+
+Lemma no_vars_without_null: forall t, no_vars (without_null env t) = no_vars t.
+Proof.
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+Qed.
+
+Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
+Proof.
+    intros m t. remember (esize t) as k eqn:Hk. revert m t Hk. induction k as [k IH] using lt_wf_ind. intros m t -> H.
+    destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try discriminate H.
+    - exact H.
+    - rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
+    - exact H.
+    - reflexivity.
+    - apply (IH (esize n)); simpl; auto; lia.
+    - apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
+      rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
+Qed.
+
+(* A reference without type variables has none in its bound *)
+Lemma no_vars_effective_bound: forall g, no_vars (Generic g) = true -> no_vars (effective_bound env g) = true.
+Proof.
+    intros [gm nn p [|v vs]] H; [|discriminate H]. rewrite (effective_bound_eq env (wf_bounds_ranked wf)).
+    cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+    pose proof (wf_bounds_mention_no_variables wf p) as Hd.
+    destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hd).
+Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Facts about classes, mutabilities and ownerships                                                *)

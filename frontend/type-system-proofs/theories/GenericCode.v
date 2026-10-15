@@ -97,8 +97,7 @@ Proof. intros n [Hw [Hb Hm]]. split; [exact (wtfrag_nullable_inner env n Hw)|spl
 Lemma caller_bound: forall g, caller_type (Generic g) -> caller_type (effective_bound env g).
 Proof.
     intros g [Hw [Hb Hm]]. destruct (generic_of_wtfrag env wf _ Hw) as [Ht _].
-    rewrite (mentions_only_generic env wf) in Hm.
-    split; [exact (tfrag_wtfrag env wf _ Ht)|]. split; [exact I|exact (proj2 (proj2 Hm))].
+    split; [exact (tfrag_wtfrag env wf _ Ht)|]. split; [exact I|exact (mentions_only_generic env wf ps g Hm)].
 Qed.
 
 Lemma caller_component: forall cs c, caller_type (Intersection cs) -> In c cs -> caller_type c.
@@ -111,13 +110,13 @@ Lemma built_without_null: forall t, built env declared t -> built env declared (
 Proof. intros. exact I. Qed.
 
 Lemma mentions_without_null: forall t, mentions_only env ps t -> mentions_only env ps (without_null env t).
-Proof. exact (mentions_only_without_null env wf ps). Qed.
+Proof. exact (mentions_only_without_null env ps). Qed.
 
 Lemma caller_narrowed: forall g, caller_type (Generic g) -> caller_type (without_null env (Generic g)).
 Proof.
     intros g [Hw [Hb Hm]]. split; [|split; [exact (built_without_null _ Hb)|exact (mentions_without_null _ Hm)]].
     pose proof (generic_of_wtfrag env wf g Hw) as Hg. pose proof (generic_sfrag_sfrag env wf g Hg) as Hs.
-    destruct (tfrag_without_null env wf (sdepth env (Generic g)) (Generic g) (le_n _) (sfrag_tfrag env _ Hs)) as [Ht' _].
+    destruct (tfrag_without_null env wf _ (Generic g) (le_n _) (sfrag_tfrag env _ Hs)) as [Ht' _].
     exact (tfrag_wtfrag env wf _ Ht').
 Qed.
 
@@ -338,6 +337,8 @@ Theorem member_call_in_generic_code_instantiated: forall ps sigma n mr c cvars o
         /\ exists f, unify env f (inst_nested env sigma (declared p)) x (Ongoing []) = Some (Ongoing [])) ->
     (forall p, In p ps -> tfrag env (declared p) = true /\ built env declared (declared p)
         /\ mentions_only env ps (declared p)) ->
+    (* an F-bound among them mentions its parameter plainly, `T : Comparable<T>` *)
+    (forall p, In p ps -> self_plain p (declared p)) ->
     (* the call, as in member_call_in_generic_code_sound; the object of a type without type parameters *)
     c <> nothing -> ca <> nothing -> e <> nothing ->
     map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
@@ -362,7 +363,7 @@ Theorem member_call_in_generic_code_instantiated: forall ps sigma n mr c cvars o
     forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (inst env b P)) = Some true.
 Proof.
-    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hc Hca He Hids Hnd Hbounds Hfy Hrec
+    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hplain Hc Hca He Hids Hnd Hbounds Hfy Hrec
         Hfo Hno Hcl Hobj Hzs Hxx Hzb HPs HAs HQbounds Hfold b Hbdef P A HPA.
     destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates finite
         not_expansive intersect_in_fragment supertype_in_fragment intersect_below supertype_above
@@ -402,8 +403,8 @@ Proof.
     destruct (proj1 (instances_caller env wf declared ps b K0 Hvals (vsize P)) P (le_n _) (proj1 (HPs P HP)) (HK0 P HP))
         as [HwP [HbP HmP]].
     destruct (HAs A HA) as [_ [_ [_ [HwA [HbA HmA]]]]].
-    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbP HmP) as [K1 HK1].
-    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbA HmA) as [K2 HK2].
+    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) Hplain _ HbP HmP) as [K1 HK1].
+    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) Hplain _ HbA HmA) as [K2 HK2].
     exact (substitution_wide env declared sigma (max K1 K2) f0 (inst env b P) A wf declared_wf terminates finite not_expansive Hsf
         HwP HwA (bound_in_mono env wf sigma K1 (max K1 K2) _ (Nat.le_max_l K1 K2) HK1) (bound_in_mono env wf sigma K2 (max K1 K2) _ (Nat.le_max_r K1 K2) HK2) Hf0).
 Qed.

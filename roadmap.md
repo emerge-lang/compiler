@@ -225,6 +225,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * inference with F-bounded type variables loops: each new lower bound is checked against the upper
       bound `Comparable<T>`, which mentions the variable itself. This needs a design of its own; the
       type system proofs are prepared for F-bounds and should get the F-bounded cases along with it
+    * the type system proofs cover F-bounds in transitivity and substitution (bounds by reference,
+      `Subtyping.through_param`); inference with F-bounded type variables is still to do there, too.
+      Kotlin still has to decide what an unbound F-bounded parameter instantiates to
+      (`getFinalValueFor` instantiates the bound, which mentions the parameter again)
 28. ~~assignability after instantiating type parameters is stricter than it needs to be~~: with `S32` an `I`,
     `read I & U` took `S32 & U`, but with `U` bound to `mut Foo`, `mut I & mut Foo` took no `S32 & exclusive Foo`.
     Resolved by item 29: a value of a const class fits every mutability, and `ofComponents` gives the components the

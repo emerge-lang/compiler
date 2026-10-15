@@ -64,7 +64,7 @@ of the theorems, mostly bundled in records:
 
 | assumption                                     | where             | what it says                                                                                       |
 |------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------|
-| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing`; the declared bounds of type parameters mention no type variables, and only type parameters of a lower rank (`bounds_ranked`), so none is F-bounded |
+| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing`; the declared bounds of type parameters mention no type variables; at their top, outside of type arguments, only type parameters of a lower rank (`bounds_ranked`), and in type arguments those and the parameter itself (`bounds_deep_ranked`), as F-bounds do (`T : Comparable<T>`) |
 | `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`, and the components of an intersection in them are assigned as the same mutability, as `ofComponents` makes them (`uniform`) |
 | `supertypes_repeat_prescriptions`              | `Transitivity.v`  | for `prescriptions_carry_over_to_supertypes` only: supertypes repeat prescribed ownerships        |
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
@@ -87,7 +87,10 @@ program.
 
 ### Not covered yet
 
-- F-bounded type parameters (`T : Comparable<T>`).
+- In `bound_in_derived` (and so `member_call_in_generic_code_instantiated` and `member_call_on_generic_receiver`),
+  an F-bound that gives its own parameter a mutability or `!` (`T : Comparable<mut T>`): they take the parameter
+  as written plainly (`self_plain`).
+- Inference with F-bounded type variables.
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs

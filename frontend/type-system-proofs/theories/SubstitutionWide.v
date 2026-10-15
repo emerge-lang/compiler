@@ -784,8 +784,8 @@ Proof.
         apply (IH (esize n)); [simpl; lia|reflexivity|exact Ha].
       + reflexivity.
       + exact (IH (esize (RootResolved m c args)) ltac:(simpl; lia) (RootResolved m c args) eq_refl (wfrag_wtfrag env _ Ht')).
-      + destruct g as [gm nn p [|v vs]]; [reflexivity|destruct Hg as [_ [_ Hv]]; discriminate Hv].
-      + destruct g as [gm nn p [|v vs]]; [reflexivity|destruct Hg as [_ [_ Hv]]; discriminate Hv].
+      + destruct g as [gm nn p [|v vs]]; [reflexivity|destruct Hg as [_ [_ [Hv _]]]; discriminate Hv].
+      + destruct g as [gm nn p [|v vs]]; [reflexivity|destruct Hg as [_ [_ [Hv _]]]; discriminate Hv].
     - destruct (wcomponents_facts env cs Hcs) as [_ Hc]. simpl. apply forallb_forall. intros c Hin.
       pose proof (esize_in cs c Hin) as Hs.
       apply (IH (esize c)); [simpl; lia|reflexivity|exact (wfrag_wtfrag env c (proj2 (Hc c Hin)))].

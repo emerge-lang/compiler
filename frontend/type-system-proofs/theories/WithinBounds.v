@@ -258,7 +258,7 @@ Proof.
           exists g, o, x. split; [reflexivity|]. split; [exact Ex|exact (Hbf _ o x Ex)]. }
       assert (Hn: forall c, In c cs -> is_nullable env (inst_nested env b c) = false).
       { intros c Hin. destruct (Hc c Hin) as [Hsh Hsc].
-        exact (proj2 (proj2 (instance_facts env wf b K [] Hbf (sdepth env c) c (le_n _) (sfrag_tfrag env c Hsc)
+        exact (proj2 (proj2 (instance_facts env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
             (bound_in_component env b K [] cs _ Hbc Hin))) (component_non_null env c Hsh)). }
       destruct (intersection_instance env wf b K [] Hbf cs Hcs Hbc Hn) as [HeqY [Hcc Hfacts]].
       set (ys := map (inst_nested env b) cs) in *. set (cm := common_mutability env ys) in *.
@@ -392,7 +392,7 @@ Proof.
       change (inst_nested env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection cs))) in H.
       destruct (intersection_instance env wf b K [] Hbf cs Hcs Hb) as [HeqY _].
       { intros c Hin. destruct (components_sfrag_facts env cs Hcs) as [_ Hc]. destruct (Hc c Hin) as [Hsh Hsc].
-        exact (proj2 (proj2 (instance_facts env wf b K [] Hbf (sdepth env c) c (le_n _) (sfrag_tfrag env c Hsc)
+        exact (proj2 (proj2 (instance_facts env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
             (bound_in_component env b K [] cs _ Hb Hin))) (component_non_null env c Hsh)). }
       rewrite HeqY in H. cbn [rewrap_nullable] in H. rewrite (unify_nullable_target env f _ Z [] HZ) in H. rewrite <- HeqY in H.
       pose proof (in_fragment_without_null env Z HZ) as HZ'.
@@ -421,21 +421,10 @@ Qed.
 
 Lemma bound_in_mono: forall K K' t, K <= K' -> bound_in env b K [] t = true -> bound_in env b K' [] t = true.
 Proof.
-    intros K K' t Hle. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
-    intros t. remember (esize t) as e eqn:He. revert t He. induction e as [e IH] using lt_wf_ind. intros t -> Hr H.
-    destruct t as [m c args|n|g|me msg|v o n|g|cs]; try exact H.
-    - cbn [bound_in] in H |- *. simpl in Hr. apply forallb_forall. intros a Ha. rewrite forallb_forall in H, Hr.
-      apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|exact (Hr a Ha)|exact (H a Ha)].
-    - cbn [bound_in] in H |- *. apply (IH (esize n)); [simpl; lia|reflexivity|exact Hr|exact H].
-    - rewrite (bound_in_generic env wf) in H |- *. apply andb_true_iff in H. destruct H as [Hb Hbd]. apply andb_true_iff.
-      split; [|exact (IHr _ (ref_ranked env r g Hr) _ (effective_bound_ranked env ranked g) Hbd)].
-      unfold binds_ref in Hb |- *.
-      destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
-      apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono K K' _ _ Hle Hb).
-    - cbn [bound_in] in H |- *. apply andb_true_iff in H. destruct H as [Ho Hn]. rewrite Ho.
-      apply (IH (esize n)); [simpl; lia|reflexivity|exact Hr|exact Hn].
-    - cbn [bound_in] in H |- *. simpl in Hr. apply forallb_forall. intros a Ha. rewrite forallb_forall in H, Hr.
-      apply (IH (esize a)); [pose proof (esize_in cs a Ha); simpl; lia|reflexivity|exact (Hr a Ha)|exact (H a Ha)].
+    intros K K' t Hle. apply (bound_in_lift_any env wf b K [] b K' []); [|intros o Ho; exact Ho].
+    intros g Hb. unfold binds_ref in Hb |- *.
+    destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
+    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono K K' _ _ Hle Hb).
 Qed.
 
 Lemma bound_in_list: forall l, (forall a, In a l -> exists K, bound_in env b K [] a = true) ->
@@ -459,32 +448,34 @@ Variable ps: list TypeParameterId.
    so every type is built so. TODO: remove *)
 Definition built (t: EType): Prop := let _ := (env, declared) in True.
 
-(* The type parameters mentioned, in references and as ownership, are those of the caller, also in the
-   effective bounds of the references, which mentions_only_h takes from bound_mentions_only (see
-   Subtyping.through); references without type variables in their bounds *)
-Fixpoint mentions_only_h (bound_mentions_only: GenericRef -> Prop) (t: EType): Prop :=
+(* The type parameters mentioned, in references and as ownership, are those of the caller, also in
+   the declared bounds of the parameters of references (see Subtyping.through_param), which
+   mentions_only_h takes from bound_mentions_only; references without type variables *)
+Fixpoint mentions_only_h (bound_mentions_only: TypeParameterId -> Prop) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => mentions_only_h bound_mentions_only a /\ acc) True arguments
     | Nullable n => mentions_only_h bound_mentions_only n
-    | Generic g => In (param_of g) ps /\ variables_of g = [] /\ bound_mentions_only g
+    | Generic g => In (param_of g) ps /\ variables_of g = [] /\ bound_mentions_only (param_of g)
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q ps) /\ mentions_only_h bound_mentions_only n
     | Intersection cs => fold_right (fun c acc => mentions_only_h bound_mentions_only c /\ acc) True cs
     | _ => True
     end.
 
-Definition bound_mentions_only (g: GenericRef): Prop := through env mentions_only_h True g.
+Definition param_mentions_only (p: TypeParameterId): Prop := through_param env mentions_only_h True p.
 
 Fixpoint mentions_only (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => mentions_only a /\ acc) True arguments
     | Nullable n => mentions_only n
-    | Generic g => In (param_of g) ps /\ variables_of g = [] /\ bound_mentions_only g
+    | Generic g => In (param_of g) ps /\ variables_of g = [] /\ param_mentions_only (param_of g)
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q ps) /\ mentions_only n
     | Intersection cs => fold_right (fun c acc => mentions_only c /\ acc) True cs
     | _ => True
     end.
 
-Lemma mentions_only_top: forall t, mentions_only t = mentions_only_h bound_mentions_only t.
+Let deep := wf_bounds_deep_ranked env wf.
+
+Lemma mentions_only_top: forall t, mentions_only t = mentions_only_h param_mentions_only t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
     - induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
@@ -492,63 +483,45 @@ Proof.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
-Lemma mentions_only_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
-    forall t, ranked_below env k t = true -> mentions_only_h U1 t = mentions_only_h U2 t.
+Lemma mentions_only_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+    forall t, deep_ranked env p k t = true -> mentions_only_h U1 t = mentions_only_h U2 t.
 Proof.
-    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
+    intros p k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
     - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
       rewrite (IH a Ha), (IHa Has). reflexivity.
-    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+    - rewrite (HU _ (deep_ranked_param env p k g Ht)). reflexivity.
     - rewrite (IH n Ht). reflexivity.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
-Lemma mentions_only_generic: forall g,
-    mentions_only (Generic g) = (In (param_of g) ps /\ variables_of g = [] /\ mentions_only (effective_bound env g)).
+Lemma mentions_only_h_mono: forall U1 U2, (forall q, U1 q -> U2 q) -> forall t, mentions_only_h U1 t -> mentions_only_h U2 t.
 Proof.
-    intros g. change (mentions_only (Generic g)) with (In (param_of g) ps /\ variables_of g = [] /\ bound_mentions_only g).
-    rewrite mentions_only_top. unfold bound_mentions_only at 1. rewrite (through_eq env ranked); [reflexivity|exact mentions_only_h_agree].
+    intros U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht; try exact (IH n Ht).
+    - induction args as [|a args IHa]; [exact I|]. destruct Ht as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
+    - destruct Ht as [Hp [Hv Hu]]. exact (conj Hp (conj Hv (HU _ Hu))).
+    - destruct Ht as [Ho Hn]. exact (conj Ho (IH n Hn)).
+    - induction cs as [|c cs IHc]; [exact I|]. destruct Ht as [Hc Hcs]. exact (conj (IH c Hc) (IHc Hcs)).
+Qed.
+
+Lemma param_mentions_only_iff: forall p, param_mentions_only p <-> mentions_only (parameter_bound env p).
+Proof.
+    intros p. rewrite mentions_only_top. unfold param_mentions_only at 1.
+    exact (through_param_fix_prop env mentions_only_h deep mentions_only_h_agree (fun U1 U2 t H => mentions_only_h_mono U1 U2 H t) p).
 Qed.
 
 (* A mutability applied, or null removed, mentions the same *)
 Lemma mentions_only_adjust: forall t,
     (forall m, mentions_only (with_mutability env m t) <-> mentions_only t) /\ (mentions_only (without_null env t) <-> mentions_only t).
 Proof.
-    intros t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
-    (* references to the same parameter without type variables, of any given mutability and `!` *)
-    assert (Href: forall gm nn gm' nn' p vs, rank_of env (mkGenericRef gm nn p vs) < r ->
-        mentions_only (Generic (mkGenericRef gm nn p vs)) <-> mentions_only (Generic (mkGenericRef gm' nn' p vs))).
-    { intros gm nn gm' nn' p vs Hg. rewrite !mentions_only_generic. cbn [param_of variables_of].
-      destruct vs as [|v vs]; [|split; intros [_ [E _]]; discriminate E].
-      rewrite !(effective_bound_eq env ranked). cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
-      assert (Hd: forall (k: option Mutability) (n: bool), mentions_only (if n then without_null env (match k with Some m => with_mutability env m (parameter_bound env p) | None => parameter_bound env p end)
-                                            else match k with Some m => with_mutability env m (parameter_bound env p) | None => parameter_bound env p end)
-                              <-> mentions_only (parameter_bound env p)).
-      { intros k n. pose proof (ranked p) as Hrd. pose proof (IHr _ Hg (parameter_bound env p) Hrd) as [Hm Hn].
-        destruct k as [m|].
-        - assert (Hrm: ranked_below env (rank_of env (mkGenericRef gm nn p [])) (with_mutability env m (parameter_bound env p)) = true)
-              by exact (with_mutability_h_ranked env _ (top_handlers env) m _ Hrd).
-          pose proof (IHr _ Hg _ Hrm) as [_ Hn'].
-          destruct n; [rewrite Hn'; apply Hm|apply Hm].
-        - destruct n; [apply Hn|reflexivity]. }
-      rewrite !Hd. reflexivity. }
-    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Hr.
-    - split; [intros m|]; reflexivity.
-    - destruct (IH n Hr) as [Hm Hn]. split.
-      + intros m. cbn [with_mutability]. rewrite <- (Hm m). destruct (with_mutability env m n); reflexivity.
-      + exact Hn.
-    - pose proof (ref_ranked env r _ Hr) as Hg. split.
-      + intros m. exact (Href (Some m) nn gm nn p vs Hg).
-      + cbn [without_null]. exact (Href gm (nn || ref_nullable env (mkGenericRef gm nn p vs)) gm nn p vs Hg).
-    - split; [intros m|]; reflexivity.
-    - destruct (IH n Hr) as [Hm Hn]. split; [intros m|]; cbn [with_mutability without_null mentions_only];
-          [rewrite (Hm m)|rewrite Hn]; reflexivity.
-    - split; [intros m|]; reflexivity.
-    - simpl in Hr. split; [intros m|reflexivity]. cbn [with_mutability mentions_only].
-      generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
-      intros k. clear -IH Hr. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hr |- *. apply andb_true_iff in Hr.
-      destruct Hr as [Hc Hcs]. rewrite (proj1 (IH c Hc) k), (IHc Hcs). reflexivity.
+    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; split; try intros m; try reflexivity.
+    - cbn [with_mutability]. change (mentions_only (Nullable n)) with (mentions_only n). rewrite <- (proj1 (IH n) m).
+      destruct (with_mutability env m n); reflexivity.
+    - exact (proj2 (IH n)).
+    - simpl. rewrite (proj1 (IH n) m). reflexivity.
+    - simpl. rewrite (proj2 (IH n)). reflexivity.
+    - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
+      intros k. clear m. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj1 (IH c) k), IHc. reflexivity.
 Qed.
 
 Lemma mentions_only_with_mutability: forall m t, mentions_only t -> mentions_only (with_mutability env m t).
@@ -556,6 +529,32 @@ Proof. intros m t H. apply (proj1 (mentions_only_adjust t) m), H. Qed.
 
 Lemma mentions_only_without_null: forall t, mentions_only t -> mentions_only (without_null env t).
 Proof. intros t H. apply (proj2 (mentions_only_adjust t)), H. Qed.
+
+(* The effective bound of a reference mentions only the type parameters of the caller where the
+   declared bound of its parameter does *)
+Lemma mentions_only_bound: forall gm nn p, mentions_only (parameter_bound env p) ->
+    mentions_only (effective_bound env (mkGenericRef gm nn p [])).
+Proof.
+    intros gm nn p H. rewrite (effective_bound_eq env ranked). cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+    destruct gm as [m|], nn; cbn iota;
+        try apply mentions_only_without_null; try apply mentions_only_with_mutability; exact H.
+Qed.
+
+Lemma mentions_only_generic: forall g, mentions_only (Generic g) -> mentions_only (effective_bound env g).
+Proof.
+    intros [gm nn p vs] [_ [Hv Hm]]. cbn [variables_of param_of] in Hv, Hm. subst vs.
+    apply mentions_only_bound, param_mentions_only_iff, Hm.
+Qed.
+
+(* A bound mentions its own parameter as written plainly: `T : Comparable<T>`, not `Comparable<mut T>` *)
+Fixpoint self_plain (p: TypeParameterId) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => self_plain p a /\ acc) True arguments
+    | Nullable n | TypeArgument _ _ n => self_plain p n
+    | Generic g => param_of g = p -> g = mkGenericRef None false p []
+    | Intersection cs => fold_right (fun c acc => self_plain p c /\ acc) True cs
+    | _ => True
+    end.
 
 (* The type parameters of the caller are bound exactly, each to a type within its declared bound,
    instantiated: as Kotlin checks type arguments *)
@@ -567,41 +566,207 @@ Hypothesis Hdeclared: forall p, In p ps ->
     tfrag env (declared p) = true /\ built (declared p) /\ mentions_only (declared p).
 (* They are the bounds of the type parameters *)
 Hypothesis Hbound: forall p, declared p = parameter_bound env p.
+(* An F-bound mentions its own parameter plainly *)
+Hypothesis Hplain: forall p, In p ps -> self_plain p (declared p).
 
-(*
- * Every reference in a type, as GenericTypeReference makes them, to a type parameter of the caller,
- * is within its bound, instantiated (bound_in), where the type parameters are bound to types within
- * their declared bounds, instantiated
- *)
-Theorem bound_in_derived: forall t, built t -> mentions_only t -> exists K, bound_in env b K [] t = true.
+(* The references in a type, those in its type arguments too, are of R, and the type parameters in
+   the ownerships are bound exactly *)
+Fixpoint refs_in (R: GenericRef -> Prop) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => refs_in R a /\ acc) True arguments
+    | Nullable n => refs_in R n
+    | Generic g => R g
+    | TypeArgument _ o n => ownership_bound b o = true /\ refs_in R n
+    | Intersection cs => fold_right (fun c acc => refs_in R c /\ acc) True cs
+    | _ => True
+    end.
+
+Lemma refs_in_mono: forall (R1 R2: GenericRef -> Prop), (forall r, R1 r -> R2 r) -> forall t, refs_in R1 t -> refs_in R2 t.
 Proof.
-    intros t _. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
-    intros t. remember (esize t) as e eqn:He. revert t He. induction e as [e IHe] using lt_wf_ind. intros t -> Hr Hmo.
-    assert (Hlist: forall l, (forall a, In a l -> esize a < esize t /\ ranked_below env r a = true /\ mentions_only a) ->
-        exists K, forallb (bound_in env b K []) l = true).
-    { intros l Hl. destruct (bound_in_list l) as [K HK].
-      - intros a Ha. destruct (Hl a Ha) as [Hs [Hra Hm1]]. exact (IHe (esize a) Hs a eq_refl Hra Hm1).
-      - exists K. apply forallb_forall. exact HK. }
-    destruct t as [m c args|n|[gm nn p vs]|me msg|v o n|g|cs].
-    - destruct (Hlist args) as [K HK]; [|exists K; exact HK].
-      intros a Ha. pose proof (esize_in args a Ha). simpl in Hr. rewrite forallb_forall in Hr.
-      split; [simpl; lia|]. split; [exact (Hr a Ha)|]. exact (fold_and_in _ args Hmo a Ha).
-    - exact (IHe (esize n) ltac:(simpl; lia) n eq_refl Hr Hmo).
-    - (* a reference: within its bound, by the declared bound *)
-      rewrite mentions_only_generic in Hmo. destruct Hmo as [Hp [Hvs Hme]]. cbn [param_of variables_of] in Hp, Hvs. subst vs.
-      set (g := mkGenericRef gm nn p []).
-      pose proof (ref_ranked env r g Hr) as Hg.
-      destruct (Hdeclared p Hp) as [HtD [_ HmD]].
-      (* the declared bound, and the effective bound, are bound in *)
-      assert (HrD: ranked_below env (rank_of env g) (declared p) = true) by (rewrite Hbound; exact (ranked p)).
-      destruct (IHr _ Hg (declared p) HrD HmD) as [K2 HK2].
+    intros R1 R2 HR. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht; try exact (IH n Ht).
+    - induction args as [|a args IHa]; [exact I|]. destruct Ht as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
+    - exact (HR g Ht).
+    - destruct Ht as [Ho Hn]. exact (conj Ho (IH n Hn)).
+    - induction cs as [|c cs IHc]; [exact I|]. destruct Ht as [Hc Hcs]. exact (conj (IH c Hc) (IHc Hcs)).
+Qed.
+
+(* A mutability applied, or null removed, the references are of R where R doesn't tell them apart *)
+Lemma refs_in_adjust: forall (R: GenericRef -> Prop), (forall gm nn gm' nn' p vs, R (mkGenericRef gm nn p vs) -> R (mkGenericRef gm' nn' p vs)) ->
+    forall t, refs_in R t -> (forall m, refs_in R (with_mutability env m t)) /\ refs_in R (without_null env t).
+Proof.
+    intros R HR. fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; split; try intros m; try exact Ht.
+    - cbn [with_mutability]. destruct (IH n Ht) as [Hm _]. specialize (Hm m). destruct (with_mutability env m n); exact Hm.
+    - exact (proj2 (IH n Ht)).
+    - exact (HR _ _ _ _ _ _ Ht).
+    - exact (HR _ _ _ _ _ _ Ht).
+    - destruct Ht as [Ho Hn]. exact (conj Ho (proj1 (IH n Hn) m)).
+    - destruct Ht as [Ho Hn]. exact (conj Ho (proj2 (IH n Hn))).
+    - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
+      intros k. clear m. induction cs as [|c cs IHc]; [exact I|]. destruct Ht as [Hc Hcs]. exact (conj (proj1 (IH c Hc) k) (IHc Hcs)).
+Qed.
+
+Lemma ownership_bound_caller: forall o, (forall q, o = parameter_ownership q -> In q ps) -> ownership_bound b o = true.
+Proof.
+    intros [| | |q] H; try reflexivity. destruct (Hwithin q (H q eq_refl)) as [o [x [Ex [Ho _]]]].
+    cbn [ownership_bound]. rewrite Ex. exact Ho.
+Qed.
+
+(* Of a type mentioning only the type parameters of the caller, the references are of R where R takes
+   those to the parameters of a rank below k, and to p0 written plainly *)
+Lemma refs_in_from_mentions: forall (R: GenericRef -> Prop) p0 k,
+    (forall r, In (param_of r) ps -> variables_of r = [] ->
+        parameter_rank env (param_of r) < k \/ r = mkGenericRef None false p0 [] -> R r) ->
+    forall t, mentions_only t -> deep_ranked env p0 k t = true -> self_plain p0 t -> refs_in R t.
+Proof.
+    intros R p0 k HR. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hm Hd Hs; simpl in Hm, Hd, Hs |- *; try exact I.
+    - induction args as [|a args IHa]; [exact I|]. simpl in Hd. apply andb_true_iff in Hd.
+      destruct Hm as [Ha Has]. destruct Hs as [Hsa Hsas]. exact (conj (IH a Ha (proj1 Hd) Hsa) (IHa Has (proj2 Hd) Hsas)).
+    - exact (IH n Hm Hd Hs).
+    - destruct Hm as [Hp [Hv _]]. apply HR; [exact Hp|exact Hv|].
+      destruct (deep_ranked_param env p0 k g Hd) as [E|Hr]; [right; exact (Hs E)|left; exact Hr].
+    - destruct Hm as [Ho Hn]. exact (conj (ownership_bound_caller o Ho) (IH n Hn Hd Hs)).
+    - induction cs as [|c cs IHc]; [exact I|]. simpl in Hd. apply andb_true_iff in Hd.
+      destruct Hm as [Hc Hcs]. destruct Hs as [Hsc Hscs]. exact (conj (IH c Hc (proj1 Hd) Hsc) (IHc Hcs (proj2 Hd) Hscs)).
+Qed.
+
+Lemma refs_in_all: forall t, mentions_only t -> refs_in (fun r => In (param_of r) ps /\ variables_of r = []) t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hm; simpl in Hm |- *; try exact I.
+    - induction args as [|a args IHa]; [exact I|]. destruct Hm as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
+    - exact (IH n Hm).
+    - destruct Hm as [Hp [Hv _]]. exact (conj Hp Hv).
+    - destruct Hm as [Ho Hn]. exact (conj (ownership_bound_caller o Ho) (IH n Hn)).
+    - induction cs as [|c cs IHc]; [exact I|]. destruct Hm as [Hc Hcs]. exact (conj (IH c Hc) (IHc Hcs)).
+Qed.
+
+(* Where the references of R are bound with fuel K, and so are those in their effective bounds and in
+   the declared bounds of their parameters, every type of references of R is bound in *)
+Section Refs.
+
+Variable K: nat.
+Variable R: GenericRef -> Prop.
+Hypothesis HR: forall r, R r -> binds_ref env b K [] r = true /\ variables_of r = [].
+Hypothesis Hclose: forall r, R r -> refs_in R (effective_bound env r) /\ refs_in R (parameter_bound env (param_of r)).
+
+Lemma refs_top: forall r, R r -> top_bound_in env b K [] r = true.
+Proof.
+    intros r. remember (rank_of env r) as n eqn:En. revert r En. induction n as [n IH] using lt_wf_ind. intros r -> Hr.
+    rewrite (top_bound_in_eq env wf b K []). pose proof (proj1 (Hclose r Hr)) as Ht.
+    pose proof (effective_bound_ranked env ranked r) as Hrk. revert Ht Hrk. generalize (effective_bound env r) as t.
+    fix IHt 1. intros [m c args|n|q|me msg|v o n|q|cs] Ht Hrk; simpl in Ht, Hrk |- *; try reflexivity.
+    - exact (IHt n Ht Hrk).
+    - destruct (HR q Ht) as [Hq Hv]. rewrite Hq. unfold no_type_variables. rewrite Hv.
+      exact (IH _ (ref_ranked env _ q Hrk) q eq_refl Ht).
+    - exact (IHt n (proj2 Ht) Hrk).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hrk |- *. apply andb_true_iff in Hrk. destruct Ht as [Hc Hcs].
+      rewrite (IHt c Hc (proj1 Hrk)), (IHc Hcs (proj2 Hrk)). reflexivity.
+Qed.
+
+Lemma refs_param: forall r, R r -> param_bound_in env b K [] (param_of r) = true.
+Proof.
+    assert (H: forall n p, parameter_rank env p = n -> (exists r, R r /\ param_of r = p) -> param_bound_in env b K [] p = true).
+    { induction n as [n IH] using lt_wf_ind. intros p En [r0 [Hr0 Ep]].
+      unfold param_bound_in. rewrite (through_param_eq env (bound_in_h env b K []) true deep (bound_in_h_agree env b K []) p).
+      pose proof (proj2 (Hclose r0 Hr0)) as Ht. rewrite Ep in Ht. pose proof (deep p) as Hd.
+      revert Ht Hd. generalize (parameter_bound env p) as t.
+      fix IHt 1. intros [m c args|n'|q|me msg|v o n'|q|cs] Ht Hd; simpl in Ht, Hd |- *; try reflexivity.
+      - induction args as [|a args IHa]; [reflexivity|]. simpl in Hd |- *. apply andb_true_iff in Hd. destruct Ht as [Ha Has].
+        rewrite (IHt a Ha (proj1 Hd)), (IHa Has (proj2 Hd)). reflexivity.
+      - exact (IHt n' Ht Hd).
+      - destruct (HR q Ht) as [Hq Hv]. rewrite Hq, (refs_top q Ht). unfold no_type_variables. rewrite Hv. cbn [andb].
+        destruct (deep_ranked_param env p _ q Hd) as [Eq|Hr]; [rewrite Eq; unfold param_eqb; rewrite Nat.eqb_refl; reflexivity|].
+        destruct (param_eqb (param_of q) p); [reflexivity|]. rewrite En in Hr. exact (IH _ Hr (param_of q) eq_refl (ex_intro _ q (conj Ht eq_refl))).
+      - destruct Ht as [Ho Hn]. rewrite Ho. exact (IHt n' Hn Hd).
+      - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hd |- *. apply andb_true_iff in Hd. destruct Ht as [Hc Hcs].
+        rewrite (IHt c Hc (proj1 Hd)), (IHc Hcs (proj2 Hd)). reflexivity. }
+    intros r Hr. exact (H _ (param_of r) eq_refl (ex_intro _ r (conj Hr eq_refl))).
+Qed.
+
+Lemma refs_bound_in: forall t, refs_in R t -> bound_in env b K [] t = true.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - induction args as [|a args IHa]; [reflexivity|]. simpl. destruct Ht as [Ha Has]. rewrite (IH a Ha), (IHa Has). reflexivity.
+    - exact (IH n Ht).
+    - destruct (HR g Ht) as [Hg Hv]. rewrite Hg, (refs_top g Ht), (refs_param g Ht). unfold no_type_variables. rewrite Hv. reflexivity.
+    - destruct Ht as [Ho Hn]. rewrite Ho. exact (IH n Hn).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl. destruct Ht as [Hc Hcs]. rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+End Refs.
+
+Lemma uniform_fuel: forall {A: Type} (l: list A) (Q: nat -> A -> Prop),
+    (forall f f' x, f <= f' -> Q f x -> Q f' x) -> (forall x, In x l -> exists f, Q f x) ->
+    exists f, forall x, In x l -> Q f x.
+Proof.
+    intros A l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
+    destruct (H x (or_introl eq_refl)) as [f1 H1]. destruct (IH (fun y Hy => H y (or_intror Hy))) as [f2 H2].
+    exists (max f1 f2). intros y [<-|Hy]; [apply (Hm f1); [lia|exact H1]|apply (Hm f2); [lia|exact (H2 y Hy)]].
+Qed.
+
+Lemma binds_ref_mono: forall K K' g, K <= K' -> binds_ref env b K [] g = true -> binds_ref env b K' [] g = true.
+Proof.
+    intros K K' g Hle Hb. unfold binds_ref in Hb |- *.
+    destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
+    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono K K' _ _ Hle Hb).
+Qed.
+
+(* The mutabilities and `!` a reference may be given *)
+Definition shapes: list (option Mutability * bool) :=
+    [(None, false); (None, true)] ++ flat_map (fun m => [(Some m, false); (Some m, true)]) [exclusive; immutable; readonly; mutable].
+
+Lemma shapes_complete: forall gm nn, In (gm, nn) shapes.
+Proof. intros [[]|] []; simpl; tauto. Qed.
+
+(* Every reference to a type parameter of the caller, of any mutability and `!`, is within its
+   bound, instantiated: by the rank of the parameter. The parameter written plainly is, as Kotlin
+   checks it; then the declared bound is bound in, by the lower ranks; and so the others are *)
+Lemma param_refs: forall p, In p ps -> exists K, forall gm nn, binds_ref env b K [] (mkGenericRef gm nn p []) = true.
+Proof.
+    intros p. remember (parameter_rank env p) as n eqn:En. revert p En. induction n as [n IH] using lt_wf_ind. intros p -> Hp.
+    set (lower := filter (fun q => Nat.ltb (parameter_rank env q) (parameter_rank env p)) ps).
+    destruct (uniform_fuel lower (fun K q => forall gm nn, binds_ref env b K [] (mkGenericRef gm nn q []) = true)) as [KL HKL].
+    { intros f f' q Hle H gm nn. exact (binds_ref_mono f f' _ Hle (H gm nn)). }
+    { intros q Hq. apply filter_In in Hq. destruct Hq as [Hq Hr]. apply Nat.ltb_lt in Hr. exact (IH _ Hr q eq_refl Hq). }
+    destruct (Hwithin p Hp) as [o [x [Ex [Ho [f0 Hf0]]]]]. pose proof (Hbf _ o x Ex) as Hx.
+    destruct (Hdeclared p Hp) as [HtD [_ HmD]].
+    set (K2 := max KL f0).
+    (* the parameter written plainly: as Kotlin checks *)
+    assert (Hplainref: binds_ref env b K2 [] (mkGenericRef None false p []) = true).
+    { unfold binds_ref. cbn [param_of]. rewrite Ex, Ho, (in_fragment_is_gfrag env x Hx). cbn [andb].
+      rewrite (effective_bound_plain env ranked), <- Hbound. unfold respects. unfold inst_ref, inst_fit. cbn [is_narrowed given_mutability].
+      rewrite (unify_fuel_monotone env f0 K2 _ _ _ _ ltac:(unfold K2; lia) Hf0). reflexivity. }
+    (* the declared bound: references to parameters of lower ranks, and to the parameter itself plainly *)
+    set (L := fun r => In (param_of r) ps /\ variables_of r = [] /\ parameter_rank env (param_of r) < parameter_rank env p).
+    set (R := fun r => L r \/ r = mkGenericRef None false p []).
+    assert (HL: forall q, In q ps -> parameter_rank env q < parameter_rank env p -> refs_in L (declared q)).
+    { intros q Hq Hr. destruct (Hdeclared q Hq) as [_ [_ Hm]].
+      apply (refs_in_from_mentions L q (parameter_rank env q)); [|exact Hm|rewrite Hbound; apply deep|exact (Hplain q Hq)].
+      intros r Hq2 Hv [Hr2| ->]; [split; [exact Hq2|split; [exact Hv|lia]]|split; [exact Hq|split; [reflexivity|exact Hr]]]. }
+    assert (HLadj: forall gm nn gm' nn' q vs, L (mkGenericRef gm nn q vs) -> L (mkGenericRef gm' nn' q vs)) by (intros; assumption).
+    assert (HR: forall r, R r -> binds_ref env b K2 [] r = true /\ variables_of r = []).
+    { intros r [[Hq [Hv Hr]]| ->]; [|split; [exact Hplainref|reflexivity]].
+      destruct r as [gm nn q vs]. cbn [param_of variables_of] in Hq, Hv, Hr. subst vs. split; [|reflexivity].
+      apply (binds_ref_mono KL); [unfold K2; lia|]. apply HKL. apply filter_In. split; [exact Hq|apply Nat.ltb_lt, Hr]. }
+    assert (HRp: refs_in R (declared p)).
+    { apply (refs_in_from_mentions R p (parameter_rank env p)); [|exact HmD|rewrite Hbound; apply deep|exact (Hplain p Hp)].
+      intros r Hq Hv [Hr| ->]; [left; split; [exact Hq|split; [exact Hv|exact Hr]]|right; reflexivity]. }
+    assert (Hclose: forall r, R r -> refs_in R (effective_bound env r) /\ refs_in R (parameter_bound env (param_of r))).
+    { intros r [[Hq [Hv Hr]]| ->].
+      - destruct r as [gm nn q vs]. cbn [param_of variables_of] in Hq, Hv, Hr |- *. subst vs.
+        pose proof (HL q Hq Hr) as H1. rewrite Hbound in H1. split; [|exact (refs_in_mono L R (fun r H => or_introl H) _ H1)].
+        apply (refs_in_mono L R (fun r H => or_introl H)). rewrite (effective_bound_eq env ranked).
+        cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+        destruct (refs_in_adjust L HLadj _ H1) as [Hm Hn].
+        destruct gm as [m|], nn; cbn iota; [exact (proj2 (refs_in_adjust L HLadj _ (Hm m)))|exact (Hm m)|exact Hn|exact H1].
+      - rewrite (effective_bound_plain env ranked). cbn [param_of]. rewrite <- Hbound. split; exact HRp. }
+    assert (HK2: bound_in env b K2 [] (declared p) = true) by exact (refs_bound_in K2 R HR Hclose _ HRp).
+    (* the others: within the bound with the mutability and `!` applied, by the instance of the declared bound *)
+    assert (Hshape: forall gm nn, exists f, binds_ref env b f [] (mkGenericRef gm nn p []) = true).
+    { intros gm nn. set (g := mkGenericRef gm nn p []).
       assert (Heff: effective_bound env g = if nn then without_null env (match gm with Some m => with_mutability env m (declared p) | None => declared p end)
           else match gm with Some m => with_mutability env m (declared p) | None => declared p end)
           by (rewrite (effective_bound_eq env ranked), Hbound; reflexivity).
-      destruct (IHr _ Hg _ (effective_bound_ranked env ranked g) Hme) as [K1 HK1].
-      destruct (Hwithin p Hp) as [o [x [Ex [Ho [f0 Hf0]]]]]. pose proof (Hbf _ o x Ex) as Hx.
-      destruct (instance_facts env wf b K2 [] Hbf (sdepth env (declared p)) (declared p) (le_n _) HtD HK2) as [HcD [HmiD _]].
-      (* the instance of the reference is within the instance of its effective bound *)
+      destruct (instance_facts env wf b K2 [] Hbf _ (declared p) (le_n _) HtD HK2) as [HcD [HmiD _]].
       assert (Hf: exists f, unify env f (inst_nested env b (effective_bound env g)) (inst_ref env g x) (Ongoing []) = Some (Ongoing [])).
       { destruct gm as [m0|].
         - pose proof (inst_fit_in_fragment env g x Hx) as HZ.
@@ -612,23 +777,34 @@ Proof.
           exists f. rewrite Heff. unfold inst_ref. cbn [is_narrowed g]. destruct nn; exact Hf.
         - rewrite Heff. unfold inst_ref, inst_fit. cbn [is_narrowed given_mutability g].
           destruct nn; [|exists f0; exact Hf0].
-          destruct (narrow_facts env wf b K2 [] Hbf (sdepth env (declared p)) (declared p) (le_n _) HtD HK2) as [_ Hin].
+          destruct (narrow_facts env wf b K2 [] Hbf _ (declared p) (le_n _) HtD HK2) as [_ Hin].
           rewrite Hin. exists f0. exact (cfrag_without_null env wf f0 _ x [] [] HcD Hx Hf0). }
-      destruct Hf as [f Hf].
-      exists (max K1 f). rewrite (bound_in_generic env wf).
-      rewrite (bound_in_mono K1 (max K1 f) _ ltac:(lia) HK1), andb_true_r.
+      destruct Hf as [f Hf]. exists f.
       unfold binds_ref. cbn [param_of g]. rewrite Ex, Ho, (in_fragment_is_gfrag env x Hx). cbn [andb].
-      unfold respects. rewrite (unify_fuel_monotone env f (max K1 f) _ _ _ _ ltac:(lia) Hf). reflexivity.
-    - exists 0. reflexivity.
-    - destruct Hmo as [Hq Hmn].
-      destruct (IHe (esize n) ltac:(simpl; lia) n eq_refl Hr Hmn) as [K HK].
-      exists K. change (ownership_bound b o && bound_in env b K [] n = true). rewrite HK, andb_true_r.
-      destruct o as [| | |q]; try reflexivity.
-      destruct (Hwithin q (Hq q eq_refl)) as [o' [x [Ex [Ho _]]]]. cbn [ownership_bound]. rewrite Ex. exact Ho.
-    - exists 0. destruct g as [gm nn p bd]. reflexivity.
-    - destruct (Hlist cs) as [K HK]; [|exists K; exact HK].
-      intros a Ha. pose proof (esize_in cs a Ha). simpl in Hr. rewrite forallb_forall in Hr.
-      split; [simpl; lia|]. split; [exact (Hr a Ha)|]. exact (fold_and_in _ cs Hmo a Ha).
+      unfold respects. rewrite Hf. reflexivity. }
+    destruct (uniform_fuel shapes (fun K s => binds_ref env b K [] (mkGenericRef (fst s) (snd s) p []) = true)) as [K HK].
+    { intros f f' s Hle H. exact (binds_ref_mono f f' _ Hle H). }
+    { intros [gm nn] _. exact (Hshape gm nn). }
+    exists K. intros gm nn. exact (HK (gm, nn) (shapes_complete gm nn)).
+Qed.
+
+(*
+ * Every reference in a type, as GenericTypeReference makes them, to a type parameter of the caller,
+ * is within its bound, instantiated (bound_in), where the type parameters are bound to types within
+ * their declared bounds, instantiated
+ *)
+Theorem bound_in_derived: forall t, built t -> mentions_only t -> exists K, bound_in env b K [] t = true.
+Proof.
+    intros t _ Hm.
+    destruct (uniform_fuel ps (fun K q => forall gm nn, binds_ref env b K [] (mkGenericRef gm nn q []) = true)) as [K HK].
+    { intros f f' q Hle H gm nn. exact (binds_ref_mono f f' _ Hle (H gm nn)). }
+    { exact param_refs. }
+    exists K. set (R := fun r => In (param_of r) ps /\ variables_of r = []).
+    apply (refs_bound_in K R); [| |exact (refs_in_all t Hm)].
+    - intros [gm nn q vs] [Hq Hv]. cbn [param_of variables_of] in Hq, Hv. subst vs. exact (conj (HK q Hq gm nn) eq_refl).
+    - intros [gm nn q vs] [Hq Hv]. cbn [param_of variables_of] in Hq, Hv |- *. subst vs.
+      destruct (Hdeclared q Hq) as [_ [_ HmD]]. rewrite Hbound in HmD.
+      split; [exact (refs_in_all _ (mentions_only_bound gm nn q HmD))|exact (refs_in_all _ HmD)].
 Qed.
 
 End Derivation.

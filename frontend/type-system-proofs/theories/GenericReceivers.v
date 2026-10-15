@@ -68,6 +68,8 @@ Hypothesis Hwithin: forall p, In p ps -> exists o x, lookup_binding sigma p = So
     /\ exists f, unify env f (inst_nested env sigma (declared p)) x (Ongoing []) = Some (Ongoing []).
 Hypothesis Hdeclared: forall p, In p ps -> tfrag env (declared p) = true /\ built env declared (declared p)
     /\ mentions_only env ps (declared p).
+(* An F-bound among them mentions its parameter plainly, `T : Comparable<T>` *)
+Hypothesis Hplain: forall p, In p ps -> self_plain p (declared p).
 
 Let caller := caller_type env declared ps.
 
@@ -78,7 +80,7 @@ Let caller := caller_type env declared ps.
 Lemma instance_ground: forall t, caller t ->
     exists K, bound_in env sigma K [] t = true /\ ground env (instantiate env sigma t) = true.
 Proof.
-    intros t [Hw [Hb Hm]]. destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) t Hb Hm) as [K HK].
+    intros t [Hw [Hb Hm]]. destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) Hplain t Hb Hm) as [K HK].
     exists K. split; [exact HK|exact (proj1 (wide_instance env wf sigma K Hsf t Hw HK))].
 Qed.
 
@@ -87,8 +89,8 @@ Lemma subst_below: forall x y, caller x -> caller y -> below env x y ->
     exists f, unify env f (instantiate env sigma y) (instantiate env sigma x) (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x y Hx Hy [n H].
-    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) x (proj1 (proj2 Hx)) (proj2 (proj2 Hx))) as [K1 HK1].
-    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) y (proj1 (proj2 Hy)) (proj2 (proj2 Hy))) as [K2 HK2].
+    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) Hplain x (proj1 (proj2 Hx)) (proj2 (proj2 Hx))) as [K1 HK1].
+    destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) Hplain y (proj1 (proj2 Hy)) (proj2 (proj2 Hy))) as [K2 HK2].
     destruct (substitution_wide env declared sigma (max K1 K2) n y x wf declared_wf terminates finite not_expansive Hsf
         (proj1 Hy) (proj1 Hx) (bound_in_mono env wf sigma K2 (max K1 K2) _ (Nat.le_max_r K1 K2) HK2)
         (bound_in_mono env wf sigma K1 (max K1 K2) _ (Nat.le_max_l K1 K2) HK1)) as [f Hf].
@@ -565,7 +567,7 @@ Proof.
       + (* a nullable type: what it wraps *)
         rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
         assert (Hb': bound_in env b K [] (to_generic (RootResolved mt ct targs)) = true) by exact Hbp.
-        pose proof (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps)
+        pose proof (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps)
             (caller_narrowed env wf declared ps) b A HA) as HyN.
         destruct (IHt _ _ s s' HP' HyN Hb' Hs Hd H Hr) as [f1 E1].
         pose proof (instance_ground_b _ HP' Hb') as HgP.

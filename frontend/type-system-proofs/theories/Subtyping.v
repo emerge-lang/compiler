@@ -141,11 +141,12 @@ Definition with_type_variables (vs: list TypeParameterId) (t: EType): EType :=
 (*                                                                                                *)
 (* A reference to a type parameter has the properties of its effective bound, which is made from   *)
 (* the bound of the parameter (Environment.parameter_bound), not a part of the reference. So the   *)
-(* functions that look through a reference aren't structurally recursive. A bound mentions only    *)
-(* type parameters declared before (bounds_ranked), so they recurse on the rank of the parameter:  *)
-(* each is written once, taking what it gives for a reference from Handlers, and level k gives    *)
-(* that for the parameters of rank below k, from level k - 1. For an environment whose bounds      *)
-(* aren't ranked, they still give some answer; the facts about them assume bounds_ranked.          *)
+(* functions that look through a reference aren't structurally recursive. They look at the top of *)
+(* a type only, not into the type arguments of class types; at the top, a bound mentions only type *)
+(* parameters declared before (bounds_ranked), so they recurse on the rank of the parameter: each  *)
+(* is written once, taking what it gives for a reference from Handlers, and level k gives that for *)
+(* the parameters of rank below k, from level k - 1. For an environment whose bounds aren't        *)
+(* ranked, they still give some answer; the facts about them assume bounds_ranked.                *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* What the functions below give for a reference to a type parameter (Generic or TypeVariable) *)
@@ -579,7 +580,31 @@ Definition through (g: GenericRef): X := through_level (S (rank_of g)) g.
 
 End ThroughBounds.
 
-(* What a reference to a type parameter without a binding becomes: its effective bound, instantiated *)
+(* A function that looks into the declared bounds of type parameters, f_h taking what it gives for
+   the type parameters mentioned in them: at level k, what it gives for the declared bound of the
+   parameter, given default for the parameter itself (an F-bound mentions it in type arguments,
+   `T : Comparable<T>`), and for the others what level k - 1 gives. through_param is that from the
+   level of the rank of the parameter. *)
+Section ThroughParams.
+
+Context {X: Type}.
+Variable f_h: (TypeParameterId -> X) -> EType -> X.
+Variable default: X.
+
+Fixpoint param_level (k: nat) (p: TypeParameterId): X :=
+    match k with
+    | 0 => default
+    | S k' => f_h (fun q => if param_eqb q p then default else param_level k' q) (parameter_bound env p)
+    end.
+
+Definition through_param (p: TypeParameterId): X := param_level (S (parameter_rank env p)) p.
+
+End ThroughParams.
+
+(* What a reference to a type parameter without a binding becomes: its effective bound, instantiated.
+   An F-bound mentions the parameter itself, unbound as well: as many levels down as its rank, it
+   becomes top_type. Kotlin has no answer for that yet (roadmap 27); no theorem instantiates
+   parameters without bindings *)
 Definition instantiate_unbound (bindings: Bindings) (g: GenericRef): EType :=
     through (fun unbound => instantiate_h unbound bindings) top_type g.
 
@@ -1293,28 +1318,44 @@ Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 (* Ranked bounds                                                                                   *)
 (*                                                                                                *)
 (* Kotlin resolves the bound of a type parameter with only the type parameters declared before it  *)
-(* in scope (so `<T : Box<U>, U>` doesn't resolve). Ranked that way, the functions that look        *)
-(* through references to type parameters give what the effective bound has: the equations below.  *)
+(* in scope (so `<T : Box<U>, U>` doesn't resolve), and the parameter itself in type arguments     *)
+(* (F-bounds, `T : Comparable<T>`). What matters is the top of the bound, outside of type          *)
+(* arguments: there it mentions only type parameters declared before, of a lower rank; in type     *)
+(* arguments, any. Ranked that way, the functions that look through references to type parameters *)
+(* give what the effective bound has: the equations below.                                        *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* All the references to type parameters in t are to ones of a rank below k *)
+(* All the references to type parameters at the top of t, outside of type arguments, are to ones of
+   a rank below k *)
 Fixpoint ranked_below (k: nat) (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments => forallb (ranked_below k) arguments
+    | RootResolved _ _ _ => true
     | Nullable n | TypeArgument _ _ n => ranked_below k n
     | Generic g | TypeVariable g => Nat.ltb (rank_of g) k
     | Error _ _ => true
     | Intersection components => forallb (ranked_below k) components
     end.
 
-(* A bound mentions only type parameters declared before *)
+(* All the references to type parameters in t, also in type arguments, are to ones of a rank below
+   k, or to p *)
+Fixpoint deep_ranked (p: TypeParameterId) (k: nat) (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb (deep_ranked p k) arguments
+    | Nullable n | TypeArgument _ _ n => deep_ranked p k n
+    | Generic g | TypeVariable g => Nat.ltb (rank_of g) k || param_eqb (param_of g) p
+    | Error _ _ => true
+    | Intersection components => forallb (deep_ranked p k) components
+    end.
+
+(* A bound mentions only type parameters declared before, and in type arguments the parameter itself *)
+Definition bounds_deep_ranked: Prop := forall p, deep_ranked p (parameter_rank env p) (parameter_bound env p) = true.
+
+(* At the top, a bound mentions only type parameters declared before *)
 Definition bounds_ranked: Prop := forall p, ranked_below (parameter_rank env p) (parameter_bound env p) = true.
 
 Lemma ranked_below_mono: forall k k', k <= k' -> forall t, ranked_below k t = true -> ranked_below k' t = true.
 Proof.
     intros k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try exact H.
-    - induction args as [|a args IHa]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Ha Hargs].
-      rewrite (IH a Ha), (IHa Hargs). reflexivity.
     - exact (IH n H).
     - apply Nat.ltb_lt in H. apply Nat.ltb_lt. lia.
     - exact (IH n H).
@@ -1442,8 +1483,6 @@ Lemma with_type_variables_ranked: forall k vs t, ranked_below k t = true -> rank
 Proof.
     intros k [|v vs] t H; [exact H|]. unfold with_type_variables. revert t H. generalize (v :: vs) as ws. intros ws.
     fix IH 1. intros [mt c args|n|[gm nn p us]|me msg|w o n|[gm nn p us]|cs] Ht; simpl in Ht |- *; try exact Ht.
-    - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
-      rewrite (IH a Hc), (IHa Hcs). reflexivity.
     - exact (IH n Ht).
     - destruct (existsb (param_eqb p) ws); exact Ht.
     - exact (IH n Ht).
@@ -1612,18 +1651,67 @@ Qed.
 
 End Through.
 
-Lemma instantiate_h_agree: forall k U1 U2, (forall g, rank_of g < k -> U1 g = U2 g) ->
-    forall bindings t, ranked_below k t = true -> instantiate_h U1 bindings t = instantiate_h U2 bindings t.
+Section ThroughParam.
+
+Context {X: Type}.
+Variable f_h: (TypeParameterId -> X) -> EType -> X.
+Variable default: X.
+Hypothesis deep: bounds_deep_ranked.
+(* f_h gives the same for types whose type parameters it is given the same for *)
+Hypothesis f_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+    forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t.
+
+Lemma param_level_agree: forall j k, j <= k -> forall q, parameter_rank env q < j ->
+    param_level f_h default j q = param_level f_h default k q.
 Proof.
-    intros k U1 U2 HU bindings. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try reflexivity.
-    - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
-      rewrite (IH a Ha), (IHa Has). reflexivity.
-    - rewrite (IH n Ht). reflexivity.
-    - rewrite (HU _ (ref_ranked k _ Ht)). reflexivity.
-    - rewrite (IH n Ht). reflexivity.
-    - rewrite (HU _ (ref_ranked k _ Ht)). reflexivity.
-    - f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
-      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    induction j as [|j IH]; intros k Hk q Hq; [lia|]. destruct k as [|k]; [lia|]. cbn [param_level].
+    apply (f_agree q (parameter_rank env q)); [|apply deep].
+    intros q' Hq'. destruct (param_eqb q' q) eqn:E; [reflexivity|].
+    destruct Hq' as [->|Hq']; [unfold param_eqb in E; rewrite Nat.eqb_refl in E; discriminate E|]. apply IH; lia.
+Qed.
+
+(* A type parameter gives what its declared bound does, given default for itself in it *)
+Lemma through_param_eq: forall p, through_param f_h default p
+    = f_h (fun q => if param_eqb q p then default else through_param f_h default q) (parameter_bound env p).
+Proof.
+    intros p. unfold through_param at 1. cbn [param_level].
+    apply (f_agree p (parameter_rank env p)); [|apply deep].
+    intros q Hq. destruct (param_eqb q p) eqn:E; [reflexivity|].
+    destruct Hq as [->|Hq]; [unfold param_eqb in E; rewrite Nat.eqb_refl in E; discriminate E|].
+    unfold through_param. symmetry. apply param_level_agree; lia.
+Qed.
+
+End ThroughParam.
+
+(* Of a check that holds of a type where it holds of the type parameters in it (monotone), what
+   through_param gives for a type parameter is what it gives for its declared bound, also for the
+   parameter itself in it: assuming the parameter passes, so does its bound exactly where it does *)
+Lemma through_param_fix: forall (f_h: (TypeParameterId -> bool) -> EType -> bool), bounds_deep_ranked ->
+    (forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+        forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t) ->
+    (forall U1 U2 t, (forall q, U1 q = true -> U2 q = true) -> f_h U1 t = true -> f_h U2 t = true) ->
+    forall p, through_param f_h true p = f_h (through_param f_h true) (parameter_bound env p).
+Proof.
+    intros f_h deep f_agree f_mono p. pose proof (through_param_eq f_h true deep f_agree p) as Heq.
+    destruct (through_param f_h true p) eqn:E.
+    - symmetry. apply (f_mono (fun q => if param_eqb q p then true else through_param f_h true q)); [|rewrite <- Heq; reflexivity].
+      intros q Hq. destruct (param_eqb q p) eqn:Eq; [|exact Hq]. unfold param_eqb in Eq. apply Nat.eqb_eq in Eq. subst q. exact E.
+    - destruct (f_h (through_param f_h true) (parameter_bound env p)) eqn:Ef; [|reflexivity].
+      rewrite Heq. apply (f_mono (through_param f_h true)); [|exact Ef].
+      intros q Hq. destruct (param_eqb q p); [reflexivity|exact Hq].
+Qed.
+
+Lemma through_param_fix_prop: forall (f_h: (TypeParameterId -> Prop) -> EType -> Prop), bounds_deep_ranked ->
+    (forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
+        forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t) ->
+    (forall U1 U2 t, (forall q, U1 q -> U2 q) -> f_h U1 t -> f_h U2 t) ->
+    forall p, through_param f_h True p <-> f_h (through_param f_h True) (parameter_bound env p).
+Proof.
+    intros f_h deep f_agree f_mono p. pose proof (through_param_eq f_h True deep f_agree p) as Heq. split.
+    - intros H. pose proof H as H'. rewrite Heq in H'. revert H'. apply f_mono. intros q Hq.
+      destruct (param_eqb q p) eqn:Eq; [|exact Hq]. unfold param_eqb in Eq. apply Nat.eqb_eq in Eq. subst q. exact H.
+    - intros H. rewrite Heq. apply (f_mono (through_param f_h True)); [|exact H].
+      intros q Hq. destruct (param_eqb q p); [exact I|exact Hq].
 Qed.
 
 Lemma instantiate_top: forall bindings t, instantiate bindings t = instantiate_h (instantiate_unbound bindings) bindings t.
@@ -1635,11 +1723,33 @@ Proof.
     - f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
-(* An unbound type parameter becomes its effective bound, instantiated *)
-Lemma instantiate_unbound_eq: forall bindings g, instantiate_unbound bindings g = instantiate bindings (effective_bound g).
+Lemma deep_ranked_mono: forall p k k', k <= k' -> forall t, deep_ranked p k t = true -> deep_ranked p k' t = true.
 Proof.
-    intros bindings g. rewrite instantiate_top. unfold instantiate_unbound at 1. rewrite through_eq; [reflexivity|].
-    intros k U1 U2 HU t Ht. exact (instantiate_h_agree k U1 U2 HU bindings t Ht).
+    intros p k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try exact H.
+    - induction args as [|a args IHa]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Ha Hargs].
+      rewrite (IH a Ha), (IHa Hargs). reflexivity.
+    - exact (IH n H).
+    - apply orb_true_iff in H. apply orb_true_iff. destruct H as [H|H]; [left; apply Nat.ltb_lt in H; apply Nat.ltb_lt; lia|right; exact H].
+    - exact (IH n H).
+    - apply orb_true_iff in H. apply orb_true_iff. destruct H as [H|H]; [left; apply Nat.ltb_lt in H; apply Nat.ltb_lt; lia|right; exact H].
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma deep_ranked_exists: forall p t, exists k, deep_ranked p k t = true.
+Proof.
+    intros p. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs].
+    - induction args as [|a args IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
+      exists (ka + kr). pose proof (deep_ranked_mono p kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
+      rewrite (deep_ranked_mono p ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
+    - exact (IH n).
+    - exists (S (rank_of g)). simpl. apply orb_true_iff. left. apply Nat.ltb_lt. lia.
+    - exists 0. reflexivity.
+    - exact (IH n).
+    - exists (S (rank_of g)). simpl. apply orb_true_iff. left. apply Nat.ltb_lt. lia.
+    - induction cs as [|a cs IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
+      exists (ka + kr). pose proof (deep_ranked_mono p kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
+      rewrite (deep_ranked_mono p ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
 Qed.
 
 (* Every type mentions type parameters of ranks below some k, so facts can be proven by induction on
@@ -1647,9 +1757,7 @@ Qed.
 Lemma ranked_exists: forall t, exists k, ranked_below k t = true.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs].
-    - induction args as [|a args IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
-      exists (ka + kr). pose proof (ranked_below_mono kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
-      rewrite (ranked_below_mono ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
+    - exists 0. reflexivity.
     - exact (IH n).
     - exists (S (rank_of g)). simpl. apply Nat.ltb_lt. lia.
     - exists 0. reflexivity.

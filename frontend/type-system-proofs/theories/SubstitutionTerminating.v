@@ -115,7 +115,7 @@ Qed.
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* A non-null type of the fragment is its own `!` *)
-Lemma tfrag_non_null_without_null: forall k t, sdepth env t <= k -> tfrag env t = true -> is_nullable env t = false -> without_null env t = t.
+Lemma tfrag_non_null_without_null: forall k t, sdepth t <= k -> tfrag env t = true -> is_nullable env t = false -> without_null env t = t.
 Proof. intros k t _ _ Hn. exact (without_null_unchanged env t Hn). Qed.
 
 Lemma narrow_non_null: forall g, generic_sfrag env g -> is_nullable env (effective_bound env g) = false -> narrow_ref env g = g.
