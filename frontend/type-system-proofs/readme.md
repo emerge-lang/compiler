@@ -87,9 +87,6 @@ program.
 
 ### Not covered yet
 
-- In `bound_in_derived` (and so `member_call_in_generic_code_instantiated` and `member_call_on_generic_receiver`),
-  an F-bound that gives its own parameter a mutability or `!` (`T : Comparable<mut T>`): they take the parameter
-  as written plainly (`self_plain`).
 - Inference with F-bounded type variables.
 - Declaration-site variance, which emerge doesn't have.
 
