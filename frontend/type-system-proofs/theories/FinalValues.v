@@ -36,6 +36,7 @@ Section Reflexivity.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 Lemma forall2_refl: forall {A: Type} (R: A -> A -> Prop) l, (forall a, In a l -> R a a) -> Forall2 R l l.
@@ -69,8 +70,9 @@ Proof.
       apply never_fails_step. intros f s. rewrite unify_nullable_nullable.
       apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn].
     - (* a reference to a type parameter: the same one, of the same mutability and nullability *)
-      apply never_fails_step. intros f s. rewrite step_generic_generic, param_eqb_refl, mutability_is_subtype_of_refl.
-      destruct (is_nullable bound); discriminate.
+      apply never_fails_step. intros f s. rewrite step_generic_generic. cbn [param_of].
+      rewrite param_eqb_refl, mutability_is_subtype_of_refl.
+      destruct (is_nullable env (Generic (mkGenericRef gm nn p bound))); discriminate.
     - (* an intersection: each component takes it through itself *)
       apply (inter_target_never_fails env wf); [exact (gfrag_components_no_vars env _ H)|simpl; exact (gfrag_components_no_vars env _ H)|exact I|].
       intros c Hc. destruct (intersection_gfrag env cs H) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
@@ -88,6 +90,7 @@ Section FinalValues.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 Hypothesis intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect env a b) = true.
@@ -111,20 +114,7 @@ Let of_fragment (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t
 Lemma in_fragment_refs_wf: forall k,
     (forall t, depth t <= k -> in_fragment env t = true -> refs_wf env declared t)
     /\ (forall a, argument_depth a <= k -> argument_in_fragment env a = true -> refs_wf env declared a).
-Proof.
-    induction k as [|k [IHt IHa]].
-    { split; [intros [m c args|[m c args| | | | | |]| | | | |] Hd H|intros [| | | |v o n| |] Hd H]; simpl in Hd, H;
-          try discriminate H; lia. }
-    assert (Hroot: forall m c args, depth (RootResolved m c args) <= S k -> in_fragment env (RootResolved m c args) = true ->
-        refs_wf env declared (RootResolved m c args)).
-    { intros m c args Hd H. destruct (root_in_fragment env m c args H) as [_ Ha]. apply refs_wf_make_root.
-      intros a Hin. pose proof (argument_depth_below m c args a Hin). apply IHa; [lia|apply Ha, Hin]. }
-    split.
-    - intros t Hd H. destruct (fragment_cases env t H) as [[m [c [args ->]]]|[m [c [args [-> H1]]]]].
-      + exact (Hroot m c args Hd H).
-      + rewrite depth_nullable in Hd. exact (Hroot m c args ltac:(lia) H1).
-    - intros [| | | |v o n| |] Hd H; simpl in H; try discriminate H. simpl in Hd |- *. apply IHt; [lia|exact H].
-Qed.
+Proof. intros k. split; intros; exact I. Qed.
 
 Lemma in_fragment_of_fragment: forall t, in_fragment env t = true -> of_fragment t.
 Proof.
@@ -212,7 +202,7 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> ifrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> ifrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of env U (fst v)))) ovars ->

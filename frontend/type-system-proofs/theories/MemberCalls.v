@@ -23,6 +23,7 @@ Section MemberCalls.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
@@ -199,7 +200,7 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => refs_within vars a /\ acc) True arguments
     | Nullable n => refs_within vars n
-    | Generic (mkGenericRef None false p bound) | TypeVariable (mkGenericRef None false p bound) => In (p, bound) vars
+    | Generic (mkGenericRef None false p []) | TypeVariable (mkGenericRef None false p []) => In (p, parameter_bound env p) vars
     | Generic _ | TypeVariable _ => False
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
     | _ => True
@@ -212,7 +213,7 @@ Lemma bound_in_from_refs: forall vars b K t, (ifrag env t = true \/ argument_ifr
 Proof.
     intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> Hf H Hp Ho.
     destruct Hf as [Hf|Hf].
-    - destruct (ifrag_cases env t Hf) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [bnd [-> [Hfb Hcb]]]]]]].
+    - destruct (ifrag_cases env wf t Hf) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [-> [Hfb Hcb]]]]]].
       + change (forallb (bound_in env b K []) (map to_generic args) = true). apply forallb_forall. intros a' Ha'.
         apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
         apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|right; exact (Hargs a Ha)| |exact Hp|exact Ho].
@@ -220,8 +221,8 @@ Proof.
       + reflexivity.
       + change (bound_in env b K [] (to_generic (RootResolved m c args)) = true).
         apply (IH (esize (RootResolved m c args))); [simpl; lia|reflexivity|left; exact Ht'|exact H|exact Hp|exact Ho].
-      + simpl in H. change (bound_in env b K [] (Generic (mkGenericRef None false p bnd)) = true).
-        rewrite (binds_ref_closed env wf b K [] p bnd Hfb Hcb). exact (Hp p bnd H).
+      + simpl in H. change (bound_in env b K [] (Generic (mkGenericRef None false p [])) = true).
+        rewrite (binds_ref_closed env wf b K [] p Hfb Hcb). exact (Hp p _ H).
     - destruct t as [| | | |v o n| |]; try discriminate Hf. simpl in Hf, H |- *. destruct H as [Hq Hn]. apply andb_true_iff. split.
       + destruct o as [| | |q]; try reflexivity. exact (Ho q (Hq q eq_refl)).
       + apply (IH (esize n)); [simpl; lia|reflexivity|left; exact Hf|exact Hn|exact Hp|exact Ho].

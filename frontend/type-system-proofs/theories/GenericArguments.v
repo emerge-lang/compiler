@@ -42,6 +42,7 @@ Section GenericArguments.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 Hypothesis intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect env a b) = true.
 Hypothesis supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true ->
@@ -78,8 +79,8 @@ Hypothesis Qb_top: Qb top_type.
 Hypothesis Qb_bottom: Qb bottom_type.
 Hypothesis Qb_root: forall m c args a, Qb (RootResolved m c args) -> In a args -> Qa a.
 Hypothesis Qb_nullable: forall n, Qb (Nullable n) -> Qb n.
-Hypothesis Qb_bound: forall gm nn p bd, Qb (Generic (mkGenericRef gm nn p bd)) -> Qb bd.
-Hypothesis Qb_narrowed: forall g, Qb (Generic g) -> Qb (without_null (Generic g)).
+Hypothesis Qb_bound: forall g, Qb (Generic g) -> Qb (effective_bound env g).
+Hypothesis Qb_narrowed: forall g, Qb (Generic g) -> Qb (without_null env (Generic g)).
 Hypothesis Qb_component: forall cs c, Qb (Intersection cs) -> In c cs -> Qb c.
 Hypothesis Qb_supertype_arguments: forall sub super xs,
     sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
@@ -144,21 +145,21 @@ Lemma below_bottom: forall x, of_fragment x -> below bottom_type x.
 Proof.
     intros x Hx. destruct (below_refl bottom_type bottom_of_fragment) as [n Hn].
     apply gaccepts; [exact bottom_of_fragment|exact Hx|].
-    exact (below_bottom_never_fails env wf n bottom_type [] (bottom_gfrag env wf) Hn x (proj1 Hx)).
+    exact (below_bottom_never_fails env wf declared declared_wf n bottom_type [] (bottom_gfrag env wf) Hn x (proj1 Hx)).
 Qed.
 
 Lemma below_top: forall x, of_fragment x -> below x top_type.
 Proof.
     intros x Hx. destruct (below_refl top_type top_of_fragment) as [n Hn].
     apply gaccepts; [exact Hx|exact top_of_fragment|].
-    exact (above_top_never_fails env wf n top_type [] (top_gfrag env wf) Hn x (proj1 Hx)).
+    exact (above_top_never_fails env wf declared declared_wf n top_type [] (top_gfrag env wf) Hn x (proj1 Hx)).
 Qed.
 
 (* An intersection is assignable to each of its components *)
 Lemma intersection_below_component: forall cs c, of_fragment (Intersection cs) -> In c cs -> below (Intersection cs) c.
 Proof.
     intros cs c [H Hr] Hc. destruct (intersection_gfrag env cs H) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
-    apply gaccepts; [split; [exact H|exact Hr]|split; [exact Hgc|exact (refs_wf_components env declared cs Hr c Hc)]|].
+    apply gaccepts; [split; [exact H|exact Hr]|split; [exact Hgc|exact I]|].
     apply never_fails_step. intros f s.
     destruct (component_cases env c Hcomp Hgc) as [[m [d [args ->]]]|[gm [nn [p [bound [-> _]]]]]];
         [rewrite step_root_inter|rewrite step_generic_inter]; apply (flipped_never_fails env f _ cs s _ Hc);
@@ -166,7 +167,7 @@ Proof.
 Qed.
 
 (* What is assignable to each component of an intersection is assignable to the intersection *)
-Lemma below_intersection_of: forall x cs, of_fragment x -> of_fragment (Intersection cs) -> is_nullable x = false ->
+Lemma below_intersection_of: forall x cs, of_fragment x -> of_fragment (Intersection cs) -> is_nullable env x = false ->
     (forall c, In c cs -> below x c) -> below x (Intersection cs).
 Proof.
     intros x cs Hx Hi Hn H. apply gaccepts; [exact Hx|exact Hi|].
@@ -209,29 +210,107 @@ Qed.
 (* Nothing only as `exclusive Nothing`: no other type without values, no reference to a type
    parameter bounded by Nothing, nor an intersection of unrelated classes, which unify takes for
    Nothing (is_non_nullable_nothing) *)
+Fixpoint bottom_only_h (bound_bottom_only: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved m c arguments =>
+        (if class_eqb c nothing then is_bottom m arguments else true) && forallb (bottom_only_h bound_bottom_only) arguments
+    | Nullable n => bottom_only_h bound_bottom_only n
+    | TypeArgument _ _ n => bottom_only_h bound_bottom_only n
+    | Generic g => negb (is_non_nullable_nothing env (without_null env (effective_bound env g))) && bound_bottom_only g
+    | Intersection cs => negb (is_non_nullable_nothing env (Intersection cs)) && forallb (bottom_only_h bound_bottom_only) cs
+    | _ => true
+    end.
+
+(* Of the effective bound of a reference (see Subtyping.through) *)
+Definition bound_bottom_only (g: GenericRef): bool := through env bottom_only_h true g.
+
 Fixpoint bottom_only (t: EType): bool :=
     match t with
     | RootResolved m c arguments => (if class_eqb c nothing then is_bottom m arguments else true) && forallb bottom_only arguments
     | Nullable n => bottom_only n
     | TypeArgument _ _ n => bottom_only n
-    | Generic (mkGenericRef _ _ _ bound) => negb (is_non_nullable_nothing env (without_null bound)) && bottom_only bound
+    | Generic g => negb (is_non_nullable_nothing env (without_null env (effective_bound env g))) && bound_bottom_only g
     | Intersection cs => negb (is_non_nullable_nothing env (Intersection cs)) && forallb bottom_only cs
     | _ => true
     end.
+
+Lemma bottom_only_top: forall t, bottom_only t = bottom_only_h bound_bottom_only t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
+    - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
+    - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma bottom_only_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> bottom_only_h U1 t = bottom_only_h U2 t.
+Proof.
+    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
+    - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
+      rewrite (IH a Ha), (IHa Has). reflexivity.
+    - rewrite (HU g (ref_ranked env k g Ht)). reflexivity.
+    - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma bottom_only_generic: forall g, bottom_only (Generic g)
+    = negb (is_non_nullable_nothing env (without_null env (effective_bound env g))) && bottom_only (effective_bound env g).
+Proof.
+    intros g. change (bottom_only (Generic g)) with (negb (is_non_nullable_nothing env (without_null env (effective_bound env g))) && bound_bottom_only g).
+    f_equal. rewrite bottom_only_top. unfold bound_bottom_only at 1. rewrite (through_eq env ranked); [reflexivity|exact bottom_only_h_agree].
+Qed.
 
 (* The ownership of a type parameter of the caller: none of the type parameters inferred *)
 Definition ownership_free (b: Bindings) (o: Ownership): Prop :=
     match o with parameter_ownership q => lookup_binding b q = None | _ => True end.
 
+Fixpoint owners_free_h (b: Bindings) (bound_owners_free: GenericRef -> Prop) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => owners_free_h b bound_owners_free a /\ acc) True arguments
+    | Nullable n => owners_free_h b bound_owners_free n
+    | Generic g => bound_owners_free g
+    | TypeArgument _ o n => ownership_free b o /\ owners_free_h b bound_owners_free n
+    | Intersection cs => fold_right (fun c acc => owners_free_h b bound_owners_free c /\ acc) True cs
+    | _ => True
+    end.
+
+(* Of the effective bound of a reference (see Subtyping.through) *)
+Definition bound_owners_free (b: Bindings) (g: GenericRef): Prop := through env (owners_free_h b) True g.
+
 Fixpoint owners_free (b: Bindings) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => owners_free b a /\ acc) True arguments
     | Nullable n => owners_free b n
-    | Generic (mkGenericRef _ _ _ bound) => owners_free b bound
+    | Generic g => bound_owners_free b g
     | TypeArgument _ o n => ownership_free b o /\ owners_free b n
     | Intersection cs => fold_right (fun c acc => owners_free b c /\ acc) True cs
     | _ => True
     end.
+
+Lemma owners_free_top: forall b t, owners_free b t = owners_free_h b (bound_owners_free b) t.
+Proof.
+    intros b. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
+    - induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
+    - rewrite (IH n). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma owners_free_h_agree: forall b k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> owners_free_h b U1 t = owners_free_h b U2 t.
+Proof.
+    intros b k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
+    - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
+      rewrite (IH a Ha), (IHa Has). reflexivity.
+    - exact (HU g (ref_ranked env k g Ht)).
+    - rewrite (IH n Ht). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma owners_free_generic: forall b g, owners_free b (Generic g) = owners_free b (effective_bound env g).
+Proof.
+    intros b g. change (owners_free b (Generic g)) with (bound_owners_free b g). rewrite owners_free_top.
+    unfold bound_owners_free at 1. rewrite (through_eq env ranked); [reflexivity|exact (owners_free_h_agree b)].
+Qed.
 
 Definition yfrag (b: Bindings) (t: EType): Prop := of_fragment t /\ bottom_only t = true /\ owners_free b t /\ Qb t.
 
@@ -245,26 +324,40 @@ Proof.
     destruct oa as [| | |q]; try discriminate H. simpl in H, Hf |- *. apply param_eqb_eq in H. subst q. rewrite Hf. reflexivity.
 Qed.
 
-Lemma nothing_without_null: forall t, is_non_nullable_nothing env t = true -> is_non_nullable_nothing env (without_null t) = true.
+Lemma nothing_without_null: forall t, gfrag env t = true -> is_non_nullable_nothing env t = true ->
+    is_non_nullable_nothing env (without_null env t) = true.
 Proof.
-    fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H; simpl in H |- *; try exact H; try discriminate H.
-    - exact (IH b H).
-    - exact (IH n H).
+    intros t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
+    intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hr Hf H; simpl in Hf; try discriminate Hf; try exact H.
+    - simpl in H. discriminate H.
+    - destruct vs; [|discriminate Hf]. pose proof (ref_ranked env r _ Hr) as Hg.
+      destruct (narrowed_ref env wf declared declared_wf gm nn p) as [E _]. rewrite E.
+      rewrite (non_nullable_nothing_generic env ranked) in H. rewrite (non_nullable_nothing_generic env ranked).
+      rewrite (effective_bound_narrowed env ranked).
+      exact (IHr _ Hg _ (effective_bound_ranked env ranked _) (bound_gfrag env wf declared declared_wf (mkGenericRef gm nn p []) eq_refl) H).
 Qed.
 
-Lemma bottom_only_without_null: forall t, gfrag env t = true -> bottom_only t = true -> bottom_only (without_null t) = true.
+Lemma bottom_only_without_null: forall t, gfrag env t = true -> bottom_only t = true -> bottom_only (without_null env t) = true.
 Proof.
-    fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H Hb; simpl in H, Hb |- *; try exact Hb; try discriminate H.
-    - apply andb_true_iff in H. exact (IH n (proj2 H) Hb).
-    - apply andb_true_iff in Hb. destruct Hb as [Hn Hb]. rewrite (without_null_twice env b H), Hn. exact (IH b H Hb).
+    intros t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hr H Hb; simpl in H; try exact Hb; try discriminate H.
+    - apply andb_true_iff in H. exact (IH n Hr (proj2 H) Hb).
+    - destruct vs; [|discriminate H]. pose proof (ref_ranked env r _ Hr) as Hg.
+      destruct (narrowed_ref env wf declared declared_wf gm nn p) as [E _]. rewrite E.
+      rewrite bottom_only_generic in Hb |- *. rewrite (effective_bound_narrowed env ranked), (without_null_twice_any env).
+      apply andb_true_iff in Hb. destruct Hb as [Hn Hb]. rewrite Hn. cbn [andb].
+      exact (IHr _ Hg _ (effective_bound_ranked env ranked _) (bound_gfrag env wf declared declared_wf (mkGenericRef gm nn p []) eq_refl) Hb).
 Qed.
 
-Lemma owners_free_without_null: forall b t, owners_free b t -> owners_free b (without_null t).
+Lemma owners_free_without_null: forall b t, gfrag env t = true -> owners_free b t -> owners_free b (without_null env t).
 Proof.
-    intros b. fix IH 1. intros [m c args|n|[gm nn p bd]|me msg|v o n|g|cs] H; simpl in H |- *; try exact H.
-    - exact (IH n H).
-    - exact (IH bd H).
-    - split; [exact (proj1 H)|exact (IH n (proj2 H))].
+    intros b t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hr Hf H; simpl in Hf; try exact H; try discriminate Hf.
+    - apply andb_true_iff in Hf. exact (IH n Hr (proj2 Hf) H).
+    - destruct vs; [|discriminate Hf]. pose proof (ref_ranked env r _ Hr) as Hg.
+      destruct (narrowed_ref env wf declared declared_wf gm nn p) as [E _]. rewrite E.
+      rewrite owners_free_generic in H |- *. rewrite (effective_bound_narrowed env ranked).
+      exact (IHr _ Hg _ (effective_bound_ranked env ranked _) (bound_gfrag env wf declared declared_wf (mkGenericRef gm nn p []) eq_refl) H).
 Qed.
 
 (* A type of them that unify takes for Nothing is `exclusive Nothing` *)
@@ -272,50 +365,52 @@ Lemma bottom_only_nothing: forall t, gfrag env t = true -> bottom_only t = true 
     is_non_nullable_nothing env t = true -> t = bottom_type.
 Proof.
     intros t Ht Hb Hn.
-    destruct (gfrag_cases env t Ht) as [[m [c [args ->]]]|[[n [-> _]]|[[gm [nn [p [bd [-> _]]]]]|[cs ->]]]];
-        simpl in Hb, Hn; try discriminate Hn.
-    - rewrite Hn in Hb. apply class_eqb_true in Hn. subst c.
+    destruct (gfrag_cases env t Ht) as [[m [c [args ->]]]|[[n [-> _]]|[[gm [nn [p [bd [-> Hbd]]]]]|[cs ->]]]].
+    - simpl in Hb, Hn. rewrite Hn in Hb. apply class_eqb_true in Hn. subst c.
       destruct m as [[]|], args; simpl in Hb; try discriminate Hb. reflexivity.
-    - rewrite (nothing_without_null bd Hn) in Hb. discriminate Hb.
-    - rewrite Hn in Hb. discriminate Hb.
+    - simpl in Hn. discriminate Hn.
+    - rewrite bottom_only_generic in Hb. rewrite (non_nullable_nothing_generic env ranked) in Hn.
+      rewrite (nothing_without_null _ (bound_gfrag env wf declared declared_wf _ Ht) Hn) in Hb. discriminate Hb.
+    - simpl in Hb, Hn. rewrite Hn in Hb. discriminate Hb.
 Qed.
 
 Lemma yfrag_root: forall b m c args, yfrag b (RootResolved m c args) ->
     length args = length (parameter_ids env c) /\ forall a, In a args -> argument_yfrag b a.
 Proof.
     intros b m c args [[Hg Hr] [Hb [Ho Hq]]]. destruct (root_gfrag env m c args Hg) as [Hl Ha]. split; [exact Hl|].
-    intros a Hin. split; [exact (Ha a Hin)|]. split; [exact (refs_wf_root env declared m c args Hr a Hin)|].
+    intros a Hin. split; [exact (Ha a Hin)|]. split; [exact I|].
     split; [simpl in Hb; apply andb_true_iff in Hb; rewrite forallb_forall in Hb; exact (proj2 Hb a Hin)|].
     split; [exact (fold_and_in (owners_free b) args Ho a Hin)|exact (Qb_root m c args a Hq Hin)].
 Qed.
 
-Lemma yfrag_nullable: forall b n, yfrag b (Nullable n) -> yfrag b n /\ non_null n = true.
+Lemma yfrag_nullable: forall b n, yfrag b (Nullable n) -> yfrag b n /\ non_null env n = true.
 Proof.
     intros b n [[Hg Hr] [Hb [Ho Hq]]]. simpl in Hg. apply andb_true_iff in Hg. destruct Hg as [Hnn Hg].
     split; [split; [split; [exact Hg|exact Hr]|split; [exact Hb|split; [exact Ho|exact (Qb_nullable n Hq)]]]|exact Hnn].
 Qed.
 
-Lemma yfrag_generic: forall b gm nn p bd, yfrag b (Generic (mkGenericRef gm nn p bd)) -> yfrag b bd.
+Lemma yfrag_generic: forall b g, yfrag b (Generic g) -> yfrag b (effective_bound env g).
 Proof.
-    intros b gm nn p bd [[Hg [Hr _]] [Hb [Ho Hq]]]. simpl in Hb. apply andb_true_iff in Hb.
-    split; [split; [exact Hg|exact Hr]|split; [exact (proj2 Hb)|split; [exact Ho|exact (Qb_bound gm nn p bd Hq)]]].
+    intros b g [[Hg _] [Hb [Ho Hq]]]. rewrite bottom_only_generic in Hb. apply andb_true_iff in Hb. rewrite owners_free_generic in Ho.
+    split; [split; [exact (bound_gfrag env wf declared declared_wf g Hg)|exact I]|].
+    split; [exact (proj2 Hb)|split; [exact Ho|exact (Qb_bound g Hq)]].
 Qed.
 
-Lemma yfrag_component: forall b cs c, yfrag b (Intersection cs) -> In c cs -> yfrag b c /\ is_component c = true.
+Lemma yfrag_component: forall b cs c, yfrag b (Intersection cs) -> In c cs -> yfrag b c /\ is_component env c = true.
 Proof.
     intros b cs c [[Hg Hr] [Hb [Ho Hq]]] Hc. destruct (intersection_gfrag env cs Hg) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
     simpl in Hb. apply andb_true_iff in Hb. destruct Hb as [_ Hb]. rewrite forallb_forall in Hb.
-    split; [|exact Hcomp]. split; [split; [exact Hgc|exact (refs_wf_components env declared cs Hr c Hc)]|].
+    split; [|exact Hcomp]. split; [split; [exact Hgc|exact I]|].
     split; [exact (Hb c Hc)|split; [exact (fold_and_in (owners_free b) cs Ho c Hc)|exact (Qb_component cs c Hq Hc)]].
 Qed.
 
-Lemma yfrag_without_null: forall b g, yfrag b (Generic g) -> yfrag b (without_null (Generic g)).
+Lemma yfrag_without_null: forall b g, yfrag b (Generic g) -> yfrag b (without_null env (Generic g)).
 Proof.
     intros b g [[Hg Hr] [Hb [Ho Hq]]]. split; [split|split; [|split]].
     - exact (gfrag_without_null env _ Hg).
-    - exact (refs_wf_without_null env declared declared_wf _ Hg Hr).
+    - exact I.
     - exact (bottom_only_without_null _ Hg Hb).
-    - exact (owners_free_without_null b _ Ho).
+    - exact (owners_free_without_null b _ Hg Ho).
     - exact (Qb_narrowed g Hq).
 Qed.
 
@@ -393,7 +488,7 @@ Proof.
         by (intros x Hx; exact (argument_gfrag_type_argument env x (proj1 (Hxs x Hx)))).
     destruct (supertype_arguments_gfrag env wf sub super xs Hne Hn Hbase Hl (fun x Hx => proj1 (Hxs x Hx))) as [Hls Hg].
     split; [exact Hls|]. intros a Ha. split; [exact (Hg a Ha)|].
-    split; [exact (supertype_arguments_refs_wf env wf declared sub super xs Hne Hn Hbase Hl Hta (fun x Hx => proj1 (proj2 (Hxs x Hx))) a Ha)|].
+    split; [exact I|].
     pose proof (Qb_supertype_arguments sub super xs Hne Hn Hbase Hl (fun x Hx => proj2 (proj2 (proj2 (proj2 (Hxs x Hx))))) a Ha) as HQa.
     destruct (wf_supertypes_are_templates env wf sub super Hne Hn Hbase) as [_ Ht].
     rewrite parameterized_supertype_arguments_eq in Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
@@ -411,7 +506,7 @@ Qed.
 Definition nullable_assignee (a: EType): EType :=
     match a with
     | Nullable n => n
-    | Generic _ => without_null a
+    | Generic _ => without_null env a
     | _ => a
     end.
 
@@ -438,7 +533,7 @@ Proof.
     intros n p bnd A s r HA H. rewrite unify_step_once in H.
     destruct (gfrag_cases env A HA) as [[m [c [args ->]]]|[[an [-> _]]|[[gm [nn [q [bq [-> _]]]]]|[cs ->]]]];
         unfold unify_step, unify_type_variable in H; try exact H.
-    destruct (is_nullable _); [exact H|discriminate H].
+    destruct (is_nullable env _); [exact H|discriminate H].
 Qed.
 
 Lemma variable_assignee_step: forall n p bnd A s r, gfrag env A = true ->
@@ -472,13 +567,13 @@ Proof.
 Qed.
 
 Lemma component_of_fragment: forall cs c, of_fragment (Intersection cs) -> In c cs ->
-    of_fragment c /\ is_component c = true.
+    of_fragment c /\ is_component env c = true.
 Proof.
     intros cs c [H Hr] Hc. destruct (intersection_gfrag env cs H) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
-    split; [split; [exact Hgc|exact (refs_wf_components env declared cs Hr c Hc)]|exact Hcomp].
+    split; [split; [exact Hgc|exact I]|exact Hcomp].
 Qed.
 
-Lemma component_no_intersection: forall c, is_component c = true -> forall cs, c <> Intersection cs.
+Lemma component_no_intersection: forall c, is_component env c = true -> forall cs, c <> Intersection cs.
 Proof. intros [| | | | | |] H cs E; try discriminate H; discriminate E. Qed.
 
 (* What a type argument takes, other than Nothing, is assignable to its type *)
@@ -599,7 +694,7 @@ Proof.
     destruct cs as [|c0 cs0]; [contradiction Hne; reflexivity|].
     apply (below_intersection_of x _ Hx HA); [|exact Hall].
     destruct (Hall c0 (or_introl eq_refl)) as [f Ef]. destruct (component_of_fragment _ c0 HA (or_introl eq_refl)) as [Hfc Hcomp].
-    exact (accepted_not_nullable env wf f c0 x [] (proj1 Hfc) (proj1 Hx) (component_not_nullable c0 Hcomp) Ef).
+    exact (accepted_not_nullable env wf declared declared_wf f c0 x [] (proj1 Hfc) (proj1 Hx) (component_not_nullable env c0 Hcomp) Ef).
 Qed.
 
 (* What the variable takes: above the lower bound, which is above it *)
@@ -705,7 +800,7 @@ Lemma ifrag_shapes: forall P, ifrag env P = true ->
     \/ (exists m c args, P = Nullable (RootResolved m c args) /\ ifrag env (RootResolved m c args) = true)
     \/ (exists p bnd, P = TypeVariable (mkGenericRef None false p bnd)).
 Proof.
-    intros P HP. destruct (ifrag_cases env P HP) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> HP']]]]|[p [bnd [-> _]]]]]].
+    intros P HP. destruct (ifrag_cases env wf P HP) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> HP']]]]|[p [-> _]]]]].
     - left. eauto.
     - left. exists (Some exclusive), nothing, []. reflexivity.
     - right. left. eauto.
@@ -733,27 +828,27 @@ Lemma instances_of_fragment: bindings_of_fragment -> forall k,
 Proof.
     intros Hbf. induction k as [|k [IHt IHa]].
     - split.
-      + intros P Hd HP HbP. destruct (ifrag_cases env P HP) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [bnd [-> _]]]]]];
+      + intros P Hd HP HbP. destruct (ifrag_cases env wf P HP) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]];
             try (simpl in Hd; lia).
-        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.
-        rewrite (inst_variable env b p bnd _ _ _ Ex). exact (Hbf p o x Ex).
+        destruct (binds_ref_some env wf b K [] (mkGenericRef None false p []) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+        rewrite (inst_variable env b p [] _ _ _ Ex). exact (Hbf p o x Ex).
       + intros [| | | |v o n| |] Hd Ha; simpl in Ha; try discriminate Ha. simpl in Hd. lia.
     - assert (Hroot: forall m c args, ifrag env (RootResolved m c args) = true ->
           bound_in env b K [] (to_generic (RootResolved m c args)) = true -> vsize (RootResolved m c args) <= S k ->
           of_fragment (inst env b (RootResolved m c args))).
       { intros m c args HP HbP Hd. rewrite (inst_root env b m c args (ifrag_no_generics env _ HP)).
         assert (Hl: length args = length (parameter_ids env c)).
-        { destruct (ifrag_cases env _ HP) as [[m' [c' [args' [Heq [_ [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [? [Heq _]]]]]];
+        { destruct (ifrag_cases env wf _ HP) as [[m' [c' [args' [Heq [_ [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
               try discriminate Heq.
           - injection Heq as <- <- <-. exact Hl.
           - unfold bottom_type in Heq. injection Heq as _ -> ->. rewrite (wf_nothing_has_no_type_parameters env wf). reflexivity. }
         assert (Hargs: forall a, In a args -> argument_gfrag env (instantiate env b a) = true /\ refs_wf env declared (instantiate env b a)).
-        { intros a Ha. destruct (root_parts env b K [] m c args HP HbP a Ha) as [Hfa Hba].
+        { intros a Ha. destruct (root_parts env wf b K [] m c args HP HbP a Ha) as [Hfa Hba].
           pose proof (vsize_below m c args a Ha). apply IHa; [lia|exact Hfa|exact Hba]. }
         split.
         - apply make_root_gfrag; [rewrite length_map; exact Hl|].
           intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]]. exact (proj1 (Hargs a Ha)).
-        - apply refs_wf_make_root. intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]]. exact (proj2 (Hargs a Ha)). }
+        - exact I. }
       split.
       + intros P Hd HP HbP. destruct (ifrag_shapes P HP) as [[m [c [args ->]]]|[[m [c [args [-> HP']]]]|[p [bnd ->]]]].
         * exact (Hroot m c args HP HbP Hd).
@@ -761,11 +856,11 @@ Proof.
           simpl in Hd. destruct (Hroot m c args HP' Hb' ltac:(simpl; lia)) as [Hg Hr].
           rewrite (inst_root env b m c args (ifrag_no_generics env _ HP')) in Hg, Hr.
           rewrite (inst_nullable env b m c args (ifrag_no_generics env _ HP')). split; [exact Hg|exact Hr].
-        * destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+        * destruct (binds_ref_some env wf b K [] (mkGenericRef None false p bnd) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.
           rewrite (inst_variable env b p bnd _ _ _ Ex). exact (Hbf p o x Ex).
       + intros [| | | |v o n| |] Hd Ha HbA; simpl in Ha; try discriminate Ha. simpl in Hd.
         destruct (bound_in_argument env b K [] v o (to_generic n) HbA) as [_ Hbn].
-        rewrite (instantiate_argument env b K [] v o n Ha Hbn). exact (IHt n ltac:(lia) Ha Hbn).
+        rewrite (instantiate_argument env wf b K [] v o n Ha Hbn). exact (IHt n ltac:(lia) Ha Hbn).
 Qed.
 
 Lemma instance_of_fragment: forall P, bindings_of_fragment -> ifrag env P = true -> bound_in env b K [] (to_generic P) = true ->
@@ -882,7 +977,7 @@ Proof.
           /\ (gsatisfies b s' -> below (RootResolved ma ca aargs) (inst env b (RootResolved mt ct targs)))).
       { intros mt ct targs ma ca aargs Hft Hfa Hbt Hu.
         rewrite (inst_root env b mt ct targs (ifrag_no_generics env _ Hft)).
-        pose proof (root_parts env b K [] mt ct targs Hft Hbt) as Htargs.
+        pose proof (root_parts env wf b K [] mt ct targs Hft Hbt) as Htargs.
         destruct (yfrag_root b ma ca aargs Hfa) as [Hla Haargs].
         rewrite unify_classes in Hu.
         destruct (base_type_is_subtype_of env ca ct) eqn:Hbase; [|discriminate Hu].
@@ -913,7 +1008,7 @@ Proof.
         * rewrite unify_class_nullable in H. discriminate H.
         * (* a reference to a type parameter of the caller: by its bound *)
           rewrite step_root_generic in H.
-          destruct (IHt _ _ s s' HP (yfrag_generic b gm nn q bq HA) Hb Hs H) as [Hs' [Hext Hsound]].
+          destruct (IHt _ _ s s' HP (yfrag_generic b _ HA) Hb Hs H) as [Hs' [Hext Hsound]].
           split; [exact Hs'|]. split; [exact Hext|]. intros Hsb. destruct (Hsound Hsb) as [f Hf].
           rewrite (inst_root env b mt ct targs (ifrag_no_generics env _ HP)) in Hf |- *.
           exists (S f). rewrite step_root_generic. exact Hf.
@@ -936,7 +1031,7 @@ Proof.
       + (* a type variable *)
         destruct (gtarget_leaf n p bnd A s s' Hs (proj1 HA) (proj1 (proj2 HA)) (proj2 (proj2 (proj2 HA))) H) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb.
-        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+        destruct (binds_ref_some env wf b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         destruct (Hsb p o x Ex) as [Hx [st' [Hl' Hfit]]].
         assert (Hfits: forall st'', lookup_state s' p = Some st'' -> gfits st'' o x)
             by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).
@@ -950,7 +1045,7 @@ Proof.
           /\ (gsatisfies b s' -> below (inst env b (RootResolved mp cp pargs)) (RootResolved ma ca aargs))).
       { intros ma ca aargs mp cp pargs Hfp Hfa Hbp Hu.
         rewrite (inst_root env b mp cp pargs (ifrag_no_generics env _ Hfp)).
-        pose proof (root_parts env b K [] mp cp pargs Hfp Hbp) as Hpargs.
+        pose proof (root_parts env wf b K [] mp cp pargs Hfp Hbp) as Hpargs.
         destruct (yfrag_root b ma ca aargs Hfa) as [_ Haargs].
         rewrite unify_classes in Hu.
         destruct (base_type_is_subtype_of env cp ca) eqn:Hbase; [|discriminate Hu].
@@ -965,7 +1060,7 @@ Proof.
         { unfold norm. destruct (Class_eq_dec cp ca) as [<-|Hne]; [rewrite class_eqb_refl; split; [exact Hpargs|reflexivity]|].
           rewrite (class_eqb_false _ _ Hne).
           assert (Hlp: length pargs = length (parameter_ids env cp)).
-          { destruct (ifrag_cases env _ Hfp) as [[m' [c' [args' [Heq [_ [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [? [Heq _]]]]]];
+          { destruct (ifrag_cases env wf _ Hfp) as [[m' [c' [args' [Heq [_ [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
                 try discriminate Heq.
             - injection Heq as <- <- <-. exact Hl.
             - unfold bottom_type in Heq. injection Heq as _ -> _. rewrite class_eqb_refl in Hcn. discriminate Hcn. }
@@ -1021,7 +1116,7 @@ Proof.
       + (* a type variable *)
         destruct (gassignee_leaf n p bnd A s s' Hs (proj1 HA) (proj2 (proj2 (proj2 HA))) H) as [Hs' [Hext Hsound]].
         split; [exact Hs'|]. split; [exact Hext|]. intros Hsb.
-        destruct (binds_ref_some env b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+        destruct (binds_ref_some env wf b K [] (mkGenericRef None false p bnd) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         destruct (Hsb p o x Ex) as [Hx [st' [Hl' Hfit]]].
         assert (Hfits: forall st'', lookup_state s' p = Some st'' -> gfits st'' o x)
             by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).
@@ -1035,10 +1130,10 @@ Proof.
       destruct (ownership_is_assignable_to oa ot) eqn:Ho; [|discriminate H].
       pose proof (ownership_kept b oa ot Ho Hoa) as Hown.
       assert (Hfi: is_type_variable (inst env b nt) = false)
-          by exact (instance_not_variable env b K [] (to_generic nt) (ifrag_sfrag env nt HP) Hbn).
+          by exact (instance_not_variable env wf b K [] (to_generic nt) (ifrag_sfrag env nt HP) Hbn).
       assert (Hgoal: forall f, compare_variances (unify env f) vt va (inst env b nt) na [] = Some (Ongoing []) ->
           unify env (S f) (instantiate env b (TypeArgument vt ot nt)) (TypeArgument va oa na) (Ongoing []) = Some (Ongoing [])).
-      { intros f E. rewrite (instantiate_argument env b K [] vt ot nt HP Hbn).
+      { intros f E. rewrite (instantiate_argument env wf b K [] vt ot nt HP Hbn).
         rewrite (unify_type_arguments env f vt _ (inst env b nt) va oa na [] Hfi), Hown. exact E. }
       destruct vt, va; unfold compare_variances in H; try discriminate H.
       1: { destruct (unify env n nt na (Ongoing s)) as [[s1|]|] eqn:E1; [|rewrite unify_keeps_failure in H; discriminate H|discriminate H].
@@ -1066,7 +1161,7 @@ Proof.
       pose proof (ownership_kept_flipped op oa Ho Hoa Hop) as Hown.
       assert (Hgoal: forall f, compare_variances (unify env f) va vp na (inst env b np) [] = Some (Ongoing []) ->
           unify env (S f) (TypeArgument va oa na) (instantiate env b (TypeArgument vp op np)) (Ongoing []) = Some (Ongoing [])).
-      { intros f E. rewrite (instantiate_argument env b K [] vp op np HP Hbn).
+      { intros f E. rewrite (instantiate_argument env wf b K [] vp op np HP Hbn).
         rewrite (unify_type_arguments env f va oa na vp _ (inst env b np) [] (gfrag_not_variable env na (proj1 (proj1 HAn)))), Hown.
         exact E. }
       pose proof (of_fragment_no_vars na (proj1 HAn)) as Hnna.
@@ -1167,15 +1262,54 @@ Qed.
 Definition ownership_outside (ids: list TypeParameterId) (o: Ownership): Prop :=
     match o with parameter_ownership q => ~ In q ids | _ => True end.
 
+Fixpoint owners_outside_h (ids: list TypeParameterId) (bound_owners_outside: GenericRef -> Prop) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => owners_outside_h ids bound_owners_outside a /\ acc) True arguments
+    | Nullable n => owners_outside_h ids bound_owners_outside n
+    | Generic g => bound_owners_outside g
+    | TypeArgument _ o n => ownership_outside ids o /\ owners_outside_h ids bound_owners_outside n
+    | Intersection cs => fold_right (fun c acc => owners_outside_h ids bound_owners_outside c /\ acc) True cs
+    | _ => True
+    end.
+
+(* Of the effective bound of a reference (see Subtyping.through) *)
+Definition bound_owners_outside (ids: list TypeParameterId) (g: GenericRef): Prop := through env (owners_outside_h ids) True g.
+
 Fixpoint owners_outside (ids: list TypeParameterId) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => owners_outside ids a /\ acc) True arguments
     | Nullable n => owners_outside ids n
-    | Generic (mkGenericRef _ _ _ bound) => owners_outside ids bound
+    | Generic g => bound_owners_outside ids g
     | TypeArgument _ o n => ownership_outside ids o /\ owners_outside ids n
     | Intersection cs => fold_right (fun c acc => owners_outside ids c /\ acc) True cs
     | _ => True
     end.
+
+Lemma owners_outside_top: forall ids t, owners_outside ids t = owners_outside_h ids (bound_owners_outside ids) t.
+Proof.
+    intros ids. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
+    - induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
+    - rewrite (IH n). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma owners_outside_h_agree: forall ids k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> owners_outside_h ids U1 t = owners_outside_h ids U2 t.
+Proof.
+    intros ids k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
+    - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
+      rewrite (IH a Ha), (IHa Has). reflexivity.
+    - exact (HU g (ref_ranked env k g Ht)).
+    - rewrite (IH n Ht). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma owners_outside_generic: forall ids g, owners_outside ids (Generic g) = owners_outside ids (effective_bound env g).
+Proof.
+    intros ids g. change (owners_outside ids (Generic g)) with (bound_owners_outside ids g). rewrite owners_outside_top.
+    unfold bound_owners_outside at 1. rewrite (through_eq env ranked); [reflexivity|exact (owners_outside_h_agree ids)].
+Qed.
 
 Lemma fold_and_intro: forall (Q: EType -> Prop) l, (forall a, In a l -> Q a) -> fold_right (fun a acc => Q a /\ acc) True l.
 Proof.
@@ -1186,16 +1320,18 @@ Qed.
 Lemma owners_outside_free: forall ids b, (forall q, ~ In q ids -> lookup_binding b q = None) ->
     forall t, owners_outside ids t -> owners_free b t.
 Proof.
-    intros ids b Hb t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [m c args|n|[gm nn p bd]|me msg|v o n|g|cs]; simpl in H |- *; try exact I.
-    - apply fold_and_intro. intros a Ha.
-      apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|exact (fold_and_in _ args H a Ha)].
-    - apply (IH (esize n)); [simpl; lia|reflexivity|exact H].
-    - apply (IH (esize bd)); [simpl; lia|reflexivity|exact H].
-    - destruct H as [Ho Hn]. split; [destruct o as [| | |q]; try exact I; exact (Hb q Ho)|].
-      apply (IH (esize n)); [simpl; lia|reflexivity|exact Hn].
-    - apply fold_and_intro. intros a Ha.
-      apply (IH (esize a)); [pose proof (esize_in cs a Ha); simpl; lia|reflexivity|exact (fold_and_in _ cs H a Ha)].
+    intros ids b Hb t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
+    intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> Hr H.
+    destruct t as [m c args|n|g|me msg|v o n|g|cs]; try exact I.
+    - simpl in H, Hr |- *. rewrite forallb_forall in Hr. apply fold_and_intro. intros a Ha.
+      apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|exact (Hr a Ha)|exact (fold_and_in _ args H a Ha)].
+    - simpl in H |- *. apply (IH (esize n)); [simpl; lia|reflexivity|exact Hr|exact H].
+    - rewrite owners_outside_generic in H. rewrite owners_free_generic.
+      exact (IHr _ (ref_ranked env r g Hr) _ (effective_bound_ranked env ranked g) H).
+    - simpl in H |- *. destruct H as [Ho Hn]. split; [destruct o as [| | |q]; try exact I; exact (Hb q Ho)|].
+      apply (IH (esize n)); [simpl; lia|reflexivity|exact Hr|exact Hn].
+    - simpl in H, Hr |- *. rewrite forallb_forall in Hr. apply fold_and_intro. intros a Ha.
+      apply (IH (esize a)); [pose proof (esize_in cs a Ha); simpl; lia|reflexivity|exact (Hr a Ha)|exact (fold_and_in _ cs H a Ha)].
 Qed.
 
 Lemma lookup_map_none: forall (l: list (TypeParameterId * EType)) (g: TypeParameterId * EType -> EType) p,
@@ -1229,7 +1365,7 @@ Theorem member_call_in_generic_code_sound: forall n mr c cvars ovars ma ca ys u 
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> ifrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> ifrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
     (forall A, In A As -> of_fragment A /\ bottom_only A = true /\ owners_outside (map fst (cvars ++ ovars)) A /\ Qb A) ->
     (forall p bound, In (p, bound) ovars -> Qb bound) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->

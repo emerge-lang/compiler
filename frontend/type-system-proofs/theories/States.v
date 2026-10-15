@@ -20,7 +20,7 @@ Fixpoint esize (t: EType): nat :=
     match t with
     | RootResolved _ _ arguments => S (list_sum (map esize arguments))
     | Nullable n => S (esize n)
-    | Generic (mkGenericRef _ _ _ bound) | TypeVariable (mkGenericRef _ _ _ bound) => S (esize bound)
+    | Generic _ | TypeVariable _ => 1
     | Error _ _ => 1
     | TypeArgument _ _ n => S (esize n)
     | Intersection components => S (list_sum (map esize components))
@@ -34,11 +34,6 @@ Qed.
 Definition relabel (s': VariableStates) (r: Unification): Unification :=
     match r with Ongoing _ => Ongoing s' | Failed => Failed end.
 
-Lemma no_vars_without_null: forall t, no_vars (without_null t) = no_vars t.
-Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH|apply IH].
-Qed.
-
 Lemma no_vars_rewrap: forall t, no_vars (rewrap_nullable t) = no_vars t.
 Proof. intros [| | | | | |]; reflexivity. Qed.
 
@@ -46,8 +41,14 @@ Section Variables.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
+
+Lemma no_vars_without_null: forall t, no_vars (without_null env t) = no_vars t.
+Proof.
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+Qed.
 
 Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.
 Proof.
@@ -55,21 +56,30 @@ Proof.
     destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H |- *; try discriminate H.
     - exact H.
     - rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
-    - apply (IH (esize bnd)); simpl; auto; lia.
+    - exact H.
     - reflexivity.
     - apply (IH (esize n)); simpl; auto; lia.
     - apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.
 
+(* A reference without type variables has none in its bound *)
+Lemma no_vars_effective_bound: forall g, no_vars (Generic g) = true -> no_vars (effective_bound env g) = true.
+Proof.
+    intros [gm nn p [|v vs]] H; [|discriminate H]. rewrite (effective_bound_eq env ranked).
+    cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+    pose proof (wf_bounds_mention_no_variables env wf p) as Hd.
+    destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hd).
+Qed.
+
 Lemma no_vars_of_components: forall cs, (forall c, In c cs -> no_vars c = true) -> no_vars (of_components env cs) = true.
 Proof.
     intros cs H. assert (Hi: forallb no_vars (map (fun c => with_mutability env
-            (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly) (without_null c)) cs) = true).
+            (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly) (without_null env c)) cs) = true).
     { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       apply no_vars_set_mutability. rewrite no_vars_without_null. exact (H c' Hc'). }
     destruct cs as [|c [|c' cs']]; [reflexivity|exact (H c (or_introl eq_refl))|].
-    unfold of_components. destruct (forallb is_nullable _); exact Hi.
+    unfold of_components. destruct (forallb (is_nullable env) _); exact Hi.
 Qed.
 
 Lemma no_vars_intersected: forall t, no_vars t = true -> forall c, In c (intersected_components t) -> no_vars c = true.
@@ -86,13 +96,20 @@ Proof. intros [| | | |v o x| |] H; try exact H. unfold final_argument. destruct 
 Lemma no_vars_instantiate: forall b t, (forall p a, lookup_binding b p = Some a -> no_vars a = true) ->
     no_vars t = true -> no_vars (instantiate env b t) = true.
 Proof.
-    intros b t Hb. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [mt c args|n|[gm nn p bnd]|me msg|v o n|[gm nn p bnd]|cs]; simpl in H; try discriminate H.
+    intros b t Hb. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind. intros t Hr.
+    remember (esize t) as k eqn:Hk. revert t Hr Hk. induction k as [k IH] using lt_wf_ind. intros t Hr -> H.
+    destruct t as [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; simpl in H; try discriminate H.
     - simpl. apply forallb_forall. intros a Ha. apply in_map_iff in Ha. destruct Ha as [a' [<- Ha']].
-      rewrite forallb_forall in H. apply (IH (esize a')); [pose proof (esize_in args a' Ha'); simpl; lia|reflexivity|apply H, Ha'].
+      simpl in Hr. rewrite forallb_forall in H, Hr.
+      apply (IH (esize a')); [pose proof (esize_in args a' Ha'); simpl; lia|apply Hr, Ha'|reflexivity|apply H, Ha'].
     - simpl. rewrite no_vars_rewrap. apply (IH (esize n)); simpl; auto; lia.
-    - simpl. assert (Hf: no_vars (match lookup_binding b p with Some a => final_argument a | None => instantiate env b bnd end) = true).
-      { destruct (lookup_binding b p) eqn:E; [exact (no_vars_final_argument e (Hb p e E))|]. apply (IH (esize bnd)); simpl; auto; lia. }
+    - destruct vs; [|discriminate H]. simpl.
+      assert (Hf: no_vars (match lookup_binding b p with Some a => final_argument a | None => instantiate_unbound env b (mkGenericRef gm nn p []) end) = true).
+      { destruct (lookup_binding b p) eqn:E; [exact (no_vars_final_argument e (Hb p e E))|].
+        rewrite (instantiate_unbound_eq env ranked). apply (IHr _ (ref_ranked env r _ Hr)); [apply (effective_bound_ranked env ranked)|].
+        rewrite (effective_bound_eq env ranked). cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+        pose proof (wf_bounds_mention_no_variables env wf p) as Hd.
+        destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hd). }
       destruct nn; [rewrite no_vars_without_null|]; (destruct gm; [apply no_vars_set_mutability|]; exact Hf).
     - reflexivity.
     - simpl. assert (Hn: no_vars (instantiate env b n) = true) by (apply (IH (esize n)); simpl; auto; lia).
@@ -104,7 +121,8 @@ Proof.
           try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
     - simpl. apply no_vars_of_components. intros c Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]].
       apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. apply (no_vars_intersected _ ) in Hc; [exact Hc|].
-      rewrite forallb_forall in H. apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
+      simpl in Hr. rewrite forallb_forall in H, Hr.
+      apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|apply Hr, Hc'|reflexivity|apply H, Hc'].
 Qed.
 
 Lemma lookup_combine_in: forall (ids: list TypeParameterId) (xs: list EType) p a,
@@ -198,7 +216,8 @@ Ltac nv := first
     [ assumption | reflexivity
     | match goal with |- no_vars (read_type ?v ?t) = true => destruct v; first [assumption|reflexivity] end
     | simpl; assumption
-    | rewrite no_vars_without_null; simpl; assumption ].
+    | rewrite no_vars_without_null; simpl; assumption
+    | apply no_vars_effective_bound; simpl; assumption ].
 
 Ltac free H := match type of H with f ?x ?y (Ongoing _) = Some ?r => exact (Hf x y _ _ r ltac:(nv) ltac:(nv) H) end.
 
@@ -267,7 +286,7 @@ Proof.
       unfold unify_intersection in H |- *.
       destruct (no_vars_filter tcs Ht) as [Hv Hnv].
       destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
-          try (destruct (negb (is_nullable _)); [injection H as <-; reflexivity|]; free H);
+          try (destruct (negb (is_nullable env _)); [injection H as <-; reflexivity|]; free H);
           try free H.
       + inter (RootResolved ma ca aargs) H Ht Hv Hnv tcs s s'.
       + inter (Generic (mkGenericRef ga nna pa ba)) H Ht Hv Hnv tcs s s'.

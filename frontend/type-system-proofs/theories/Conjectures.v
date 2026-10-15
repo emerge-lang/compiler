@@ -20,8 +20,8 @@ Import ListNotations.
 (* each conjecture is false of some environment; as an axiom over all environments, it would let     *)
 (* Rocq prove anything. They are claims about the one environment of the Kotlin implementation.     *)
 (*                                                                                                *)
-(* The types are those of Generics.v: of the fragment gfrag, with the references to type parameters *)
-(* well-formed (refs_wf). A conjecture whose inputs are outside of it claims nothing about them.     *)
+(* The types are those of Generics.v: of the fragment gfrag. A conjecture whose inputs are outside *)
+(* of it claims nothing about them.                                                               *)
 (*                                                                                                *)
 (* One conjecture is about the model alone: that unify terminates where inheritance isn't          *)
 (* expansive (unify_terminates, below). It is a claim about every such environment, a theorem to   *)
@@ -72,6 +72,7 @@ Section Bounds.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
@@ -205,6 +206,7 @@ Section Terminating.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.

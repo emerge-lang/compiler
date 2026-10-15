@@ -1,11 +1,12 @@
 From EmergeTypeSystem Require Import Model.
 From EmergeTypeSystem Require Import Subtyping.
-From Stdlib Require Import Bool List.
+From Stdlib Require Import Bool List Arith Lia.
 Import ListNotations.
 
 Section Ops.
 
 Variable env: Environment.
+Hypothesis ranked: bounds_ranked env.
 
 Definition can_reassign_fields_on (t: EType): bool :=
     match (mutability_of env t) with
@@ -664,34 +665,109 @@ Qed.
  * type Nothing (generics bounded by Nothing included). Erroneous types fail to compile; type
  * arguments and type variables aren't the types of references.
  *)
+Fixpoint can_refer_to_object_h (through_ref: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved _ c _ => negb (class_eqb c nothing)
+    | Nullable n => can_refer_to_object_h through_ref n
+    | Generic g => through_ref g
+    | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
+    | Intersection components => forallb (can_refer_to_object_h through_ref) components
+    end.
+
+(* Through the effective bound of a reference to a type parameter (Subtyping.through) *)
+Definition can_refer_through (g: GenericRef): bool := through env can_refer_to_object_h true g.
+
 Fixpoint can_refer_to_object (t: EType): bool :=
     match t with
     | RootResolved _ c _ => negb (class_eqb c nothing)
     | Nullable n => can_refer_to_object n
-    | Generic (mkGenericRef _ _ _ bound) => can_refer_to_object bound
+    | Generic g => can_refer_through g
     | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
     | Intersection components => forallb can_refer_to_object components
     end.
 
-Lemma without_null_keeps: forall t,
-    mutability_of env (without_null t) = mutability_of env t /\ can_refer_to_object (without_null t) = can_refer_to_object t.
+Lemma can_refer_to_object_h_agree: forall k U1 U2, (forall g, rank_of env g < k -> U1 g = U2 g) ->
+    forall t, ranked_below env k t = true -> can_refer_to_object_h U1 t = can_refer_to_object_h U2 t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try (split; reflexivity).
-    - simpl. destruct (IH n) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
-    - simpl. destruct (IH b) as [Hm Hc]. rewrite Hm, Hc. split; reflexivity.
-    - simpl. destruct (IH n) as [Hm _]. rewrite Hm. split; reflexivity.
+    intros k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - exact (IH n Ht).
+    - exact (HU g (ref_ranked env k g Ht)).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma can_refer_top: forall t, can_refer_to_object t = can_refer_to_object_h can_refer_through t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma can_refer_generic: forall g, can_refer_to_object (Generic g) = can_refer_to_object (effective_bound env g).
+Proof.
+    intros g. change (can_refer_through g = can_refer_to_object (effective_bound env g)). rewrite can_refer_top.
+    unfold can_refer_through at 1. rewrite (through_eq env ranked); [reflexivity|exact can_refer_to_object_h_agree].
+Qed.
+
+(* A type and its type variables can refer to an object, or not, with and without null *)
+Lemma can_refer_without_null: forall vs t,
+    can_refer_to_object (with_type_variables vs (without_null env t)) = can_refer_to_object (with_type_variables vs t).
+Proof.
+    intros vs t. destruct (ranked_exists env t) as [k Hk]. revert vs t Hk. induction k as [k IHk] using lt_wf_ind.
+    intros vs. fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|[gm nn p us]|cs] Hk; try reflexivity.
+    - cbn [without_null]. pose proof (IH n Hk) as E. clear IH. destruct vs as [|w ws]; [exact E|].
+      cbn [with_type_variables with_type_variables_in can_refer_to_object] in E |- *. exact E.
+    - clear IH. pose proof (ref_ranked env k _ Hk) as Hg. cbn [without_null].
+      assert (Hsame: forall ws, can_refer_to_object (Generic (mkGenericRef gm (nn || ref_nullable env (mkGenericRef gm nn p us)) p ws))
+          = can_refer_to_object (Generic (mkGenericRef gm nn p ws))).
+      { intros ws. rewrite !can_refer_generic, !(effective_bound_adjusted env ranked). cbn [variables_of].
+        unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+        destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+        apply (IHk _ Hg).
+        exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)). }
+      destruct vs as [|w ws]; [exact (Hsame us)|]. unfold with_type_variables. cbn [with_type_variables_in].
+      destruct (existsb (param_eqb p) (w :: ws)); [reflexivity|]. exact (Hsame (us ++ w :: ws)).
+    - clear IH. destruct vs; reflexivity.
+Qed.
+
+Lemma without_null_keeps: forall t,
+    mutability_of env (without_null env t) = mutability_of env t /\ can_refer_to_object (without_null env t) = can_refer_to_object t.
+Proof.
+    intros t. split; [|exact (can_refer_without_null [] t)].
+    destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    - exact (IH n Hk).
+    - cbn [without_null]. rewrite !(mutability_of_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
+      pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
+      assert (E: forall t, mutability_of env (with_type_variables us t) = mutability_of env t)
+          by (intros t; specialize (Hk' t); injection Hk' as E _ _ _; exact E).
+      rewrite !E. unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+      destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+      apply (IHk _ (ref_ranked env k _ Hk)).
+      exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
+    - simpl. rewrite (IH n Hk). reflexivity.
 Qed.
 
 Lemma without_null_keeps_assignment_mutability: forall t,
-    assignment_mutability env (without_null t) = assignment_mutability env t.
+    assignment_mutability env (without_null env t) = assignment_mutability env t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; apply IH.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    - exact (IH n Hk).
+    - cbn [without_null]. rewrite !(assignment_mutability_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
+      pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
+      assert (E: forall t, assignment_mutability env (with_type_variables us t) = assignment_mutability env t)
+          by (intros t; specialize (Hk' t); injection Hk' as _ E _ _; exact E).
+      rewrite !E. unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+      destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+      apply (IHk _ (ref_ranked env k _ Hk)).
+      exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
+    - exact (IH n Hk).
 Qed.
 
-Lemma generic_mutability_below_bound: forall g nn p b,
-    is_subtype_of (mutability_of env (Generic (mkGenericRef g nn p b))) (mutability_of env b) = true.
+Lemma generic_mutability_below_bound: forall g,
+    is_subtype_of (mutability_of env (Generic g)) (mutability_of env (effective_bound env g)) = true.
 Proof.
-    intros g nn p b. apply mutability_is_subtype_of_refl.
+    intros g. rewrite (mutability_of_generic env ranked). apply mutability_is_subtype_of_refl.
 Qed.
 
 Lemma fold_intersect_below_acc: forall l acc, is_subtype_of (fold_left intersect_mutability l acc) acc = true.
@@ -731,23 +807,39 @@ Qed.
 (* An object of a const class is assigned as exclusive *)
 Lemma top_const_assigned_exclusive: forall t, top_const env t = true -> assignment_mutability env t = exclusive.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|[gm nn p b]|cs] H; simpl in H |- *; try (apply IH; exact H).
-    - rewrite H. reflexivity.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk H.
+    - simpl in H |- *. rewrite H. reflexivity.
+    - exact (IH n Hk H).
+    - rewrite (top_const_generic env ranked) in H. rewrite (assignment_mutability_generic env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g) H).
     - discriminate H.
-    - revert H. generalize readonly as acc. induction cs as [|c rest IHl]; intros acc H; simpl in H |- *; [discriminate H|].
+    - exact (IH n Hk H).
+    - rewrite (top_const_type_variable env ranked) in H. rewrite (assignment_mutability_type_variable env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g) H).
+    - simpl in H, Hk |- *. revert H Hk. generalize readonly as acc. induction cs as [|c rest IHl]; intros acc H Hk; simpl in H, Hk |- *; [discriminate H|].
+      apply andb_true_iff in Hk. destruct Hk as [Hc Hrest].
       destruct (top_const env c) eqn:E.
-      + rewrite (IH c E). apply mutability_subtype_of_exclusive.
+      + rewrite (IH c Hc E). apply mutability_subtype_of_exclusive.
         eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
-      + exact (IHl _ H).
+      + exact (IHl _ H Hrest).
 Qed.
 
 (* A value is assigned as no more than its mutability: as exclusive, where it is an object of a const
    class *)
 Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|[gm nn p b]|cs]; simpl; try apply IH; try apply mutability_is_subtype_of_refl.
-    - destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
-    - destruct (existsb (top_const env) cs) eqn:E.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk.
+    - simpl. destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
+    - exact (IH n Hk).
+    - rewrite (assignment_mutability_generic env ranked), (mutability_of_generic env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g)).
+    - apply mutability_is_subtype_of_refl.
+    - exact (IH n Hk).
+    - rewrite (assignment_mutability_type_variable env ranked), (mutability_of_type_variable env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g)).
+    - simpl. destruct (existsb (top_const env) cs) eqn:E.
       { pose proof (top_const_assigned_exclusive (Intersection cs) E) as Hx. simpl in Hx. rewrite Hx. reflexivity. }
       assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
           is_subtype_of (intersect_mutability a b) (intersect_mutability a' b') = true).
@@ -755,12 +847,14 @@ Proof.
         - eapply mutability_subtype_trans; [apply intersect_mutability_left|exact Hx].
         - eapply mutability_subtype_trans; [apply intersect_mutability_right|exact Hy]. }
       exact ((fix F (l: list EType) (acc acc': Mutability) (H: is_subtype_of acc acc' = true) {struct l}:
+          forallb (ranked_below env k) l = true ->
           is_subtype_of (fold_left intersect_mutability (map (assignment_mutability env) l) acc)
               (fold_left intersect_mutability (map (mutability_of env) l) acc') = true :=
           match l with
-          | [] => H
-          | x :: rest => F rest _ _ (Hmono _ _ _ _ H (IH x))
-          end) cs readonly readonly eq_refl).
+          | [] => fun _ => H
+          | x :: rest => fun Hl =>
+              F rest _ _ (Hmono _ _ _ _ H (IH x (proj1 (proj1 (andb_true_iff _ _) Hl)))) (proj2 (proj1 (andb_true_iff _ _) Hl))
+          end) cs readonly readonly eq_refl Hk).
 Qed.
 
 Lemma find_first_found: forall attempt candidates c states,
@@ -829,7 +923,8 @@ Proof.
         match type of H with context [negb (is_subtype_of ?x ?y)] => destruct (is_subtype_of x y) eqn:E end;
             [reflexivity|discriminate H].
       + discriminate H.
-      + change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab). eapply IH; eassumption.
+      + rewrite (assignment_mutability_generic env ranked). eapply IH; [exact H|exact Ht|].
+        rewrite <- can_refer_generic. exact Ha.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
@@ -840,16 +935,16 @@ Proof.
       + eapply IH; eassumption.
       + change (assignment_mutability env (Nullable an)) with (assignment_mutability env an). eapply IH; eassumption.
       + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
-        assert (Hnested: unify env fuel tn (without_null (Generic (mkGenericRef ag ann ap ab))) (Ongoing states) = Some (Ongoing u) ->
+        assert (Hnested: unify env fuel tn (without_null env (Generic (mkGenericRef ag ann ap ab))) (Ongoing states) = Some (Ongoing u) ->
             is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
         { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ann ap ab))) as [_ Hc].
           rewrite <- (without_null_keeps_assignment_mutability (Generic (mkGenericRef ag ann ap ab))).
           eapply IH; [exact Hu|exact Ht|rewrite Hc; exact Ha]. }
-        assert (Hself: unify env fuel (Nullable tn) ab (Ongoing states) = Some (Ongoing u) ->
+        assert (Hself: unify env fuel (Nullable tn) (effective_bound env (mkGenericRef ag ann ap ab)) (Ongoing states) = Some (Ongoing u) ->
             is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
-        { intros Hu. change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab).
+        { intros Hu. rewrite (assignment_mutability_generic env ranked).
           change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
-          eapply IH; [exact Hu|exact Ht|exact Ha]. }
+          eapply IH; [exact Hu|exact Ht|]. rewrite <- can_refer_generic. exact Ha. }
         destruct tn as [| |[]| | | |]; first [exact (Hnested H) | exact (Hself H)].
       + eapply IH; eassumption.
     - (* Generic *)
@@ -859,7 +954,7 @@ Proof.
       + discriminate H.
       + destruct (param_eqb ap tp).
         * destruct (_ && _) eqn:E2 in H; [|discriminate H]. apply andb_true_iff in E2. exact (proj1 E2).
-        * change (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) with (assignment_mutability env ab). eapply IH; [exact H|exact Ht|exact Ha].
+        * rewrite (assignment_mutability_generic env ranked). eapply IH; [exact H|exact Ht|]. rewrite <- can_refer_generic. exact Ha.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.

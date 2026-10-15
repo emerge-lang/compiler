@@ -72,12 +72,13 @@ Proof.
     destruct (g a), (h (k a)), (existsb g l), (existsb h (map k l)); reflexivity.
 Qed.
 
-(* No type variables, also not in the bounds of type parameters *)
+(* No type variables, also not in the bounds of type parameters: a reference has its bound with
+   type variables in it where it has any (see Subtyping.effective_bound) *)
 Fixpoint no_vars (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb no_vars arguments
     | Nullable n => no_vars n
-    | Generic (mkGenericRef _ _ _ bound) => no_vars bound
+    | Generic (mkGenericRef _ _ _ vs) => match vs with [] => true | _ => false end
     | Error _ _ => true
     | TypeArgument _ _ n => no_vars n
     | TypeVariable _ => false
@@ -228,6 +229,10 @@ Record wellformed: Prop := {
        supertypes a class declares (ImmediateVariantTypeArgumentOnSupertypeDiagnostic), and those of
        the supertypes of supertypes are made from them *)
     wf_supertypes_are_exact: forall sub super t, In t (supertype_arguments sub super) -> exact_template_argument t = true;
+    (* a bound mentions only type parameters declared before (Kotlin resolves it with only those in scope) *)
+    wf_bounds_ranked: bounds_ranked env;
+    (* a bound is a type as written, without type variables (BoundTypeParameter.bound) *)
+    wf_bounds_mention_no_variables: forall p, no_vars (parameter_bound env p) = true;
 }.
 
 Hypothesis wf: wellformed.

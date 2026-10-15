@@ -36,6 +36,7 @@ Section Terminating.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Hypothesis terminates: unify_terminates.
@@ -53,9 +54,7 @@ Proof.
       - simpl. apply andb_true_iff. split; [destruct ys; simpl in Hl |- *; [lia|reflexivity]|].
         apply forallb_forall. intros y Hy. destruct (Hc y Hy) as [Hcl Hf]. apply andb_true_iff.
         split; [destruct y; first [reflexivity|discriminate Hcl]|exact (in_fragment_is_gfrag env y Hf)].
-      - change (fold_right (fun c acc => refs_wf env declared c /\ acc) True ys).
-        clear Hl Hys. induction ys as [|y ys IH]; [exact I|]. split; [|apply IH; intros y' Hy'; apply Hc; right; exact Hy'].
-        exact (proj1 (in_fragment_refs_wf env declared (depth y)) y (le_n _) (proj2 (Hc y (or_introl eq_refl)))). }
+      - exact I. }
     intros x H. destruct (cfrag_cases env x H) as [Hx|[[ys [-> Hys]]|[ys [-> Hys]]]].
     - split; [exact (in_fragment_is_gfrag env x Hx)|exact (proj1 (in_fragment_refs_wf env declared (depth x)) x (le_n _) Hx)].
     - exact (Hi ys Hys).
@@ -105,7 +104,7 @@ Lemma never_fails_nullable_intersection: forall T ys,
 Proof. intros T ys H. apply never_fails_step. intros f s. exact (H f s). Qed.
 
 Lemma never_fails_without_null: forall D ys, in_fragment env D = true ->
-    never_fails env D (Intersection ys) -> never_fails env (without_null D) (Intersection ys).
+    never_fails env D (Intersection ys) -> never_fails env (without_null env D) (Intersection ys).
 Proof.
     intros D ys HD H f s. destruct (fragment_cases env D HD) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; [exact (H f s)|].
     exact (H (S f) s).
@@ -116,34 +115,23 @@ Qed.
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* A non-null type of the fragment is its own `!` *)
-Lemma tfrag_non_null_without_null: forall k t, sdepth t <= k -> tfrag env t = true -> is_nullable t = false -> without_null t = t.
-Proof.
-    induction k as [|k IH].
-    { intros t Hd Ht _. destruct (tfrag_cases env t Ht) as [Hs|[[cs [-> _]]|[cs [-> _]]]]; [|simpl in Hd; lia|simpl in Hd; lia].
-      destruct (sfrag_cases env t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
-          first [pose proof (sdepth_generic g); lia|simpl in Hd; lia]. }
-    intros t Hd Ht Hn. destruct (tfrag_cases env t Ht) as [Hs|[[cs [-> _]]|[cs [-> _]]]]; [|reflexivity|discriminate Hn].
-    destruct (sfrag_cases env t Hs) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[[[gm nn p bound] [-> [Hf _]]]|[g [-> _]]]]]];
-        try reflexivity; try discriminate Hn.
-    cbn [effective_bound] in Hf. simpl in Hn |- *. rewrite Hn, orb_false_r, (IH bound ltac:(simpl in Hd; lia) Hf Hn).
-    reflexivity.
-Qed.
+Lemma tfrag_non_null_without_null: forall k t, sdepth env t <= k -> tfrag env t = true -> is_nullable env t = false -> without_null env t = t.
+Proof. intros k t _ _ Hn. exact (without_null_unchanged env t Hn). Qed.
 
-Lemma narrow_non_null: forall g, generic_sfrag env g -> is_nullable (effective_bound g) = false -> narrow_ref g = g.
+Lemma narrow_non_null: forall g, generic_sfrag env g -> is_nullable env (effective_bound env g) = false -> narrow_ref env g = g.
 Proof.
-    intros [gm nn p bound] [Hf _] Hn. cbn [effective_bound] in Hf, Hn. unfold narrow_ref.
-    cbn [given_mutability is_narrowed param_of effective_bound].
-    rewrite Hn, orb_false_r, (tfrag_non_null_without_null _ bound (le_n _) Hf Hn). reflexivity.
+    intros [gm nn p vs] _ Hn. unfold narrow_ref. cbn [given_mutability is_narrowed param_of variables_of].
+    rewrite (nullable_generic env wf (mkGenericRef gm nn p vs)), Hn, orb_false_r. reflexivity.
 Qed.
 
 (* A nullable type takes a component where the type in it does *)
-Lemma nullable_takes_component: forall n t0 c s r, is_component_shape c = true -> sfrag env c = true ->
+Lemma nullable_takes_component: forall n t0 c s r, is_component_shape env c = true -> sfrag env c = true ->
     unify env n t0 c (Ongoing s) = r -> unify env (S n) (Nullable t0) c (Ongoing s) = r.
 Proof.
     intros n t0 c s r Hsh Hc H. destruct c as [m d args| |g| | | |]; try discriminate Hsh.
     - rewrite unify_nullable_class. exact H.
-    - rewrite unify_nullable_generic_step. rewrite sfrag_generic in Hc. apply andb_true_iff in Hc.
-      pose proof (component_non_null _ Hsh) as Hn. rewrite nullable_generic in Hn.
+    - rewrite unify_nullable_generic_step. apply (sfrag_generic_iff env wf) in Hc.
+      pose proof (component_non_null env _ Hsh) as Hn. rewrite (nullable_generic env wf) in Hn.
       rewrite (narrow_non_null g Hc Hn). exact H.
 Qed.
 
@@ -153,7 +141,7 @@ Lemma component_taken: forall n t cs s u, sfrag env t = true -> components_sfrag
     exists c, In c cs /\ unify env n t c (Ongoing s) = Some (Ongoing u).
 Proof.
     intros n t cs s u Ht Hcs H. destruct (components_sfrag_facts env cs Hcs) as [_ Hc]. destruct n as [|n]; [discriminate H|].
-    destruct (sfrag_cases env t Ht) as [[m [ct [args [-> _]]]]|[->|[[m [ct [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]].
+    destruct (sfrag_cases env wf t Ht) as [[m [ct [args [-> _]]]]|[->|[[m [ct [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]].
     1,2,4: destruct (unify_into_components env n _ cs s u H eq_refl) as [c [Hin Hi]];
            exists c; split; [exact Hin|apply (unify_fuel_monotone env n); [lia|exact Hi]].
     - change (unify env (S n) (Nullable (RootResolved m ct args)) (Intersection cs) (Ongoing s))
@@ -183,7 +171,7 @@ Hypothesis Hbf: bindings_in_fragment env b.
 Let Main := substitution_with_arguments env wf b K [] E HE2 HE Hbf.
 
 Lemma components_non_null: forall cs, components_sfrag env cs = true -> bound_in env b K [] (Intersection cs) = true ->
-    forall c, In c cs -> is_nullable (inst_nested env b c) = false.
+    forall c, In c cs -> is_nullable env (inst_nested env b c) = false.
 Proof.
     intros cs Hcs Hb c Hin. destruct (proj2 (components_sfrag_facts env cs Hcs) c Hin) as [Hsh Hs].
     apply (proj2 (proj2 (instance_facts env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hs)
@@ -298,15 +286,15 @@ Proof.
       change (inst_nested env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection cs))).
       destruct n as [|n]; [discriminate H|].
       destruct (tfrag_cases env t Ht) as [Hst|[[ts [-> Hts]]|[ts [-> Hts]]]].
-      + destruct (sfrag_cases env t Hst) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht0]]]]|[[g [-> _]]|[g [-> Hg]]]]]];
+      + destruct (sfrag_cases env wf t Hst) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht0]]]]|[[g [-> _]]|[g [-> Hg]]]]]];
             unfold bottom_type in *; try (rewrite unify_class_nullable in H; discriminate H);
             try (rewrite (unify_generic_nullable env) in H; discriminate H);
             rewrite unify_nullable_nullable in H.
         * pose proof (into_intersection_never_fails n _ cs u (sfrag_tfrag env _ Ht0) Hcs Hbt Hba H) as Hnf.
           rewrite Heq in Hnf |- *. exact (never_fails_nullable _ _ Hnf).
         * change (bound_in env b K [] (Nullable (Generic g))) with (bound_in env b K [] (Generic g)) in Hbt.
-          pose proof (into_intersection_never_fails n _ cs u (sfrag_tfrag env _ (generic_sfrag_sfrag env g Hg)) Hcs Hbt Hba H) as Hnf.
-          destruct (binds_ref_some env b K [] g Hbt) as [o [x [Ex _]]].
+          pose proof (into_intersection_never_fails n _ cs u (sfrag_tfrag env _ (generic_sfrag_sfrag env wf g Hg)) Hcs Hbt Hba H) as Hnf.
+          destruct (binds_ref_some env wf b K [] g Hbt) as [o [x [Ex _]]].
           pose proof (inst_ref_in_fragment env g x (Hbf _ o x Ex)) as HI.
           rewrite (inst_nested_generic env b g _ o x Ex) in Hnf. rewrite (inst_nested_nullable_generic env b g _ o x Ex).
           rewrite (rewrap_without_null env _ HI). rewrite Heq in Hnf |- *.
@@ -332,7 +320,7 @@ Theorem substitution_terminating: forall fuel t a,
     exists f, is_assignable_to env f (instantiate env b a) (instantiate env b t) = Some true.
 Proof.
     intros fuel t a Ht Ha Hbt Hba H.
-    rewrite <- (inst_nested_instantiate env b K [] t Ht Hbt), <- (inst_nested_instantiate env b K [] a Ha Hba).
+    rewrite <- (inst_nested_instantiate env wf b K [] t Ht Hbt), <- (inst_nested_instantiate env wf b K [] a Ha Hba).
     unfold is_assignable_to, empty_unification in *.
     destruct (unify env fuel t a (Ongoing [])) as [[u|]|] eqn:Eu; try discriminate H.
     pose proof (instances_never_fail fuel t a u Ht Ha Hbt Hba Eu) as Hnf.

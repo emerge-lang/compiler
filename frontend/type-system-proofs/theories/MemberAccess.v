@@ -41,6 +41,7 @@ Section MemberAccess.
 
 Variable env: Environment.
 Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
 
 (* A type argument of an object: invariant, owned or ref, of a type of the fragment *)
 Definition is_exact_argument (x: EType): bool :=
@@ -257,7 +258,7 @@ Proof.
     intros X HX. destruct (fragment_cases env X HX) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact HX.
 Qed.
 
-Lemma rewrap_is_nullable: forall t, is_nullable (rewrap_nullable t) = true.
+Lemma rewrap_is_nullable: forall t, is_nullable env (rewrap_nullable t) = true.
 Proof. intros [| | | | | |]; reflexivity. Qed.
 
 (* Where Y is above X, so is Y? above X? *)
@@ -705,7 +706,7 @@ Theorem member_write_sound: forall n s m c xs m' ys f V fuel,
     in_fragment env V = true -> is_non_nullable_nothing env V = false ->
     unify env fuel (write_member (bindings_of env c ys) f) V (Ongoing s) = Some (Ongoing s) ->
     (exists fuel', unify env fuel' (read_member (bindings_of env c xs) f) V (Ongoing s) = Some (Ongoing s))
-    \/ (holds_only_null V = true /\ is_nullable (read_member (bindings_of env c xs) f) = true).
+    \/ (holds_only_null V = true /\ is_nullable env (read_member (bindings_of env c xs) f) = true).
 Proof.
     intros n s m c xs m' ys f V fuel Hc Hlx Hly Hxs Hys H Hf HV HVn HW.
     assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true)

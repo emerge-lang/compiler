@@ -165,26 +165,28 @@ Inductive EType :=
     | TypeVariable (generic: GenericRef)
     (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
     | Intersection (components: list EType)
-(* GenericTypeReference; the mutability is `givenMutability`, written or applied. The effective bound
-   is the bound of the parameter, with the mutability and nullability of this reference applied.
+(* GenericTypeReference; the mutability is `givenMutability`, written or applied. The bound is the
+   parameter's (Environment.parameter_bound); the effective bound is that with the mutability and
+   nullability of this reference applied, and the type variables (Subtyping.effective_bound).
    narrowed: `isNarrowed`, a `!` made the effective bound non-nullable, where the bound of the
-   parameter is nullable. *)
+   parameter is nullable. variables: `typeVariables`, the type parameters under inference, which are
+   type variables in the effective bound. *)
 with GenericRef :=
-    | mkGenericRef (mutability: option Mutability) (narrowed: bool) (param: TypeParameterId) (effective_bound: EType)
+    | mkGenericRef (mutability: option Mutability) (narrowed: bool) (param: TypeParameterId) (variables: list TypeParameterId)
 .
 
-(* GenericTypeReference.givenMutability, .isNarrowed, .parameter and .effectiveBound. New proofs go
+(* GenericTypeReference.givenMutability, .isNarrowed, .parameter and .typeVariables. New proofs go
    through these rather than taking a GenericRef apart, so they need not change when it changes
    shape. *)
 Definition given_mutability (g: GenericRef): option Mutability := match g with mkGenericRef m _ _ _ => m end.
 Definition is_narrowed (g: GenericRef): bool := match g with mkGenericRef _ nn _ _ => nn end.
 Definition param_of (g: GenericRef): TypeParameterId := match g with mkGenericRef _ _ p _ => p end.
-Definition effective_bound (g: GenericRef): EType := match g with mkGenericRef _ _ _ b => b end.
+Definition variables_of (g: GenericRef): list TypeParameterId := match g with mkGenericRef _ _ _ vs => vs end.
 
-(* The declaration of a type parameter (BoundTypeParameter), the counterpart to a GenericRef. *)
+(* The declaration of a type parameter (BoundTypeParameter), the counterpart to a GenericRef. Its bound
+   is Environment.parameter_bound. *)
 Record TypeParameterDecl := {
     param_id: TypeParameterId;
-    bound: EType;
     (* `class Vec<owned T>`: the ownership every type argument for it must have. Without one, a type
        argument may have any. Not in the Kotlin frontend, yet. *)
     prescribed_ownership: option Ownership;
@@ -229,6 +231,11 @@ Record Environment := {
     closest_common_supertype_with: EType -> EType -> EType;
     (* BoundIntersectionTypeReference.Companion.intersect *)
     intersect: EType -> EType -> EType;
+    (* BoundTypeParameter.bound, of every type parameter, of classes and functions alike *)
+    parameter_bound: TypeParameterId -> EType;
+    (* The order the type parameters are declared in: a bound mentions only type parameters declared
+       before (Subtyping.bounds_ranked). Kotlin resolves a bound with only those in scope. *)
+    parameter_rank: TypeParameterId -> nat;
 }.
 
 End Model.

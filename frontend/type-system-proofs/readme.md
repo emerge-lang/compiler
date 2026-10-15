@@ -54,8 +54,8 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `ground`      | `SubstitutionWide.v` | what the types of `wtfrag` become: `gfrag` without type parameters                                   |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters, bounded by types without type parameters |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
-| `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, the references well-formed, Nothing only as `exclusive Nothing` (`bottom_only`), the type parameters of the caller none of those inferred |
-| `caller_type` | `GenericCode.v`   | the types of generic code: `wtfrag`, the references as `GenericTypeReference` makes them (`built`), to the type parameters of the caller |
+| `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, Nothing only as `exclusive Nothing` (`bottom_only`), the type parameters of the caller none of those inferred |
+| `caller_type` | `GenericCode.v`   | the types of generic code: `wtfrag`, the references to the type parameters of the caller |
 
 ### What the proofs assume
 
@@ -64,8 +64,8 @@ of the theorems, mostly bundled in records:
 
 | assumption                                     | where             | what it says                                                                                       |
 |------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------|
-| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing` |
-| `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`                                             |
+| `wellformed`                                   | `Transitivity.v`  | the class declarations of a program: supertypes transitive and acyclic, type arguments of supertypes as templates that compose, exact (no variance on the type arguments of declared supertypes, as the frontend enforces), mentioning no type variables, and Nothing only as `exclusive Nothing`; the declared bounds of type parameters mention no type variables, and only type parameters of a lower rank (`bounds_ranked`), so none is F-bounded |
+| `bounds_wellformed`                            | `Generics.v`      | the declared bounds of type parameters are of `gfrag`, and the components of an intersection in them are assigned as the same mutability, as `ofComponents` makes them (`uniform`) |
 | `supertypes_repeat_prescriptions`              | `Transitivity.v`  | for `prescriptions_carry_over_to_supertypes` only: supertypes repeat prescribed ownerships        |
 | `inference_types`                              | `Constraints.v`   | what inference takes of the types variables are replaced with and of their bounds; among it, what `intersect` and `closestCommonSupertypeWith` are assumed to be for those. `class_types_for_inference` gives it for class types |
 | `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
