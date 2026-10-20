@@ -1,21 +1,23 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-1. arrays slices; goal/target situation
-    * there are array-base-objects, identical to what an Array<T> is before
-    * emerge source can never reference these base objects directly, only ever slices of that
-    * when emerge source says "Array<T>", this is actually a fat pointer consisting of
+1. ~~arrays slices; goal/target situation~~
+    * ~~there are array-base-objects, identical to what an Array<T> is before~~
+    * ~~emerge source can never reference these base objects directly, only ever slices of that~~
+    * ~~when emerge source says "Array<T>", this is actually a fat pointer~~ consisting of
         * a pointer to the base array object that holds reference count, vtable, the length of the memory chunk
           and the actual array data
-        * a pointer to the first element in the slice
+        * ~~a pointer to the first element in the slice~~ the index of the first element in the slice, so that
+          virtual element access works without knowing the element size
         * the length of the slice
-    * so when you have a variable/parameter of type `Array<T>`, it can be a full array, but could also just be
-      a sub-slice of one
-    * `Array.new<T>(UWord, T)` creates a base array object and then returns a slice covering the entire array
-    * slicing functions, e.g. `someArray[1..5]`
-    * how to deal with `exclusive` mutability? idea: Array.new is the only way to get hold of an `exclusive`
-      slice. Slicing operations always capture the old slice, stopping the exclusive lifetime and settling the
-      sub-slice to either `mut` or `const`
-    * apply to standard library, especially IO functions
+    * ~~so when you have a variable/parameter of type `Array<T>`, it can be a full array, but could also just be
+      a sub-slice of one~~
+    * ~~`Array.new<T>(UWord, T)` creates a base array object and then returns a slice covering the entire array~~
+    * ~~slicing functions~~: `Array.slice` and `Array.sliceOrPanic`; the syntax `someArray[1..5]` is item 32
+    * ~~how to deal with `exclusive` mutability?~~ slicing captures the source and keeps its type, so an exclusive
+      array yields an exclusive slice and the source is gone
+    * ~~apply to standard library, especially IO functions~~
+    * arrays referenced as one of their supertypes (`Any`, `Iterable`, `T`, `Array<T>?`) are boxed into
+      `emerge.platform.ArrayBox`
 2. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
@@ -259,6 +261,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
     ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
+32. slicing syntax: `someArray[from..toExclusive]`, lowered to `Array.slice`. Needs a `..` operator in the
+    lexer/parser; maybe also open ranges (`someArray[from..]`, `someArray[..to]`)
+33. nullable arrays without a box: `Array<T>?` is boxed into `emerge.platform.ArrayBox` today; it could be an
+    `arrayslice` with a null base instead, saving the allocation
+34. explicitly importing a function from `emerge.std` makes invocations of it ambiguous: with
+    `import emerge.std.println`, `println("x")` reports "Multiple overloads of println apply", listing one
+    candidate
 -----
 
 ## Future features
