@@ -6,6 +6,11 @@ class S8Box {
     value: S8 = init
 }
 
+// holds an array when it is referenced as one of the supertypes of Array, e.g. Any or Iterable
+class ArrayBox {
+    value: Array<out Any?> = init
+}
+
 class U8Box {
     value: U8 = init
 }

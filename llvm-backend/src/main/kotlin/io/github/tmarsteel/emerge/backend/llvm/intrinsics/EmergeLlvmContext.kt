@@ -24,6 +24,7 @@ import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.associateByErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
+import io.github.tmarsteel.emerge.backend.llvm.boundBaseTypeOrNull
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExpressionResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
@@ -153,6 +154,10 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeBool: EmergeClassType
     /** `emerge.platform.ReflectionBaseTypeBox */
     internal lateinit var boxTypeReflectionBaseType: EmergeClassType
+    /** `emerge.platform.ArrayBox` */
+    internal lateinit var boxTypeArray: EmergeClassType
+    /** `emerge.core.Array` */
+    internal lateinit var rawArrayClazz: IrClass
     /** `emerge.ffi.c.CPointer */
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
@@ -243,6 +248,7 @@ class EmergeLlvmContext(
             EmergeConstants.CoreModule.BOOL_TYPE_NAME -> rawBoolClazz = clazz
             EmergeConstants.CoreModule.ARITHMETIC_ERROR_TYPE_NAME -> arithmeticErrorClazz = clazz
             EmergeConstants.ReflectionModule.REFLECTION_BASE_TYPE_TYPE_NAME -> rawReflectionBaseTypeClazz = clazz
+            EmergeConstants.CoreModule.ARRAY_TYPE_NAME -> rawArrayClazz = clazz
         }
 
         if (clazz.autoboxer is Autoboxer.PrimitiveType) {
@@ -274,6 +280,7 @@ class EmergeLlvmContext(
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
+            "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -647,7 +654,12 @@ class EmergeLlvmContext(
         val baseType: IrBaseType = when (type) {
             is IrSimpleType -> type.baseType
             is IrParameterizedType -> type.simpleType.baseType
-            is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
+            is IrGenericTypeReference -> {
+                if (type.autoboxer === Autoboxer.ArraySlice) {
+                    return Autoboxer.ArraySlice.getReferenceSiteType(this, type, forceBoxed)
+                }
+                return getReferenceSiteType(type.effectiveBound)
+            }
             is IrIntersectionType -> return pointerTo(getAllocationSiteType(type))
         }
 
@@ -659,34 +671,63 @@ class EmergeLlvmContext(
         return pointerTo(getAllocationSiteType(type))
     }
 
+    /**
+     * @return for array types: the type of the array object that holds the elements, as far as statically known.
+     * [EmergeArrayBaseType] if the element type is not known well enough; then the elements have to be accessed
+     * through the vtable of the array object.
+     */
+    fun getArrayObjectType(arrayType: IrType): LlvmType {
+        val component = when (arrayType) {
+            is IrGenericTypeReference -> return getArrayObjectType(arrayType.effectiveBound)
+            is IrParameterizedType -> arrayType.arguments.values.single()
+            else -> return EmergeArrayBaseType
+        }
+        if (component.variance == IrTypeVariance.IN) {
+            return EmergeArrayBaseType
+        }
+
+        val elementBaseType = component.type.boundBaseTypeOrNull()
+            ?: return EmergeArrayBaseType
+
+        if (elementBaseType.canonicalName.toString() == "emerge.core.Any") {
+            return if (component.type !is IrGenericTypeReference && component.variance == IrTypeVariance.INVARIANT) {
+                EmergeReferenceArrayType
+            } else {
+                EmergeArrayBaseType
+            }
+        }
+
+        if (component.type.isNullable) {
+            // nullable value types are boxed
+            return EmergeReferenceArrayType
+        }
+
+        if (elementBaseType.autoboxer === Autoboxer.ReflectionBaseType) {
+            return PointerToEmergeArrayOfPointersToTypeInfoType.pointed
+        }
+
+        return when (elementBaseType.canonicalName.toString()) {
+            "emerge.core.S8" -> EmergeS8ArrayType
+            "emerge.core.U8" -> EmergeU8ArrayType
+            "emerge.core.S16" -> EmergeS16ArrayType
+            "emerge.core.U16" -> EmergeU16ArrayType
+            "emerge.core.S32" -> EmergeS32ArrayType
+            "emerge.core.U32" -> EmergeU32ArrayType
+            "emerge.core.S64" -> EmergeS64ArrayType
+            "emerge.core.U64" -> EmergeU64ArrayType
+            "emerge.core.SWord" -> EmergeSWordArrayType
+            "emerge.core.UWord" -> EmergeUWordArrayType
+            "emerge.core.Bool" -> EmergeBooleanArrayType
+            "emerge.core.Array" -> EmergeSliceArrayType
+            else -> EmergeReferenceArrayType
+        }
+    }
+
     fun getAllocationSiteType(type: IrType): LlvmType {
         type.autoboxer?.let { return it.unboxedType }
         when (type) {
             is IrGenericTypeReference -> return getAllocationSiteType(type.effectiveBound)
             is IrParameterizedType -> when (type.simpleType.baseType.canonicalName.toString()) {
-                "emerge.core.Array" -> {
-                    val component = type.arguments.values.single()
-                    if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
-                        return EmergeArrayBaseType
-                    }
-
-                    return when ((component.type as IrSimpleType).baseType.canonicalName) {
-                        EmergeConstants.CoreModule.S8_TYPE_NAME -> EmergeS8ArrayType
-                        EmergeConstants.CoreModule.U8_TYPE_NAME -> EmergeU8ArrayType
-                        EmergeConstants.CoreModule.S16_TYPE_NAME -> EmergeS16ArrayType
-                        EmergeConstants.CoreModule.U16_TYPE_NAME -> EmergeU16ArrayType
-                        EmergeConstants.CoreModule.S32_TYPE_NAME -> EmergeS32ArrayType
-                        EmergeConstants.CoreModule.U32_TYPE_NAME -> EmergeU32ArrayType
-                        EmergeConstants.CoreModule.S64_TYPE_NAME -> EmergeS64ArrayType
-                        EmergeConstants.CoreModule.U64_TYPE_NAME -> EmergeU64ArrayType
-                        EmergeConstants.CoreModule.SWORD_TYPE_NAME -> EmergeSWordArrayType
-                        EmergeConstants.CoreModule.UWORD_TYPE_NAME -> EmergeUWordArrayType
-                        EmergeConstants.CoreModule.BOOL_TYPE_NAME -> EmergeBooleanArrayType
-                        EmergeConstants.CoreModule.ANY_TYPE_NAME -> if (component.variance == IrTypeVariance.OUT) EmergeArrayBaseType else EmergeReferenceArrayType
-                        else -> EmergeReferenceArrayType
-                    }
-                }
-
                 "emerge.ffi.c.CPointer" -> {
                     val componentType = getAllocationSiteType(type.arguments.values.single().type)
                     return LlvmPointerType(componentType)
@@ -791,6 +832,8 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
         listOf(
             arrayAddressOfFirst,
             arraySize,
+            arraySlice,
+            arraySliceOrPanic,
             arrayAbstractFallibleGet,
             arrayAbstractFallibleSet,
             arrayAbstractPanicGet,
