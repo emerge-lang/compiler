@@ -8,6 +8,11 @@ import emerge.ffi.c.COpaquePointer
 import emerge.std.io.IOException
 import emerge.std.collections.ArrayList
 
+// declared here so they are initialized before the streams below
+FD_STDIN: S32 = 0
+FD_STDOUT: S32 = 1
+FD_STDERR: S32 = 2
+
 export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
 export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
 
@@ -16,21 +21,13 @@ class FileDescriptorPrintStream : PrintStream {
     
     override fn put(self: mut _, str: String) {
         var bufToWrite: read Array<S8> = str.utf8Data
-        while true {
+        while bufToWrite.size > 0 {
             writeResult = pureWrite(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
             if writeResult <= 0 {
                 throw WriteFailedException(getErrno())
             }
-            
-            nBytesWritten = writeResult.asUWord()
-            if nBytesWritten >= bufToWrite.size {
-                break
-            }
-            
-            // workaround until there are array slices / pointer arithmetic
-            newBuf: mut _ = Array.new::<S8>(bufToWrite.size - nBytesWritten, 0 as S8)
-            Array.copy(bufToWrite, nBytesWritten, newBuf, 0, newBuf.size)
-            set bufToWrite = newBuf
+
+            set bufToWrite = bufToWrite.sliceOrPanic(writeResult.asUWord(), bufToWrite.size)
         }
     }
     
