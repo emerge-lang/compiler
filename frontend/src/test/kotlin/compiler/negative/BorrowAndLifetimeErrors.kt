@@ -605,4 +605,49 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
     }
+
+    "parameters typed by a type variable use the inferred mutability" - {
+        "capture into a type variable ends the lifetime of an exclusive argument" {
+            validateModule("""
+                class Test {}
+                fn keep<A : read Test>(capture p: A) -> A = p
+                fn test() {
+                    a: exclusive _ = Test()
+                    s: exclusive _ = keep(a)
+                    t: exclusive _ = a
+                }
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "a"
+                }
+        }
+
+        "capture into a generic receiver ends the lifetime of an exclusive argument" {
+            validateModule("""
+                class Test {
+                    fn keep<A : read Test>(capture self: A) -> A = self
+                }
+                fn test() -> exclusive Test {
+                    a: exclusive _ = Test()
+                    s = a.keep()
+                    return a
+                }
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "a"
+                }
+        }
+
+        "borrow into a type variable borrows with the inferred mutability" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger<A : read C>(borrow a: A, borrow b: mut C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+    }
 })
