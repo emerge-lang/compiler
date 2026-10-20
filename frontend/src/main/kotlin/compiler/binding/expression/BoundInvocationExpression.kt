@@ -188,10 +188,13 @@ class BoundInvocationExpression(
                 )
             }
 
-            chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
+            val candidate = chosenOverload!!.candidate
+            candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .forEach { (parameter, argument) ->
                     argument.setEvaluationResultUsage(CreateReferenceValueUsage(
-                        parameter.typeAtDeclarationTime,
+                        parameter.typeAtDeclarationTime
+                            ?.withTypeVariables(candidate.allTypeParameters)
+                            ?.instantiateFreeVariables(chosenOverload!!.unification),
                         parameter.declaration.span,
                         parameter.ownershipAtDeclarationTime,
                     ))
