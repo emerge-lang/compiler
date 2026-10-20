@@ -5,13 +5,17 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -29,6 +33,8 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
+import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
+import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
@@ -61,9 +67,29 @@ internal class EmergeClassType private constructor(
         return irClass.fields.single().type.findSimpleTypeBound().baseType.canonicalName
     }
 
-    private val typeinfoProvider by lazy {
+    private val typeinfoProvider: StaticAndDynamicTypeInfo.Provider by lazy {
         if (this.irClass.canonicalName.toString() == "emerge.core.Array") {
-            return@lazy EmergeReferenceArrayType.typeinfo
+            // the only objects of type Array that emerge code can observe are boxes
+            return@lazy StaticAndDynamicTypeInfo.Provider { ctx -> ctx.boxTypeArray.getTypeinfoInContext(ctx) }
+        }
+
+        if (this.irClass.canonicalName.toString() == "emerge.platform.ArrayBox") {
+            return@lazy StaticAndDynamicTypeInfo.define(
+                { ctx -> ctx.rawArrayClazz.canonicalName.toString() },
+                context.rawArrayClazz.allDistinctSupertypesExceptAny,
+                { _ -> destructor },
+                virtualFunctions = {
+                    rawArrayClazz.memberFunctions
+                        .asSequence()
+                        .flatMap { it.overloads }
+                        .filter { it.overrides.isNotEmpty() && it.supportsDynamicDispatch }
+                        .flatMap { memberFn ->
+                            val bridge = registerIntrinsic(buildArrayBoxBridge(memberFn))
+                            memberFn.signatureHashes.map { hash -> Pair(hash, bridge) }
+                        }
+                        .associateErrorOnDuplicate()
+                }
+            )
         }
 
         StaticAndDynamicTypeInfo.define(
@@ -223,6 +249,34 @@ internal class EmergeClassType private constructor(
 
             check(field in this@member.pointeeType.irClass.fields)
             return stepUnsafe(context.i32(field.indexInLlvmStruct!!), context.getReferenceSiteType(field.type))
+        }
+    }
+}
+
+private val bridgeParameter = Unit
+
+/**
+ * @return a function to put into the vtable of `emerge.platform.ArrayBox` in place of [arrayFn]: takes the
+ * box as the receiver and forwards to [arrayFn] with the boxed slice.
+ */
+private fun buildArrayBoxBridge(arrayFn: IrMemberFunction): KotlinLlvmFunction<EmergeLlvmContext, LlvmType> {
+    val arrayFnType = arrayFn.llvmFunctionType
+    return KotlinLlvmFunction.define(
+        "emerge.platform.ArrayBox::${arrayFn.llvmName}",
+        arrayFnType.returnType,
+    ) {
+        val box by param(PointerToAnyEmergeValue)
+        val forwardedParams = arrayFnType.parameterTypes.drop(1).map { param(it) }
+        body {
+            val slice = Autoboxer.ArraySlice.unbox(box)
+            val arguments = listOf(slice) + forwardedParams.map { it.getValue(null, ::bridgeParameter) }
+            @Suppress("UNCHECKED_CAST")
+            val result = call(arrayFn.llvmRef!! as LlvmFunction<LlvmType>, arguments)
+            if (arrayFnType.returnType == LlvmVoidType) {
+                (this as BasicBlockBuilder<EmergeLlvmContext, LlvmVoidType>).retVoid()
+            } else {
+                ret(result)
+            }
         }
     }
 }

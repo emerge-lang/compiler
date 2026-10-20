@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
@@ -57,6 +58,82 @@ internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHea
 
     override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
         check(Llvm.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
+    }
+}
+
+/**
+ * The reference-site representation of every `emerge.core.Array<...>`: a view of [length] elements of the
+ * array object [base], starting at element [offset].
+ */
+internal object EmergeArraySliceType : LlvmNamedStructType("arrayslice") {
+    val base by structMember(pointerTo(EmergeArrayBaseType))
+    val offset by structMember(EmergeWordType)
+    val length by structMember(EmergeWordType)
+}
+
+context(BasicBlockBuilder<*, *>)
+internal val LlvmValue<EmergeArraySliceType>.sliceBase: LlvmValue<LlvmPointerType<EmergeArrayBaseType>>
+    get() = extractValue(this) { base }
+
+context(BasicBlockBuilder<*, *>)
+internal val LlvmValue<EmergeArraySliceType>.sliceOffset: LlvmValue<EmergeWordType>
+    get() = extractValue(this) { offset }
+
+context(BasicBlockBuilder<*, *>)
+internal val LlvmValue<EmergeArraySliceType>.sliceLength: LlvmValue<EmergeWordType>
+    get() = extractValue(this) { length }
+
+context(BasicBlockBuilder<*, *>)
+internal fun buildArraySlice(
+    base: LlvmValue<LlvmPointerType<*>>,
+    offset: LlvmValue<EmergeWordType>,
+    length: LlvmValue<EmergeWordType>,
+): LlvmValue<EmergeArraySliceType> {
+    var slice: LlvmValue<EmergeArraySliceType> = context.undefValue(EmergeArraySliceType)
+    slice = insertValue(slice, base.reinterpretAs(pointerTo(EmergeArrayBaseType))) { this.base }
+    slice = insertValue(slice, offset) { this.offset }
+    slice = insertValue(slice, length) { this.length }
+    return slice
+}
+
+/** @return a slice covering the entire array object [base] */
+context(BasicBlockBuilder<*, *>)
+internal fun buildArraySliceOfEntireArray(base: LlvmValue<LlvmPointerType<*>>): LlvmValue<EmergeArraySliceType> {
+    val typedBase = base.reinterpretAs(pointerTo(EmergeArrayBaseType))
+    val elementCount = getelementptr(typedBase)
+        .member { elementCount }
+        .get()
+        .dereference()
+    return buildArraySlice(typedBase, context.word(0), elementCount)
+}
+
+/**
+ * @return a pointer to the element at [index] in the slice [slice], assuming its base is of type [arrayType].
+ * Doesn't check bounds.
+ */
+context(BasicBlockBuilder<*, *>)
+internal fun <Element : LlvmType> sliceElementPointer(
+    arrayType: EmergeArrayType<Element>,
+    slice: LlvmValue<EmergeArraySliceType>,
+    index: LlvmValue<EmergeWordType>,
+): LlvmValue<LlvmPointerType<Element>> {
+    return getelementptr(slice.sliceBase.reinterpretAs(pointerTo(arrayType)))
+        .member { elements }
+        .index(add(slice.sliceOffset, index))
+        .get()
+}
+
+/**
+ * Builds a constant slice covering all of [baseArray], a constant array object.
+ */
+internal fun EmergeLlvmContext.buildConstantSliceOf(
+    baseArray: LlvmValue<LlvmPointerType<*>>,
+    elementCount: Long,
+): LlvmConstant<EmergeArraySliceType> {
+    return EmergeArraySliceType.buildConstantIn(this) {
+        setValue(EmergeArraySliceType.base, baseArray.reinterpretAs(pointerTo(EmergeArrayBaseType)))
+        setValue(EmergeArraySliceType.offset, word(0))
+        setValue(EmergeArraySliceType.length, word(elementCount))
     }
 }
 
@@ -128,22 +205,41 @@ internal class EmergeArrayType<Element : LlvmType>(
      * A function of the signature (size: UWord, defaultValue: Element) -> Array<Element> that creates a new array
      * of the given size and sets all the elements to the given value.
      */
-    val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
-
-    val supertypes: Iterable<StaticAndDynamicTypeInfo.Provider>,
+    val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, EmergeArraySliceType>,
 ) : LlvmNamedStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
 
+    /**
+     * A function of the signature nothrow (self: Array<Element>) -> COpaquePointer, to be placed in the vtable.
+     * Returns the address of the first element of the slice.
+     */
+    private val virtualAddressOfFirst: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<LlvmVoidType>> by lazy {
+        KotlinLlvmFunction.define(
+            "emerge.platform.array_${elementTypeName}_addressOfFirst",
+            pointerTo(LlvmVoidType),
+        ) {
+            val self by param(EmergeArraySliceType)
+            body {
+                ret(sliceElementPointer(this@EmergeArrayType, self, context.word(0)).reinterpretAs(pointerTo(LlvmVoidType)))
+            }
+        }
+    }
+
+    /**
+     * Array objects are never visible to emerge code as values of type `Any`; [EmergeArraySliceType]s are boxed
+     * into `emerge.platform.ArrayBox` for that. Hence, this typeinfo only serves for the vtable and the finalizer.
+     */
     val typeinfo = StaticAndDynamicTypeInfo.defineRaw(
         { _ -> name },
-        supertypes.map { superTiP -> { ctx: EmergeLlvmContext -> superTiP.provide(ctx).dynamic } },
+        emptyList(),
         { ctx -> ctx.registerIntrinsic(finalizer) },
         { mapOf(
             VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE to registerIntrinsic(virtualGetterWithFallibleBoundsCheck),
             VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC    to registerIntrinsic(virtualGetterWithPanicBoundsCheck),
             VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE to registerIntrinsic(virtualSetterWithFallibleBoundsCheck),
             VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC    to registerIntrinsic(virtualSetterWithPanicBoundsCheck),
+            VIRTUAL_FUNCTION_HASH_ADDRESS_OF_FIRST     to registerIntrinsic(virtualAddressOfFirst),
         ) },
     )
 
@@ -302,6 +398,7 @@ internal class EmergeArrayType<Element : LlvmType>(
         val VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC: ULong    = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000uL
         val VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE: ULong = 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000uL
         val VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC: ULong    = 0b1100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000uL
+        val VIRTUAL_FUNCTION_HASH_ADDRESS_OF_FIRST: ULong     = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000uL
     }
 }
 
@@ -323,16 +420,12 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithFallibleB
         "emerge.platform.array_${typeName}_getBoxed_fallibleBoundsCheck",
         EmergeFallibleCallResult.ofEmergeReference,
     ) {
-        val self by param(pointerTo(getValueArrayType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         body {
             inlineFallibleBoundsCheck(self, index)
 
-            val raw = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-                .dereference()
+            val raw = sliceElementPointer(getValueArrayType(), self, index).dereference()
 
             ret(
                 call(getBoxType(context).constructor, listOf(raw))
@@ -351,16 +444,12 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithPanicBoun
         "emerge.platform.value_${typeName}_getBoxed_panicBoundsCheck",
         PointerToAnyEmergeValue,
     ) {
-        val self by param(pointerTo(getValueArrayType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         body {
             inlinePanicBoundsCheck(self, index)
 
-            val raw = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-                .dereference()
+            val raw = sliceElementPointer(getValueArrayType(), self, index).dereference()
 
             val box = call(getBoxType(context).constructor, listOf(raw)).abortOnException { exceptionPtr ->
                 inlinePanic("failed to allocate box - OOM")
@@ -380,11 +469,11 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithFallibleB
         "emerge.platform.array_${typeName}_setBoxed_fallibleBoundsCheck",
         EmergeFallibleCallResult.OfVoid,
     ) {
-        val arrayType = getValueArrayType()
-        val self by param(pointerTo(arrayType))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
+            val arrayType = getValueArrayType()
             val boxType = getBoxType(context)
             val valueMember = boxType.irClass.fields.single()
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
@@ -397,12 +486,8 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithFallibleB
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)
-            val targetPointer = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
 
-            store(raw, targetPointer)
+            store(raw, sliceElementPointer(arrayType, self, index))
             retFallibleVoid()
         }
     }
@@ -417,11 +502,11 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithPanicBoun
         "emerge.platform.array_${typeName}_setBoxed_panicBoundsCheck",
         LlvmVoidType,
     ) {
-        val arrayType = getValueArrayType()
-        val self by param(pointerTo(arrayType))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
+            val arrayType = getValueArrayType()
             val boxType = getBoxType(context)
             val valueMember = boxType.irClass.fields.single()
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
@@ -434,12 +519,8 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithPanicBoun
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)
-            val targetPointer = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
 
-            store(raw, targetPointer)
+            store(raw, sliceElementPointer(arrayType, self, index))
             retVoid()
         }
     }
@@ -458,64 +539,56 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithoutBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.NoFree)
         functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
 
         body {
-            ret(
-                getelementptr(arrayPtr)
-                    .member { elements }
-                    .index(index)
-                    .get()
-                    .dereference()
-            )
+            ret(sliceElementPointer(getSelfType(), self, index).dereference())
         }
     }
 }
 
-private fun <Element : LlvmType> buildValueArrayRawGetterWithFallibleBoundsCheck(
-    elementTypeName: String,
+private fun <Element : LlvmType> buildRawGetterWithFallibleBoundsCheck(
+    name: String,
     elementType: Element,
-    getSelfType: () -> EmergeArrayType<Element>,
     rawGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<Element>> {
     return KotlinLlvmFunction.define<_, _>(
-        "emerge.core.array_${elementTypeName}_rawGetWithFallibleBoundsCheck",
+        name,
         EmergeFallibleCallResult.WithValue(elementType),
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
 
         body {
-            inlineFallibleBoundsCheck(arrayPtr, index)
-            val raw = call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(arrayPtr, index))
+            inlineFallibleBoundsCheck(self, index)
+            val raw = call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(self, index))
             ret(fallibleSuccess(raw))
         }
     }
 }
 
-private fun <Element : LlvmType> buildValueArrayRawGetterWithPanicBoundsCheck(
-    elementTypeName: String,
+private fun <Element : LlvmType> buildRawGetterWithPanicBoundsCheck(
+    name: String,
     elementType: Element,
-    getSelfType: () -> EmergeArrayType<Element>,
     rawGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, Element> {
     return KotlinLlvmFunction.define<_, _>(
-        "emerge.core.array_${elementTypeName}_rawGetWithPanicBoundsCheck",
+        name,
         elementType,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
 
         body {
-            inlinePanicBoundsCheck(arrayPtr, index)
-            val raw = call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(arrayPtr, index))
+            inlinePanicBoundsCheck(self, index)
+            val raw = call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(self, index))
             ret(raw)
         }
     }
@@ -534,68 +607,60 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithoutBoundsCheck(
         functionAttribute(LlvmFunctionAttribute.NoFree)
         functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val value by param(elementType)
 
         body {
-            store(
-                value,
-                getelementptr(arrayPtr)
-                    .member { elements }
-                    .index(index)
-                    .get()
-            )
+            store(value, sliceElementPointer(getSelfType(), self, index))
             retVoid()
         }
     }
 }
 
-private fun <Element : LlvmType> buildValueArrayRawSetterWithFallibleBoundsCheck(
-    elementTypeName: String,
+private fun <Element : LlvmType> buildRawSetterWithFallibleBoundsCheck(
+    name: String,
     elementType: Element,
-    getSelfType: () -> EmergeArrayType<Element>,
     rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> {
     return KotlinLlvmFunction.define<_, _>(
-        "emerge.core.array_${elementTypeName}_rawSetWithFallibleBoundsCheck",
+        name,
         EmergeFallibleCallResult.OfVoid,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val value by param(elementType)
 
         body {
-            inlineFallibleBoundsCheck(arrayPtr, index)
-            call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(arrayPtr, index, value))
+            inlineFallibleBoundsCheck(self, index)
+            call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(self, index, value))
             retFallibleVoid()
         }
     }
 }
 
-private fun <Element : LlvmType> buildValueArrayRawSetterWithPanicBoundsCheck(
-    elementTypeName: String,
+private fun <Element : LlvmType> buildRawSetterWithPanicBoundsCheck(
+    name: String,
     elementType: Element,
-    getSelfType: () -> EmergeArrayType<Element>,
     rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
     return KotlinLlvmFunction.define<_, _>(
-        "emerge.core.array_${elementTypeName}_rawSetWithPanicBoundsCheck",
+        name,
         LlvmVoidType,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
 
-        val arrayPtr by param(pointerTo(getSelfType()))
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val value by param(elementType)
 
         body {
-            inlinePanicBoundsCheck(arrayPtr, index)
-            call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(arrayPtr, index, value))
+            inlinePanicBoundsCheck(self, index)
+            call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(self, index, value))
             retVoid()
         }
     }
@@ -605,16 +670,15 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
     elementTypeName: String,
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>,
-) : KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeArraySliceType> {
     return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_defaultValueCtor",
-        PointerToAnyEmergeValue,
+        EmergeArraySliceType,
     ) {
         val size by param(EmergeWordType)
         val defaultValue by param(elementType)
 
         body {
-            val rawSetterNoBoundsCheck = context.registerIntrinsic(getSelfType().rawSetterWithoutBoundsCheck)
             val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
             val indexStack = alloca(EmergeWordType)
             store(context.word(0), indexStack)
@@ -626,11 +690,17 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
                     ifTrue = { this@loop.breakLoop() }
                 )
 
-                call(rawSetterNoBoundsCheck, listOf(arrayPtr, index, defaultValue))
+                store(
+                    defaultValue,
+                    getelementptr(arrayPtr)
+                        .member { elements }
+                        .index(index)
+                        .get()
+                )
                 store(add(index, context.word(1)), indexStack)
                 loopContinue()
             }
-            ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
+            ret(buildArraySlice(arrayPtr, context.word(0), size))
         }
     }
 }
@@ -646,11 +716,11 @@ private fun <Element : LlvmType> buildValueArrayType(
     val virtualFallibleSetter = buildValueArrayBoxingElementSetterWithFallibleBoundsCheck(elementTypeName, { arrayTypeHolder }, getBoxType)
     val virtualPanicSetter = buildValueArrayBoxingElementSetterWithPanicBoundsCheck(elementTypeName, { arrayTypeHolder }, getBoxType)
     val rawGetterWithoutBoundsCheck = buildValueArrayRawGetterWithoutBoundsCheck(elementTypeName, elementType, { arrayTypeHolder })
-    val rawGetterWithFallibleBoundsCheck = buildValueArrayRawGetterWithFallibleBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawGetterWithoutBoundsCheck)
-    val rawGetterWithPanicBoundsCheck = buildValueArrayRawGetterWithPanicBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawGetterWithoutBoundsCheck)
+    val rawGetterWithFallibleBoundsCheck = buildRawGetterWithFallibleBoundsCheck("emerge.core.array_${elementTypeName}_rawGetWithFallibleBoundsCheck", elementType, rawGetterWithoutBoundsCheck)
+    val rawGetterWithPanicBoundsCheck = buildRawGetterWithPanicBoundsCheck("emerge.core.array_${elementTypeName}_rawGetWithPanicBoundsCheck", elementType, rawGetterWithoutBoundsCheck)
     val rawSetterWithoutBoundsCheck = buildValueArrayRawSetterWithoutBoundsCheck(elementTypeName, elementType, { arrayTypeHolder })
-    val rawSetterWithFallibleBoundsCheck = buildValueArrayRawSetterWithFallibleBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawSetterWithoutBoundsCheck)
-    val rawSetterWithPanicBoundsCheck = buildValueArrayRawSetterWithPanicBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawSetterWithoutBoundsCheck)
+    val rawSetterWithFallibleBoundsCheck = buildRawSetterWithFallibleBoundsCheck("emerge.core.array_${elementTypeName}_rawSetWithFallibleBoundsCheck", elementType, rawSetterWithoutBoundsCheck)
+    val rawSetterWithPanicBoundsCheck = buildRawSetterWithPanicBoundsCheck("emerge.core.array_${elementTypeName}_rawSetWithPanicBoundsCheck", elementType, rawSetterWithoutBoundsCheck)
     val defaultValueCtor = buildValueArrayDefaultValueConstructor(elementTypeName, elementType, { arrayTypeHolder })
     arrayTypeHolder = EmergeArrayType(
         elementTypeName,
@@ -667,7 +737,6 @@ private fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithoutBoundsCheck,
         valueArrayDestructor,
         defaultValueCtor,
-        listOf(EmergeReferenceArrayType.typeinfo),
     )
 
     return arrayTypeHolder
@@ -687,9 +756,9 @@ private fun <Element : LlvmIntegerType> buildValueArrayCopy(
         "emerge.core.array_${typename}_copy",
         LlvmVoidType,
     ) {
-        val sourceArrUntypedPtr by param(PointerToAnyEmergeValue)
+        val source by param(EmergeArraySliceType)
         val sourceOffset by param(EmergeWordType)
-        val destArrayUntypedPtr by param(PointerToAnyEmergeValue)
+        val dest by param(EmergeArraySliceType)
         val destOffset by param(EmergeWordType)
         val length by param(EmergeWordType)
 
@@ -701,52 +770,32 @@ private fun <Element : LlvmIntegerType> buildValueArrayCopy(
                 }
             )
 
-            val sourceArrPtr = sourceArrUntypedPtr.reinterpretAs(pointerTo(getSelfType()))
-            val destArrPtr = destArrayUntypedPtr.reinterpretAs(pointerTo(getSelfType()))
-
-            val sourceSize = getelementptr(sourceArrPtr)
-                .member { base }
-                .member { elementCount }
-                .get()
-                .dereference()
-
             val sourceMinSizeResult = call(UnsignedWordAddWithOverflow, listOf(sourceOffset, length))
             conditionalBranch(
                 condition = or(
                     extractValue(sourceMinSizeResult) { hadOverflow },
-                    icmp(extractValue(sourceMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, sourceSize),
+                    icmp(extractValue(sourceMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, source.sliceLength),
                 ),
                 ifTrue = {
                     inlinePanic("length overflows bounds of source")
                 }
             )
 
-            val destSize = getelementptr(destArrPtr)
-                .member { base }
-                .member { elementCount }
-                .get()
-                .dereference()
-
             val destMinSizeResult = call(UnsignedWordAddWithOverflow, listOf(destOffset, length))
             conditionalBranch(
                 condition = or(
                     extractValue(destMinSizeResult) { hadOverflow },
-                    icmp(extractValue(destMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, destSize),
+                    icmp(extractValue(destMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, dest.sliceLength),
                 ),
                 ifTrue = {
                     inlinePanic("length overflows bounds of dest")
                 }
             )
 
-            memcpy(
-                destination = getelementptr(destArrPtr)
-                    .member { elements }
-                    .index(destOffset)
-                    .get(),
-                source = getelementptr(sourceArrPtr)
-                    .member { elements }
-                    .index(sourceOffset)
-                    .get(),
+            // memmove semantics are needed because source and dest can be overlapping slices of the same array
+            memmove(
+                destination = sliceElementPointer(getSelfType(), dest, destOffset),
+                source = sliceElementPointer(getSelfType(), source, sourceOffset),
                 mul(elementType.sizeof(), length)
             )
 
@@ -766,62 +815,39 @@ private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeL
     "emerge.platform.referenceArray_get_noBoundsCheck",
     PointerToAnyEmergeValue,
 ) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
+    val self by param(EmergeArraySliceType)
     val index by param(EmergeWordType)
 
     instructionAliasAttributes()
 
     body {
-        val referenceEntry = getelementptr(self)
-            .member { elements }
-            .index(index)
-            .get()
-            .dereference()
+        val referenceEntry = sliceElementPointer(EmergeReferenceArrayType, self, index).dereference()
         referenceEntry.afterReferenceCreated(isNullable = true)
         ret(referenceEntry)
     }
 }
 
-private val referenceArrayElementGetterFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetterFallibleBoundsCheck = buildRawGetterWithFallibleBoundsCheck(
     "emerge.platform.referenceArray_get_fallibleBoundsCheck",
-    EmergeFallibleCallResult.ofEmergeReference,
-) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
-    body {
-        inlineFallibleBoundsCheck(self, index)
-        ret(fallibleSuccess(
-            call(context.registerIntrinsic(referenceArrayElementGetterNoBoundsCheck), listOf(self, index))
-        ))
-    }
-}
+    PointerToAnyEmergeValue,
+    referenceArrayElementGetterNoBoundsCheck,
+)
 
-private val referenceArrayElementGetterPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetterPanicBoundsCheck = buildRawGetterWithPanicBoundsCheck(
     "emerge.platform.referenceArray_get_panicBoundsCheck",
     PointerToAnyEmergeValue,
-) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
-    body {
-        inlinePanicBoundsCheck(self, index)
-        ret(
-            call(context.registerIntrinsic(referenceArrayElementGetterNoBoundsCheck), listOf(self, index))
-        )
-    }
-}
+    referenceArrayElementGetterNoBoundsCheck,
+)
 
 private val referenceArrayElementSetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_set_noBoundsCheck",
     LlvmVoidType,
 ) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
+    val self by param(EmergeArraySliceType)
     val index by param(EmergeWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
-        val pointerToSlotInArray = getelementptr(self)
-            .member { elements }
-            .index(index)
-            .get()
+        val pointerToSlotInArray = sliceElementPointer(EmergeReferenceArrayType, self, index)
         val previousValue = pointerToSlotInArray.dereference()
         previousValue.afterReferenceDropped(isNullable = true)
 
@@ -831,33 +857,17 @@ private val referenceArrayElementSetterNoBoundsCheck: KotlinLlvmFunction<EmergeL
     }
 }
 
-private val referenceArrayElementSetterFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> = KotlinLlvmFunction.define(
+private val referenceArrayElementSetterFallibleBoundsCheck = buildRawSetterWithFallibleBoundsCheck(
     "emerge.platform.referenceArray_set_fallibleBoundsCheck",
-    EmergeFallibleCallResult.OfVoid,
-) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
-    val value by param(PointerToAnyEmergeValue)
-    body {
-        inlineFallibleBoundsCheck(self, index)
-        call(context.registerIntrinsic(referenceArrayElementSetterNoBoundsCheck), listOf(self, index, value))
-        retFallibleVoid()
-    }
-}
+    PointerToAnyEmergeValue,
+    referenceArrayElementSetterNoBoundsCheck,
+)
 
-private val referenceArrayElementSetterPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "emerge.platform.referenceArray_set_fallibleBoundsCheck",
-    LlvmVoidType,
-) {
-    val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(EmergeWordType)
-    val value by param(PointerToAnyEmergeValue)
-    body {
-        inlinePanicBoundsCheck(self, index)
-        call(context.registerIntrinsic(referenceArrayElementSetterNoBoundsCheck), listOf(self, index, value))
-        retVoid()
-    }
-}
+private val referenceArrayElementSetterPanicBoundsCheck = buildRawSetterWithPanicBoundsCheck(
+    "emerge.platform.referenceArray_set_panicBoundsCheck",
+    PointerToAnyEmergeValue,
+    referenceArrayElementSetterNoBoundsCheck,
+)
 
 private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_finalize",
@@ -900,7 +910,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
     lateinit var arrayTypeHolder: EmergeArrayType<LlvmPointerType<out EmergeHeapAllocated>>
     val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         "emerge.platform.ref_array_defaultValueCtor",
-        PointerToAnyEmergeValue,
+        EmergeArraySliceType,
     ) {
         val size by param(EmergeWordType)
         val defaultValue by param(PointerToAnyEmergeValue)
@@ -939,7 +949,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                 loopContinue()
             }
 
-            ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
+            ret(buildArraySlice(arrayPtr, context.word(0), size))
         }
     }
     arrayTypeHolder = EmergeArrayType(
@@ -957,25 +967,240 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         rawSetterWithoutBoundsCheck = referenceArrayElementSetterNoBoundsCheck,
         finalizer = referenceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
-        emptyList(),
     )
     arrayTypeHolder
 }
 
-/* TODO: refactor to addressOf(index: uword)
-   that would be easy to do for concrete types; but there should be an overload for Array<out Any>
-   and with the currently planned rules for overloading, having an addressOf(self: Array<out Any>)
-   would prevent declaring a specialized addressOf(self: Array<Byte>) etc.
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun LlvmValue<EmergeArraySliceType>.afterSliceReferenceCreated() {
+    sliceBase.afterReferenceCreated(isNullable = true)
+}
 
-   other possibility: arrays always as slices. Right now array references are a single ptr to the array
-   object on the heap. Array references could become fat pointers consisting of
-   1. a pointer to the array object on the heap, for reference counting
-   2. the number of elements being referenced
-   3. a pointer to the first element being referenced, null when <num of elements referenced> == 0
-   Then, when you need the address of any other array element other than the first, you can create a slice
-   of the array (e.g. someArray.subArray(2, someArray.length)) and then do addressOfFirst
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun LlvmValue<EmergeArraySliceType>.afterSliceReferenceDropped() {
+    sliceBase.afterReferenceDropped(isNullable = true)
+}
+
+private val sliceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeArraySliceType> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_get_noBoundsCheck",
+    EmergeArraySliceType,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+
+    body {
+        val element = sliceElementPointer(EmergeSliceArrayType, self, index).dereference()
+        element.afterSliceReferenceCreated()
+        ret(element)
+    }
+}
+
+private val sliceArrayElementSetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_set_noBoundsCheck",
+    LlvmVoidType,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+    val value by param(EmergeArraySliceType)
+    body {
+        val pointerToSlotInArray = sliceElementPointer(EmergeSliceArrayType, self, index)
+        // the slot may still be zero-initialized, hence the nullable base
+        pointerToSlotInArray.dereference().afterSliceReferenceDropped()
+
+        store(value, pointerToSlotInArray)
+        value.afterSliceReferenceCreated()
+        retVoid()
+    }
+}
+
+private val sliceArrayBoxingElementGetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_getBoxed_fallibleBoundsCheck",
+    EmergeFallibleCallResult.ofEmergeReference,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+    body {
+        inlineFallibleBoundsCheck(self, index)
+        val element = sliceElementPointer(EmergeSliceArrayType, self, index).dereference()
+        ret(
+            call(context.boxTypeArray.constructor, listOf(element))
+                .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
+        )
+    }
+}
+
+private val sliceArrayBoxingElementGetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_getBoxed_panicBoundsCheck",
+    PointerToAnyEmergeValue,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+    body {
+        inlinePanicBoundsCheck(self, index)
+        val element = sliceElementPointer(EmergeSliceArrayType, self, index).dereference()
+        val box = call(context.boxTypeArray.constructor, listOf(element)).abortOnException { _ ->
+            inlinePanic("failed to allocate box - OOM")
+        }
+        ret(box.reinterpretAs(PointerToAnyEmergeValue))
+    }
+}
+
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun unboxArrayBox(box: LlvmValue<*>): LlvmValue<EmergeArraySliceType> {
+    val boxType = context.boxTypeArray
+    @Suppress("UNCHECKED_CAST")
+    return getelementptr(box.reinterpretAs(pointerTo(boxType)))
+        .member(boxType.irClass.fields.single())
+        .get()
+        .dereference() as LlvmValue<EmergeArraySliceType>
+}
+
+private val sliceArrayBoxingElementSetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_setBoxed_fallibleBoundsCheck",
+    EmergeFallibleCallResult.OfVoid,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+    val valueBox by param(PointerToAnyEmergeValue)
+    body {
+        inlineFallibleBoundsCheck(self, index)
+        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, unboxArrayBox(valueBox)))
+        retFallibleVoid()
+    }
+}
+
+private val sliceArrayBoxingElementSetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_setBoxed_panicBoundsCheck",
+    LlvmVoidType,
+) {
+    val self by param(EmergeArraySliceType)
+    val index by param(EmergeWordType)
+    val valueBox by param(PointerToAnyEmergeValue)
+    body {
+        inlinePanicBoundsCheck(self, index)
+        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, unboxArrayBox(valueBox)))
+        retVoid()
+    }
+}
+
+private val sliceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+    "emerge.platform.sliceArray_finalize",
+    LlvmVoidType,
+) {
+    val self by param(pointerTo(EmergeSliceArrayType))
+    body {
+        val indexStackSlot = alloca(EmergeWordType)
+        store(context.word(0), indexStackSlot)
+        val size = getelementptr(self)
+            .member { base }
+            .member { elementCount }
+            .get()
+            .dereference()
+
+        loop {
+            val currentIndex = indexStackSlot.dereference()
+            conditionalBranch(icmp(currentIndex, LlvmIntPredicate.EQUAL, size), ifTrue = {
+                this@loop.breakLoop()
+            })
+
+            getelementptr(self)
+                .member { elements }
+                .index(currentIndex)
+                .get()
+                .dereference()
+                .afterSliceReferenceDropped()
+
+            store(add(currentIndex, context.word(1)), indexStackSlot)
+            loopContinue()
+        }
+
+        call(context.freeFunction, listOf(self))
+        retVoid()
+    }
+}
+
+/**
+ * The array objects for arrays whose elements are arrays themselves: the elements are [EmergeArraySliceType]s.
  */
-internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
+internal val EmergeSliceArrayType: EmergeArrayType<EmergeArraySliceType> by lazy {
+    lateinit var arrayTypeHolder: EmergeArrayType<EmergeArraySliceType>
+    val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "emerge.platform.slice_array_defaultValueCtor",
+        EmergeArraySliceType,
+    ) {
+        val size by param(EmergeWordType)
+        val defaultValue by param(EmergeArraySliceType)
+
+        body {
+            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
+            val indexStack = alloca(EmergeWordType, forceEntryBlock = true)
+            store(context.word(0), indexStack)
+            loop {
+                val index = indexStack.dereference()
+                conditionalBranch(
+                    condition = icmp(index, LlvmIntPredicate.EQUAL, size),
+                    ifTrue = { this@loop.breakLoop() },
+                )
+
+                store(
+                    defaultValue,
+                    getelementptr(arrayPtr)
+                        .member { elements }
+                        .index(index)
+                        .get()
+                )
+                defaultValue.afterSliceReferenceCreated()
+                store(add(index, context.word(1)), indexStack)
+                loopContinue()
+            }
+
+            ret(buildArraySlice(arrayPtr, context.word(0), size))
+        }
+    }
+    val getterFallible = buildRawGetterWithFallibleBoundsCheck(
+        "emerge.platform.sliceArray_get_fallibleBoundsCheck",
+        EmergeArraySliceType,
+        sliceArrayElementGetterNoBoundsCheck,
+    )
+    val getterPanic = buildRawGetterWithPanicBoundsCheck(
+        "emerge.platform.sliceArray_get_panicBoundsCheck",
+        EmergeArraySliceType,
+        sliceArrayElementGetterNoBoundsCheck,
+    )
+    val setterFallible = buildRawSetterWithFallibleBoundsCheck(
+        "emerge.platform.sliceArray_set_fallibleBoundsCheck",
+        EmergeArraySliceType,
+        sliceArrayElementSetterNoBoundsCheck,
+    )
+    val setterPanic = buildRawSetterWithPanicBoundsCheck(
+        "emerge.platform.sliceArray_set_panicBoundsCheck",
+        EmergeArraySliceType,
+        sliceArrayElementSetterNoBoundsCheck,
+    )
+    arrayTypeHolder = EmergeArrayType(
+        "slice",
+        elementType = EmergeArraySliceType,
+        virtualGetterWithFallibleBoundsCheck = sliceArrayBoxingElementGetterWithFallibleBoundsCheck,
+        virtualGetterWithPanicBoundsCheck = sliceArrayBoxingElementGetterWithPanicBoundsCheck,
+        virtualSetterWithFallibleBoundsCheck = sliceArrayBoxingElementSetterWithFallibleBoundsCheck,
+        virtualSetterWithPanicBoundsCheck = sliceArrayBoxingElementSetterWithPanicBoundsCheck,
+        rawGetterWithFallibleBoundsCheck = getterFallible,
+        rawGetterWithPanicBoundsCheck = getterPanic,
+        rawGetterWithoutBoundsCheck = sliceArrayElementGetterNoBoundsCheck,
+        rawSetterWithFallibleBoundsCheck = setterFallible,
+        rawSetterWithPanicBoundsCheck = setterPanic,
+        rawSetterWithoutBoundsCheck = sliceArrayElementSetterNoBoundsCheck,
+        finalizer = sliceArrayFinalizer,
+        defaultValueConstructor = defaultValueCtor,
+    )
+    arrayTypeHolder
+}
+
+/**
+ * implementation of `emerge.ffi.c.addressOfFirst`; works for slices of all element types by dispatching
+ * on the base array object.
+ */
+internal val arrayAddressOfFirst = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),
 ) {
@@ -984,14 +1209,14 @@ internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     functionAttribute(LlvmFunctionAttribute.NoRecurse)
     functionAttribute(LlvmFunctionAttribute.NoFree)
 
-    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
+    val self by param(EmergeArraySliceType)
 
     body {
-        val ptr = getelementptr(arrayPointer, context.i32(1))
-            .get()
-            .reinterpretAs(pointerTo(LlvmVoidType))
-
-        ret(ptr)
+        val addressOfFirstFn = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
+            self.sliceBase,
+            context.word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_ADDRESS_OF_FIRST),
+        ))
+        ret(call(addressOfFirstFn, LlvmFunctionType(pointerTo(LlvmVoidType), listOf(EmergeArraySliceType)), listOf(self)))
     }
 }
 
@@ -1002,14 +1227,80 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
     functionAttribute(LlvmFunctionAttribute.NoUnwind)
     functionAttribute(LlvmFunctionAttribute.WillReturn)
     functionAttribute(LlvmFunctionAttribute.NoRecurse)
-    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
+    val self by param(EmergeArraySliceType)
     body {
-        ret(
-            getelementptr(arrayPointer)
-                .member { elementCount }
-                .get()
-                .dereference()
+        ret(self.sliceLength)
+    }
+}
+
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun slicedIsOutOfBounds(
+    self: LlvmValue<EmergeArraySliceType>,
+    fromIndex: LlvmValue<EmergeWordType>,
+    toIndexExclusive: LlvmValue<EmergeWordType>,
+): LlvmValue<LlvmBooleanType> = or(
+    icmp(fromIndex, LlvmIntPredicate.UNSIGNED_GREATER_THAN, toIndexExclusive),
+    icmp(toIndexExclusive, LlvmIntPredicate.UNSIGNED_GREATER_THAN, self.sliceLength),
+)
+
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun buildSubSlice(
+    self: LlvmValue<EmergeArraySliceType>,
+    fromIndex: LlvmValue<EmergeWordType>,
+    toIndexExclusive: LlvmValue<EmergeWordType>,
+): LlvmValue<EmergeArraySliceType> {
+    val subSlice = buildArraySlice(
+        self.sliceBase,
+        add(self.sliceOffset, fromIndex),
+        sub(toIndexExclusive, fromIndex),
+    )
+    // the result is a new reference to the base
+    subSlice.afterSliceReferenceCreated()
+    return subSlice
+}
+
+/** implementation of `emerge.core.Array::slice` */
+internal val arraySlice = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.Array::slice",
+    EmergeFallibleCallResult.WithValue(EmergeArraySliceType),
+) {
+    val self by param(EmergeArraySliceType)
+    val fromIndex by param(EmergeWordType)
+    val toIndexExclusive by param(EmergeWordType)
+
+    body {
+        conditionalBranch(
+            condition = slicedIsOutOfBounds(self, fromIndex, toIndexExclusive),
+            ifTrue = {
+                val invalidIndex = select(
+                    icmp(toIndexExclusive, LlvmIntPredicate.UNSIGNED_GREATER_THAN, self.sliceLength),
+                    toIndexExclusive,
+                    fromIndex,
+                )
+                inlineThrow(context.arrayIndexOutOfBoundsErrorType.irClass, listOf(invalidIndex))
+            }
         )
+        ret(fallibleSuccess(buildSubSlice(self, fromIndex, toIndexExclusive)))
+    }
+}
+
+/** implementation of `emerge.core.Array::sliceOrPanic` */
+internal val arraySliceOrPanic = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.Array::sliceOrPanic",
+    EmergeArraySliceType,
+) {
+    val self by param(EmergeArraySliceType)
+    val fromIndex by param(EmergeWordType)
+    val toIndexExclusive by param(EmergeWordType)
+
+    body {
+        conditionalBranch(
+            condition = slicedIsOutOfBounds(self, fromIndex, toIndexExclusive),
+            ifTrue = {
+                inlinePanic("Array slice bounds are out of range")
+            }
+        )
+        ret(buildSubSlice(self, fromIndex, toIndexExclusive))
     }
 }
 
@@ -1025,7 +1316,7 @@ internal val arrayAbstractFallibleGet = KotlinLlvmFunction.define<EmergeLlvmCont
     "emerge.core.Array::${GET_AT_INDEX_FN_NAME}",
     EmergeFallibleCallResult.ofEmergeReference,
 ) {
-    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeArraySliceType)
     param(EmergeWordType)
     body {
         inlinePanic("abstract array getter invoked")
@@ -1037,7 +1328,7 @@ internal val arrayAbstractPanicGet = KotlinLlvmFunction.define<EmergeLlvmContext
     "emerge.core.Array::getOrPanic",
     PointerToAnyEmergeValue,
 ) {
-    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeArraySliceType)
     param(EmergeWordType)
     body {
         inlinePanic("abstract array getter invoked")
@@ -1056,7 +1347,7 @@ internal val arrayAbstractFallibleSet = KotlinLlvmFunction.define<EmergeLlvmCont
     "emerge.core.Array::${SET_AT_INDEX_FN_NAME}",
     EmergeFallibleCallResult.OfVoid,
 ) {
-    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeArraySliceType)
     param(EmergeWordType)
     param(PointerToAnyEmergeValue)
     body {
@@ -1069,7 +1360,7 @@ internal val arrayAbstractPanicSet = KotlinLlvmFunction.define<EmergeLlvmContext
     "emerge.core.Array::setOrPanic",
     LlvmVoidType,
 ) {
-    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeArraySliceType)
     param(EmergeWordType)
     param(PointerToAnyEmergeValue)
     body {
@@ -1078,23 +1369,17 @@ internal val arrayAbstractPanicSet = KotlinLlvmFunction.define<EmergeLlvmContext
 }
 
 context(BasicBlockBuilder<*, *>)
-internal fun indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
-    val size = getelementptr(arrayPtr)
-        .member { base }
-        .member { elementCount }
-        .get()
-        .dereference()
-
-    return icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, size)
+internal fun indexIsOutOfBounds(slice: LlvmValue<EmergeArraySliceType>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
+    return icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, slice.sliceLength)
 }
 
 context(BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>)
 internal fun inlineFallibleBoundsCheck(
-    arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
+    slice: LlvmValue<EmergeArraySliceType>,
     index: LlvmValue<EmergeWordType>,
 ) {
     conditionalBranch(
-        condition = indexIsOutOfBounds(arrayPtr, index),
+        condition = indexIsOutOfBounds(slice, index),
         ifTrue = {
             inlineThrow(context.arrayIndexOutOfBoundsErrorType.irClass, listOf(index))
         }
@@ -1103,11 +1388,11 @@ internal fun inlineFallibleBoundsCheck(
 
 context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun inlinePanicBoundsCheck(
-    arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
+    slice: LlvmValue<EmergeArraySliceType>,
     index: LlvmValue<EmergeWordType>,
 ) {
     conditionalBranch(
-        condition = indexIsOutOfBounds(arrayPtr, index),
+        condition = indexIsOutOfBounds(slice, index),
         ifTrue = {
            inlinePanic("Array index is out of bounds")
         }

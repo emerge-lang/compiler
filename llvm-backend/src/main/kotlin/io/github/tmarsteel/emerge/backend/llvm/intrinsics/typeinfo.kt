@@ -27,7 +27,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
@@ -105,15 +104,11 @@ private val getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: Kotl
         "emerge.platform.valueArrayOfPointersToTypeinfo_Get_ExceptionOnOutOfBounds",
         EmergeFallibleCallResult.WithValue(pointerTo(TypeinfoType.GENERIC)),
     ) {
-        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         body {
             inlineFallibleBoundsCheck(self, index)
-            val raw = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-                .dereference()
+            val raw = sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index).dereference()
 
             ret(fallibleSuccess(raw))
         }
@@ -128,25 +123,16 @@ private val getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinL
         "emerge.platform.valueArrayOfPointersToTypeinfo_Get_PanicOnOutOfBounds",
         pointerTo(TypeinfoType.GENERIC),
     ) {
-        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         body {
-            val selfSize = getelementptr(self)
-                .member { base }
-                .member { elementCount }
-                .get()
-                .dereference()
             conditionalBranch(
-                condition = icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, selfSize),
+                condition = indexIsOutOfBounds(self, index),
                 ifTrue = {
                     inlinePanic("index into array of typeinfo pointers is out of bounds")
                 }
             )
-            val raw = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-                .dereference()
+            val raw = sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index).dereference()
 
             ret(raw)
         }
@@ -161,17 +147,12 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinL
         "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
         LlvmVoidType
     ) {
-        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
             inlinePanicBoundsCheck(self, index)
-            val targetPointer = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-
-            store(value, targetPointer)
+            store(value, sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index))
 
             retVoid()
         }
@@ -186,17 +167,12 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: Kotl
         "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
         EmergeFallibleCallResult.OfVoid,
     ) {
-        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val self by param(EmergeArraySliceType)
         val index by param(EmergeWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
-            inlinePanicBoundsCheck(self, index)
-            val targetPointer = getelementptr(self)
-                .member { elements }
-                .index(index)
-                .get()
-
-            store(value, targetPointer)
+            inlineFallibleBoundsCheck(self, index)
+            store(value, sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index))
 
             retFallibleVoid()
         }
@@ -208,7 +184,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         "array_pointer_to_typeinfo_virtualGet_fallible",
         EmergeFallibleCallResult.ofEmergeReference,
     ) {
-        param(PointerToAnyEmergeValue)
+        param(EmergeArraySliceType)
         param(EmergeWordType)
 
         body {
@@ -220,7 +196,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         "array_pointer_to_typeinfo_virtualGet_panic",
         PointerToAnyEmergeValue,
     ) {
-        param(PointerToAnyEmergeValue)
+        param(EmergeArraySliceType)
         param(EmergeWordType)
 
         body {
@@ -232,7 +208,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         "array_pointer_to_typeinfo_virtualSet_fallible",
         EmergeFallibleCallResult.OfVoid,
     ) {
-        param(PointerToAnyEmergeValue)
+        param(EmergeArraySliceType)
         param(EmergeWordType)
         param(pointerTo(TypeinfoType.GENERIC))
 
@@ -245,7 +221,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         "array_pointer_to_typeinfo_virtualSet_panic",
         LlvmVoidType,
     ) {
-        param(PointerToAnyEmergeValue)
+        param(EmergeArraySliceType)
         param(EmergeWordType)
         param(pointerTo(TypeinfoType.GENERIC))
 
@@ -256,7 +232,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
 
     val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         "array_pointer_to_typeinfo_defaultValueCtor",
-        PointerToAnyEmergeValue,
+        EmergeArraySliceType,
     ) {
         param(EmergeWordType)
         param(pointerTo(TypeinfoType.GENERIC))
@@ -282,7 +258,6 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             valueArrayDestructor,
             defaultValueCtor,
-            listOf(EmergeReferenceArrayType.typeinfo),
         )
     )
 }

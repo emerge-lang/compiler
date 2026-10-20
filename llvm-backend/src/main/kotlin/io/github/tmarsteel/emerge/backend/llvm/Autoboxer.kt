@@ -1,8 +1,12 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -22,11 +26,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArraySliceType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySliceOfEntireArray
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
@@ -191,12 +197,21 @@ internal sealed interface Autoboxer {
             @Suppress("UNCHECKED_CAST")
             baseValue as LlvmValue<LlvmPointerType<TypeinfoType>>
 
-            return getelementptr(baseValue)
+            val memberName = readAccess.memberVariable!!.name
+            val memberValue = getelementptr(baseValue)
                 .member {
-                    memberVariableMappings.getValue(readAccess.memberVariable!!.name).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
+                    memberVariableMappings.getValue(memberName).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
                 }
                 .get()
                 .dereference()
+
+            if (memberName == "supertypes") {
+                // typeinfos point to the array object, emerge code sees the array as a slice
+                @Suppress("UNCHECKED_CAST")
+                return buildArraySliceOfEntireArray(memberValue as LlvmValue<LlvmPointerType<*>>)
+            }
+
+            return memberValue
         }
 
         override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
@@ -249,6 +264,56 @@ internal sealed interface Autoboxer {
             val valueAsBoxPtr = llvmValue.reinterpretAs(pointerTo(boxedType))
             return getelementptr(valueAsBoxPtr)
                 .member(valueHolderMember)
+                .get()
+                .dereference()
+        }
+    }
+
+    /**
+     * `emerge.core.Array`: is an [EmergeArraySliceType] wherever the reference is typed as an array, and
+     * is boxed into `emerge.platform.ArrayBox` when referenced as one of its supertypes (including nullable arrays).
+     * The box holds its own reference to the base of the slice.
+     */
+    object ArraySlice : Autoboxer {
+        override val omitConstructorAndDestructor = true
+
+        override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
+            return context.boxTypeArray
+        }
+
+        override fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType? {
+            return null
+        }
+
+        override val unboxedType: LlvmType = EmergeArraySliceType
+
+        override fun isAccessingIntoTheBox(context: EmergeLlvmContext, readAccess: IrClassFieldAccessExpression): Boolean = false
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*> {
+            throw UnsupportedOperationException("cannot access into an array box")
+        }
+
+        override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
+            return type.isNullable || type.boundBaseTypeOrNull()?.autoboxer !== this
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun box(llvmValue: LlvmValue<*>): LlvmValue<*> {
+            check(llvmValue.type == EmergeArraySliceType) {
+                "cannot box an ${llvmValue.type} as an array"
+            }
+            val boxedType = getBoxedType(context)
+            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
+            }
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
+            val boxedType = getBoxedType(context)
+            return getelementptr(llvmValue.reinterpretAs(pointerTo(boxedType)))
+                .member(boxedType.irClass.fields.single())
                 .get()
                 .dereference()
         }
@@ -370,7 +435,8 @@ internal sealed interface Autoboxer {
          */
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun autoBoxOrUnbox(value: IrTemporaryValueReference, targetType: IrType): LlvmValue<*> {
-            return autoBoxOrUnbox(value.declaration.llvmValue, value.type, targetType)
+            // the LLVM value is in the representation of the declared type, which may differ from value.type
+            return autoBoxOrUnbox(value.declaration.llvmValue, value.declaration.type, targetType)
         }
 
         /**
@@ -425,6 +491,13 @@ internal sealed interface Autoboxer {
             }
         }
     }
+}
+
+internal fun IrType.boundBaseTypeOrNull(): IrBaseType? = when (this) {
+    is IrSimpleType -> baseType
+    is IrParameterizedType -> simpleType.baseType
+    is IrGenericTypeReference -> effectiveBound.boundBaseTypeOrNull()
+    is IrIntersectionType -> null
 }
 
 private val boxDestructor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(

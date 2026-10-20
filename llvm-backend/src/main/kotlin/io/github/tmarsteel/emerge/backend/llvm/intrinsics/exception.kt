@@ -89,21 +89,14 @@ private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
         .let { it.readStrategy as IrClass.MemberVariable.AccessStrategy.BareField }
         .let { readStrat -> context.stringType.irClass.fields.single { it.id == readStrat.fieldId } }
 
-    val pointerToMessageDataArray = getelementptr(stringPtr.reinterpretAs(pointerTo(context.stringType)))
+    val messageDataSlice = getelementptr(stringPtr.reinterpretAs(pointerTo(context.stringType)))
         .member(utf8DataField)
         .get()
         .dereference()
-        .reinterpretAs(pointerTo(EmergeS8ArrayType))
-    val messageLength = getelementptr(pointerToMessageDataArray)
-        .member { base }
-        .member { EmergeArrayBaseType.elementCount }
-        .get()
-        .dereference()
-    val pointerToMessageData = getelementptr(pointerToMessageDataArray)
-        .member { elements }
-        .get()
+        .reinterpretAs(EmergeArraySliceType)
+    val pointerToMessageData = sliceElementPointer(EmergeS8ArrayType, messageDataSlice, context.word(0))
 
-    printer(pointerToMessageData, messageLength)
+    printer(pointerToMessageData, messageDataSlice.sliceLength)
 }
 
 private fun BasicBlockBuilder<*, *>.exit(status: UByte): BasicBlockBuilder.Termination {

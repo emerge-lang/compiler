@@ -13,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedVal
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildConstantSliceOf
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
@@ -24,7 +25,7 @@ internal fun EmergeLlvmContext.emergeStringLiteral(utf8Bytes: ByteArray): LlvmGl
     )
     val byteArrayGlobal = addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     val stringLiteralConstant = stringType.buildStaticConstant(mapOf(
-        stringType.irClass.fields.single() to byteArrayGlobal
+        stringType.irClass.fields.single() to buildConstantSliceOf(byteArrayGlobal, utf8Bytes.size.toLong())
     ))
     return addGlobal(stringLiteralConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
 }

@@ -4,6 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -55,6 +56,7 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
         "emerge.core.reflection.ReflectionBaseType" -> Autoboxer.ReflectionBaseType
         "emerge.ffi.c.CPointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
         "emerge.ffi.c.COpaquePointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
+        "emerge.core.Array" -> Autoboxer.ArraySlice
         else -> null
     }
 }
@@ -62,6 +64,8 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
 internal val IrType.autoboxer: Autoboxer? get() = when(this) {
     is IrParameterizedType -> simpleType.baseType.autoboxer
     is IrSimpleType -> baseType.autoboxer
+    // type parameters bound by an array are represented like arrays
+    is IrGenericTypeReference -> effectiveBound.autoboxer?.takeIf { it === Autoboxer.ArraySlice }
     else -> null
 }
 

@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -316,7 +317,12 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
-    if (emergeType.autoboxer != null || emergeType.isUnit || type == LlvmVoidType) {
+    if (emergeType.autoboxer === Autoboxer.ArraySlice && type == EmergeArraySliceType) {
+        @Suppress("UNCHECKED_CAST")
+        (this as LlvmValue<EmergeArraySliceType>).sliceBase.afterReferenceCreated(isNullable = true)
+        return
+    }
+    if ((emergeType.autoboxer != null && emergeType.autoboxer !== Autoboxer.ArraySlice) || emergeType.isUnit || type == LlvmVoidType) {
         return
     }
 
@@ -406,7 +412,12 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
-    if (emergeType.autoboxer != null || emergeType.isUnit || type == LlvmVoidType) {
+    if (emergeType.autoboxer === Autoboxer.ArraySlice && type == EmergeArraySliceType) {
+        @Suppress("UNCHECKED_CAST")
+        (this as LlvmValue<EmergeArraySliceType>).sliceBase.afterReferenceDropped(isNullable = true)
+        return
+    }
+    if ((emergeType.autoboxer != null && emergeType.autoboxer !== Autoboxer.ArraySlice) || emergeType.isUnit || type == LlvmVoidType) {
         return
     }
 

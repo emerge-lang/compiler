@@ -46,7 +46,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnreachableStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
@@ -80,9 +79,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.emitBreak
 import io.github.tmarsteel.emerge.backend.llvm.emitContinue
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayBaseType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArraySliceType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
@@ -95,16 +95,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI8ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
@@ -115,9 +105,11 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleS
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySlice
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
@@ -290,7 +282,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrAssignmentStatement -> {
-            val valueForAssignment: LlvmValue<*> = autoBoxOrUnbox(code.value, code.target.type)
+            val valueForAssignment: LlvmValue<*> = convertOwnedReference(code.value.declaration.llvmValue, code.value.declaration.type, code.target.type)
 
             when (val localTarget = code.target) {
                 is IrAssignmentStatement.Target.Variable -> {
@@ -305,7 +297,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrReturnStatement -> {
-            val rawReturnValue = autoBoxOrUnbox(code.value, functionReturnType)
+            val rawReturnValue = convertOwnedReference(code.value.declaration.llvmValue, code.value.declaration.type, functionReturnType)
             val llvmValueToReturn = if (functionHasNothrowAbi) {
                 rawReturnValue
             } else {
@@ -489,7 +481,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrClassFieldAccessExpression -> {
             if (expression.baseBaseType.canonicalName.toString() == "emerge.core.Array") {
                 if (expression.memberVariable?.name == "size") {
-                    val memberValue = callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
+                    // the base may be typed nullable, e.g. in null-safe member access
+                    val baseValue = expression.base.declaration.llvmValue
+                    val baseSlice = if (baseValue.type == EmergeArraySliceType) baseValue else Autoboxer.ArraySlice.unbox(baseValue)
+                    val memberValue = callIntrinsic(arraySize, listOf(baseSlice))
                     return ExpressionResult.Value(
                         autoBoxOrUnbox(memberValue, IrSimpleTypeImpl(context.rawUWordClazz, IrTypeMutability.IMMUTABLE, false), expression.evaluatesTo)
                     )
@@ -519,6 +514,16 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrInvocationExpression -> {
+            val argumentBoxes = ArrayList<LlvmValue<*>>()
+            fun prepareArgument(argument: IrTemporaryValueReference, parameterType: IrType): LlvmValue<*> {
+                val prepared = autoBoxOrUnbox(argument, parameterType)
+                if (prepared.type != EmergeArraySliceType && argument.declaration.llvmValue.type == EmergeArraySliceType) {
+                    // a box that exists for the duration of the call only
+                    argumentBoxes.add(prepared)
+                }
+                return prepared
+            }
+
             val callInstruction = when (expression) {
                 is IrStaticDispatchFunctionInvocationExpression -> {
                     var overridenCallInstruction: LlvmValue<*>? = null
@@ -527,26 +532,24 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         val override = ArrayDispatchOverride.findFor(expression, context)
                         when (override) {
                             is ArrayDispatchOverride.InvokeVirtual -> {
+                                val arguments = expression.arguments.zip(expression.function.parameters)
+                                    .map { (argument, parameter) -> prepareArgument(argument, parameter.type) }
+                                @Suppress("UNCHECKED_CAST")
                                 val addr = callIntrinsic(
                                     getDynamicCallAddress, listOf(
-                                        expression.arguments.first().declaration.llvmValue,
+                                        (arguments.first() as LlvmValue<EmergeArraySliceType>).sliceBase,
                                         context.word(override.hash),
                                     )
                                 )
-                                overridenCallInstruction = call(
-                                    addr,
-                                    override.fnType,
-                                    expression.arguments.zip(expression.function.parameters)
-                                        .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) }
-                                )
+                                overridenCallInstruction = call(addr, override.fnType, arguments)
                             }
 
                             is ArrayDispatchOverride.InvokeIntrinsic -> {
-                                // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
-                                // in exactly a situation where that shouldn't happen.
+                                // IMPORTANT! this deliberately doesn't box the arguments to the parameter types because
+                                // that would box primitives in exactly a situation where that shouldn't happen.
                                 overridenCallInstruction = call(
                                     context.registerIntrinsic(override.intrinsic),
-                                    expression.arguments.map { it.declaration.llvmValue }
+                                    expression.arguments.map { autoBoxOrUnbox(it, it.type) }
                                 )
                             }
                             else -> {}
@@ -564,23 +567,33 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         call(
                             llvmFunction,
                             expression.arguments.zip(expression.function.parameters)
-                                .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) },
+                                .map { (argument, parameter) -> prepareArgument(argument, parameter.type) },
                         )
                     }
                 }
 
                 is IrDynamicDispatchFunctionInvocationExpression -> {
                     val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
-                        .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) }
+                        .map { (argument, parameter) -> prepareArgument(argument, parameter.type) }
 
+                    val dispatchOn = if (expression.dispatchOn.declaration === expression.arguments.first().declaration) {
+                        argumentsForInvocation.first()
+                    } else {
+                        expression.dispatchOn.declaration.llvmValue
+                    }
                     val targetAddr = callIntrinsic(
                         getDynamicCallAddress, listOf(
-                            expression.dispatchOn.declaration.llvmValue,
+                            dispatchOn,
                             context.word(expression.function.signatureHashes.first()),
                         )
                     )
                     call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
                 }
+            }
+
+            for (box in argumentBoxes) {
+                @Suppress("UNCHECKED_CAST")
+                (box as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceDropped(isNullable = false)
             }
 
             val rawNonThrowableReturnValue = when {
@@ -619,7 +632,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 rawNonThrowableReturnValue
             }
 
-            val autoboxedReturnValue = autoBoxOrUnbox(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
+            val autoboxedReturnValue = convertOwnedReference(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
 
             return ExpressionResult.Value(autoboxedReturnValue)
         }
@@ -641,7 +654,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.word(expression.size)
-            val arrayType = context.getAllocationSiteType(expression.evaluatesTo)
+            val arrayType = context.getArrayObjectType(expression.evaluatesTo)
             val arrayPtr = if (arrayType is EmergeArrayType<*>) {
                 callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
             } else {
@@ -652,7 +665,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     throw CodeGenerationException("Cannot create an uninitialized array where the component type is not known (${expression.evaluatesTo} in ${currentDebugLocation()}")
                 }
             }
-            return ExpressionResult.Value(arrayPtr)
+            return ExpressionResult.Value(buildArraySlice(arrayPtr, context.word(0), elementCount))
         }
         is IrIfExpression -> {
             val conditionValue = expression.condition.declaration.llvmValue
@@ -857,7 +870,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
             return when (result) {
                 is ExecutableResult.ExecutionOngoing,
-                is ExpressionResult.Value -> ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
+                is ExpressionResult.Value -> ExpressionResult.Value(autoBoxOrUnbox(expression.implicitValue, expression.implicitValue.type))
                 is ExpressionResult.Terminated -> result
             }
         }
@@ -948,6 +961,27 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
         .get()
 }
 
+/**
+ * Like [autoBoxOrUnbox], for a [value] that holds a reference owned by the code receiving the converted value.
+ * When the conversion boxes or unboxes an array, the ownership is moved to the converted value: the
+ * `emerge.platform.ArrayBox` and the slice reference the array object independently.
+ */
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+internal fun convertOwnedReference(value: LlvmValue<*>, fromType: IrType, toType: IrType): LlvmValue<*> {
+    val converted = autoBoxOrUnbox(value, fromType, toType)
+    val valueIsSlice = value.type == EmergeArraySliceType
+    val convertedIsSlice = converted.type == EmergeArraySliceType
+    @Suppress("UNCHECKED_CAST")
+    if (valueIsSlice && !convertedIsSlice) {
+        (value as LlvmValue<LlvmType>).afterReferenceDropped(fromType)
+    } else if (!valueIsSlice && convertedIsSlice) {
+        (converted as LlvmValue<LlvmType>).afterReferenceCreated(toType)
+        (value as LlvmValue<LlvmType>).afterReferenceDropped(fromType)
+    }
+
+    return converted
+}
+
 // todo: move to utils package
 internal fun IrType.findSimpleTypeBound(): IrSimpleType {
     var carry: IrType = this
@@ -984,156 +1018,54 @@ private sealed interface ArrayDispatchOverride {
         }
 
         private fun findForInstanceFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
-            val elementTypeArg = (invocation.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
-
-            val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
-            val accessType = if (elementTypeBound.canonicalName.toString() == "emerge.core.Any") {
-                if (elementTypeArg.type !is IrGenericTypeReference && elementTypeArg.variance == IrTypeVariance.INVARIANT) {
-                    ArrayAccessType.REFERENCE_TYPE_DIRECT
-                } else {
-                    ArrayAccessType.VIRTUAL
-                }
-            } else if (elementTypeBound.autoboxer is Autoboxer.PrimitiveType) {
-                if (elementTypeArg.variance == IrTypeVariance.IN) {
-                    ArrayAccessType.VIRTUAL
-                } else {
-                    ArrayAccessType.VALUE_TYPE_DIRECT
-                }
-            } else {
-                ArrayAccessType.REFERENCE_TYPE_DIRECT
+            val fnName = invocation.function.canonicalName.simpleName
+            val nParams = invocation.function.parameters.size
+            val accessor = when {
+                fnName == GET_AT_INDEX_FN_NAME && nParams == 2 -> ArrayAccessor.GET_FALLIBLE
+                fnName == SET_AT_INDEX_FN_NAME && nParams == 3 -> ArrayAccessor.SET_FALLIBLE
+                fnName == "getOrPanic" && nParams == 2 -> ArrayAccessor.GET_PANIC
+                fnName == "setOrPanic" && nParams == 3 -> ArrayAccessor.SET_PANIC
+                else -> return None
             }
 
-            if (invocation.function.canonicalName.simpleName == GET_AT_INDEX_FN_NAME && invocation.function.parameters.size == 2) {
-                when (accessType) {
-                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE,
-                        context.registerIntrinsic(arrayAbstractFallibleGet).type,
-                    )
-                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
-                        context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithFallibleBoundsCheck
-                        context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithFallibleBoundsCheck
-                        else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
-                    })
-                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawGetterWithFallibleBoundsCheck
-                    )
+            return when (val arrayType = context.getArrayObjectType(invocation.arguments.first().type)) {
+                is EmergeArrayType<*> -> InvokeIntrinsic(when (accessor) {
+                    ArrayAccessor.GET_FALLIBLE -> arrayType.rawGetterWithFallibleBoundsCheck
+                    ArrayAccessor.GET_PANIC -> arrayType.rawGetterWithPanicBoundsCheck
+                    ArrayAccessor.SET_FALLIBLE -> arrayType.rawSetterWithFallibleBoundsCheck
+                    ArrayAccessor.SET_PANIC -> arrayType.rawSetterWithPanicBoundsCheck
+                })
+                else -> {
+                    check(arrayType == EmergeArrayBaseType)
+                    when (accessor) {
+                        ArrayAccessor.GET_FALLIBLE -> InvokeVirtual(
+                            EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE,
+                            context.registerIntrinsic(arrayAbstractFallibleGet).type,
+                        )
+                        ArrayAccessor.GET_PANIC -> InvokeVirtual(
+                            EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC,
+                            context.registerIntrinsic(arrayAbstractPanicGet).type,
+                        )
+                        ArrayAccessor.SET_FALLIBLE -> InvokeVirtual(
+                            EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE,
+                            context.registerIntrinsic(arrayAbstractFallibleSet).type,
+                        )
+                        ArrayAccessor.SET_PANIC -> InvokeVirtual(
+                            EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC,
+                            context.registerIntrinsic(arrayAbstractPanicSet).type,
+                        )
+                    }
                 }
-            } else if (invocation.function.canonicalName.simpleName == SET_AT_INDEX_FN_NAME && invocation.function.parameters.size == 3) {
-                when (accessType) {
-                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE,
-                        context.registerIntrinsic(arrayAbstractFallibleSet).type,
-                    )
-
-                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        when (elementTypeBound) {
-                            context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithFallibleBoundsCheck
-                            context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithFallibleBoundsCheck
-                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
-                        }
-                    )
-
-                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawSetterWithFallibleBoundsCheck
-                    )
-                }
-            } else if (invocation.function.canonicalName.simpleName == "getOrPanic" && invocation.function.parameters.size == 2) {
-                when (accessType) {
-                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC,
-                        context.registerIntrinsic(arrayAbstractPanicGet).type,
-                    )
-
-                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        when (elementTypeBound) {
-                            context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithPanicBoundsCheck
-                            context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithPanicBoundsCheck
-                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
-                        }
-                    )
-
-                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawGetterWithPanicBoundsCheck
-                    )
-                }
-            } else if (invocation.function.canonicalName.simpleName == "setOrPanic" && invocation.function.parameters.size == 3) {
-                when (accessType) {
-                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC,
-                        context.registerIntrinsic(arrayAbstractPanicSet).type,
-                    )
-
-                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        when (elementTypeBound) {
-                            context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithPanicBoundsCheck
-                            context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithPanicBoundsCheck
-                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
-                        }
-                    )
-
-                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawSetterWithPanicBoundsCheck
-                    )
-                }
-            } else {
-                return None
             }
         }
 
         private fun findForStaticFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
             if (invocation.function.canonicalName.simpleName == "new" && invocation.function.parameters.size == 2) {
-                val elementTypeArg = (invocation.evaluatesTo as IrParameterizedType).arguments.getValue("Element")
-                val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
-                return InvokeIntrinsic(when (elementTypeBound) {
-                    context.rawS8Clazz -> EmergeS8ArrayType.defaultValueConstructor
-                    context.rawU8Clazz -> EmergeU8ArrayType.defaultValueConstructor
-                    context.rawS16Clazz -> EmergeS16ArrayType.defaultValueConstructor
-                    context.rawU16Clazz -> EmergeU16ArrayType.defaultValueConstructor
-                    context.rawS32Clazz -> EmergeS32ArrayType.defaultValueConstructor
-                    context.rawU32Clazz -> EmergeU32ArrayType.defaultValueConstructor
-                    context.rawS64Clazz -> EmergeS64ArrayType.defaultValueConstructor
-                    context.rawU64Clazz -> EmergeU64ArrayType.defaultValueConstructor
-                    context.rawSWordClazz -> EmergeSWordArrayType.defaultValueConstructor
-                    context.rawUWordClazz -> EmergeUWordArrayType.defaultValueConstructor
-                    context.rawBoolClazz -> EmergeBooleanArrayType.defaultValueConstructor
-                    else -> EmergeReferenceArrayType.defaultValueConstructor
-                })
+                val arrayType = context.getArrayObjectType(invocation.evaluatesTo)
+                return InvokeIntrinsic(
+                    (arrayType as? EmergeArrayType<*>)?.defaultValueConstructor
+                        ?: EmergeReferenceArrayType.defaultValueConstructor
+                )
             }
 
             if (invocation.function.canonicalName.simpleName == "copy" && invocation.function.parameters.size == 5) {
@@ -1159,12 +1091,10 @@ private sealed interface ArrayDispatchOverride {
     }
 }
 
-private enum class ArrayAccessType {
-    /** invoke the get and set functions through the vtable */
-    VIRTUAL,
-    /** optimized code for direct array access, depending on the value type */
-    VALUE_TYPE_DIRECT,
-    /** optimized code for direct array access, normed ptr-size because its references */
-    REFERENCE_TYPE_DIRECT,
+private enum class ArrayAccessor {
+    GET_FALLIBLE,
+    GET_PANIC,
+    SET_FALLIBLE,
+    SET_PANIC,
     ;
 }
