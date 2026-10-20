@@ -108,9 +108,9 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySlice
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
@@ -168,7 +168,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrRegisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "registering weak references")
-            callIntrinsic(registerWeakReference, listOf(
+            callIntrinsic(registerWeakReferenceToAnyValue, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
                 code.referredObject.declaration.llvmValue,
             ))
@@ -176,7 +176,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrUnregisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "unregistering weak references")
-            callIntrinsic(unregisterWeakReference, listOf(
+            callIntrinsic(unregisterWeakReferenceToAnyValue, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
                 code.referredObject.declaration.llvmValue,
             ))

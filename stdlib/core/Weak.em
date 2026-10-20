@@ -5,5 +5,5 @@ export class Weak<T : Any> {
 
     export constructor {}
 
-    export fn toStrongOrNull(self) -> T? = self.value
+    export intrinsic fn toStrongOrNull(self) -> T?
 }

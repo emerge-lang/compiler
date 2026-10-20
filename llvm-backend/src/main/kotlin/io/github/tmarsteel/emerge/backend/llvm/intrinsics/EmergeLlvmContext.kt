@@ -156,6 +156,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeArray: EmergeClassType
     /** `emerge.core.Array` */
     internal lateinit var rawArrayClazz: IrClass
+    /** `emerge.core.Weak` */
+    internal lateinit var weakType: EmergeClassType
     /** `emerge.ffi.c.CPointer */
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
@@ -279,6 +281,7 @@ class EmergeLlvmContext(
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
             "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
+            "emerge.core.Weak" -> weakType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -797,6 +800,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arraySize,
             arraySlice,
             arraySliceOrPanic,
+            weakToStrongOrNull,
             arrayAbstractFallibleGet,
             arrayAbstractFallibleSet,
             arrayAbstractPanicGet,
