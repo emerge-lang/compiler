@@ -331,10 +331,7 @@ export class U64 : const Any & Printable {
             set insertionIndex = insertionIndex - 1
         }
 
-        // trim utf8 data
-        var finalBuf: exclusive _ = Array.new::<S8>(buf.size - insertionIndex - 1, SPACE_CODEPOINT)
-        Array.copy(buf, insertionIndex + 1, finalBuf, 0, finalBuf.size)
-        return String(finalBuf)
+        return String(buf.sliceOrPanic(insertionIndex + 1, buf.size))
     }
 }
 
