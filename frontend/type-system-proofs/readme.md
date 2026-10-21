@@ -38,7 +38,7 @@ it shows and why; the tables below are the map.
 | `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`                              |
 | `GenericReceivers.v` | calls in generic code on receivers mentioning the type parameters of the caller, at run time      | `member_call_on_generic_receiver`                                       |
-| `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : Comparable<T>`)    | `invocation_with_bounded_variables_sound`                               |
+| `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : A & Comparable<T>`) | `invocation_with_bounded_variables_sound`                               |
 
 ### Fragments
 
@@ -90,9 +90,10 @@ program.
 ### Not covered yet
 
 - Inference with type variables bounded by type variables, beyond `FBounded.v`: such a variable without a
-  lower bound (its final value is the upper bound intersected with the bound instantiated), bounds that are
-  intersections or mention `m T` or `T!`, F-bounded type parameters of the class of a receiver, and the
-  generic code of `GenericArguments.v` onwards, which takes bounds without type variables.
+  lower bound (its final value is the upper bound intersected with the bound instantiated); bounds that
+  mention `m T` or `T!`, nullable intersections, and intersections without type variables; intersection
+  bounds where the final values aren't class types; F-bounded type parameters of the class of a receiver;
+  and the generic code of `GenericArguments.v` onwards, which takes bounds without type variables.
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs

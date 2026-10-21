@@ -806,12 +806,20 @@ Definition plus_subtype_constraint (unify: UnifyFn) (states: VariableStates) (pa
         end
     end.
 
+Fixpoint fold_unify {A: Type} (f: Unification -> A -> option Unification) (l: list A) (carry: Unification): option Unification :=
+    match l with
+    | [] => Some carry
+    | x :: rest => let* next := f carry x in fold_unify f rest next
+    end.
+
 (* A candidate for the value of the variable parameter, assignable to its static upper bound, where
    that mentions type variables (initial_upper_bound): with the candidate for the variable itself, the
-   others constrained *)
+   others constrained. Assignable to an intersection, it is assignable to each component, in turn;
+   unlike unify with an intersection as the target, that constrains each variable among them *)
 Definition plus_static_check (unify: UnifyFn) (state: VariableState) (parameter: TypeParameterId) (candidate: EType) (carry: Unification): option Unification :=
     if no_vars (static_upper_bound state) then Some carry
-    else unify (with_candidate parameter candidate (static_upper_bound state)) candidate carry.
+    else fold_unify (fun inner component => unify (with_candidate parameter candidate component) candidate inner)
+        (intersected_components (static_upper_bound state)) carry.
 
 (* TypeUnification.plusSupertypeConstraint: lower must be assignable to parameter *)
 Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (lower: EType): option Unification :=
@@ -913,11 +921,6 @@ Definition intersection_flipped_unify (unify: UnifyFn) (target: EType) (componen
     end.
 
 (* fold_left, for a function that may not give an answer *)
-Fixpoint fold_unify {A: Type} (f: Unification -> A -> option Unification) (l: list A) (carry: Unification): option Unification :=
-    match l with
-    | [] => Some carry
-    | x :: rest => let* next := f carry x in fold_unify f rest next
-    end.
 
 Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (states: VariableStates): option Unification :=
     fold_unify (fun inner '(target, assignee) => unify target assignee inner) (combine targets assignees) (Ongoing states).
@@ -1240,16 +1243,30 @@ Section StepRefines.
         plus_subtype_constraint f states p upper = Some u -> plus_subtype_constraint g states p upper = Some u.
     Proof. intros * H. unfold plus_subtype_constraint in *. solve_refines Hfg H. Qed.
 
+    Lemma plus_static_check_refines: forall st p c carry u,
+        plus_static_check f st p c carry = Some u -> plus_static_check g st p c carry = Some u.
+    Proof.
+        intros * H. unfold plus_static_check in *. destruct (no_vars _); [exact H|]. revert H. apply fold_unify_refines.
+        intros inner x v E. exact (Hfg _ _ _ _ E).
+    Qed.
+
     Lemma plus_supertype_constraint_refines: forall states p lower u,
         plus_supertype_constraint f states p lower = Some u -> plus_supertype_constraint g states p lower = Some u.
-    Proof. intros * H. unfold plus_supertype_constraint, plus_static_check in *. solve_refines Hfg H. Qed.
+    Proof.
+        intros * H. unfold plus_supertype_constraint in *.
+        destruct (lookup_state states p) as [st|]; [|discriminate H]. destruct (is_exact st); [exact (Hfg _ _ _ _ H)|].
+        cbn zeta in H |- *.
+        destruct (f (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
+            [rewrite (Hfg _ _ _ _ E1)|rewrite (Hfg _ _ _ _ E1); exact H|discriminate H].
+        destruct (plus_static_check f st p _ (Ongoing s1)) as [w|] eqn:E2; [|discriminate H].
+        rewrite (plus_static_check_refines _ _ _ _ _ E2). exact H.
+    Qed.
 
     Lemma plus_binding_check_refines: forall st p binding c u,
         plus_binding_check f st p binding c = Some u -> plus_binding_check g st p binding c = Some u.
     Proof.
-        intros * H. unfold plus_binding_check, plus_static_check in *.
-        destruct binding as [| | | |[] o t| |]; try exact H. destruct (no_vars _); [exact H|]. destruct c; [exact (Hfg _ _ _ _ H)|].
-        exact (Hfg _ _ _ _ H).
+        intros * H. unfold plus_binding_check in *.
+        destruct binding as [| | | |[] o t| |]; try exact H. exact (plus_static_check_refines _ _ _ _ _ H).
     Qed.
 
     Lemma plus_exact_binding_refines: forall states p binding u,

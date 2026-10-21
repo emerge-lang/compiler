@@ -48,6 +48,7 @@ Fixpoint to_generic (t: EType): EType :=
     | Nullable n => Nullable (to_generic n)
     | TypeVariable g => Generic g
     | TypeArgument v o n => TypeArgument v o (to_generic n)
+    | Intersection components => Intersection (map to_generic components)
     | _ => t
     end.
 

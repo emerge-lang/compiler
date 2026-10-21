@@ -140,14 +140,15 @@ Fixpoint plain_owners (t: EType): bool :=
     | _ => true
     end.
 
-(* The lower bound of the variable p, checked against its static upper bound, the variable itself
-   replaced by it (plus_static_check): whatever bindings satisfy the states, it is below the bound
-   instantiated with them. Until a lower bound is checked, it is Nothing. *)
+(* The lower bound of the variable p, checked against (each component of) its static upper bound, the
+   variable itself replaced by it (plus_static_check): whatever bindings satisfy the states, it is
+   below the bound instantiated with them. Until a lower bound is checked, it is Nothing. *)
 Definition static_checked (s: VariableStates) (p: TypeParameterId) (st: VariableState): Prop :=
     is_non_nullable_nothing env (lower_bound st) = false ->
-    forall b K, bound_in env b K [] (to_generic (with_candidate env p (lower_bound st) (static_upper_bound st))) = true ->
+    forall C, In C (intersected_components (static_upper_bound st)) ->
+    forall b K, bound_in env b K [] (to_generic (with_candidate env p (lower_bound st) C)) = true ->
         satisfies b s ->
-        exists f, unify env f (inst env b (with_candidate env p (lower_bound st) (static_upper_bound st))) (lower_bound st) (Ongoing [])
+        exists f, unify env f (inst env b (with_candidate env p (lower_bound st) C)) (lower_bound st) (Ongoing [])
             = Some (Ongoing []).
 
 (* The static upper bound of a variable: without type variables, above the upper bound; with them,
@@ -155,8 +156,8 @@ Definition static_checked (s: VariableStates) (p: TypeParameterId) (st: Variable
 Definition static_ok (s: VariableStates) (p: TypeParameterId) (st: VariableState): Prop :=
     if no_vars (static_upper_bound st) then below_static st
     else afrag env (lower_bound st) = true /\ closed (lower_bound st) = true
-        /\ ifrag env (static_upper_bound st) = true /\ plain_owners (static_upper_bound st) = true
-        /\ static_checked s p st.
+        /\ (forall C, In C (intersected_components (static_upper_bound st)) -> ifrag env C = true)
+        /\ plain_owners (static_upper_bound st) = true /\ static_checked s p st.
 
 (* The variable states unify works with: the bounds without type variables, the upper bound above the
    lower one where the variable isn't bound exactly, and no variable to capture; the static upper
@@ -176,7 +177,7 @@ Lemma static_ok_mono: forall s s' p st, (forall b, satisfies b s' -> satisfies b
 Proof.
     intros s s' p st Hn H. unfold static_ok in *. destruct (no_vars (static_upper_bound st)); [exact H|].
     destruct H as [H1 [H2 [H3 [H4 H5]]]]. split; [exact H1|]. split; [exact H2|]. split; [exact H3|]. split; [exact H4|].
-    intros Hnn b K Hb Hs. exact (H5 Hnn b K Hb (Hn b Hs)).
+    intros Hnn C HC b K Hb Hs. exact (H5 Hnn C HC b K Hb (Hn b Hs)).
 Qed.
 
 Lemma wf_set_state: forall s p st, wf_states s ->
@@ -379,6 +380,27 @@ Qed.
 (* A type variable, assigned to and assigned                                                       *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* Unify with the components of an intersection, in turn *)
+Lemma fold_components: forall n (cs: list EType) (tgt: EType -> EType) A s s',
+    (forall C, In C cs -> forall s0 s0', wf_states s0 -> unify env n (tgt C) A (Ongoing s0) = Some (Ongoing s0') ->
+        wf_states s0' /\ (forall b, satisfies b s0' -> satisfies b s0)) ->
+    wf_states s -> fold_unify (fun inner C => unify env n (tgt C) A inner) cs (Ongoing s) = Some (Ongoing s') ->
+    wf_states s' /\ (forall b, satisfies b s' -> satisfies b s)
+    /\ (forall C, In C cs -> exists s0 s0', wf_states s0 /\ unify env n (tgt C) A (Ongoing s0) = Some (Ongoing s0')
+        /\ (forall b, satisfies b s' -> satisfies b s0')).
+Proof.
+    intros n cs tgt A. induction cs as [|C cs IH]; intros s s' Hstep Hs H; simpl in H.
+    - injection H as <-. split; [exact Hs|]. split; [auto|]. intros C [].
+    - destruct (unify env n (tgt C) A (Ongoing s)) as [[s1|]|] eqn:E;
+          [|rewrite (fold_failed _ cs (fun x _ => unify_keeps_failure env n _ _)) in H; discriminate H|discriminate H].
+      destruct (Hstep C (or_introl eq_refl) s s1 Hs E) as [Hs1 Hext1].
+      destruct (IH s1 s' (fun C' Hin => Hstep C' (or_intror Hin)) Hs1 H) as [Hs' [Hext Hall]].
+      split; [exact Hs'|]. split; [intros b Hb; apply Hext1, Hext, Hb|].
+      intros C' [<-|Hin].
+      + exists s, s1. split; [exact Hs|]. split; [exact E|exact Hext].
+      + exact (Hall C' Hin).
+Qed.
+
 (* What unify does with a type of the parameters and one of the arguments, at the fuel of a static
    check *)
 Definition target_step (n: nat): Prop :=
@@ -426,18 +448,26 @@ Proof.
       injection H' as <-.
       assert (Hcheck: wf_states s2 /\ (forall b, satisfies b s2 -> satisfies b s) /\ lookup_state s2 p = Some st
           /\ (no_vars (static_upper_bound st) = false -> afrag env c = true /\ closed c = true
-              /\ forall b K, bound_in env b K [] (to_generic (with_candidate env p c (static_upper_bound st))) = true ->
-                  satisfies b s2 ->
-                  exists f, unify env f (inst env b (with_candidate env p c (static_upper_bound st))) c (Ongoing []) = Some (Ongoing []))).
+              /\ forall C, In C (intersected_components (static_upper_bound st)) ->
+                  forall b K, bound_in env b K [] (to_generic (with_candidate env p c C)) = true -> satisfies b s2 ->
+                  exists f, unify env f (inst env b (with_candidate env p c C)) c (Ongoing []) = Some (Ongoing []))).
       { unfold plus_static_check in E2. destruct (no_vars (static_upper_bound st)) eqn:Ens.
         - injection E2 as <-. split; [exact Hs|]. split; [auto|]. split; [exact Hl|]. intros E'; discriminate E'.
         - unfold static_ok in Hok. rewrite Ens in Hok. destruct Hok as [HlA [HlC [HSi _]]].
           destruct (supertype_of_classes _ _ HlA HlC HAf HcA) as [HcF HcC].
-          destruct (IH _ c s s2 (with_candidate_ifrag p c HcF HcC _ HSi) HcF HcC Hs E2) as [Hs2 [Hn2 Hsnd]].
-          destruct (unify_keeps_from env wf intersect_no_vars supertype_no_vars n (parameter_rank env p) _ c s s2
-              (wf_ranked s Hs) (or_intror (conj (candidate_below env wf p c _ Hsv Hnc) Hnc)) E2) as [Kf _].
+          destruct (fold_components n _ (fun C => with_candidate env p c C) c s s2
+              (fun C HC s0 s0' Hs0 E0 => let H' := IH _ c s0 s0' (with_candidate_ifrag p c HcF HcC _ (HSi C HC)) HcF HcC Hs0 E0 in
+                  conj (proj1 H') (proj1 (proj2 H')))
+              Hs E2) as [Hs2 [Hn2 Hall]].
+          destruct (fold_keeps_from env _ _ (parameter_rank env p) s s2
+              (fun C s0 s0' HC Hs0 E0 => unify_keeps_from env wf intersect_no_vars supertype_no_vars n (parameter_rank env p) _ c s0 s0' Hs0
+                  (or_intror (conj (candidate_below env wf p c C (vars_in_intersected _ _ Hsv C HC) Hnc) Hnc)) E0)
+              (fun C _ => unify_keeps_failure env n _ _) (wf_ranked s Hs) E2) as [Kf _].
           split; [exact Hs2|]. split; [exact Hn2|]. split; [rewrite (Kf p (le_n _)); exact Hl|].
-          intros _. split; [exact HcF|]. split; [exact HcC|]. exact Hsnd. }
+          intros _. split; [exact HcF|]. split; [exact HcC|].
+          intros C HC b K Hb Hsat. destruct (Hall C HC) as [s0 [s0' [Hs0 [E0 Hx]]]].
+          destruct (IH _ c s0 s0' (with_candidate_ifrag p c HcF HcC _ (HSi C HC)) HcF HcC Hs0 E0) as [_ [_ Hsnd]].
+          exact (Hsnd b K Hb (Hx b Hsat)). }
       destruct Hcheck as [Hs2 [Hn2 [Hl2 Hchk]]].
       pose proof (satisfies_set_state s2 p st st' Hl2 Hfit') as Hn'.
       split; [|split; [intros b Hb; exact (Hn2 b (Hn' b Hb))|]].
@@ -448,7 +478,7 @@ Proof.
         * unfold static_ok in Hok. rewrite Ens in Hok. exact Hok.
         * destruct (Hchk eq_refl) as [HcF [HcC Hsnd]]. unfold static_ok in Hok. rewrite Ens in Hok. destruct Hok as [_ [_ [HSi [HSo _]]]].
           split; [exact HcF|]. split; [exact HcC|]. split; [exact HSi|]. split; [exact HSo|].
-          intros _ b K Hb Hsat. exact (Hsnd b K Hb (Hn' b Hsat)).
+          intros _ C HC b K Hb Hsat. exact (Hsnd C HC b K Hb (Hn' b Hsat)).
       + intros o x Hx Hfit. specialize (Hfit _ (lookup_set_same s2 p _)). unfold fits in Hfit. unfold st' in Hfit.
         cbn [is_exact lower_bound] in Hfit.
         destruct Hfit as [[K1 E1] _]. exact (proj2 (supertype_is_above _ _ x K1 Hbl HA Hx E1)).
@@ -493,7 +523,7 @@ Proof.
         unfold static_ok in Hok. destruct (no_vars (static_upper_bound st)).
         * intros x f Hx Ex. destruct (intersect_is_below _ _ x f Hbu HA Hx Ex) as [[f1 E1] _]. exact (Hok x f1 Hx E1).
         * destruct Hok as [H1 [H2 [H3 [H4 H5]]]]. split; [exact H1|]. split; [exact H2|]. split; [exact H3|]. split; [exact H4|].
-          intros Hnn' b K Hb Hsat. exact (H5 Hnn' b K Hb (Hn' b Hsat)).
+          intros Hnn' C HC b K Hb Hsat. exact (H5 Hnn' C HC b K Hb (Hn' b Hsat)).
       + intros o x Hx Hfit. specialize (Hfit _ (lookup_set_same s p _)). unfold fits in Hfit. unfold st' in Hfit.
         cbn [is_exact upper_bound] in Hfit.
         destruct Hfit as [_ [K2 E2]]. exact (proj2 (intersect_is_below _ _ x K2 Hbu HA Hx E2)).

@@ -1,5 +1,6 @@
 From EmergeTypeSystem Require Import Model.
 From EmergeTypeSystem Require Import Subtyping.
+From EmergeTypeSystem Require Ops.
 From EmergeTypeSystem Require Import Ownership.
 From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import Fragment.
@@ -257,6 +258,94 @@ Proof.
     - cbn [instantiate lookup_binding]. destruct (param_eqb q p); [|reflexivity]. rewrite (candidate_final env x Hx). exact Hxo.
 Qed.
 
+(* Below the instance of each component of an intersection, a class type is below the instance of the
+   intersection, its type parameters bound to class types *)
+Lemma below_intersection_instance: forall b K cs x, bindings_in_fragment env b -> components_sfrag env cs = true ->
+    bex env b (Intersection cs) = true ->
+    (forall c, In c cs -> bound_in_top_h env b K [] (top_bound_in env b K []) c = true) ->
+    in_fragment env x = true ->
+    (forall c, In c cs -> exists f, unify env f (inst_nested env b c) x (Ongoing []) = Some (Ongoing [])) ->
+    exists f, unify env f (inst_nested env b (Intersection cs)) x (Ongoing []) = Some (Ongoing []).
+Proof.
+    intros b K cs x Hbf Hcs Hbx Htop Hx Hall.
+    destruct (components_sfrag_facts env cs Hcs) as [Hl Hc].
+    assert (Hn: forall c, In c cs -> is_nullable env (inst_nested env b c) = false).
+    { intros c Hin. destruct (Hc c Hin) as [Hsh Hs].
+      apply (proj2 (proj2 (instance_facts_ex env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hs) (bex_component env b cs c Hbx Hin) (Htop c Hin)))).
+      apply (component_non_null env), Hsh. }
+    destruct (intersection_instance_ex env wf b Hbf cs Hcs Hbx Hn) as [Heq [Hcc Hcomp]]. rewrite Heq.
+    destruct (uniform_fuel_list cs (fun f c => unify env f (inst_nested env b c) x (Ongoing []) = Some (Ongoing []))) as [f Hf].
+    { intros f f' c Hle E. exact (unify_fuel_monotone env f f' _ _ _ _ Hle E). }
+    { exact Hall. }
+    assert (Hne: cs <> []) by (intros ->; simpl in Hl; lia).
+    assert (HnA: is_nullable env x = false).
+    { destruct cs as [|c1 cs']; [exfalso; exact (Hne eq_refl)|].
+      exact (accepted_non_null env _ _ _ _ _ (proj1 (Hcomp c1 (or_introl eq_refl))) Hx (Hn c1 (or_introl eq_refl)) (Hf c1 (or_introl eq_refl))). }
+    exists (S f). apply (inter_takes env); [exact Hcc|exact Hx|exact HnA|].
+    intros y Hy. apply in_map_iff in Hy. destruct Hy as [y' [<- Hy']]. apply in_map_iff in Hy'. destruct Hy' as [c [<- Hin]].
+    apply (accepts_with_mutability env); [exact (proj1 (Hcomp c Hin))|exact Hx| |exact (Hf c Hin)].
+    apply Ops.fold_intersect_greatest; [apply Ops.mutability_subtype_of_readonly|].
+    intros m Hm. apply in_map_iff in Hm. destruct Hm as [y [<- Hy]]. apply in_map_iff in Hy. destruct Hy as [c' [<- Hin']].
+    exact (accepted_mutability_classes env _ _ _ _ _ (proj1 (Hcomp c' Hin')) Hx (Hf c' Hin')).
+Qed.
+
+(* The type parameters of the references of Rv, and those in the declared bounds of their parameters,
+   have bindings *)
+Lemma bex_of_refs: forall b (Rv: GenericRef -> Prop),
+    (forall g, Rv g -> has_binding env b g = true /\ variables_of g = [] /\ refs_in b Rv (parameter_bound env (param_of g))) ->
+    forall t, refs_in b Rv t -> bex env b t = true.
+Proof.
+    intros b Rv HRv. pose proof (wf_bounds_deep_ranked env wf) as deep.
+    assert (Hlift: forall p k U, (forall q, q = p \/ parameter_rank env q < k -> (exists g, Rv g /\ param_of g = q) -> U q = true) ->
+        forall t, deep_ranked env p k t = true -> refs_in b Rv t -> bex_h env b U t = true).
+    { intros p k U HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hr Hb; simpl in Hr, Hb |- *; try reflexivity.
+      - induction args as [|a args IHa]; [reflexivity|]. simpl in Hr, Hb |- *. apply andb_true_iff in Hr. destruct Hb as [Ha Has].
+        rewrite (IH a (proj1 Hr) Ha), (IHa (proj2 Hr) Has). reflexivity.
+      - exact (IH n Hr Hb).
+      - destruct (HRv g Hb) as [Hh [Hv _]]. rewrite Hh. unfold no_type_variables. rewrite Hv. cbn [andb].
+        exact (HU _ (deep_ranked_param env p k g Hr) (ex_intro _ g (conj Hb eq_refl))).
+      - destruct Hb as [Ho Hn]. rewrite Ho. exact (IH n Hr Hn).
+      - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hr, Hb |- *. apply andb_true_iff in Hr. destruct Hb as [Hc Hcs].
+        rewrite (IH c (proj1 Hr) Hc), (IHc (proj2 Hr) Hcs). reflexivity. }
+    assert (Hparam: forall q, (exists g, Rv g /\ param_of g = q) -> param_bex env b q = true).
+    { intros q. remember (parameter_rank env q) as r eqn:Er. revert q Er. induction r as [r IH] using lt_wf_ind. intros q -> [g [Hg Eq]].
+      unfold param_bex. rewrite (through_param_eq env (bex_h env b) true deep (bex_h_agree env b) q).
+      apply (Hlift q (parameter_rank env q)); [|apply deep|].
+      - intros q' [->|Hq'] Hex; [unfold param_eqb; rewrite Nat.eqb_refl; reflexivity|].
+        destruct (param_eqb q' q); [reflexivity|]. exact (IH _ Hq' q' eq_refl Hex).
+      - destruct (HRv g Hg) as [_ [_ Hb]]. rewrite Eq in Hb. exact Hb. }
+    intros t Ht. destruct (deep_ranked_exists env 0 t) as [k Hk]. rewrite (bex_top env b).
+    apply (Hlift 0 k); [|exact Hk|exact Ht]. intros q _ Hex. exact (Hparam q Hex).
+Qed.
+
+(* A static upper bound: an intersection, or of no components but itself *)
+Lemma static_shape: forall S, (forall cs, S <> Nullable (Intersection cs)) ->
+    (intersected_components S = [S] /\ forall cs, S <> Intersection cs)
+    \/ exists cs, S = Intersection cs /\ intersected_components S = cs.
+Proof.
+    intros [m c args|[| | | | | |cs]|g|me msg|v o n|g|cs] H; try (left; split; [reflexivity|intros cs' E; discriminate E]).
+    - exfalso. exact (H cs eq_refl).
+    - right. exists cs. split; reflexivity.
+Qed.
+
+(* The references of a static upper bound, as type parameters *)
+Lemma refs_of_static: forall (P: TypeParameterId -> bool) (R: GenericRef -> Prop) b S, (forall cs, S <> Nullable (Intersection cs)) ->
+    (forall C, In C (intersected_components S) -> no_generics C = true /\ plain_owners C = true) ->
+    vars_in P S = true ->
+    (forall q, P q = true -> R (mkGenericRef None false q [])) ->
+    (forall q, P q = true -> ownership_bound b (parameter_ownership q) = true) ->
+    refs_in b R (to_generic S).
+Proof.
+    intros P R b S Hn Hc Hv HR Hb. destruct (static_shape S Hn) as [[E _]|[cs [-> E]]].
+    - rewrite E in Hc. destruct (Hc S (or_introl eq_refl)) as [H1 H2].
+      exact (refs_of_vars P R b S H1 Hv (plain_owners_in _ S H2) HR Hb).
+    - rewrite E in Hc. cbn [to_generic refs_in]. change (forallb (vars_in P) cs = true) in Hv. clear E Hn.
+      induction cs as [|c cs IHc]; [exact I|]. simpl in Hv. apply andb_true_iff in Hv. destruct Hv as [Hv1 Hv2].
+      destruct (Hc c (or_introl eq_refl)) as [H1 H2]. split.
+      + exact (refs_of_vars P R b c H1 Hv1 (plain_owners_in _ c H2) HR Hb).
+      + exact (IHc Hv2 (fun C HC => Hc C (or_intror HC))).
+Qed.
+
 Section Invocation.
 
 Variables xfrag bfrag: EType -> Prop.
@@ -270,19 +359,24 @@ Definition final_of (U: VariableStates) (p: TypeParameterId): EType :=
     match lookup_state U p with Some st => final_value env st | None => bottom_type end.
 
 (* The static upper bound S of the type parameter p, one of vars: its declared bound with type
-   variables in place of the type parameters, of the types of the parameters, without ownerships of
-   type parameters; a class type where it has no type variables *)
+   variables in place of the type parameters; of the types of the parameters, without ownerships of
+   type parameters, or an intersection of such (`A & Comparable<T>`); a class type where it has no
+   type variables *)
 Definition static_bound (vars: list (TypeParameterId * EType)) (p: TypeParameterId) (S: EType): Prop :=
-    to_generic S = parameter_bound env p /\ ifrag env S = true /\ plain_owners S = true
+    to_generic S = parameter_bound env p
+    /\ (forall C, In C (intersected_components S) -> ifrag env C = true /\ plain_owners C = true)
     /\ vars_in (fun q => static_vars env p q && existsb (param_eqb q) (map fst vars)) S = true
-    /\ (no_vars S = true -> in_fragment env S = true).
+    /\ (no_vars S = true -> in_fragment env S = true)
+    /\ (forall cs, S = Intersection cs -> components_sfrag env (map to_generic cs) = true)
+    /\ (forall cs, S <> Nullable (Intersection cs)).
 
 (*
  * An invocation of a function whose type parameters are bounded by types mentioning them, inferred,
  * is sound: where unify accepts each argument for its parameter, in turn, and inference picks a lower
  * bound for each variable whose bound has type variables (for an F-bounded one, Kotlin reports that
  * it can't infer it otherwise), the final values are within the declared bounds, instantiated with
- * them, and each argument fits its parameter with the type variables replaced by them.
+ * them, and each argument fits its parameter with the type variables replaced by them. Where a bound
+ * is an intersection, that takes the final values to be class types.
  *)
 Theorem invocation_with_bounded_variables_sound: forall n vars Ps As U,
     NoDup (map fst vars) ->
@@ -294,22 +388,28 @@ Theorem invocation_with_bounded_variables_sound: forall n vars Ps As U,
     (forall p S st, In (p, S) vars -> no_vars S = false -> lookup_state U p = Some st ->
         is_non_nullable_nothing env (lower_bound st) = false) ->
     (forall p S, In (p, S) vars -> bfrag (final_of U p) -> xfrag (final_of U p)) ->
+    ((exists p cs, In (p, Intersection cs) vars) -> forall p S, In (p, S) vars -> in_fragment env (final_of U p) = true) ->
     forall b, b = map (fun v => (fst v, TypeArgument invariant ref (final_of U (fst v)))) vars ->
     (exists K, forall p S, In (p, S) vars ->
         unify env K (inst_nested env b (parameter_bound env p)) (final_of U p) (Ongoing []) = Some (Ongoing []))
     /\ forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
-    intros n vars Ps As U Hnd Hst HPs HAs Hfold Hlow Hfinal b Hbdef.
+    intros n vars Ps As U Hnd Hst HPs HAs Hfold Hlow Hfinal Hclass b Hbdef.
     set (ps := map fst vars) in *.
     set (s0 := map (fun '(q, bnd) => (q, mkVariableState bnd (initial_upper_bound bnd) bottom_type false (existsb (param_eqb q) []))) vars).
     assert (Hs0: for_inference_of vars [] = Ongoing s0) by reflexivity. rewrite Hs0 in Hfold.
     assert (Hl0: forall p S, In (p, S) vars -> lookup_state s0 p = Some (mkVariableState S (initial_upper_bound S) bottom_type false false)).
     { intros p S Hin. exact (lookup_for_inference vars [] p S Hnd Hin). }
+    (* a static upper bound has no ownerships of type parameters *)
+    assert (HpoS: forall p S, In (p, S) vars -> plain_owners S = true).
+    { intros p S Hin. destruct (Hst p S Hin) as [_ [Hcomp [_ [_ [_ Hnn]]]]].
+      destruct (static_shape S Hnn) as [[E _]|[cs [-> _]]]; [|reflexivity].
+      rewrite E in Hcomp. exact (proj2 (Hcomp S (or_introl eq_refl))). }
     (* the variable states inference starts with *)
     assert (Hwf0: wf_states env xfrag bfrag s0).
     { intros p st Hp. destruct (lookup_for_inference_in vars [] p st Hp) as [S Hin].
       rewrite (Hl0 p S Hin) in Hp. injection Hp as <-.
-      destruct (Hst p S Hin) as [Hg [Hif [Hpo [Hsv Hcl]]]].
+      destruct (Hst p S Hin) as [Hg [Hcomp [Hsv [Hcl _]]]].
       cbn [upper_bound lower_bound is_exact is_capturable static_upper_bound].
       assert (Hsv': vars_in (static_vars env p) S = true)
           by (apply (vars_in_mono _ _ (fun q E => proj1 (proj1 (andb_true_iff _ _) E)) _ Hsv)).
@@ -324,7 +424,8 @@ Proof.
         intros _. split; [reflexivity|]. split; [exists 2; apply (below_all env wf [] top_type 2 (top_in_fragment env wf)); lia|].
         split; [exact (in_fragment_bfrag _ (top_in_fragment env wf))|]. split; [exact (in_fragment_bfrag _ (bottom_in_fragment env wf))|].
         unfold static_ok. cbn [static_upper_bound lower_bound]. rewrite Ens.
-        split; [exact (bottom_in_afrag env wf)|]. split; [reflexivity|]. split; [exact Hif|]. split; [exact Hpo|].
+        split; [exact (bottom_in_afrag env wf)|]. split; [reflexivity|].
+        split; [intros C HC; exact (proj1 (Hcomp C HC))|]. split; [exact (HpoS p S Hin)|].
         intros E. change (class_eqb nothing nothing = false) in E. rewrite class_eqb_refl in E. discriminate E. }
     destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes n Ps As s0 U Hwf0 (fun P HP => proj1 (HPs P HP)) HAs Hfold)
         as [HwfU Hsound].
@@ -372,10 +473,10 @@ Proof.
     { intros q E. destruct (Hps q E) as [S Hin]. cbn [ownership_bound]. rewrite (Hlb q S Hin). reflexivity. }
     assert (Hclose: forall r g, R r g -> refs_in b (R r) (effective_bound env g) /\ refs_in b (R r) (parameter_bound env (param_of g))).
     { intros r g [q [S [-> [Hin Hr]]]]. rewrite (effective_bound_plain env ranked). cbn [param_of].
-      destruct (Hst q S Hin) as [Hg [Hif [Hpo [Hsv _]]]]. rewrite <- Hg.
+      destruct (Hst q S Hin) as [Hg [Hcomp [Hsv [_ [_ Hnn]]]]]. rewrite <- Hg.
       assert (H: refs_in b (R r) (to_generic S)).
-      { apply (refs_of_vars (fun q' => static_vars env q q' && existsb (param_eqb q') ps) (R r) b S (ifrag_no_generics env S Hif) Hsv
-            (plain_owners_in _ S Hpo)).
+      { apply (refs_of_static (fun q' => static_vars env q q' && existsb (param_eqb q') ps) (R r) b S Hnn); [| exact Hsv | |].
+        - intros C HC. destruct (Hcomp C HC) as [Hif Hpo]. exact (conj (ifrag_no_generics env C Hif) Hpo).
         - intros q' E. apply andb_true_iff in E. destruct E as [E1 E2]. destruct (Hps q' E2) as [S' Hin'].
           exists q', S'. split; [reflexivity|]. split; [exact Hin'|].
           unfold static_vars in E1. apply orb_true_iff in E1. destruct E1 as [E1|E1]; [apply param_eqb_eq in E1; subst q'; exact Hr|].
@@ -390,6 +491,17 @@ Proof.
       cbn [is_exact_ownership andb]. rewrite (xfrag_gfrag _ (proj1 (Hfx q S Hin))). cbn [andb].
       unfold respects, inst_ref, inst_fit. cbn [given_mutability is_narrowed]. rewrite (effective_bound_plain env ranked).
       rewrite (Hr q S Hin Hrq). reflexivity. }
+    set (rmax := S (list_max (map (fun v => parameter_rank env (fst v)) vars))).
+    assert (Hrmax: forall p S, In (p, S) vars -> parameter_rank env p < rmax).
+    { intros p S Hin. unfold rmax.
+      assert (H: Forall (fun k => k <= list_max (map (fun v => parameter_rank env (fst v)) vars)) (map (fun v => parameter_rank env (fst v)) vars))
+          by (apply list_max_le; lia).
+      rewrite Forall_forall in H. specialize (H (parameter_rank env p) (in_map (fun v => parameter_rank env (fst v)) _ _ Hin)). lia. }
+    (* the bindings exist, also for the type parameters in the bounds *)
+    assert (Hbex: forall t, refs_in b (R rmax) t -> bex env b t = true).
+    { apply bex_of_refs. intros g [q [S [-> [Hin Hrq]]]]. split; [|split; [reflexivity|]].
+      - unfold has_binding. cbn [param_of]. rewrite (Hlb q S Hin). cbn [is_exact_ownership andb]. exact (xfrag_gfrag _ (proj1 (Hfx q S Hin))).
+      - exact (proj2 (Hclose rmax _ (ex_intro _ q (ex_intro _ S (conj eq_refl (conj Hin Hrq)))))). }
     (* the final values are within their bounds, rank by rank *)
     assert (Hwithin: forall r, exists K, forall p S, In (p, S) vars -> parameter_rank env p < r ->
         unify env K (inst_nested env b (parameter_bound env p)) (final_of U p) (Ongoing []) = Some (Ongoing [])).
@@ -398,42 +510,80 @@ Proof.
       assert (Hp: forall p S, In (p, S) vars -> parameter_rank env p = r ->
           exists f, unify env f (inst_nested env b (parameter_bound env p)) (final_of U p) (Ongoing []) = Some (Ongoing [])).
       { intros p S Hin Hrp. destruct (Hfx p S Hin) as [Hx [st [Hl [He [Hs [Ef Hfit]]]]]].
-        destruct (Hst p S Hin) as [Hg [Hif [Hpo [Hsv Hcl]]]].
+        destruct (Hst p S Hin) as [Hg [Hcomp [Hsv [Hcl [Hics Hnn']]]]].
         destruct (HwfU p st Hl) as [_ [_ [Hw _]]]. destruct (Hw He) as [_ [_ [_ [_ Hok]]]].
         unfold static_ok in Hok. rewrite Hs in Hok. destruct (no_vars S) eqn:Ens.
         - (* a class type: the final value is below the upper bound, which is below it *)
           unfold fits in Hfit. rewrite He in Hfit. destruct Hfit as [_ [K2 E2]].
           destruct (Hok _ K2 Hx E2) as [f Ef']. rewrite Hs in Ef'. exists f.
+          pose proof (Hcl eq_refl) as Hfs.
+          destruct (static_shape S Hnn') as [[E _]|[cs [-> _]]]; [|discriminate Hfs].
+          rewrite E in Hcomp. destruct (Hcomp S (or_introl eq_refl)) as [Hif Hpo].
           pose proof (closed_of_ifrag S Hif Ens Hpo) as Hc.
           pose proof (ifrag_sfrag env S Hif) as Hsf. rewrite (to_generic_closed S Hc) in Hsf.
           rewrite <- Hg, (to_generic_closed S Hc), (inst_nested_closed env wf b 0 [] S Hsf Hc).
           exact Ef'.
-        - (* with type variables: the final value is the lower bound, checked against it *)
+        - (* with type variables: the final value is the lower bound, checked against each component *)
           destruct Hok as [HlA [HlC [_ [_ Hchk]]]].
           pose proof (Hlow p S st Hin Ens Hl) as Hnn.
           assert (Exl: final_of U p = lower_bound st) by (rewrite Ef; unfold final_value; rewrite Hnn; reflexivity).
           unfold static_checked in Hchk. rewrite Hs in Hchk.
-          assert (HbvS: bound_vars b S = true)
-              by (apply Hbv; apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ Hsv)).
-          pose proof (with_candidate_ifrag env wf p _ HlA HlC S Hif) as Hwi.
-          assert (Hbc: bound_in env b Kr [] (to_generic (with_candidate env p (lower_bound st) S)) = true).
-          { apply (refs_bound_in env wf b Kr (R r) (HR r Kr IHr) (Hclose r)).
-            apply (refs_of_vars (fun q => (static_vars env p q && existsb (param_eqb q) ps) && negb (param_eqb q p)) (R r) b).
-            - exact (ifrag_no_generics env _ Hwi).
-            - exact (candidate_vars env wf _ p _ S Hsv (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))).
-            - exact (plain_owners_in _ _ (plain_owners_candidate p _ HlA HlC S Hif Hpo)).
-            - intros q E. apply andb_true_iff in E. destruct E as [E1 E3]. apply andb_true_iff in E1. destruct E1 as [E1 E2].
-              destruct (Hps q E2) as [S' Hin']. exists q, S'. split; [reflexivity|]. split; [exact Hin'|].
-              unfold static_vars in E1. apply orb_true_iff in E1. destruct E1 as [E1|E1]; [rewrite E1 in E3; discriminate E3|].
-              unfold rank_below in E1. apply Nat.ltb_lt in E1. lia.
-            - intros q E. apply andb_true_iff in E. destruct E as [E1 _]. apply andb_true_iff in E1. exact (Hown q (proj2 E1)). }
-          destruct (Hchk Hnn b Kr Hbc Hsat) as [f Ef']. exists f.
-          assert (Hbp: lookup_binding b p = Some (TypeArgument invariant ref (lower_bound st))) by (rewrite (Hlb p S Hin), Exl; reflexivity).
-          pose proof (bound_vars_candidate b p (lower_bound st) S (ifrag_no_generics env S Hif) HbvS
-              (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))) as Hbvc.
-          unfold inst in Ef'. rewrite (inst_nested_plain b _ Hpb Hwi Hbvc) in Ef'.
-          rewrite (candidate_instantiate b p ref (lower_bound st) Hpb Hbp HlA HlC S Hif Hpo HbvS) in Ef'.
-          rewrite <- (inst_nested_plain b S Hpb Hif HbvS), Hg in Ef'. rewrite Exl. exact Ef'. }
+          assert (Hc: forall C, In C (intersected_components S) ->
+              exists f, unify env f (inst_nested env b (to_generic C)) (lower_bound st) (Ongoing []) = Some (Ongoing [])).
+          { intros C HC. destruct (Hcomp C HC) as [Hif Hpo].
+            pose proof (vars_in_intersected _ _ Hsv C HC) as HsvC.
+            assert (HbvC: bound_vars b C = true)
+                by (apply Hbv; apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ HsvC)).
+            pose proof (with_candidate_ifrag env wf p _ HlA HlC C Hif) as Hwi.
+            assert (Hbc: bound_in env b Kr [] (to_generic (with_candidate env p (lower_bound st) C)) = true).
+            { apply (refs_bound_in env wf b Kr (R r) (HR r Kr IHr) (Hclose r)).
+              apply (refs_of_vars (fun q => (static_vars env p q && existsb (param_eqb q) ps) && negb (param_eqb q p)) (R r) b).
+              - exact (ifrag_no_generics env _ Hwi).
+              - exact (candidate_vars env wf _ p _ C HsvC (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))).
+              - exact (plain_owners_in _ _ (plain_owners_candidate p _ HlA HlC C Hif Hpo)).
+              - intros q E. apply andb_true_iff in E. destruct E as [E1 E3]. apply andb_true_iff in E1. destruct E1 as [E1 E2].
+                destruct (Hps q E2) as [S' Hin']. exists q, S'. split; [reflexivity|]. split; [exact Hin'|].
+                unfold static_vars in E1. apply orb_true_iff in E1. destruct E1 as [E1|E1]; [rewrite E1 in E3; discriminate E3|].
+                unfold rank_below in E1. apply Nat.ltb_lt in E1. lia.
+              - intros q E. apply andb_true_iff in E. destruct E as [E1 _]. apply andb_true_iff in E1. exact (Hown q (proj2 E1)). }
+            destruct (Hchk Hnn C HC b Kr Hbc Hsat) as [f Ef']. exists f.
+            assert (Hbp: lookup_binding b p = Some (TypeArgument invariant ref (lower_bound st))) by (rewrite (Hlb p S Hin), Exl; reflexivity).
+            pose proof (bound_vars_candidate b p (lower_bound st) C (ifrag_no_generics env C Hif) HbvC
+                (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))) as Hbvc.
+            unfold inst in Ef'. rewrite (inst_nested_plain b _ Hpb Hwi Hbvc) in Ef'.
+            rewrite (candidate_instantiate b p ref (lower_bound st) Hpb Hbp HlA HlC C Hif Hpo HbvC) in Ef'.
+            rewrite <- (inst_nested_plain b C Hpb Hif HbvC) in Ef'. exact Ef'. }
+          rewrite Exl, <- Hg. destruct (static_shape S Hnn') as [[E _]|[cs [-> E]]].
+          + rewrite E in Hc. exact (Hc S (or_introl eq_refl)).
+          + (* an intersection: below the instance of each component, below that of the intersection *)
+            rewrite E in Hc, Hcomp. cbn [to_generic].
+            assert (Hbf: bindings_in_fragment env b).
+            { intros q o x Eq. destruct (Hlb_in q _ Eq) as [S' [Hin' Ea]]. injection Ea as -> ->.
+              exact (Hclass (ex_intro _ p (ex_intro _ cs Hin)) q S' Hin'). }
+            assert (Hrefs: refs_in b (R rmax) (Intersection (map to_generic cs))).
+            { change (refs_in b (R rmax) (to_generic (Intersection cs))).
+              apply (refs_of_static (fun q => static_vars env p q && existsb (param_eqb q) ps) (R rmax) b _ Hnn'); [| exact Hsv | |].
+              - intros C HC. destruct (Hcomp C HC) as [Hif Hpo]. exact (conj (ifrag_no_generics env C Hif) Hpo).
+              - intros q E'. apply andb_true_iff in E'. destruct (Hps q (proj2 E')) as [S' Hin'].
+                exists q, S'. split; [reflexivity|]. split; [exact Hin'|exact (Hrmax q S' Hin')].
+              - intros q E'. apply andb_true_iff in E'. exact (Hown q (proj2 E')). }
+            apply (below_intersection_instance b Kr (map to_generic cs) (lower_bound st) Hbf (Hics cs eq_refl) (Hbex _ Hrefs)).
+            * (* the components at the top of the bound: class types, and references of a lower rank *)
+              pose proof (wf_bounds_ranked env wf p) as Hrk. rewrite <- Hg in Hrk. cbn [to_generic ranked_below] in Hrk.
+              change (forallb (ranked_below env (parameter_rank env p)) (map to_generic cs) = true) in Hrk.
+              rewrite forallb_forall in Hrk.
+              intros c Hc'. pose proof (Hrk c Hc') as Hrc. apply in_map_iff in Hc'. destruct Hc' as [C [<- HC]].
+              destruct (Hcomp C HC) as [Hif _].
+              destruct (ifrag_cases env wf C Hif) as [[m [c' [args [-> _]]]]|[->|[[m [c' [args [-> _]]]]|[q [-> _]]]]]; try reflexivity.
+              cbn [to_generic ranked_below rank_of param_of] in Hrc |- *. apply Nat.ltb_lt in Hrc.
+              pose proof (vars_in_intersected _ _ Hsv _ HC) as HsvC. cbn [vars_in] in HsvC.
+              apply andb_true_iff in HsvC. destruct HsvC as [HsvC _]. apply andb_true_iff in HsvC. destruct HsvC as [_ HsvC].
+              destruct (Hps q HsvC) as [S' Hin'].
+              assert (HRq: R r (mkGenericRef None false q [])) by (exists q, S'; split; [reflexivity|]; split; [exact Hin'|unfold rank_of in Hrc; cbn [param_of] in Hrc; lia]).
+              destruct (HR r Kr IHr _ HRq) as [Hbr _]. cbn [bound_in_top_h]. rewrite Hbr. cbn [andb no_type_variables variables_of].
+              exact (refs_top env wf b Kr (R r) (HR r Kr IHr) (Hclose r) _ HRq).
+            * exact (proj1 (afrag_parts env _ HlA)).
+            * intros c Hc'. apply in_map_iff in Hc'. destruct Hc' as [C [<- HC]]. exact (Hc C HC). }
       destruct (uniform_fuel_list vars (fun f v => parameter_rank env (fst v) < S r ->
           unify env f (inst_nested env b (parameter_bound env (fst v))) (final_of U (fst v)) (Ongoing []) = Some (Ongoing [])))
           as [K HK].
@@ -442,12 +592,6 @@ Proof.
         - destruct (Hp p S Hin Heq) as [f Ef]. exists f. intros _. exact Ef.
         - exists Kr. intros Hr. apply (IHr p S Hin). lia. }
       exists K. intros p S Hin Hr. exact (HK (p, S) Hin Hr). }
-    set (rmax := S (list_max (map (fun v => parameter_rank env (fst v)) vars))).
-    assert (Hrmax: forall p S, In (p, S) vars -> parameter_rank env p < rmax).
-    { intros p S Hin. unfold rmax.
-      assert (H: Forall (fun k => k <= list_max (map (fun v => parameter_rank env (fst v)) vars)) (map (fun v => parameter_rank env (fst v)) vars))
-          by (apply list_max_le; lia).
-      rewrite Forall_forall in H. specialize (H (parameter_rank env p) (in_map (fun v => parameter_rank env (fst v)) _ _ Hin)). lia. }
     destruct (Hwithin rmax) as [K HK].
     split; [exists K; intros p S Hin; exact (HK p S Hin (Hrmax p S Hin))|].
     (* the types of the parameters are bound in b *)
@@ -458,6 +602,7 @@ Proof.
       - exact Hown. }
     intros P A Hin. exact (Hsound b K Hb Hsat P A Hin).
 Qed.
+
 
 End Invocation.
 
