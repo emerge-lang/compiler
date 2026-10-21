@@ -16,8 +16,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * ~~how to deal with `exclusive` mutability?~~ slicing captures the source and keeps its type, so an exclusive
       array yields an exclusive slice and the source is gone
     * ~~apply to standard library, especially IO functions~~
-    * arrays referenced as one of their supertypes (`Any`, `Iterable`, `T`, `Array<T>?`) are boxed into
-      `emerge.platform.ArrayBox`
+    * arrays referenced as one of their supertypes (`Any`, `Iterable`, `T`) are boxed into
+      `emerge.platform.ArrayBox`; a nullable array is a slice with a null base
 2. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
@@ -263,8 +263,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
 32. slicing syntax: `someArray[from..toExclusive]`, lowered to `Array.slice`. Needs a `..` operator in the
     lexer/parser; maybe also open ranges (`someArray[from..]`, `someArray[..to]`)
-33. nullable arrays without a box: `Array<T>?` is boxed into `emerge.platform.ArrayBox` today; it could be an
-    `arrayslice` with a null base instead, saving the allocation
+33. ~~nullable arrays without a box~~: `Array<T>?` is an `arrayslice` with a null base; boxing it yields a null
+    pointer for null, unboxing a null pointer yields the null slice
 34. explicitly importing a function from `emerge.std` makes invocations of it ambiguous: with
     `import emerge.std.println`, `println("x")` reports "Multiple overloads of println apply", listing one
     candidate
@@ -274,10 +274,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
 37. global variables are initialized in declaration order within a source file, but not in dependency order across
     files: a global that reads a global of another file can see it uninitialized
-38. `ArrayBox`es can leak at conversion sites that have no owner: a box created for the result of an
-    `if`/`try` branch, or for a temporary whose declared type differs from the value's, is never dropped
-    (it keeps the array object alive with it, but never dangles). Call arguments, assignments, returns and
-    invocation results move or drop their boxes correctly
+38. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
+    of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
+    dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
+    returns and invocation results move or drop their boxes correctly
 39. `EmergeLlvmContext.getArrayObjectType` chooses the array object type (and with it the raw element accessors) from
     the static bound of the element type: `Array<T>` with `T : Printable`, or `Array<out Printable>`, is accessed as
     an array of references. But an `Array<S32>` is a valid argument for both (`S32` is a `Printable`) and stores raw
@@ -286,6 +286,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 40. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
     slice's size, so the rest of the base array can be freed. `U64.toString` returns a slice of its 21-byte buffer,
     keeping the entire buffer alive for as long as the string lives
+41. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
+    `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
+    the arguments that were reference-counted to begin with
 -----
 
 ## Future features
