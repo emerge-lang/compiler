@@ -310,7 +310,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 }
                 is IrAssignmentStatement.Target.ClassField -> {
                     // TODO: autoboxing
-                    val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.field)
+                    val memberPointer = getPointerToStructMember(
+                        localTarget.objectValue.declaration.llvmValue
+                            .reinterpretAs(context.getReferenceSiteType(localTarget.objectValue.type)),
+                        localTarget.field,
+                    )
                     store(valueForAssignment, memberPointer)
                 }
             }
