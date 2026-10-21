@@ -255,6 +255,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 34. explicitly importing a function from `emerge.std` makes invocations of it ambiguous: with
     `import emerge.std.println`, `println("x")` reports "Multiple overloads of println apply", listing one
     candidate
+35. signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
+    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`
+36. `f()!!.member` leaks the result of `f()`: the temporary from the invocation is never dropped when the
+    not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
+37. global variables are initialized in declaration order within a source file, but not in dependency order across
+    files: a global that reads a global of another file can see it uninitialized
+38. `ArrayBox`es can leak at conversion sites that have no owner: a box created for the result of an
+    `if`/`try` branch, or for a temporary whose declared type differs from the value's, is never dropped
+    (it keeps the array object alive with it, but never dangles). Call arguments, assignments, returns and
+    invocation results move or drop their boxes correctly
 -----
 
 ## Future features
