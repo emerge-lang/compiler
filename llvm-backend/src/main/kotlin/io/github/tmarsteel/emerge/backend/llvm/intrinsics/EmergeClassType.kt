@@ -334,7 +334,7 @@ private fun buildArrayBoxBridge(arrayFn: IrMemberFunction): KotlinLlvmFunction<E
         val box by param(PointerToAnyEmergeValue)
         val forwardedParams = arrayFnType.parameterTypes.drop(1).map { param(it) }
         body {
-            val slice = Autoboxer.ArraySlice.unbox(box)
+            val slice = Autoboxer.ArraySlice.unboxNotNull(box)
             val arguments = listOf(slice) + forwardedParams.map { it.getValue(null, ::bridgeParameter) }
             @Suppress("UNCHECKED_CAST")
             val result = call(arrayFn.llvmRef!! as LlvmFunction<LlvmType>, arguments)

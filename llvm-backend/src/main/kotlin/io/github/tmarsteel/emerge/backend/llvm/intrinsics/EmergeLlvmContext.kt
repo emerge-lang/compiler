@@ -700,6 +700,11 @@ class EmergeLlvmContext(
             }
         }
 
+        if (elementBaseType.autoboxer === Autoboxer.ArraySlice) {
+            // nullable arrays are slices, too
+            return EmergeSliceArrayType
+        }
+
         if (component.type.isNullable) {
             // nullable value types are boxed
             return EmergeReferenceArrayType
@@ -721,7 +726,6 @@ class EmergeLlvmContext(
             "emerge.core.SWord" -> EmergeSWordArrayType
             "emerge.core.UWord" -> EmergeUWordArrayType
             "emerge.core.Bool" -> EmergeBooleanArrayType
-            "emerge.core.Array" -> EmergeSliceArrayType
             else -> EmergeReferenceArrayType
         }
     }

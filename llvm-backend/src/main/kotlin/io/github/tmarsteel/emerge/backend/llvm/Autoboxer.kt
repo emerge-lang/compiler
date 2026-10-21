@@ -34,6 +34,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySliceOfEntireArray
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
@@ -293,7 +294,9 @@ internal sealed interface Autoboxer {
 
     /**
      * `emerge.core.Array`: is an [EmergeArraySliceType] wherever the reference is typed as an array, and
-     * is boxed into `emerge.platform.ArrayBox` when referenced as one of its supertypes (including nullable arrays).
+     * is boxed into `emerge.platform.ArrayBox` when referenced as one of its supertypes. A nullable array is a
+     * slice with a null base; it boxes to and unboxes from a null pointer. Hence, other than for the other
+     * [Autoboxer]s, [unbox] accepts null.
      * The box holds its own reference to the base of the slice.
      */
     object ArraySlice : Autoboxer {
@@ -317,7 +320,11 @@ internal sealed interface Autoboxer {
         }
 
         override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
-            return type.isNullable || type.boundBaseTypeOrNull()?.autoboxer !== this
+            return type.boundBaseTypeOrNull()?.autoboxer !== this
+        }
+
+        override fun getReferenceSiteType(context: EmergeLlvmContext, referenceSiteType: IrType, forceBoxed: Boolean): LlvmType {
+            return if (forceBoxed) pointerTo(getBoxedType(context)) else unboxedType
         }
 
         context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
@@ -325,22 +332,60 @@ internal sealed interface Autoboxer {
             check(llvmValue.type == EmergeArraySliceType) {
                 "cannot box an ${llvmValue.type} as an array"
             }
+            @Suppress("UNCHECKED_CAST")
+            llvmValue as LlvmValue<EmergeArraySliceType>
             with(builder) {
                 val boxedType = getBoxedType(context)
-                return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                    propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
-                }
+                val boxed = PhiBucket(pointerTo(boxedType))
+                conditionalBranch(
+                    condition = isNull(llvmValue.sliceBase),
+                    ifTrue = {
+                        boxed.setBranchResult(context.nullValue(boxed.type))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                            propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
+                        })
+                        concludeBranch()
+                    }
+                )
+                return boxed.buildPhi()
             }
         }
 
         context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
+            check(llvmValue.type is LlvmPointerType<*>)
+            @Suppress("UNCHECKED_CAST")
+            llvmValue as LlvmValue<LlvmPointerType<*>>
+            with(builder) {
+                val unboxed = PhiBucket(EmergeArraySliceType)
+                conditionalBranch(
+                    condition = isNull(llvmValue),
+                    ifTrue = {
+                        unboxed.setBranchResult(context.nullValue(EmergeArraySliceType))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        unboxed.setBranchResult(unboxNotNull(llvmValue))
+                        concludeBranch()
+                    }
+                )
+                return unboxed.buildPhi()
+            }
+        }
+
+        /** like [unbox], for a [box] that is known not to be null */
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+        fun unboxNotNull(box: LlvmValue<*>): LlvmValue<EmergeArraySliceType> {
             with(builder) {
                 val boxedType = getBoxedType(context)
-                return getelementptr(llvmValue.reinterpretAs(pointerTo(boxedType)))
+                @Suppress("UNCHECKED_CAST")
+                return getelementptr(box.reinterpretAs(pointerTo(boxedType)))
                     .member(boxedType.irClass.fields.single())
                     .get()
-                    .dereference()
+                    .dereference() as LlvmValue<EmergeArraySliceType>
             }
         }
     }

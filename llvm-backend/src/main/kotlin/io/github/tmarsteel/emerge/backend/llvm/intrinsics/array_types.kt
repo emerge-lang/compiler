@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -1049,10 +1050,7 @@ private val sliceArrayBoxingElementGetterWithFallibleBoundsCheck: KotlinLlvmFunc
     body {
         inlineFallibleBoundsCheck(self, index)
         val element = sliceElementPointer(EmergeSliceArrayType, self, index).dereference()
-        ret(
-            call(context.boxTypeArray.constructor, listOf(element))
-                .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
-        )
+        ret(fallibleSuccess(Autoboxer.ArraySlice.box(element).reinterpretAs(PointerToAnyEmergeValue)))
     }
 }
 
@@ -1065,22 +1063,7 @@ private val sliceArrayBoxingElementGetterWithPanicBoundsCheck: KotlinLlvmFunctio
     body {
         inlinePanicBoundsCheck(self, index)
         val element = sliceElementPointer(EmergeSliceArrayType, self, index).dereference()
-        val box = call(context.boxTypeArray.constructor, listOf(element)).abortOnException { _ ->
-            inlinePanic("failed to allocate box - OOM")
-        }
-        ret(box.reinterpretAs(PointerToAnyEmergeValue))
-    }
-}
-
-context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
-private fun unboxArrayBox(box: LlvmValue<*>): LlvmValue<EmergeArraySliceType> {
-    with(builder) {
-        val boxType = context.boxTypeArray
-        @Suppress("UNCHECKED_CAST")
-        return getelementptr(box.reinterpretAs(pointerTo(boxType)))
-            .member(boxType.irClass.fields.single())
-            .get()
-            .dereference() as LlvmValue<EmergeArraySliceType>
+        ret(Autoboxer.ArraySlice.box(element).reinterpretAs(PointerToAnyEmergeValue))
     }
 }
 
@@ -1093,7 +1076,7 @@ private val sliceArrayBoxingElementSetterWithFallibleBoundsCheck: KotlinLlvmFunc
     val valueBox by param(PointerToAnyEmergeValue)
     body {
         inlineFallibleBoundsCheck(self, index)
-        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, unboxArrayBox(valueBox)))
+        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, Autoboxer.ArraySlice.unbox(valueBox)))
         retFallibleVoid()
     }
 }
@@ -1107,7 +1090,7 @@ private val sliceArrayBoxingElementSetterWithPanicBoundsCheck: KotlinLlvmFunctio
     val valueBox by param(PointerToAnyEmergeValue)
     body {
         inlinePanicBoundsCheck(self, index)
-        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, unboxArrayBox(valueBox)))
+        call(context.registerIntrinsic(sliceArrayElementSetterNoBoundsCheck), listOf(self, index, Autoboxer.ArraySlice.unbox(valueBox)))
         retVoid()
     }
 }

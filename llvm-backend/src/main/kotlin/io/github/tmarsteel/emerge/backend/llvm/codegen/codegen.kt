@@ -515,10 +515,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrClassFieldAccessExpression -> {
             if (expression.baseBaseType.canonicalName.toString() == "emerge.core.Array") {
                 if (expression.memberVariable?.name == "size") {
-                    // the base may be typed nullable, e.g. in null-safe member access
-                    val baseValue = expression.base.declaration.llvmValue
-                    val baseSlice = if (baseValue.type == EmergeArraySliceType) baseValue else Autoboxer.ArraySlice.unbox(baseValue)
-                    val memberValue = callIntrinsic(arraySize, listOf(baseSlice))
+                    val memberValue = callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
                     return ExpressionResult.Value(
                         autoBoxOrUnbox(memberValue, IrSimpleTypeImpl(context.rawUWordClazz, IrTypeMutability.IMMUTABLE, false), expression.evaluatesTo)
                     )
@@ -585,17 +582,23 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                                 // of the element type of the array object (raw for value arrays, boxed for reference arrays),
                                 // which may differ from the representation of the argument (e.g. a S32 or an array slice
                                 // stored into an Array<Any>).
-                                overridenCallInstruction = call(
-                                    context.registerIntrinsic(override.intrinsic),
-                                    expression.arguments.mapIndexed { index, argument ->
+                                val intrinsic = context.registerIntrinsic(override.intrinsic)
+                                val arguments = expression.arguments.zip(intrinsic.type.parameterTypes)
+                                    .mapIndexed { index, (argument, llvmParameterType) ->
                                         val elementArgument = override.elementArgument
-                                        if (elementArgument != null && elementArgument.first == index) {
+                                        val value = if (elementArgument != null && elementArgument.first == index) {
                                             prepareArgument(argument, elementArgument.second)
                                         } else {
                                             autoBoxOrUnbox(argument, argument.type)
                                         }
+                                        if (llvmParameterType == EmergeArraySliceType && value.type != EmergeArraySliceType) {
+                                            // e.g. a null literal stored into an Array<Array<..>?>
+                                            Autoboxer.ArraySlice.unbox(value)
+                                        } else {
+                                            value
+                                        }
                                     }
-                                )
+                                overridenCallInstruction = call(intrinsic, arguments)
                             }
                             else -> {}
                         }
@@ -638,7 +641,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             for (box in argumentBoxes) {
                 @Suppress("UNCHECKED_CAST")
-                (box as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceDropped(isNullable = false)
+                // boxing a null array results in a null pointer
+                (box as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceDropped(isNullable = true)
             }
 
             val rawNonThrowableReturnValue = when {
@@ -801,9 +805,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 return ExpressionResult.Value(context.i1(false))
             }
 
+            val llvmValue = expression.nullableValue.declaration.llvmValue
+            if (llvmValue.type == EmergeArraySliceType) {
+                @Suppress("UNCHECKED_CAST")
+                return ExpressionResult.Value(isNull((llvmValue as LlvmValue<EmergeArraySliceType>).sliceBase))
+            }
+
             // because the type is nullable, it is guaranteed that it is a boxed version of a possibly boxable type
             // hence it is guaranteed that nullableValue holds a pointer
-            val llvmValue = expression.nullableValue.declaration.llvmValue
             check(llvmValue.type is LlvmPointerType<*>)
             @Suppress("UNCHECKED_CAST")
             llvmValue as LlvmValue<LlvmPointerType<*>>
