@@ -246,7 +246,7 @@ Proof.
     - assert (Hroot: forall m c args, ifrag env (RootResolved m c args) = true ->
           bound_in env b K [] (to_generic (RootResolved m c args)) = true -> vsize (RootResolved m c args) <= S k ->
           caller_type (inst env b (RootResolved m c args))).
-      { intros m c args HP HbP Hd. rewrite (inst_root env b m c args (ifrag_no_generics env _ HP)).
+      { intros m c args HP HbP Hd. rewrite (inst_root env b m c args (ifrag_no_generics env _ HP) ltac:(solve_bound_vars)).
         assert (Hargs: forall a, In a args -> caller_argument (instantiate env b a)).
         { intros a Ha. destruct (root_parts env wf b K [] m c args HP HbP a Ha) as [Hfa Hba].
           pose proof (vsize_below m c args a Ha). apply IHa; [lia|exact Hfa|exact Hba]. }
@@ -266,8 +266,8 @@ Proof.
         * exact (Hroot m c args HP HbP Hd).
         * assert (Hb': bound_in env b K [] (to_generic (RootResolved m c args)) = true) by exact HbP.
           simpl in Hd. destruct (Hroot m c args HP' Hb' ltac:(simpl; lia)) as [Hw Hbm].
-          rewrite (inst_root env b m c args (ifrag_no_generics env _ HP')) in Hw, Hbm.
-          rewrite (inst_nullable env b m c args (ifrag_no_generics env _ HP')).
+          rewrite (inst_root env b m c args (ifrag_no_generics env _ HP') ltac:(solve_bound_vars)) in Hw, Hbm.
+          rewrite (inst_nullable env b m c args (ifrag_no_generics env _ HP') ltac:(solve_bound_vars)).
           split; [|exact Hbm].
           change (true && wfrag env (RootResolved m c (map (instantiate env b) args)) = true). exact Hw.
         * destruct (binds_ref_some env wf b K [] (mkGenericRef None false p bnd) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.

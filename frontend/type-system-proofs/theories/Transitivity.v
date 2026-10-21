@@ -72,19 +72,6 @@ Proof.
     destruct (g a), (h (k a)), (existsb g l), (existsb h (map k l)); reflexivity.
 Qed.
 
-(* No type variables, also not in the bounds of type parameters: a reference has its bound with
-   type variables in it where it has any (see Subtyping.effective_bound) *)
-Fixpoint no_vars (t: EType): bool :=
-    match t with
-    | RootResolved _ _ arguments => forallb no_vars arguments
-    | Nullable n => no_vars n
-    | Generic (mkGenericRef _ _ _ vs) => match vs with [] => true | _ => false end
-    | Error _ _ => true
-    | TypeArgument _ _ n => no_vars n
-    | TypeVariable _ => false
-    | Intersection components => forallb no_vars components
-    end.
-
 (* Nothing is `exclusive Nothing`, nowhere else *)
 Definition is_bottom (m: option Mutability) (arguments: list EType): bool :=
     match m, arguments with Some exclusive, [] => true | _, _ => false end.

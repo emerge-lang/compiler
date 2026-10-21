@@ -38,6 +38,7 @@ it shows and why; the tables below are the map.
 | `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`                              |
 | `GenericReceivers.v` | calls in generic code on receivers mentioning the type parameters of the caller, at run time      | `member_call_on_generic_receiver`                                       |
+| `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : Comparable<T>`)    | `invocation_with_bounded_variables_sound`                               |
 
 ### Fragments
 
@@ -52,7 +53,7 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `cfrag`       | `Substitution.v`  | what the types of `tfrag` become: `in_fragment`, and intersections of class types of it, nullable or not |
 | `wtfrag`      | `SubstitutionWide.v` | `tfrag`, with intersections in type arguments, too (`Box<A & T>`)                                     |
 | `ground`      | `SubstitutionWide.v` | what the types of `wtfrag` become: `gfrag` without type parameters                                   |
-| `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters, bounded by types without type parameters |
+| `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
 | `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, Nothing only as `exclusive Nothing` (`bottom_only`), the type parameters of the caller none of those inferred |
 | `caller_type` | `GenericCode.v`   | the types of generic code: `wtfrag`, the references to the type parameters of the caller |
@@ -71,6 +72,7 @@ of the theorems, mostly bundled in records:
 | `intersect_stays_in_fragment`, `closest_common_supertype_stays_in_fragment` | `Conjectures.v` | conjecture: both functions build types of `gfrag` from types of it |
 | `intersect_is_below_both`, `closest_common_supertype_is_above_both` | `Conjectures.v` | conjecture: the intersection is below both types, the closest common supertype above both |
 | `intersect_stays_in_generic_code`, `closest_common_supertype_stays_in_generic_code` | `GenericCode.v` | conjecture: both functions build types of generic code (`caller_type`) from types of it |
+| `closest_common_supertype_of_classes`          | `Constraints.v`   | the closest common supertype of two class types is a class type: lower bounds of variables stay of the types of the arguments, checked against static upper bounds with type variables |
 | `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
@@ -87,7 +89,10 @@ program.
 
 ### Not covered yet
 
-- Inference with F-bounded type variables.
+- Inference with type variables bounded by type variables, beyond `FBounded.v`: such a variable without a
+  lower bound (its final value is the upper bound intersected with the bound instantiated), bounds that are
+  intersections or mention `m T` or `T!`, F-bounded type parameters of the class of a receiver, and the
+  generic code of `GenericArguments.v` onwards, which takes bounds without type variables.
 - Declaration-site variance, which emerge doesn't have.
 
 ## Running the proofs

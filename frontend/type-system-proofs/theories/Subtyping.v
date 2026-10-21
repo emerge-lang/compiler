@@ -551,10 +551,10 @@ Fixpoint instantiate_h (bindings: Bindings) (t: EType): EType :=
                 end
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
-    | TypeVariable ((mkGenericRef _ _ p _) as g) =>
+    | TypeVariable (mkGenericRef _ _ p _) =>
         match lookup_binding bindings p with
         | Some argument => final_argument argument
-        | None => unbound g
+        | None => t
         end
     | Intersection components => of_components (flat_map intersected_components (map (instantiate_h bindings) components))
     end.
@@ -674,11 +674,12 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
                 end
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
-    (* TypeVariable.instantiateAllParameters *)
-    | TypeVariable ((mkGenericRef _ _ p _) as g) =>
+    (* TypeVariable.instantiateAllParameters: a variable without a binding stays, as one of another
+       inference does *)
+    | TypeVariable (mkGenericRef _ _ p _) =>
         match lookup_binding bindings p with
         | Some argument => final_argument argument
-        | None => instantiate_unbound bindings g
+        | None => t
         end
     | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))
     end.
@@ -729,10 +730,34 @@ Inductive Unification :=
 (* TypeUnification.EMPTY *)
 Definition empty_unification: Unification := Ongoing [].
 
+(* No type variables, also not in the bounds of type parameters: a reference has its bound with
+   type variables in it where it has any (see effective_bound) *)
+Fixpoint no_vars (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb no_vars arguments
+    | Nullable n => no_vars n
+    | Generic (mkGenericRef _ _ _ vs) => match vs with [] => true | _ => false end
+    | Error _ _ => true
+    | TypeArgument _ _ n => no_vars n
+    | TypeVariable _ => false
+    | Intersection components => forallb no_vars components
+    end.
+
+(* The upper bound a variable starts with: its declared bound, where that mentions no type variables.
+   One that does (`B : List<A>`, `T : Comparable<T>`) is kept as the static upper bound only, and
+   checked separately (plus_static_check); the upper bound holds no type variables, so that
+   intersect never sees any *)
+Definition initial_upper_bound (bound: EType): EType := if no_vars bound then bound else top_type.
+
 (* TypeUnification.forInferenceOf; the bounds are expected with their type variables already in
    place (`it.bound.withTypeVariables(parameters)`) *)
 Definition for_inference_of (parameters: list (TypeParameterId * EType)) (capturable: list TypeParameterId): Unification :=
-    Ongoing (map (fun '(p, bound) => (p, mkVariableState bound bound bottom_type false (existsb (param_eqb p) capturable))) parameters).
+    Ongoing (map (fun '(p, bound) => (p, mkVariableState bound (initial_upper_bound bound) bottom_type false (existsb (param_eqb p) capturable))) parameters).
+
+(* The static upper bound of the variable parameter, the variable itself replaced by the candidate
+   for its value (`Comparable<T>` with Int for T is `Comparable<Int>`) *)
+Definition with_candidate (parameter: TypeParameterId) (candidate: EType) (bound: EType): EType :=
+    instantiate [(parameter, TypeArgument invariant ref candidate)] bound.
 
 Fixpoint lookup_state (states: VariableStates) (p: TypeParameterId): option VariableState :=
     match states with
@@ -781,6 +806,13 @@ Definition plus_subtype_constraint (unify: UnifyFn) (states: VariableStates) (pa
         end
     end.
 
+(* A candidate for the value of the variable parameter, assignable to its static upper bound, where
+   that mentions type variables (initial_upper_bound): with the candidate for the variable itself, the
+   others constrained *)
+Definition plus_static_check (unify: UnifyFn) (state: VariableState) (parameter: TypeParameterId) (candidate: EType) (carry: Unification): option Unification :=
+    if no_vars (static_upper_bound state) then Some carry
+    else unify (with_candidate parameter candidate (static_upper_bound state)) candidate carry.
+
 (* TypeUnification.plusSupertypeConstraint: lower must be assignable to parameter *)
 Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (lower: EType): option Unification :=
     match lookup_state states parameter with
@@ -794,9 +826,24 @@ Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (
         (* Incompatible constraints. Kotlin also unifies with the static upper bound here, to tell
            whether that or another constraint is to blame; it fails either way. *)
         | Failed => Some Failed
-        | Ongoing new_states => Some (Ongoing (set_state new_states parameter
-            (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false (is_capturable state))))
+        | Ongoing new_states =>
+            let* with_static := plus_static_check unify state parameter new_lower_bound (Ongoing new_states) in
+            match with_static with
+            | Failed => Some Failed
+            | Ongoing checked_states => Some (Ongoing (set_state checked_states parameter
+                (mkVariableState (static_upper_bound state) (upper_bound state) new_lower_bound false (is_capturable state))))
+            end
         end
+    end.
+
+(* An exact binding, checked against the static upper bound. One of a variance is a type argument of a
+   receiver captured (plusCapture; type arguments of invocations have none), which stands for types
+   within the bounds already; the static upper bound, which needn't be monotone (`T : Comparable<T>`),
+   checks only an invariant one *)
+Definition plus_binding_check (unify: UnifyFn) (state: VariableState) (parameter: TypeParameterId) (binding: EType) (carry: Unification): option Unification :=
+    match binding with
+    | TypeArgument invariant _ t => plus_static_check unify state parameter t carry
+    | _ => Some carry
     end.
 
 (* TypeUnification.plusExactBinding: parameter is exactly the type argument binding, whose type must
@@ -814,8 +861,13 @@ Definition plus_exact_binding (unify: UnifyFn) (states: VariableStates) (paramet
             let* with_lower_bound := unify binding (lower_bound state) (Ongoing states) in
             match with_lower_bound with
             | Failed => Some Failed
-            | Ongoing new_states => Some (Ongoing (set_state new_states parameter
-                (mkVariableState (static_upper_bound state) binding binding true (is_capturable state))))
+            | Ongoing new_states =>
+                let* with_static := plus_binding_check unify state parameter binding (Ongoing new_states) in
+                match with_static with
+                | Failed => Some Failed
+                | Ongoing checked_states => Some (Ongoing (set_state checked_states parameter
+                    (mkVariableState (static_upper_bound state) binding binding true (is_capturable state))))
+                end
             end
         end
     end.
@@ -1190,11 +1242,28 @@ Section StepRefines.
 
     Lemma plus_supertype_constraint_refines: forall states p lower u,
         plus_supertype_constraint f states p lower = Some u -> plus_supertype_constraint g states p lower = Some u.
-    Proof. intros * H. unfold plus_supertype_constraint in *. solve_refines Hfg H. Qed.
+    Proof. intros * H. unfold plus_supertype_constraint, plus_static_check in *. solve_refines Hfg H. Qed.
+
+    Lemma plus_binding_check_refines: forall st p binding c u,
+        plus_binding_check f st p binding c = Some u -> plus_binding_check g st p binding c = Some u.
+    Proof.
+        intros * H. unfold plus_binding_check, plus_static_check in *.
+        destruct binding as [| | | |[] o t| |]; try exact H. destruct (no_vars _); [exact H|]. destruct c; [exact (Hfg _ _ _ _ H)|].
+        exact (Hfg _ _ _ _ H).
+    Qed.
 
     Lemma plus_exact_binding_refines: forall states p binding u,
         plus_exact_binding f states p binding = Some u -> plus_exact_binding g states p binding = Some u.
-    Proof. intros * H. unfold plus_exact_binding in *. solve_refines Hfg H. Qed.
+    Proof.
+        intros * H. unfold plus_exact_binding in *.
+        destruct (lookup_state states p) as [st|]; [|discriminate H].
+        destruct (f (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
+            [rewrite (Hfg _ _ _ _ E1)|rewrite (Hfg _ _ _ _ E1); exact H|discriminate H].
+        destruct (f binding (lower_bound st) (Ongoing states)) as [[s2|]|] eqn:E2;
+            [rewrite (Hfg _ _ _ _ E2)|rewrite (Hfg _ _ _ _ E2); exact H|discriminate H].
+        destruct (plus_binding_check f st p binding (Ongoing s2)) as [u'|] eqn:E3; [|discriminate H].
+        rewrite (plus_binding_check_refines _ _ _ _ _ E3). exact H.
+    Qed.
 
     Lemma intersection_flipped_unify_refines: forall target components states u,
         intersection_flipped_unify f target components states = Some u -> intersection_flipped_unify g target components states = Some u.

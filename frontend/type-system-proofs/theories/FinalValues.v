@@ -108,6 +108,7 @@ Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
 Hypothesis supertype_above: closest_common_supertype_is_above_both env declared.
+Hypothesis supertype_of_classes: closest_common_supertype_of_classes env.
 
 Let of_fragment (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
 
@@ -215,7 +216,7 @@ Proof.
             in_fragment_of_fragment
             (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-            below_intersection above_supertype intersect_no_vars supertype_no_vars)
+            below_intersection above_supertype intersect_no_vars supertype_no_vars) supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold (fun _ _ _ H => H)).
 Qed.
