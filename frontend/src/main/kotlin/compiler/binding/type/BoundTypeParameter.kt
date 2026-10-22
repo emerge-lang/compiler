@@ -1,14 +1,17 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.TypeParameterBoundedByItselfDiagnostic
 import compiler.diagnostic.typeParameterNameConflict
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -25,7 +28,20 @@ data class BoundTypeParameter(
      * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
     val bound: BoundTypeReference by lazy {
-        astNode.bound?.let(context::resolveType) ?: context.swCtx.getTopType(astNode.span)
+        astNode.bound
+            ?.takeIf { selfReferenceAtTopOfBound == null }
+            ?.let(modifiedContext::resolveType)
+            ?: context.swCtx.getTopType(astNode.span)
+    }
+
+    private val selfReferenceAtTopOfBound: TypeReference? by lazy {
+        astNode.bound?.let(::findSelfReferenceAtTop)
+    }
+
+    private fun findSelfReferenceAtTop(ref: TypeReference): TypeReference? = when (ref) {
+        is NamedTypeReference -> ref.takeIf { it.simpleName == name }
+        is AstIntersectionType -> ref.components.firstNotNullOfOrNull(::findSelfReferenceAtTop)
+        else -> null
     }
 
     val modifiedContext: CTContext = MutableCTContext(context).also {
@@ -41,6 +57,9 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        selfReferenceAtTopOfBound?.let { selfReference ->
+            diagnosis.add(TypeParameterBoundedByItselfDiagnostic(astNode, selfReference.span ?: astNode.span))
+        }
         bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this), diagnosis)
     }
 
@@ -77,5 +96,5 @@ private class IrTypeParameterImpl(
     override val name: String,
     givenBound: BoundTypeReference,
 ) : IrBaseType.Parameter {
-    override val bound = givenBound.toBackendIr()
+    override val bound by lazy { givenBound.toBackendIr() }
 }

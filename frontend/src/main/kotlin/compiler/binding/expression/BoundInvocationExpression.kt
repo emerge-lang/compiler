@@ -384,7 +384,7 @@ class BoundInvocationExpression(
                         emptySet()
                     },
                 )
-                val unification = argumentsIncludingReceiver
+                val unificationAfterParameters = argumentsIncludingReceiver
                     .zip(rightSideTypes)
                     .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
                         val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
@@ -393,6 +393,7 @@ class BoundInvocationExpression(
                         }
                         unificationAfterParameter
                     }
+                val unification = unificationAfterParameters.plusFinalValueChecks(declaration.span)
 
                 val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
                     null, Result.Applicable -> null
@@ -417,6 +418,7 @@ class BoundInvocationExpression(
                     isLegalCandidate = unificationBeforeParameters.diagnostics.none { it.severity >= Diagnostic.Severity.ERROR }
                         && inapplicableReason == null
                         && allDisambiguatingArgumentsAreErrorFree
+                        && unification.getErrorsNotIn(unificationAfterParameters).none()
                 )
             }
     }

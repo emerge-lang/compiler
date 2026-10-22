@@ -8,6 +8,8 @@ import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgument
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeParameterBoundedByItselfDiagnostic
+import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
@@ -917,6 +919,184 @@ class TypeErrors : FreeSpec({
                             it.severity shouldBe Diagnostic.Severity.CONSECUTIVE
                         }
                 }
+            }
+        }
+    }
+
+    "F-bounds" - {
+        val ord = """
+            interface Ord<T> {
+                fn compare(self, other: T) -> S32
+            }
+            class Num : Ord<Num> {
+                override fn compare(self, other: Num) -> S32 {
+                    return 0
+                }
+            }
+            class Bad {}
+        """.trimIndent()
+
+        "a type parameter bounded in terms of itself is inferred" {
+            validateModule(ord + "\n" + """
+                fn max<T : Ord<in T>>(a: T, b: T) -> T {
+                    return a
+                }
+                fn test(p: read Num) {
+                    x: Num = max(Num(), Num())
+                    y: read Num = max(p, Num())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "an F-bound invariant in its parameter takes the mutability of the supertype literally" - {
+            "read arguments are accepted" {
+                validateModule(ord + "\n" + """
+                    fn max<T : Ord<T>>(a: T, b: T) -> T {
+                        return a
+                    }
+                    fn test(p: read Num) {
+                        x: read Num = max(p, p)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "exclusive arguments are rejected" {
+                validateModule(ord + "\n" + """
+                    fn max<T : Ord<T>>(a: T) -> T {
+                        return a
+                    }
+                    fn test() {
+                        max(Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "an argument outside the F-bound is rejected" {
+            validateModule(ord + "\n" + """
+                fn max<T : Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    max(Bad())
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "an F-bounded variable without a lower bound cannot be inferred" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    make()
+                }
+            """.trimIndent())
+                .shouldFind<TypeVariableNotInferableDiagnostic>()
+        }
+
+        "explicit type arguments within the F-bound" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    x: Num = make::<Num>()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "explicit type arguments outside the F-bound" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    make::<Bad>()
+                }
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+        }
+
+        "a bound mentioning another type parameter infers it" {
+            validateModule(ord + "\n" + """
+                intrinsic fn other<A, B : Ord<A>>(b: B) -> A
+                fn test() {
+                    x: Num = other(Num())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "F-bounded class" {
+            validateModule(ord + "\n" + """
+                class Node<T : Ord<in T>> {
+                    value: T = init
+                    fn current(self) -> T {
+                        return self.value
+                    }
+                }
+                fn test() {
+                    var n = Node(Num())
+                    x: read Num = n.current()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "type argument outside the bound of an F-bounded class" {
+            validateModule(ord + "\n" + """
+                class Node<T : Ord<T>> {}
+                fn test(n: Node<Bad>) {}
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+        }
+
+        "intersection with an F-bound" {
+            validateModule(ord + "\n" + """
+                interface Named {}
+                class NamedNum : Ord<NamedNum> & Named {
+                    override fn compare(self, other: NamedNum) -> S32 {
+                        return 0
+                    }
+                }
+                fn pick<T : Named & Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    x: NamedNum = pick(NamedNum())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "intersection with an F-bound, a component not met" {
+            validateModule(ord + "\n" + """
+                interface Named {}
+                fn pick<T : Named & Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    pick(Num())
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a type parameter cannot bound itself" - {
+            "directly" {
+                validateModule("fn f<T : T>() {}")
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
+            }
+            "nullable" {
+                validateModule("fn f<T : T?>() {}")
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
+            }
+            "in an intersection" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : A & T>() {}
+                """.trimIndent())
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
             }
         }
     }

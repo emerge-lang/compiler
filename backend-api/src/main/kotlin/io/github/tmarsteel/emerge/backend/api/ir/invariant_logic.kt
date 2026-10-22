@@ -13,38 +13,52 @@ fun IrBaseType.independentEquals(other: IrBaseType): Boolean {
 }
 
 fun IrBaseType.Parameter.independentEquals(other: IrBaseType.Parameter): Boolean {
-    if (!this.bound.independentEquals(other.bound)) return false
     if (this.name != other.name) return false
+    if (!this.bound.independentEquals(other.bound, insideBound = true)) return false
 
     return true
 }
 
-fun IrParameterizedType.Argument.independentEquals(other: IrParameterizedType.Argument): Boolean {
+fun IrParameterizedType.Argument.independentEquals(other: IrParameterizedType.Argument): Boolean =
+    independentEquals(other, insideBound = false)
+
+private fun IrParameterizedType.Argument.independentEquals(other: IrParameterizedType.Argument, insideBound: Boolean): Boolean {
     if (this.variance != other.variance) return false
-    if (!this.type.independentEquals(other.type)) return false
+    if (!this.type.independentEquals(other.type, insideBound)) return false
 
     return true
 }
 
-fun IrType.independentEquals(other: IrType): Boolean {
+fun IrType.independentEquals(other: IrType): Boolean = independentEquals(other, insideBound = false)
+
+/**
+ * @param insideBound whether this is (part of) the bound of a type parameter. References to type parameters in there
+ * are told apart by their name, as the bound may mention the parameter itself (`T : Comparable<T>`).
+ */
+private fun IrType.independentEquals(other: IrType, insideBound: Boolean): Boolean {
     if (this.isNullable != other.isNullable) return false
     if (this.mutability != other.mutability) return false
 
     return when (this) {
         is IrSimpleType -> other is IrSimpleType && this.baseType.independentEquals(other.baseType)
-        is IrGenericTypeReference -> other is IrGenericTypeReference
-                && this.parameter.independentEquals(other.parameter)
-                && this.effectiveBound.independentEquals(other.effectiveBound)
+        is IrGenericTypeReference -> other is IrGenericTypeReference && if (insideBound) {
+            this.parameter.name == other.parameter.name
+        } else {
+            this.parameter.independentEquals(other.parameter)
+                && this.effectiveBound.independentEquals(other.effectiveBound, insideBound = true)
+        }
         is IrParameterizedType -> other is IrParameterizedType
                 && this.simpleType.independentEquals(other.simpleType)
-                && this.arguments.independentEquals(other.arguments, String::equals, IrParameterizedType.Argument::independentEquals)
+                && this.arguments.independentEquals(other.arguments, String::equals) { a, b -> a.independentEquals(b, insideBound) }
         is IrIntersectionType -> other is IrIntersectionType && this.components.size == other.components.size && this.components.asSequence().sortedWith(IrTypeComparator)
             .zip(other.components.asSequence().sortedWith(IrTypeComparator))
-            .all { (a, b) -> a.independentEquals(b) }
+            .all { (a, b) -> a.independentEquals(b, insideBound) }
     }
 }
 
-fun IrType.independentToString(): String {
+fun IrType.independentToString(): String = independentToString(insideBound = false)
+
+private fun IrType.independentToString(insideBound: Boolean): String {
     val mutabilityStr = when(mutability) {
         IrTypeMutability.IMMUTABLE -> "const"
         IrTypeMutability.READONLY -> "read"
@@ -61,13 +75,13 @@ fun IrType.independentToString(): String {
                     IrTypeVariance.OUT -> "out "
                     IrTypeVariance.INVARIANT -> ""
                 }
-                "$argName = ${varianceStr}${arg.type.independentToString()}"
+                "$argName = ${varianceStr}${arg.type.independentToString(insideBound)}"
             },
             separator = ", ",
             postfix = ">${if (isNullable) "?" else ""}"
         )
-        is IrGenericTypeReference -> {
-            "${this.parameter.name} : ${this.effectiveBound.independentToString()}"
+        is IrGenericTypeReference -> if (insideBound) this.parameter.name else {
+            "${this.parameter.name} : ${this.effectiveBound.independentToString(insideBound = true)}"
         }
         is IrIntersectionType -> components.joinToString(separator = " & ")
     }

@@ -49,6 +49,8 @@ class GenericTypeReference private constructor(
         bound
     }
 
+    internal val hasTypeVariables: Boolean get() = typeVariables.isNotEmpty()
+
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability: TypeMutability get() = effectiveBound.mutability
@@ -56,7 +58,7 @@ class GenericTypeReference private constructor(
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
-    override val isPartiallyUnresolved get() = effectiveBound.isPartiallyUnresolved
+    override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         if (mutability == givenMutability) {
@@ -90,7 +92,23 @@ class GenericTypeReference private constructor(
     }
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        effectiveBound.validate(forUsage, diagnosis)
+        throughBound(Unit) { effectiveBound.validate(forUsage, diagnosis) }
+    }
+
+    /**
+     * Runs [action] on the [effectiveBound], unless that of [parameter] is being walked already, as for the parameter
+     * itself in its own bound (`T : Comparable<T>`).
+     */
+    private inline fun <R> throughBound(onCycle: R, action: () -> R): R {
+        val inProgress = parametersWithBoundInProgress.get()
+        if (!inProgress.add(parameter)) {
+            return onCycle
+        }
+        try {
+            return action()
+        } finally {
+            inProgress.remove(parameter)
+        }
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -255,18 +273,16 @@ class GenericTypeReference private constructor(
         typeVariables: Set<BoundTypeParameter> = this.typeVariables,
     ) = GenericTypeReference(parameter, span, givenMutability, isNarrowed, typeVariables)
 
-    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(
-        parameter.toBackendIr(),
-        effectiveBound.toBackendIr(),
-    )
+    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(parameter.toBackendIr()) { effectiveBound.toBackendIr() }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is GenericTypeReference) return false
 
-        if (other.mutability != this.mutability) return false
         if (other.parameter != this.parameter) return false
-        if (other.effectiveBound != this.effectiveBound) return false
+        if (other.mutability != this.mutability) return false
+        if (other.isNullable != this.isNullable) return false
+        if (other.typeVariables != this.typeVariables) return false
 
         return true
     }
@@ -274,7 +290,7 @@ class GenericTypeReference private constructor(
     override fun hashCode(): Int {
         var result = mutability.hashCode()
         result = 31 * result + parameter.hashCode()
-        result = 31 * result + effectiveBound.hashCode()
+        result = 31 * result + isNullable.hashCode()
         return result
     }
 
@@ -290,6 +306,8 @@ class GenericTypeReference private constructor(
     }
 
     companion object {
+        private val parametersWithBoundInProgress = ThreadLocal.withInitial { HashSet<BoundTypeParameter>() }
+
         operator fun invoke(original: NamedTypeReference, parameter: BoundTypeParameter): BoundTypeReference {
             return GenericTypeReference(parameter, original.span, original.mutability, false, emptySet())
                 .withCombinedNullability(original.nullability)
@@ -299,8 +317,9 @@ class GenericTypeReference private constructor(
 
 internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
-    override val effectiveBound: IrType,
+    computeEffectiveBound: () -> IrType,
 ) : IrGenericTypeReference {
+    override val effectiveBound: IrType by lazy(computeEffectiveBound)
     override fun toString() = independentToString()
-    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, effectiveBound.asNullable())
+    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter) { effectiveBound.asNullable() }
 }
