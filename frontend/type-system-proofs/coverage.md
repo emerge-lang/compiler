@@ -20,6 +20,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 10 | Intersection bounds with variables, where the final values aren't class types, and any such bound in generic code | `T : A & Ord<in T>` inferred to an intersection | Premise of FBounded; the generic-code theorem takes static upper bounds with variables that are no intersections (`gstatic_bound`) |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
 | 12 | Parameter types of the callee that use its type parameters other than plainly | `fn f<T>(x: T?)`, `Box<T?>`, `x: mut T`, `x: T!`, `x: T & A`; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `ifrag`: references to type variables only as `T`, and nullable only class types (`no_generics`) |
+| 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 
 ## Subtyping (unify)
 
