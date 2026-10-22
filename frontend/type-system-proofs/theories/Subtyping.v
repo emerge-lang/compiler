@@ -602,9 +602,8 @@ Definition through_param (p: TypeParameterId): X := param_level (S (parameter_ra
 End ThroughParams.
 
 (* What a reference to a type parameter without a binding becomes: its effective bound, instantiated.
-   An F-bound mentions the parameter itself, unbound as well: as many levels down as its rank, it
-   becomes top_type. Kotlin has no answer for that yet (roadmap 27); no theorem instantiates
-   parameters without bindings *)
+   An F-bound mentions the parameter itself, unbound as well: there, it becomes top_type, as in
+   TypeUnification.instantiateUnbound. No theorem instantiates parameters without bindings *)
 Definition instantiate_unbound (bindings: Bindings) (g: GenericRef): EType :=
     through (fun unbound => instantiate_h unbound bindings) top_type g.
 
@@ -814,12 +813,11 @@ Fixpoint fold_unify {A: Type} (f: Unification -> A -> option Unification) (l: li
 
 (* A candidate for the value of the variable parameter, assignable to its static upper bound, where
    that mentions type variables (initial_upper_bound): with the candidate for the variable itself, the
-   others constrained. Assignable to an intersection, it is assignable to each component, in turn;
-   unlike unify with an intersection as the target, that constrains each variable among them *)
+   others constrained. Of an intersection, the variables among its components take only what the other
+   components don't cover (unify_intersection): `_N : Nested & _M` leaves _M the mutability *)
 Definition plus_static_check (unify: UnifyFn) (state: VariableState) (parameter: TypeParameterId) (candidate: EType) (carry: Unification): option Unification :=
     if no_vars (static_upper_bound state) then Some carry
-    else fold_unify (fun inner component => unify (with_candidate parameter candidate component) candidate inner)
-        (intersected_components (static_upper_bound state)) carry.
+    else unify (with_candidate parameter candidate (static_upper_bound state)) candidate carry.
 
 (* TypeUnification.plusSupertypeConstraint: lower must be assignable to parameter *)
 Definition plus_supertype_constraint (unify: UnifyFn) (states: VariableStates) (parameter: TypeParameterId) (lower: EType): option Unification :=
@@ -1246,8 +1244,7 @@ Section StepRefines.
     Lemma plus_static_check_refines: forall st p c carry u,
         plus_static_check f st p c carry = Some u -> plus_static_check g st p c carry = Some u.
     Proof.
-        intros * H. unfold plus_static_check in *. destruct (no_vars _); [exact H|]. revert H. apply fold_unify_refines.
-        intros inner x v E. exact (Hfg _ _ _ _ E).
+        intros * H. unfold plus_static_check in *. destruct (no_vars _); [exact H|]. exact (Hfg _ _ _ _ H).
     Qed.
 
     Lemma plus_supertype_constraint_refines: forall states p lower u,

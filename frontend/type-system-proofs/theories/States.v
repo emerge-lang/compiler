@@ -353,7 +353,7 @@ Qed.
 Lemma static_check_keeps_exact: forall st p c s s', plus_static_check env f st p c (Ongoing s) = Some (Ongoing s') -> keeps_exact s s'.
 Proof.
     intros st p c s s' H. unfold plus_static_check in H. destruct (no_vars _); [injection H as <-; apply keeps_exact_refl|].
-    refine (fold_keeps_exact _ _ s s' _ _ H); [intros x s0 s0' _ E; exact (Hf _ _ _ _ E)|intros x _; apply Hff].
+    exact (Hf _ _ _ _ H).
 Qed.
 
 Lemma binding_check_keeps_exact: forall st p t s s', plus_binding_check env f st p t (Ongoing s) = Some (Ongoing s') -> keeps_exact s s'.
@@ -775,9 +775,7 @@ Lemma static_check_keeps_from: forall r s st p c s', ranked_states s ->
 Proof.
     intros r s st p c s' Hs HS Hp Hc H. unfold plus_static_check in H. destruct (no_vars (static_upper_bound st)).
     - injection H as <-. split; [apply keeps_from_refl|exact Hs].
-    - destruct (fold_keeps_from _ _ (parameter_rank env p) s s' (fun x s0 s0' Hx Hs0 E =>
-          Hf (parameter_rank env p) _ _ s0 s0' Hs0 (or_intror (conj (candidate_below p c x (vars_in_intersected _ _ HS x Hx) Hc) Hc)) E)
-          (fun x _ => Hff _ _) Hs H) as [K Hs'].
+    - destruct (Hf (parameter_rank env p) _ _ s s' Hs (or_intror (conj (candidate_below p c _ HS Hc) Hc)) H) as [K Hs'].
       split; [|exact Hs']. apply (keeps_from_mono (parameter_rank env p)); [|exact K].
       unfold rank_below in Hp. apply Nat.ltb_lt in Hp. lia.
 Qed.
