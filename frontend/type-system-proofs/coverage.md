@@ -10,13 +10,12 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 1 | Bounds that are intersections without type variables, on receivers of generic code; elsewhere only as generic code (◐‡) | `fn f<T : A & B>(t: T)` | FBounded requires a closed bound to be a class type, as does `GenericReceivers.v`; non-generic code is covered only as generic code without type parameters of the caller |
+| 1 | Bounds that are intersections without type variables, outside of generic code (◐‡) | `fn f<T : A & B>(t: T)` called with class-type arguments | FBounded requires a closed bound to be a class type; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 2 | Nullable intersection bounds | `T : (A & Ord<in T>)?`, `T : (A & B)?` | Excluded by `static_bound` and by the class-type bounds elsewhere |
 | 3 | A bound that is another type parameter, made nullable | `fn f<U, T : U?>` | A nullable type variable isn't a parameter type the inference proofs admit (`no_generics`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
 | 6 | Bounds containing `m T` or `T!` | `B : List<mut A>`, `B : A!` | Not in the fragment FBounded admits |
-| 7 | Calling a function with variable-mentioning bounds on a receiver of generic code | `fn g<X : Ord<in X>>(c: Calc<X>, x: X) = c.max(x, x)` | Free and member functions on class-type receivers are covered in generic code and instantiated (`generic_member_call_with_bounded_variables_sound`, `..._instantiated`); `GenericReceivers.v` takes bounds without type variables |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Intersection bounds with variables, where the final values aren't class types, and any such bound in generic code | `T : A & Ord<in T>` inferred to an intersection | Premise of FBounded; the generic-code theorem takes static upper bounds with variables that are no intersections (`gstatic_bound`) |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
@@ -57,20 +56,20 @@ Columns:
 - **free fn**: a function without a receiver, called with class-type arguments.
 - **member fn**: called on a receiver of class type, including subclasses, with class-type arguments; the type
   parameters of the class bounded by class types (#9).
-- **from generic code**: arguments mention the caller's type parameters, or are intersections; ‡ on receivers of class
-  type, with parameter types without ownerships of type parameters (which Kotlin doesn't have).
+- **from generic code**: arguments mention the caller's type parameters, or are intersections; ‡ with parameter types
+  without ownerships of type parameters (which Kotlin doesn't have).
 - **instantiated**: generic code with its type parameters bound at run time.
 - **generic receiver**: `list.add(x)` with `list: List<T>`.
 
 | callee's type-parameter bound | free fn | member fn | from generic code | instantiated | generic receiver |
 |---|---|---|---|---|---|
 | class type (`Foo`, `Any?`, `Box<X>`) | ✓ | ✓ | ◐ | ◐ | ◐ |
-| closed intersection (`A & B`) | ✗ | ✗ | ◐‡ | ◐‡ | ✗ |
-| another parameter (`T : U`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ✗ |
-| a type parameter of the class (`T : E`, `T : Ord<in E>`) | — | ✓* | ◐*‡ | ◐*‡ | ✗ |
+| closed intersection (`A & B`) | ✗ | ✗ | ◐‡ | ◐‡ | ◐‡ |
+| another parameter (`T : U`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
+| a type parameter of the class (`T : E`, `T : Ord<in E>`) | — | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, nullable (`T : U?`) | ✗ | ✗ | ✗ | ✗ | ✗ |
-| mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ✗ |
-| F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ✗ |
+| mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
+| F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | intersection with variables (`T : A & Ord<in T>`) | ✓*† | ✓*† | ✗ | ✗ | ✗ |
 | nullable intersection with variables | ✗ | ✗ | ✗ | ✗ | ✗ |
 | contains `m T` / `T!` | ✗ | ✗ | ✗ | ✗ | ✗ |
@@ -89,7 +88,8 @@ supertype arguments (`MemberCalls.v`), final values that are type parameters or 
 `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound`), and in generic code
 (`GenericArguments.v`: `generic_invocation_with_bounded_variables_sound`,
 `generic_member_call_with_bounded_variables_sound`; instantiated, `GenericCode.v`:
-`generic_member_call_with_bounded_variables_instantiated`). Calls from generic code take arguments of any type of
+`generic_member_call_with_bounded_variables_instantiated`; on receivers of generic code, at run time,
+`GenericReceivers.v`: `generic_receiver_with_bounded_variables_sound`). Calls from generic code take arguments of any type of
 the fragment, intersections among them; non-generic code is the case without type parameters of the caller (`ps = []`
 in `GenericCode.v`), so they cover what the class-type-argument columns leave out, under the conditions of ◐.
 
@@ -118,12 +118,14 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 Towards full coverage, in this order, each step unblocking the next or removing the most risk for its cost:
 
 1. ~~Override dispatch~~ (done: `Overrides.v`)
-2. Generic code with bounds that mention type variables (#7, and #10 with them): the largest column, and the
-   setting the bound shapes are best proven in once. In progress: free and member functions called from generic code,
-   and their instances, are done (`instantiate_free`, `GenericArguments`: `mixed_arguments`, `gleaf_all`,
-   `generic_invocation_with_bounded_variables_sound`, `generic_member_call_with_bounded_variables_sound`;
-   `GenericCode.generic_member_call_with_bounded_variables_instantiated`), and with them arguments that aren't class
-   types (formerly #8); generic receivers are next, then intersection bounds with variables in generic code (#10)
+2. Generic code with bounds that mention type variables (#10 with them): the largest column, and the setting the
+   bound shapes are best proven in once. In progress: free and member functions called from generic code, their
+   instances and calls on receivers of generic code are done (`instantiate_free`, `GenericArguments`:
+   `mixed_arguments`, `gleaf_all`, `generic_invocation_with_bounded_variables_sound`,
+   `generic_member_call_with_bounded_variables_sound`; `GenericCode.generic_member_call_with_bounded_variables_instantiated`;
+   `GenericReceivers`: `runtime_mixed`, `rleaf_all`, `generic_receiver_with_bounded_variables_sound`), and with them
+   arguments that aren't class types (formerly #8) and calls on receivers of generic code (formerly #7); intersection
+   bounds with variables in generic code (#10) are next
 3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections,
    #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
