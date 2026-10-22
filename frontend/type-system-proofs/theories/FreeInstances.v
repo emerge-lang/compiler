@@ -161,4 +161,62 @@ Proof.
     exact (free_compose b p c Hb Hc Hm S HS).
 Qed.
 
+(* ---------------------------------------------------------------------------------------------- *)
+(* Bindings that look up the same                                                                  *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Definition same_lookups (b1 b2: Bindings): Prop := forall q, lookup_binding b1 q = lookup_binding b2 q.
+
+Lemma loosely_ext: forall b1 b2, same_lookups b1 b2 ->
+    forall t, mentions_loosely_bound b1 t = mentions_loosely_bound b2 t.
+Proof.
+    intros b1 b2 E. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; cbn [mentions_loosely_bound];
+        try reflexivity; try (rewrite E; reflexivity); try exact (IH n).
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb]. rewrite (IH a), IHa. reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma loosely_arguments_ext: forall b1 b2, same_lookups b1 b2 ->
+    forall t, mentions_loosely_bound_in_arguments b1 t = mentions_loosely_bound_in_arguments b2 t.
+Proof.
+    intros b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; cbn [mentions_loosely_bound_in_arguments];
+        try reflexivity; try exact (IH n).
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb]. rewrite (loosely_ext b1 b2 E a), IHa. reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma mentions_bound_ext: forall b1 b2, same_lookups b1 b2 -> forall t, mentions_bound b1 t = mentions_bound b2 t.
+Proof.
+    intros b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs]; cbn [mentions_bound];
+        try reflexivity; try exact (IH n).
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb]. rewrite (IH a), IHa. reflexivity.
+    - rewrite (IH n). destruct o as [| | |q]; try reflexivity. rewrite E. reflexivity.
+    - rewrite E. reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma free_ext: forall b1 b2, same_lookups b1 b2 -> forall t, instantiate_free env b1 t = instantiate_free env b2 t.
+Proof.
+    intros b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs]; cbn [instantiate_free]; try reflexivity.
+    - f_equal. induction args as [|a args IHa]; [reflexivity|]. cbn [map]. rewrite (IH a), IHa. reflexivity.
+    - rewrite (IH n). reflexivity.
+    - rewrite (IH n), (loosely_arguments_ext b1 b2 E n).
+      assert (Eo: instantiate_free_ownership b1 o = instantiate_free_ownership b2 o)
+          by (destruct o as [| | |q]; try reflexivity; cbn [instantiate_free_ownership]; rewrite E; reflexivity).
+      rewrite Eo. reflexivity.
+    - rewrite E. reflexivity.
+    - assert (Em: existsb (mentions_bound b1) cs = existsb (mentions_bound b2) cs).
+      { induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (mentions_bound_ext b1 b2 E c), IHc. reflexivity. }
+      rewrite Em. destruct (existsb (mentions_bound b2) cs); [|reflexivity]. clear Em.
+      f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map]. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+(* Binding p again to what b binds it to changes nothing *)
+Lemma with_value_same: forall b p c, lookup_binding b p = Some (TypeArgument invariant ref c) ->
+    same_lookups (with_value p c b) b.
+Proof.
+    intros b p c Hp q. cbn [with_value lookup_binding]. destruct (param_eqb q p) eqn:Eq; [|reflexivity].
+    apply param_eqb_eq in Eq. subst q. rewrite Hp. reflexivity.
+Qed.
+
 End FreeInstances.
