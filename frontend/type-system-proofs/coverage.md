@@ -112,7 +112,9 @@ Towards full coverage, in this order, each step unblocking the next or removing 
 
 1. ~~Override dispatch~~ (done: `Overrides.v`)
 2. Generic code with bounds that mention type variables (#7, #8, and #10 with them): the largest column, and the
-   setting the bound shapes are best proven in once
+   setting the bound shapes are best proven in once. In progress: instantiating the free variables
+   (`instantiate_free`, `FreeInstances.v`) and inference on mixed types (`GenericArguments.mixed_arguments`) are
+   done; the static check in generic code, its final values and the call theorems are next
 3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections,
    #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
