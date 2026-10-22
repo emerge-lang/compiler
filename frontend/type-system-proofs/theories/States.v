@@ -279,21 +279,31 @@ End Variables.
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* Variables bound exactly stay bound so, to the same; those that aren't, and can't be captured,
-   stay so, too *)
+   stay so, too; and no variable is added (TypeUnification sets the states of variables it looks up
+   only) *)
 Definition keeps_exact (s s': VariableStates): Prop :=
     (forall p st, lookup_state s p = Some st -> is_exact st = true -> lookup_state s' p = Some st)
     /\ (forall p st, lookup_state s p = Some st -> is_exact st = false -> is_capturable st = false ->
         exists st', lookup_state s' p = Some st' /\ is_exact st' = false /\ is_capturable st' = false
-            /\ static_upper_bound st' = static_upper_bound st).
+            /\ static_upper_bound st' = static_upper_bound st)
+    /\ (forall p, lookup_state s p = None -> lookup_state s' p = None).
 
 Lemma keeps_exact_refl: forall s, keeps_exact s s.
-Proof. intros s. split; [intros p st H _; exact H|]. intros p st H He Hc. exists st. auto. Qed.
+Proof. intros s. split; [intros p st H _; exact H|]. split; [|intros p H; exact H]. intros p st H He Hc. exists st. auto. Qed.
 
 Lemma keeps_exact_trans: forall s1 s2 s3, keeps_exact s1 s2 -> keeps_exact s2 s3 -> keeps_exact s1 s3.
 Proof.
-    intros s1 s2 s3 [H1 H1'] [H2 H2']. split; [intros p st Hl He; exact (H2 p st (H1 p st Hl He) He)|].
+    intros s1 s2 s3 [H1 [H1' H1n]] [H2 [H2' H2n]]. split; [intros p st Hl He; exact (H2 p st (H1 p st Hl He) He)|].
+    split; [|intros p Hn; exact (H2n p (H1n p Hn))].
     intros p st Hl He Hc. destruct (H1' p st Hl He Hc) as [st' [Hl' [He' [Hc' Hs']]]].
     destruct (H2' p st' Hl' He' Hc') as [st'' [Hl'' [He'' [Hc'' Hs'']]]]. exists st''. rewrite Hs'' in *. auto.
+Qed.
+
+(* A variable with a state after a unification had one before *)
+Lemma keeps_exact_domain: forall s s' p st', keeps_exact s s' -> lookup_state s' p = Some st' -> exists st, lookup_state s p = Some st.
+Proof.
+    intros s s' p st' [_ [_ Hn]] Hl'. destruct (lookup_state s p) as [st|] eqn:Hl; [exists st; reflexivity|].
+    rewrite (Hn p Hl) in Hl'. discriminate Hl'.
 Qed.
 
 Lemma keeps_exact_set: forall s s' p st st', lookup_state s p = Some st -> is_exact st = false ->
@@ -301,13 +311,15 @@ Lemma keeps_exact_set: forall s s' p st st', lookup_state s p = Some st -> is_ex
         /\ static_upper_bound st' = static_upper_bound st) ->
     keeps_exact s s' -> keeps_exact s (set_state s' p st').
 Proof.
-    intros s s' p st st' Hl He Hst [H H']. split.
+    intros s s' p st st' Hl He Hst [H [H' Hn]]. split; [|split].
     - intros q stq Hq Heq. destruct (Nat.eq_dec p q) as [<-|Hne].
       + rewrite Hl in Hq. injection Hq as <-. rewrite He in Heq. discriminate Heq.
       + rewrite lookup_set_other by exact Hne. exact (H q stq Hq Heq).
     - intros q stq Hq Heq Hcq. destruct (Nat.eq_dec p q) as [<-|Hne].
       + rewrite Hl in Hq. injection Hq as <-. exists st'. rewrite lookup_set_same. destruct (Hst Hcq). auto.
       + rewrite lookup_set_other by exact Hne. exact (H' q stq Hq Heq Hcq).
+    - intros q Hq. destruct (Nat.eq_dec p q) as [<-|Hne]; [rewrite Hl in Hq; discriminate Hq|].
+      rewrite lookup_set_other by exact Hne. exact (Hn q Hq).
 Qed.
 
 Section KeepsExact.

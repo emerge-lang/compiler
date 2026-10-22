@@ -504,7 +504,7 @@ Proof.
       - intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         simpl. unfold b0. rewrite (lookup_map_vars vars _ q bound Hnd' Hin). reflexivity. }
     destruct (invocation_sound nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold) as [HwfU _].
-    destruct (fold_keeps_exact_unify nf _ u U Hfold) as [Hkeep Hkeep2].
+    destruct (fold_keeps_exact_unify nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     assert (Hfinal': forall p bound, In (p, bound) ovars -> xfrag (final_value_of U p)).
     { intros p bound Hin. apply (Hfinal p bound Hin).
       destruct (Hkeep2 p _ (Hownu p bound Hin) eq_refl eq_refl) as [st2 [HlU [He2 _]]].

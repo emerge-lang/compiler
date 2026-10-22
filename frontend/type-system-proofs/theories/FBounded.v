@@ -642,7 +642,7 @@ Proof.
       rewrite (Hl0 p S Hin) in Hp. injection Hp as <-. exact (static_initial_ok vars p S (Hst p S Hin) s0). }
     destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes n Ps As s0 U Hwf0 (fun P HP => proj1 (HPs P HP)) HAs Hfold)
         as [HwfU Hsound].
-    destruct (fold_keeps_exact_unify env n _ s0 U Hfold) as [_ Hkeep2].
+    destruct (fold_keeps_exact_unify env n _ s0 U Hfold) as [_ [Hkeep2 _]].
     (* the bindings: the final values *)
     assert (Hlb: forall p S, In (p, S) vars -> lookup_binding b p = Some (TypeArgument invariant ref (final_of U p))).
     { intros p S Hin. rewrite Hbdef. exact (lookup_map_vars vars (fun v => TypeArgument invariant ref (final_of U (fst v))) p S Hnd Hin). }
@@ -723,7 +723,7 @@ Proof.
     set (vars := cvars ++ ovars) in *.
     destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold)
         as [HwfU Hsound].
-    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep Hkeep2].
+    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     assert (Hndo: NoDup (map fst ovars)).
     { clear -Hnd. revert Hnd. generalize (map fst ovars). induction (map fst cvars) as [|x l IH]; intros l2 H; [exact H|].
       inversion H. apply IH. assumption. }

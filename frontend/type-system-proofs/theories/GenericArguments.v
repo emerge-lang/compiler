@@ -2440,7 +2440,7 @@ Proof.
           P A s s' (ifrag_mfrag [] P HfP HoP) (conj HfA (conj HbA (conj (owners_free_nil A) HqA))) Hs E) as [Hs' [Hn' _]].
       split; [exact Hs'|exact Hn']. }
     destruct (mfold_chain gwf2 n _ s0 U Hstep0 Hwf0 Hfold) as [HwfU _].
-    destruct (fold_keeps_exact_unify env n _ s0 U Hfold) as [_ Hkeep2].
+    destruct (fold_keeps_exact_unify env n _ s0 U Hfold) as [_ [Hkeep2 _]].
     (* the final values *)
     assert (Hfin: forall p S, In (p, S) vars -> exists st, lookup_state U p = Some st /\ is_exact st = false
         /\ static_upper_bound st = S /\ gfinal_of U p = Constraints.final_value env st
@@ -2749,7 +2749,7 @@ Proof.
         simpl. unfold b0. rewrite (lookup_map_vars vars _ q bound Hnd' Hin). reflexivity. }
     destruct (generic_invocation_sound nf Ps As u U b0 K0 Hwfu (fun P HP => conj (proj1 (HPs P HP)) (Hb0 P HP))
         (HAs' b0 (fun q Hq => lookup_map_none vars _ q Hq)) Hfold) as [HwfU _].
-    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep Hkeep2].
+    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     assert (Hfinal': forall p bound, In (p, bound) ovars -> of_fragment (final_value_of env U p)).
     { intros p bound Hin.
       destruct (Hkeep2 p _ (Hownu p bound Hin) eq_refl eq_refl) as [st2 [HlU [He2 _]]].
@@ -2960,7 +2960,7 @@ Proof.
           P A s s' (ifrag_mfrag [] P HfP HoP) (conj HfA (conj HbA (conj (owners_free_nil A) HqA))) Hs E) as [Hs' [Hn' _]].
       split; [exact Hs'|exact Hn']. }
     destruct (mfold_chain gwf2 nf _ u U Hstep0 Hwfu Hfold) as [HwfU _].
-    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep Hkeep2].
+    destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     (* the final values *)
     assert (Hfin: forall p S, In (p, S) ovars -> exists st, lookup_state U p = Some st /\ is_exact st = false
         /\ static_upper_bound st = S /\ gfinal_of U p = Constraints.final_value env st
