@@ -683,6 +683,115 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
     | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))
     end.
 
+(* instantiate_ownership, where a type parameter without a binding keeps its ownership: one of the
+   caller, which isn't under inference *)
+Definition instantiate_free_ownership (bindings: Bindings) (o: Ownership): Ownership :=
+    match o with
+    | parameter_ownership p =>
+        match lookup_binding bindings p with
+        | Some (TypeArgument _ argument_ownership _) => argument_ownership
+        | Some _ => any_ownership
+        | None => o
+        end
+    | owned | ref | any_ownership => o
+    end.
+
+(* Whether a type mentions a type variable bound in bindings, or a type parameter bound there as an
+   ownership: what instantiate_free changes *)
+Fixpoint mentions_bound (bindings: Bindings) (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => existsb (mentions_bound bindings) arguments
+    | Nullable n => mentions_bound bindings n
+    | Generic _ | Error _ _ => false
+    | TypeArgument _ o n =>
+        match o with
+        | parameter_ownership p => match lookup_binding bindings p with Some _ => true | None => false end
+        | _ => false
+        end || mentions_bound bindings n
+    | TypeVariable (mkGenericRef _ _ p _) => match lookup_binding bindings p with Some _ => true | None => false end
+    | Intersection components => existsb (mentions_bound bindings) components
+    end.
+
+(*
+ * BoundTypeReference.instantiateFreeVariables: as instantiate, but only the type variables bound are
+ * replaced. References to type parameters stay as they are (GenericTypeReference.instantiateFreeVariables
+ * is the identity), and so do the ownerships of type parameters without a binding. Inference in generic
+ * code works with it: the types there mention the type parameters of the caller, which aren't under
+ * inference.
+ *)
+Fixpoint instantiate_free (bindings: Bindings) (t: EType): EType :=
+    match t with
+    | RootResolved m c arguments => RootResolved m c (map (instantiate_free bindings) arguments)
+    | Nullable n => rewrap_nullable (instantiate_free bindings n)
+    | Generic _ => t
+    | Error _ _ => t
+    | TypeArgument v o n =>
+        let o' := instantiate_free_ownership bindings o in
+        let n_instantiated := instantiate_free bindings n in
+        let is_nullable_instantiated := match n_instantiated with Nullable _ => true | _ => false end in
+        let n_non_null := match n_instantiated with Nullable x => x | _ => n_instantiated end in
+        match n_non_null with
+        | TypeArgument nested_variance _ nested_type =>
+            if Variance_beq nested_variance invariant || Variance_beq v invariant || Variance_beq nested_variance v then
+                let merged_variance := if Variance_beq nested_variance invariant then v else nested_variance in
+                TypeArgument merged_variance o'
+                    (if is_nullable_instantiated then rewrap_nullable nested_type else nested_type)
+            else
+                match v with
+                | output => TypeArgument output o' top_type
+                | _ => TypeArgument input o' bottom_type
+                end
+        | _ =>
+            if mentions_loosely_bound_in_arguments bindings n then
+                match v with
+                | input => TypeArgument input o' bottom_type
+                | invariant | output => TypeArgument output o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
+                end
+            else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
+        end
+    | TypeVariable (mkGenericRef _ _ p _) =>
+        match lookup_binding bindings p with
+        | Some argument => final_argument argument
+        | None => t
+        end
+    (* BoundIntersectionTypeReference.intersectMappedComponents keeps the intersection where no component
+       changed; a component changes where it mentions what is bound *)
+    | Intersection components =>
+        if existsb (mentions_bound bindings) components then
+            of_components (flat_map intersected_components (map (instantiate_free bindings) components))
+        else t
+    end.
+
+(* No references to type parameters, only type variables, and no intersections; the type parameters
+   of the ownerships bound in b *)
+Fixpoint variables_only (b: Bindings) (t: EType): Prop :=
+    match t with
+    | RootResolved _ _ arguments => fold_right (fun a acc => variables_only b a /\ acc) True arguments
+    | Nullable n => variables_only b n
+    | Generic _ => False
+    | Error _ _ | TypeVariable _ => True
+    | TypeArgument _ o n => (forall q, o = parameter_ownership q -> exists a, lookup_binding b q = Some a) /\ variables_only b n
+    | Intersection _ => False
+    end.
+
+(* Of a type without references to type parameters, instantiating the free variables is
+   instantiating all of them *)
+Lemma instantiate_free_variables_only: forall b t, variables_only b t -> instantiate_free b t = instantiate b t.
+Proof.
+    intros b. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] H; cbn [variables_only] in H; try contradiction.
+    - cbn [instantiate_free instantiate]. f_equal.
+      induction args as [|a args IHa]; [reflexivity|]. cbn [fold_right] in H. destruct H as [Ha Has].
+      cbn [map]. rewrite (IH a Ha). f_equal. exact (IHa Has).
+    - cbn [instantiate_free instantiate]. rewrite (IH n H). reflexivity.
+    - reflexivity.
+    - destruct H as [Ho Hn]. cbn [instantiate_free instantiate]. rewrite (IH n Hn).
+      assert (Eo: instantiate_free_ownership b o = instantiate_ownership b o).
+      { destruct o as [| | |q]; try reflexivity. destruct (Ho q eq_refl) as [a Ha].
+        cbn [instantiate_free_ownership instantiate_ownership]. rewrite Ha. destruct a; reflexivity. }
+      rewrite Eo. reflexivity.
+    - reflexivity.
+Qed.
+
 (* RootResolvedTypeReference.inherentTypeBindings: each type parameter of the class is bound to the
    type argument in its place *)
 Definition bindings_of (c: Class) (arguments: list EType): Bindings :=

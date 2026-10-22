@@ -21,6 +21,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Intersection bounds with variables, where the final values aren't class types | `T : A & Ord<in T>` inferred to an intersection | Premise of FBounded |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
+| 12 | Parameter types of the callee that use its type parameters other than plainly | `fn f<T>(x: T?)`, `Box<T?>`, `x: mut T`, `x: T!`, `x: T & A`; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `ifrag`: references to type variables only as `T`, and nullable only class types (`no_generics`) |
 
 ## Subtyping (unify)
 
@@ -94,7 +95,7 @@ supertype arguments (`MemberCalls.v`), final values that are type parameters or 
 | The object fits the override's declared receiver (an override can't demand `mut` where the overridden function takes `read`) | ✓ class-type receivers; the intersection Kotlin checks is taken unsimplified | `override_receiver` |
 | Parameter and return types beyond class types and plain references to the class's type parameters (`m T`, `T!`, intersections) | ✗ | — |
 | Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
-| Every function a concrete class inherits is implemented, so dispatch finds one | ✗ | — |
+| Every function a concrete class inherits is implemented, so dispatch finds one | assumed: the compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction`) | readme, assumptions |
 
 ## Outside the model entirely
 
@@ -112,8 +113,8 @@ Towards full coverage, in this order, each step unblocking the next or removing 
 1. ~~Override dispatch~~ (done: `Overrides.v`)
 2. Generic code with bounds that mention type variables (#7, #8, and #10 with them): the largest column, and the
    setting the bound shapes are best proven in once
-3. The remaining bound shapes, in that setting: #1 closed intersections, #2 nullable intersections, #3 `T : U?`,
-   #6 `m T` / `T!`
+3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections,
+   #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds
 5. Member access in generic code and of other member types (#11)

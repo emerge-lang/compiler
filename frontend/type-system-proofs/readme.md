@@ -29,6 +29,7 @@ it shows and why; the tables below are the map.
 | `States.v`           | unify on types without type variables doesn't touch the variable states                       | `unify_free`, `unify_keeps_exact`                                       |
 | `Constraints.v`      | inference with lower and upper bounds, and the final values it picks                            | `invocation_sound`, `final_values_satisfy`                              |
 | `MemberCalls.v`      | calling a member function with type parameters of its own                                       | `member_call_through_subtypes_sound`                                    |
+| `FreeInstances.v`    | instantiating only the type variables (`instantiateFreeVariables`), for types of generic code  | `free_unmentioned`, `free_candidate`                                    |
 | `Generics.v`         | transitivity with type parameters and intersections, in the form of never rejecting            | `transitivity_never_fails`                                              |
 | `Conjectures.v`      | the conjectures below, and what follows from them directly                                     | `transitivity_terminating`                                              |
 | `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
@@ -74,6 +75,7 @@ of the theorems, mostly bundled in records:
 | `intersect_is_below_both`, `closest_common_supertype_is_above_both` | `Conjectures.v` | conjecture: the intersection is below both types, the closest common supertype above both |
 | `intersect_stays_in_generic_code`, `closest_common_supertype_stays_in_generic_code` | `GenericCode.v` | conjecture: both functions build types of generic code (`caller_type`) from types of it |
 | `closest_common_supertype_of_classes`          | `Constraints.v`   | the closest common supertype of two class types is a class type: lower bounds of variables stay of the types of the arguments, checked against static upper bounds with type variables |
+| dispatch finds a function                      | `Overrides.v`     | not a premise, as the model has no dispatch: a class overrides every function it inherits, or a mixin provides it. The compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction.semanticAnalysisPhase3`) |
 | `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the class table is finite. Kennedy and Pierce show subtyping decidable there |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq

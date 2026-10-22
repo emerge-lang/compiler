@@ -30,6 +30,14 @@ Import ListNotations.
 (* The types are those the parameters of member functions have here: class types and references   *)
 (* to the type parameters of c as written, nullable or as type arguments (composable). Kotlin     *)
 (* can't override a function with type parameters of its own: theirs are never the same.          *)
+(*                                                                                                *)
+(* That dispatch finds a function at all is taken for granted; the model has no dispatch. A class *)
+(* overrides every function it inherits, or a mixin provides it: BoundBaseType wraps each         *)
+(* inherited function no function of the class overrides in a PossiblyMixedInBoundMemberFunction, *)
+(* which reports AbstractInheritedFunctionNotImplementedDiagnostic in semanticAnalysisPhase3      *)
+(* where no mixin is assigned to it. A mixin forwards the call to its object, whose type          *)
+(* BoundMixinStatement checks to be assignable to the supertype it implements: that is a member   *)
+(* call, too.                                                                                     *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Section Overrides.
