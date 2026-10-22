@@ -1051,6 +1051,62 @@ class TypeErrors : FreeSpec({
                 .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
         }
 
+        "member functions" - {
+            val members = """
+                class Box<E> {
+                    value: E = init
+                    fn below<T : E>(self, t: T) -> T {
+                        return t
+                    }
+                    fn ordered<T : Ord<in E>>(self, t: T) -> T {
+                        return t
+                    }
+                }
+                class Calc {
+                    fn max<T : Ord<in T>>(self, a: T, b: T) -> T {
+                        return a
+                    }
+                }
+            """.trimIndent()
+
+            "an F-bounded type parameter of a member function is inferred" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(c: Calc) {
+                        x: Num = c.max(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an argument outside the F-bound of a member function is rejected" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(c: Calc) {
+                        c.max(Bad(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "a bound mentioning a type parameter of the class takes its type argument" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(b: Box<Num>) {
+                        x: Num = b.below(Num())
+                        y: Num = b.ordered(Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an argument outside a bound mentioning a type parameter of the class is rejected" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(b: Box<Num>) {
+                        b.below(Bad())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
         "intersection with an F-bound" {
             validateModule(ord + "\n" + """
                 interface Named {}
