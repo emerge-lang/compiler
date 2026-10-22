@@ -87,14 +87,9 @@ generic code and of final values of inference. For those, unify never rejecting 
 only that it also accepts rests on it. That is a gap in the proof, not a known way to accept an unsound
 program.
 
-### Not covered yet
+### Coverage
 
-- Inference with type variables bounded by type variables, beyond `FBounded.v`: such a variable without a
-  lower bound (its final value is the upper bound intersected with the bound instantiated); bounds that
-  mention `m T` or `T!`, nullable intersections, and intersections without type variables; intersection
-  bounds where the final values aren't class types; F-bounded type parameters of the class of a receiver;
-  and the generic code of `GenericArguments.v` onwards, which takes bounds without type variables.
-- Declaration-site variance, which emerge doesn't have.
+What the proofs cover and what they don't, area by area, is in [`coverage.md`](coverage.md).
 
 ## Running the proofs
 
@@ -152,6 +147,7 @@ price of the second, independent kernel; use `build` while iterating.
 | path                                     | what                                                |
 |------------------------------------------|-----------------------------------------------------|
 | [`theories/`](theories)                  | the proofs                                          |
+| [`coverage.md`](coverage.md)             | what the proofs cover, and what they don't         |
 | [`theories/dune`](theories/dune)         | build configuration: theory name and dependencies   |
 | [`dune-project`](dune-project)           | dune version and the Rocq build language it uses    |
 | [`_CoqProject`](_CoqProject)             | load path **for editors only**, not for the build   |
