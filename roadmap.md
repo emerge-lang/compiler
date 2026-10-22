@@ -260,6 +260,18 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 33. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
     `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
     instead of `read Ord<in Num>`
+34. a member function with type parameters of its own can't be overridden: findOverriddenFunctions compares the
+    parameter types by equality, and the type parameters of the override are never those of the overridden function
+    ```
+    interface Base {
+        fn m<T>(self, t: T) -> T
+    }
+    class Sub : Base {
+        override fn m<T>(self, t: T) -> T { return t } // Function m doesn't override anything
+    }
+    ```
+    The type parameters would have to be matched up by position, their bounds compared, before comparing the
+    parameter types. This is a usability problem, not a soundness one
 -----
 
 ## Future features
