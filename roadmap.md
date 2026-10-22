@@ -245,6 +245,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 31. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
     not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
     Look for an equally concise and expressive term that says that more precisely
+32. reading a member through a value whose type is a type parameter bounded by a class type mentioning another type
+    parameter loses that parameter: the member reads as the bound of it instead
+    ```
+    class Holder<X> {
+        value: X = init
+    }
+    fn unwrap<A, B : Holder<A>>(b: B) -> A {
+        return b.value // Cannot assign a possibly null value to a non-nullable reference; got read Any?
+    }
+    ```
+    The same in member functions and with class type parameters (`class Wrap<A, B : Holder<A>>`). Through
+    `h: Holder<A>` it reads as `A`. This is a usability problem, not a soundness one; it predates F-bounds
+33. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
+    `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
+    instead of `read Ord<in Num>`
 -----
 
 ## Future features
