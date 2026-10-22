@@ -38,7 +38,7 @@ it shows and why; the tables below are the map.
 | `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`                              |
 | `GenericReceivers.v` | calls in generic code on receivers mentioning the type parameters of the caller, at run time      | `member_call_on_generic_receiver`                                       |
-| `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : A & Comparable<T>`) | `invocation_with_bounded_variables_sound`                               |
+| `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : A & Comparable<T>`), for free and member functions | `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound` |
 
 ### Fragments
 
