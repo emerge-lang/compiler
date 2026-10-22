@@ -85,18 +85,38 @@ supertype arguments (`MemberCalls.v`), final values that are type parameters or 
 (`FinalValues.v`), and bounds with type variables, for free and member functions (`FBounded.v`:
 `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound`).
 
+## Overrides (dynamic dispatch)
+
+| area | status | where |
+|---|---|---|
+| An argument the call takes fits the override's parameter, with the type parameters of the object's class bound | ✓ | `Overrides.v`: `override_parameter` |
+| What the override returns fits the return type the call expects | ✓ where the object's type arguments are within their bounds | `override_return` |
+| The object fits the override's declared receiver (an override can't demand `mut` where the overridden function takes `read`) | ✓ class-type receivers; the intersection Kotlin checks is taken unsimplified | `override_receiver` |
+| Parameter and return types beyond class types and plain references to the class's type parameters (`m T`, `T!`, intersections) | ✗ | — |
+| Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
+| Every function a concrete class inherits is implemented, so dispatch finds one | ✗ | — |
+
 ## Outside the model entirely
 
 | area |
 |---|
-| Override checks (signature compatibility) and dispatch to overrides |
 | Overload resolution |
 | Constructors and object initialization (`PartialObjectInitialization`), mixins |
 | Lifetimes and exclusive-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only |
 | Declaration-site variance, which emerge doesn't have |
 
-## Largest lever
+## Order of work
 
-Closed intersection bounds (#1) are the last ✗ in the "free fn" and "member fn" columns that a common program
-hits. After that, generic code (#7): carrying `FBounded.v` over to `GenericArguments.v` onwards would fill
-the remaining columns.
+Towards full coverage, in this order, each step unblocking the next or removing the most risk for its cost:
+
+1. ~~Override dispatch~~ (done: `Overrides.v`)
+2. Generic code with bounds that mention type variables (#7, #8, and #10 with them): the largest column, and the
+   setting the bound shapes are best proven in once
+3. The remaining bound shapes, in that setting: #1 closed intersections, #2 nullable intersections, #3 `T : U?`,
+   #6 `m T` / `T!`
+4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
+   with such bounds
+5. Member access in generic code and of other member types (#11)
+6. `unify_terminates`, which turns every ◐ into ✓
+7. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
+   of types
