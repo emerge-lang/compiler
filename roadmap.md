@@ -215,20 +215,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The error message is wrong, too: the value is out-variant, not in-variant. This is a usability problem,
     not a soundness one; it's sound to refuse the call.
-27. F-bounded type parameters: `fn max<T : Comparable<T>>(a: T, b: T) -> T`, `class Node<T : Comparable<T>>`
-    * today the bound of a type parameter is resolved without the parameter itself in scope, so these
-      are rejected (`Cannot resolve type T`). Only the parameter itself is to become resolvable, nested
-      in type arguments; `T : T`, `T : T?` and `T : T & A` stay errors, as do references to later
-      type parameters
-    * making it resolvable alone overflows the stack: validate, hashCode/equals and the backend IR walk
-      effective bounds structurally, and must stop at references to type parameters
-    * inference with F-bounded type variables loops: each new lower bound is checked against the upper
-      bound `Comparable<T>`, which mentions the variable itself. This needs a design of its own; the
-      type system proofs are prepared for F-bounds and should get the F-bounded cases along with it
-    * the type system proofs cover F-bounds in transitivity and substitution (bounds by reference,
-      `Subtyping.through_param`); inference with F-bounded type variables is still to do there, too.
-      Kotlin still has to decide what an unbound F-bounded parameter instantiates to
-      (`getFinalValueFor` instantiates the bound, which mentions the parameter again)
+27. ~~F-bounded type parameters~~: `fn max<T : Comparable<in T>>(a: T, b: T) -> T`, `class Node<T : Comparable<in T>>`
+    * the parameter itself resolves in its own bound, nested in type arguments; `T : T`, `T : T?` and `T : T & A`
+      are errors (`TypeParameterBoundedByItselfDiagnostic`), as are references to later type parameters. validate,
+      hashCode/equals and the backend IR stop at references to type parameters
+    * inference keeps a bound with type variables as the static upper bound of the variable, and checks each lower
+      bound and exact binding against it with the candidate in place of the variable itself, which constrains the
+      other variables. An F-bounded variable without a lower bound can't be inferred
+      (`TypeVariableNotInferableDiagnostic`). The type system proofs cover this (`FBounded.v`; what they don't
+      cover yet is listed in its readme)
+    * usability: `class Num : Comparable<Num>` is a `Comparable<read Num>`, so with `T : Comparable<T>`, `T` can't be
+      inferred as `exclusive Num` from `max(Num(), Num())` (`exclusive Num` is no `Comparable<exclusive Num>`), and
+      `Comparable<read T>` doesn't help (`read T` with `exclusive Num` for `T` is `exclusive Num`). Write the bound
+      contravariant, `T : Comparable<in T>`, as a comparator takes its argument anyway
 28. ~~assignability after instantiating type parameters is stricter than it needs to be~~: with `S32` an `I`,
     `read I & U` took `S32 & U`, but with `U` bound to `mut Foo`, `mut I & mut Foo` took no `S32 & exclusive Foo`.
     Resolved by item 29: a value of a const class fits every mutability, and `ofComponents` gives the components the
