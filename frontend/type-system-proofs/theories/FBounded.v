@@ -439,8 +439,8 @@ Lemma bindings_within: forall vars U b,
     satisfies env xfrag b U
     /\ exists K, (forall p S, In (p, S) vars ->
             unify env K (inst_nested env b (parameter_bound env p)) (value_of b p) (Ongoing []) = Some (Ongoing []))
-        /\ forall P, ifrag env P = true -> vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true ->
-            owners_in (fun q => existsb (param_eqb q) (map fst vars)) P = true -> bound_in env b K [] (to_generic P) = true.
+        /\ forall P, pfrag env P = true -> vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true ->
+            owners_in (fun q => existsb (param_eqb q) (map fst vars)) P = true -> bound_in env b K [] (pgeneric P) = true.
 Proof.
     intros vars U b Hst HwfU Hdom Hvar Hclass.
     set (ps := map fst vars) in *.
@@ -601,8 +601,16 @@ Proof.
     destruct (Hwithin rmax) as [K HK].
     split; [exact Hsat|]. exists K. split; [intros p S Hin; exact (HK p S Hin (Hrmax p S Hin))|].
     (* the types that mention only the type parameters of vars are bound in b *)
-    intros P Hif Hv Ho. apply (refs_bound_in env wf b K (R rmax) (HR rmax K HK) (Hclose rmax)).
-    apply (refs_of_vars (fun q => existsb (param_eqb q) ps) (R rmax) b P (ifrag_no_generics env P Hif) Hv Ho).
+    intros P Hpf Hv Ho.
+    assert (Hplain: exists P', no_generics P' = true /\ vars_in (fun q => existsb (param_eqb q) ps) P' = true
+        /\ owners_in (fun q => existsb (param_eqb q) ps) P' = true /\ bound_in env b K [] (pgeneric P) = bound_in env b K [] (to_generic P')).
+    { destruct (pfrag_cases env P Hpf) as [Hif|[nn [q [-> _]]]].
+      - exists P. rewrite (pgeneric_ifrag env wf P Hif). exact (conj (ifrag_no_generics env P Hif) (conj Hv (conj Ho eq_refl))).
+      (* a type variable made nullable: the plain reference *)
+      - exists (TypeVariable (mkGenericRef None false q [])). split; [reflexivity|]. split; [exact Hv|]. split; reflexivity. }
+    destruct Hplain as [P' [Hng [Hv' [Ho' ->]]]].
+    apply (refs_bound_in env wf b K (R rmax) (HR rmax K HK) (Hclose rmax)).
+    apply (refs_of_vars (fun q => existsb (param_eqb q) ps) (R rmax) b P' Hng Hv' Ho').
     - intros q E. destruct (Hps q E) as [S Hin]. exists q, S. split; [reflexivity|]. split; [exact Hin|exact (Hrmax q S Hin)].
     - exact Hown.
 Qed.
@@ -618,7 +626,7 @@ Qed.
 Theorem invocation_with_bounded_variables_sound: forall n vars Ps As U,
     NoDup (map fst vars) ->
     (forall p S, In (p, S) vars -> static_bound vars p S) ->
-    (forall P, In P Ps -> ifrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
+    (forall P, In P Ps -> pfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
         /\ owners_in (fun q => existsb (param_eqb q) (map fst vars)) P = true) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env n P A inner) (combine Ps As) (for_inference_of vars []) = Some (Ongoing U) ->
@@ -699,7 +707,7 @@ Theorem member_call_with_bounded_variables_sound: forall n mr c cvars ovars ma c
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> ifrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true
+    (forall P, In P Ps -> pfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true
         /\ owners_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->

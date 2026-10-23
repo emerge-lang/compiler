@@ -1173,7 +1173,9 @@ Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypePa
     | Generic _
     | Intersection _
     | TypeArgument _ _ _ =>
-        if given_mutability_fits self assignee then plus_supertype_constraint unify states parameter assignee else Some Failed
+        (* nor a possibly null value to a non-nullable reference (T!) *)
+        if given_mutability_fits self assignee && (negb (is_nullable assignee) || is_nullable self)
+        then plus_supertype_constraint unify states parameter assignee else Some Failed
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     (* Kotlin throws an InternalCompilerError *)
     | TypeVariable _ => None

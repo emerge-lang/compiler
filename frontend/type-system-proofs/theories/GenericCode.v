@@ -127,6 +127,23 @@ Proof.
     exact (tfrag_wtfrag env wf _ Ht').
 Qed.
 
+(* Made nullable, or without null, a type of generic code is one *)
+Lemma caller_rewrap: forall t, caller_type t -> caller_type (rewrap_nullable t).
+Proof.
+    intros t [Hw [Hb Hm]]. split; [|split; [exact I|]];
+        destruct t as [m c args|n|g|me msg|v o n|g|cs]; cbn [rewrap_nullable]; first [exact Hw|exact Hm].
+Qed.
+
+Lemma caller_without_null: forall t, caller_type t -> caller_type (without_null env t).
+Proof.
+    assert (Hshape: forall n, caller_type n -> match n with Nullable _ => False | _ => True end -> caller_type (without_null env n)).
+    { intros [m c args|n|g|me msg|v o n|g|cs] Hc Hs; try contradiction; try exact Hc;
+          try exact (caller_narrowed g Hc); destruct Hc as [Hw _]; discriminate Hw. }
+    intros [m c args|n|g|me msg|v o n|g|cs] Hc; try (apply Hshape; [exact Hc|exact I]).
+    change (caller_type (without_null env n)). apply Hshape; [exact (caller_nullable n Hc)|].
+    destruct Hc as [Hw _]. destruct n; try exact I. discriminate Hw.
+Qed.
+
 (* The type arguments of supertypes, made of those of a subclass *)
 Section Templates.
 
@@ -290,6 +307,16 @@ Proof.
         subst o''. discriminate Hob.
 Qed.
 
+(* The same for the type of a parameter, a type variable made nullable among them *)
+Lemma pinst_caller: forall P, pfrag env P = true -> bound_in env b K [] (pgeneric P) = true -> caller_type (inst env b P).
+Proof.
+    intros P HP Hb. destruct (pfrag_cases env P HP) as [HP'|[nn [p [-> _]]]].
+    - rewrite (pgeneric_ifrag env wf P HP') in Hb. exact (proj1 (instances_caller (vsize P)) P (le_n _) HP' Hb).
+    - destruct (binds_ref_some env wf b K [] (mkGenericRef None false p []) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+      rewrite (inst_nullable_variable env b nn p [] _ _ _ Ex). apply caller_rewrap.
+      pose proof (proj2 (Hvals p o x Ex)) as Hx. destruct nn; [exact (caller_without_null x Hx)|exact Hx].
+Qed.
+
 End Instances.
 
 (* The type parameters of the caller: none of those bound in b, so neither are their ownerships *)
@@ -373,6 +400,27 @@ Proof.
       destruct (Hpb q a Ea) as [Hl [o [y [-> Hy]]]]. unfold final_argument. rewrite Hl, Hy. exact (Hvals q o y Ea).
 Qed.
 
+(* The same for the type of a parameter, a type variable made nullable among them *)
+Lemma pfree_caller: forall b, plain_values b ->
+    (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> caller_type x) ->
+    forall P, pfrag env P = true -> plain_owners P = true -> vars_in (bound_b b) P = true ->
+        caller_type (pinstance env (instantiate_free env b) P).
+Proof.
+    intros b Hpb Hvals P HP Ho Hv. destruct (pfrag_cases env P HP) as [HP'|[nn [p [-> _]]]].
+    { rewrite (pinstance_ifrag env wf _ P HP'). exact (free_caller b Hpb Hvals P HP' Ho Hv). }
+    cbn [vars_in] in Hv. rewrite andb_true_r in Hv. unfold bound_b in Hv.
+    destruct (lookup_binding b p) as [a|] eqn:Ea; [|discriminate Hv].
+    destruct (Hpb p a Ea) as [Hl [o [x [-> Hy]]]].
+    assert (Ei: forall nn', instantiate_free env b (TypeVariable (mkGenericRef None nn' p [])) = x)
+        by (intros nn'; cbn [instantiate_free]; rewrite Ea; unfold final_argument; rewrite Hl, Hy; reflexivity).
+    pose proof (Hvals p o x Ea) as Hx.
+    destruct nn; cbn [pinstance].
+    - rewrite Ei. exact (caller_rewrap _ (caller_without_null x Hx)).
+    - change (instantiate_free env b (Nullable (TypeVariable (mkGenericRef None false p []))))
+          with (rewrap_nullable (instantiate_free env b (TypeVariable (mkGenericRef None false p [])))).
+      rewrite Ei. exact (caller_rewrap x Hx).
+Qed.
+
 End CallerTypes.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -439,7 +487,7 @@ Theorem member_call_in_generic_code_instantiated: forall ps sigma n mr c cvars o
     (forall x, In x xs -> exact_argument env x = true) ->
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
-    (forall P, In P Ps -> ifrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> pfrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
     (* the arguments: types of generic code *)
     (forall A, In A As -> of_fragment env declared A /\ bottom_only env A = true /\ owners_outside env (map fst (cvars ++ ovars)) A
         /\ caller_type env declared ps A) ->
@@ -486,8 +534,7 @@ Proof.
         destruct (closed_argument _ _ _ Hcz) as [_ Hcx].
         exact (classes_caller env declared ps (depth x) x (le_n _) Hfz Hnz Hcx).
       - exact (HQfin p bound Hin). }
-    destruct (proj1 (instances_caller env wf declared ps b K0 Hvals (vsize P)) P (le_n _) (proj1 (HPs P HP)) (HK0 P HP))
-        as [HwP [HbP HmP]].
+    destruct (pinst_caller env wf declared ps b K0 Hvals P (proj1 (HPs P HP)) (HK0 P HP)) as [HwP [HbP HmP]].
     destruct (HAs A HA) as [_ [_ [_ [HwA [HbA HmA]]]]].
     destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbP HmP) as [K1 HK1].
     destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbA HmA) as [K2 HK2].
@@ -528,7 +575,7 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
     zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
     (forall x, In x xs -> exact_argument env x = true) ->
-    (forall P, In P Ps -> ifrag env P = true /\ plain_owners P = true
+    (forall P, In P Ps -> pfrag env P = true /\ plain_owners P = true
         /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true) ->
     (* the arguments: types of generic code *)
     (forall A, In A As -> of_fragment env declared A /\ bottom_only env A = true /\ caller_type env declared ps A) ->
@@ -539,7 +586,7 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
         exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p)) (instantiate env sigma (instantiate_free env b C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
-        exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
+        exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (pinstance env (instantiate_free env b) P)) = Some true.
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcb Hst
         Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HAs Hfold Hlow b Hbdef.
@@ -612,7 +659,7 @@ Proof.
       intros P A HPA. apply in_combine_l in HPA as HP. apply in_combine_r in HPA as HA.
       destruct (HPs P HP) as [HfP [HoP HvP]]. destruct (HAs A HA) as [_ [_ HqA]].
       apply (Hinst _ _ HqA); [|exact (Hargs P A HPA)].
-      exact (free_caller env wf declared ps b Hpb Hvals P HfP HoP (vars_in_mono _ _ Hdomb' P HvP)).
+      exact (pfree_caller env wf declared ps b Hpb Hvals P HfP HoP (vars_in_mono _ _ Hdomb' P HvP)).
 Qed.
 
 End Instantiated.

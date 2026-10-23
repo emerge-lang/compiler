@@ -12,14 +12,14 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 |---|---|---|---|
 | 1 | Bounds that are intersections without type variables, outside of generic code (◐‡) | `fn f<T : A & B>(t: T)` called with class-type arguments | FBounded requires a closed bound to be a class type; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 2 | Nullable intersection bounds | `T : (A & Ord<in T>)?`, `T : (A & B)?` | Excluded by `static_bound` and by the class-type bounds elsewhere |
-| 3 | A bound that is another type parameter, made nullable | `fn f<U, T : U?>` | A nullable type variable isn't a parameter type the inference proofs admit (`no_generics`) |
+| 3 | A bound that is another type parameter, made nullable | `fn f<U, T : U?>` | The components of the bounds the inference proofs admit are of `ifrag` (`static_bound`, `gstatic_form`), which has type variables only as `T`; as the type of a parameter, `T?` is covered (`pfrag`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
 | 6 | Bounds containing `m T` or `T!` | `B : List<mut A>`, `B : A!` | Not in the fragment FBounded admits |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Intersection bounds with variables, where the final values aren't class types, outside of generic code (◐‡) | `T : A & Ord<in T>` inferred to an intersection, in non-generic code | Premise of FBounded; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
-| 12 | Parameter types of the callee that use its type parameters other than plainly | `fn f<T>(x: T?)`, `Box<T?>`, `x: mut T`, `x: T!`, `x: T & A`; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `ifrag`: references to type variables only as `T`, and nullable only class types (`no_generics`) |
+| 12 | Parameter types of the callee that use its type parameters other than plainly, but for `T?` as the whole type | `Box<T?>`, `x: mut T`, `x: T!`, `x: mut T?`, `x: T & A`; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `pfrag`: those of `ifrag`, with references to type variables only as `T` and nullable only class types (`no_generics`), and `T?` as the whole type |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 
 ## Subtyping (unify)
@@ -128,7 +128,9 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
 3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections,
-   #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12
+   #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12 (`T?` as the whole type of a parameter done, in every
+   setting: `pfrag`, `pgeneric`, `pinstance`, `parameter_step`, `exact_parameter`, `generic_parameter`,
+   `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`)
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds
 5. Member access in generic code and of other member types (#11)

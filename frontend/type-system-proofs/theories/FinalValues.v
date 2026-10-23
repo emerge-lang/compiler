@@ -203,7 +203,7 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> ifrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> pfrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of env U (fst v)))) ovars ->
@@ -216,7 +216,9 @@ Proof.
             in_fragment_of_fragment
             (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-            below_intersection above_supertype intersect_no_vars supertype_no_vars) supertype_of_classes
+            below_intersection above_supertype intersect_no_vars supertype_no_vars
+            (fun x a n Hx Ha Hna H => below_without_null env wf declared declared_wf n x a (proj1 Hx) (in_fragment_is_gfrag env a Ha) Hna H))
+        supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold (fun _ _ _ H => H)).
 Qed.

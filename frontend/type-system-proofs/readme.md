@@ -56,6 +56,7 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `wtfrag`      | `SubstitutionWide.v` | `tfrag`, with intersections in type arguments, too (`Box<A & T>`)                                     |
 | `ground`      | `SubstitutionWide.v` | what the types of `wtfrag` become: `gfrag` without type parameters                                   |
 | `ifrag`       | `Inference.v`     | the types of parameters during inference: `sfrag`, with type variables in place of type parameters |
+| `pfrag`       | `Inference.v`     | the types of parameters at their top: `ifrag`, and a type variable made nullable (`x: T?`), narrowed where its bound is nullable, as the compiler builds `T?` |
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`, with Nothing only as `exclusive Nothing`                        |
 | `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, Nothing only as `exclusive Nothing` (`bottom_only`), the type parameters of the caller none of those inferred |
 | `caller_type` | `GenericCode.v`   | the types of generic code: `wtfrag`, the references to the type parameters of the caller |

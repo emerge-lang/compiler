@@ -1119,6 +1119,29 @@ Proof.
       exact (accepted_not_nullable (S n) _ x s Hy Hx eq_refl H).
 Qed.
 
+(* What takes a non-null type takes it without null, too *)
+Lemma below_without_null: forall n x a, gfrag x = true -> gfrag a = true -> is_nullable env a = false ->
+    unify env n x a (Ongoing []) = Some (Ongoing []) -> exists n', unify env n' (without_null env x) a (Ongoing []) = Some (Ongoing []).
+Proof.
+    assert (Hshape: forall k y a, gfrag y = true -> gfrag a = true -> is_nullable env a = false ->
+        match y with Nullable _ => False | _ => True end ->
+        unify env k y a (Ongoing []) = Some (Ongoing []) -> exists n', unify env n' (without_null env y) a (Ongoing []) = Some (Ongoing [])).
+    { intros k y a Hy Ha Hna Hs Hu. exists k. rewrite <- (without_null_id a Ha Hna). exact (accepted_without_null k y a [] Hy Ha Hs Hu). }
+    intros n x a Hx Ha Hna H.
+    destruct (gfrag_cases x Hx) as [[m [c [args ->]]]|[[z [-> [Hz Hgz]]]|[[gm [nn [p [vs [-> _]]]]]|[cs ->]]]];
+        try exact (Hshape n _ a Hx Ha Hna I H).
+    (* a nullable type: what it wraps takes a *)
+    destruct n as [|n]; [discriminate H|].
+    assert (Hz': unify env n z a (Ongoing []) = Some (Ongoing [])).
+    { destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [va [-> _]]]]]|[acs ->]]]].
+      - rewrite unify_nullable_class in H. exact H.
+      - discriminate Hna.
+      - rewrite step_nullable_generic, (without_null_id _ Ha Hna) in H. exact H.
+      - rewrite step_nullable_inter in H. exact H. }
+    change (without_null env (Nullable z)) with (without_null env z).
+    apply (Hshape n z a Hgz Ha Hna); [|exact Hz']. destruct z; try exact I. discriminate Hz.
+Qed.
+
 (* ---------------------------------------------------------------------------------------------- *)
 (* Type arguments                                                                                  *)
 (* ---------------------------------------------------------------------------------------------- *)
