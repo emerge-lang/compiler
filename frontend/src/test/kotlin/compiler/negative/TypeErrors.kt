@@ -443,6 +443,30 @@ class TypeErrors : FreeSpec({
                     .shouldFind<ValueNotAssignableDiagnostic>()
             }
 
+            "as a parameter, doesn't take a possibly null type parameter" {
+                validateModule("""
+                    fn f<T : Any?>(p: T!) -> Any {
+                        return p
+                    }
+                    fn g<U : Any?>(u: U) -> Any {
+                        return f(u)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "as a parameter, takes a non-null type parameter" {
+                validateModule("""
+                    fn f<T : Any?>(p: T!) -> Any {
+                        return p
+                    }
+                    fn g<U : Any>(u: U) -> Any {
+                        return f(u)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
             "doesn't take a possibly null type parameter bounded by it" {
                 validateModule("""
                     fn f<V : Any?, W : V>(p: W) {

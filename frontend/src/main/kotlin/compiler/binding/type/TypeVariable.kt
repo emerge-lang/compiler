@@ -114,6 +114,14 @@ class TypeVariable private constructor(
             is GenericTypeReference,
             is BoundIntersectionTypeReference,
             is BoundTypeArgument, -> {
+                if (!isNullable && assigneeType.isNullable) {
+                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                        this,
+                        assigneeType,
+                        "Cannot assign a possibly null value to a non-nullable reference",
+                        assignmentLocation,
+                    ))
+                }
                 return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
             }
             is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
