@@ -447,7 +447,14 @@ Proof.
       rewrite (of_class_types _ ltac:(rewrite length_map; exact Hl) Hys).
       split; [|split; [|split; [|split; [reflexivity|split; [reflexivity|intros H0; discriminate H0]]]]].
       + unfold ground. apply andb_true_iff. split.
-        * simpl. apply andb_true_iff. split; [destruct cs as [|c1 cs']; simpl in Hl |- *; [lia|reflexivity]|].
+        * set (ys := map (instantiate env b) cs) in *.
+          change (negb (Nat.eqb (length (map (with_mutability env (common_mutability env ys)) ys)) 0)
+              && forallb (fun c => is_component env c && gfrag env c) (map (with_mutability env (common_mutability env ys)) ys)
+              && forallb (fun c => Mutability_beq (assignment_mutability env c)
+                  (assignment_mutability env (Intersection (map (with_mutability env (common_mutability env ys)) ys))))
+                  (map (with_mutability env (common_mutability env ys)) ys) = true).
+          rewrite (common_classes_uniform env ys ltac:(unfold ys; destruct cs; [simpl in Hl; lia|discriminate]) Hys), andb_true_r.
+          unfold ys. apply andb_true_iff. split; [destruct cs as [|c1 cs']; simpl in Hl |- *; [lia|reflexivity]|].
           apply forallb_forall. intros y Hy. apply in_map_iff in Hy. destruct Hy as [y' [<- Hy']].
           apply in_map_iff in Hy'. destruct Hy' as [c [<- Hin]]. destruct (Hall c Hin) as [Hg [Hcl _]].
           destruct (ground_with_mutability (common_mutability env (map (instantiate env b) cs)) _ Hcl Hg) as [Hg' Hcl'].
@@ -883,6 +890,25 @@ Proof.
     destruct (Hall c Hin) as [Hg Hcl]. exact (ground_with_mutability env _ _ Hcl Hg).
 Qed.
 
+(* The instance of an intersection, as ofComponents makes it, is of the fragment of Fragment.v *)
+Lemma intersection_instance_gfrag: forall cs, wcomponents env cs = true -> bound_in env b K [] (Intersection cs) = true ->
+    gfrag env (Intersection (map (with_mutability env (common_mutability env (map (instantiate env b) cs))) (map (instantiate env b) cs))) = true.
+Proof.
+    intros cs Hcs Hb. destruct (inst_intersection cs Hcs Hb) as [_ Hall]. destruct (wcomponents_facts env cs Hcs) as [Hl _].
+    set (ys := map (instantiate env b) cs).
+    assert (Hys: forall y, In y ys -> is_class y = true).
+    { intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]]. exact (proj2 (Hall c Hin)). }
+    change (negb (Nat.eqb (length (map (with_mutability env (common_mutability env ys)) ys)) 0)
+        && forallb (fun c => is_component env c && gfrag env c) (map (with_mutability env (common_mutability env ys)) ys)
+        && forallb (fun c => Mutability_beq (assignment_mutability env c)
+            (assignment_mutability env (Intersection (map (with_mutability env (common_mutability env ys)) ys))))
+            (map (with_mutability env (common_mutability env ys)) ys) = true).
+    rewrite (common_classes_uniform env ys ltac:(unfold ys; destruct cs; [simpl in Hl; lia|discriminate]) Hys), andb_true_r.
+    apply andb_true_iff. split; [unfold ys; destruct cs as [|c1 cs']; simpl in Hl |- *; [lia|reflexivity]|].
+    apply forallb_forall. intros y Hy. destruct (intersection_ground cs Hcs Hb y Hy) as [Hg Hcl].
+    destruct y as [| | | | | |]; try discriminate Hcl. apply andb_true_iff. split; [reflexivity|exact (ground_gfrag env _ Hg)].
+Qed.
+
 Lemma class_non_null: forall x, is_class x = true -> is_nullable env x = false.
 Proof. intros x H. destruct x; first [reflexivity|discriminate H]. Qed.
 
@@ -986,9 +1012,7 @@ Proof.
       - subst a. destruct Hshape. }
     rewrite Heq. apply (ground_accepts env wf declared declared_wf terminates finite not_expansive).
     - unfold ground. apply andb_true_iff. split.
-      + simpl. apply andb_true_iff. split; [destruct ts as [|c1 ts']; simpl in Hl |- *; [lia|reflexivity]|].
-        apply forallb_forall. intros y Hy. destruct (intersection_ground ts Hts Hbt y Hy) as [Hg Hcl].
-        destruct y as [| | | | | |]; try discriminate Hcl. apply andb_true_iff. split; [reflexivity|exact (ground_gfrag env _ Hg)].
+      + exact (intersection_instance_gfrag ts Hts Hbt).
       + change (forallb no_refs (map (with_mutability env (common_mutability env (map (instantiate env b) ts))) (map (instantiate env b) ts)) = true).
         apply forallb_forall. intros y Hy. destruct (intersection_ground ts Hts Hbt y Hy) as [Hg _].
         unfold ground in Hg. apply andb_true_iff in Hg. apply Hg.

@@ -71,6 +71,12 @@ Proof.
     simpl. rewrite (wf_any_has_no_type_parameters env wf). reflexivity.
 Qed.
 
+Lemma caller_any: forall m, caller_type (RootResolved (Some m) any []).
+Proof.
+    intros m. split; [|split; exact I]. change (wfrag env (RootResolved (Some m) any []) = true). cbn [wfrag].
+    simpl. rewrite (wf_any_has_no_type_parameters env wf). reflexivity.
+Qed.
+
 Lemma caller_bottom: caller_type bottom_type.
 Proof.
     split; [|split; exact I]. change (wfrag env (RootResolved (Some exclusive) nothing []) = true). cbn [wfrag].
@@ -530,8 +536,8 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (forall p S st, In (p, S) ovars -> no_vars S = false -> lookup_state U p = Some st ->
         is_non_nullable_nothing env (lower_bound st) = false) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
-    (forall p S, In (p, S) ovars ->
-        exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p)) (instantiate env sigma (instantiate_free env b S)) = Some true)
+    (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
+        exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p)) (instantiate env sigma (instantiate_free env b C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
@@ -551,7 +557,7 @@ Proof.
         finite not_expansive intersect_in_fragment supertype_in_fragment intersect_below supertype_above
         (caller_type env declared ps) (caller_argument env declared ps) (caller_argument_nested env declared ps)
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env declared ps)
-        (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
+        (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps)
         (caller_supertype_arguments env wf declared ps) supertype_bottom_only
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcb Hst Hfy Hrec Hfo Hobj Hzs Hxx HPs Hfold Hlow
@@ -590,12 +596,18 @@ Proof.
       unfold is_assignable_to, empty_unification. rewrite Ef0. reflexivity. }
     split.
     - (* the final values *)
-      intros p S Hin. destruct (Hfinal p S Hin) as [Hq Hbelow]. apply (Hinst _ _ Hq); [|exact Hbelow].
+      intros p S Hin C HC. destruct (Hfinal p S Hin) as [Hq Hbelow]. apply (Hinst _ _ Hq); [|exact (Hbelow C HC)].
       destruct (Hst p S Hin) as [_ [Hsv [Hcl' Hvar]]]. destruct (no_vars S) eqn:Ens.
       + destruct (Hcl' eq_refl) as [HfS HqS].
-        rewrite (free_unmentioned env b Hpb S (proj1 HfS) (unmentioned env b S (proj1 HfS) (Hown S HqS))). exact HqS.
-      + destruct (Hvar eq_refl) as [HSi HSo]. apply (free_caller env wf declared ps b Hpb Hvals S HSi HSo).
-        apply (vars_in_mono _ _ Hdomb'). apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ Hsv).
+        assert (HC': caller_type env declared ps C /\ gfrag env C = true).
+        { destruct S as [m c' args|n'|g|me msg|v o x|g|cs]; cbn [bound_components] in HC;
+              try (destruct HC as [<-|[]]; exact (conj HqS (proj1 HfS))).
+          split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
+        rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').
+      + destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCi HCo].
+        apply (free_caller env wf declared ps b Hpb Hvals C HCi HCo).
+        apply (vars_in_mono _ _ Hdomb').
+        apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ (vars_in_bound_component _ S C Hsv HC)).
     - (* the arguments *)
       intros P A HPA. apply in_combine_l in HPA as HP. apply in_combine_r in HPA as HA.
       destruct (HPs P HP) as [HfP [HoP HvP]]. destruct (HAs A HA) as [_ [_ HqA]].

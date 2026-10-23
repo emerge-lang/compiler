@@ -51,7 +51,11 @@ Lemma cfrag_of_fragment: forall x, cfrag env x = true -> gfrag env x = true /\ r
 Proof.
     assert (Hi: forall ys, class_components env ys = true -> gfrag env (Intersection ys) = true /\ refs_wf env declared (Intersection ys)).
     { intros ys Hys. destruct (class_components_facts env ys Hys) as [Hl Hc]. split.
-      - simpl. apply andb_true_iff. split; [destruct ys; simpl in Hl |- *; [lia|reflexivity]|].
+      - unfold class_components in Hys. apply andb_true_iff in Hys. destruct Hys as [_ Hu].
+        change (negb (Nat.eqb (length ys) 0) && forallb (fun c => is_component env c && gfrag env c) ys
+            && forallb (fun c => Mutability_beq (assignment_mutability env c) (assignment_mutability env (Intersection ys))) ys = true).
+        rewrite Hu, andb_true_r.
+        apply andb_true_iff. split; [destruct ys; simpl in Hl |- *; [lia|reflexivity]|].
         apply forallb_forall. intros y Hy. destruct (Hc y Hy) as [Hcl Hf]. apply andb_true_iff.
         split; [destruct y; first [reflexivity|discriminate Hcl]|exact (in_fragment_is_gfrag env y Hf)].
       - exact I. }

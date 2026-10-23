@@ -47,8 +47,10 @@ Fixpoint gfrag (t: EType): bool :=
     (* the bound is the parameter's, of the fragment where the bounds are (Generics.bounds_wellformed);
        a reference whose bound has type variables in it is not *)
     | Generic (mkGenericRef _ _ _ vs) => match vs with [] => true | _ => false end
+    (* as ofComponents makes them: the components assigned as the intersection, as one mutability *)
     | Intersection components =>
         negb (Nat.eqb (length components) 0) && forallb (fun c => is_component c && gfrag c) components
+        && forallb (fun c => Mutability_beq (assignment_mutability env c) (assignment_mutability env t)) components
     | _ => false
     end.
 
@@ -75,9 +77,17 @@ Qed.
 Lemma intersection_gfrag: forall cs, gfrag (Intersection cs) = true ->
     cs <> [] /\ forall c, In c cs -> is_component c = true /\ gfrag c = true.
 Proof.
-    intros cs H. simpl in H. apply andb_true_iff in H. destruct H as [Hl H]. split.
+    intros cs H. simpl in H. apply andb_true_iff in H. destruct H as [H _]. apply andb_true_iff in H. destruct H as [Hl H]. split.
     - intros ->. discriminate Hl.
     - intros c Hc. rewrite forallb_forall in H. apply andb_true_iff, H, Hc.
+Qed.
+
+(* The components of an intersection are assigned as the intersection *)
+Lemma intersection_uniform: forall cs, gfrag (Intersection cs) = true ->
+    forall c, In c cs -> assignment_mutability env c = assignment_mutability env (Intersection cs).
+Proof.
+    intros cs H c Hc. cbn [gfrag] in H. apply andb_true_iff in H. destruct H as [_ H]. rewrite forallb_forall in H.
+    apply internal_Mutability_dec_bl, H, Hc.
 Qed.
 
 Lemma gfrag_cases: forall t, gfrag t = true ->

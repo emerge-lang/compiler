@@ -663,7 +663,8 @@ Qed.
 (* ---------------------------------------------------------------------------------------------- *)
 
 Definition class_components (ys: list EType): bool :=
-    Nat.leb 2 (length ys) && forallb (fun y => is_class y && in_fragment env y) ys.
+    Nat.leb 2 (length ys) && forallb (fun y => is_class y && in_fragment env y) ys
+    && forallb (fun y => Mutability_beq (assignment_mutability env y) (assignment_mutability env (Intersection ys))) ys.
 
 (* What the types of tfrag become: types of the fragment of Transitivity.v, and intersections of
    class types of it, nullable or not *)
@@ -676,7 +677,7 @@ Definition cfrag (t: EType): bool :=
 Lemma class_components_facts: forall ys, class_components ys = true ->
     2 <= length ys /\ forall y, In y ys -> is_class y = true /\ in_fragment env y = true.
 Proof.
-    intros ys H. unfold class_components in H. apply andb_true_iff in H. destruct H as [Hl H].
+    intros ys H. unfold class_components in H. apply andb_true_iff in H. destruct H as [H _]. apply andb_true_iff in H. destruct H as [Hl H].
     split; [apply Nat.leb_le, Hl|]. intros y Hy. rewrite forallb_forall in H. apply andb_true_iff, H, Hy.
 Qed.
 
@@ -915,6 +916,16 @@ Lemma of_components_many: forall ys, 2 <= length ys -> forallb (is_nullable env)
     of_components env ys = Intersection (map (fun c => with_mutability env (common_mutability ys) (without_null env c)) ys).
 Proof. intros [|y1 [|y2 ys']] Hl Hn; simpl in Hl; try lia. unfold of_components. rewrite Hn. reflexivity. Qed.
 
+Lemma fold_intersect_same: forall (l: list EType) (f: EType -> Mutability) k a, (forall z, In z l -> f z = k) -> l <> [] ->
+    fold_left intersect_mutability (map f l) a = intersect_mutability a k.
+Proof.
+    induction l as [|z l IH]; intros f k a H Hne; [contradiction|]. simpl. rewrite (H z (or_introl eq_refl)).
+    destruct l as [|z' l'].
+    - reflexivity.
+    - rewrite (IH f k (intersect_mutability a k) (fun z0 Hz0 => H z0 (or_intror Hz0)) ltac:(discriminate)).
+      destruct a, k; reflexivity.
+Qed.
+
 (* Of class types, ofComponents makes their intersection, each of their common mutability *)
 Lemma of_classes: forall ys, 2 <= length ys -> (forall y, In y ys -> is_class y = true /\ in_fragment env y = true) ->
     of_components env (flat_map intersected_components ys) = Intersection (map (with_mutability env (common_mutability ys)) ys)
@@ -925,10 +936,30 @@ Proof.
       + f_equal. apply map_ext_in. intros y Hy. pose proof (proj1 (H y Hy)) as Hc. destruct y; try discriminate Hc. reflexivity.
       + destruct ys as [|y1 ys']; [simpl in Hl; lia|]. pose proof (proj1 (H y1 (or_introl eq_refl))) as Hc.
         destruct y1; try discriminate Hc. reflexivity.
-    - unfold class_components. rewrite length_map. apply andb_true_iff. split; [apply Nat.leb_le, Hl|].
-      apply forallb_forall. intros y' Hy'. apply in_map_iff in Hy'. destruct Hy' as [y [<- Hy]].
-      destruct (H y Hy) as [Hc Hf]. destruct y; try discriminate Hc. apply andb_true_iff. split; [reflexivity|].
-      apply in_fragment_with_mutability, Hf.
+    - unfold class_components. rewrite length_map. apply andb_true_iff. split; [apply andb_true_iff; split; [apply Nat.leb_le, Hl|]|].
+      + apply forallb_forall. intros y' Hy'. apply in_map_iff in Hy'. destruct Hy' as [y [<- Hy]].
+        destruct (H y Hy) as [Hc Hf]. destruct y; try discriminate Hc. apply andb_true_iff. split; [reflexivity|].
+        apply in_fragment_with_mutability, Hf.
+      + (* each of them assigned as the intersection *)
+        assert (Hall: forall z, In z (map (with_mutability env (common_mutability ys)) ys) -> assignment_mutability env z = common_mutability ys).
+        { intros z Hz. apply in_map_iff in Hz. destruct Hz as [z' [<- Hz']]. exact (common_class_mutability ys z' Hz' (proj1 (H z' Hz'))). }
+        apply forallb_forall. intros y' Hy'. rewrite (Hall y' Hy'). cbn [assignment_mutability].
+        rewrite (fold_intersect_same _ _ (common_mutability ys) readonly Hall); [|destruct ys; [simpl in Hl; lia|discriminate]].
+        destruct (common_mutability ys); reflexivity.
+Qed.
+
+(* Class types of their common mutability are assigned as their intersection *)
+Lemma common_classes_uniform: forall ys, ys <> [] -> (forall y, In y ys -> is_class y = true) ->
+    forallb (fun y => Mutability_beq (assignment_mutability env y)
+        (assignment_mutability env (Intersection (map (with_mutability env (common_mutability ys)) ys))))
+        (map (with_mutability env (common_mutability ys)) ys) = true.
+Proof.
+    intros ys Hne H.
+    assert (Hall: forall z, In z (map (with_mutability env (common_mutability ys)) ys) -> assignment_mutability env z = common_mutability ys).
+    { intros z Hz. apply in_map_iff in Hz. destruct Hz as [z' [<- Hz']]. exact (common_class_mutability ys z' Hz' (H z' Hz')). }
+    apply forallb_forall. intros y' Hy'. rewrite (Hall y' Hy'). cbn [assignment_mutability].
+    rewrite (fold_intersect_same _ _ (common_mutability ys) readonly Hall); [|destruct ys; [contradiction|discriminate]].
+    destruct (common_mutability ys); reflexivity.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
