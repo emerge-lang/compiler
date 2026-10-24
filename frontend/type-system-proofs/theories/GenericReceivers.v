@@ -2431,36 +2431,42 @@ Proof.
       unfold rpinst. rewrite (pinstance_candidate env wf (instantiate_free env b) p c C HCi HCt).
       exact (rstatic_components n p cs c c s s' Hcomp' Hcs Hunif Hc Hbc Hqc
           (fun b' Hob' => conj Hc (conj Hbc (conj Hob' Hqc))) Hs H b Hpb Hbv Hob Hvb Hd Hr C HC). }
-    (* a nullable intersection, of class types: of the candidate without null, the components made nullable *)
-    destruct (Hinter cs eq_refl) as [Hif [Hcs Hunif]]. cbn [bound_components] in Hcomp, Hif |- *.
-    assert (Hcomp': forall C, In C cs -> (ifrag env C = true /\ plain_owners C = true /\ forall g, C = TypeVariable g -> param_of g <> p)
-        /\ exists m cl args, C = RootResolved m cl args).
-    { intros C HC. pose proof (Hif _ (in_map Nullable _ _ HC)) as HCi. destruct (Hcomp _ (in_map Nullable _ _ HC)) as [_ [HCo _]].
-      destruct (ifrag_cases env wf _ HCi) as [[? [? [? [Eq _]]]]|[Eq|[[m [cl [args [Eq H']]]]|[? [Eq _]]]]]; try discriminate Eq.
-      injection Eq as ->. split; [|eauto]. split; [exact H'|]. split; [exact HCo|]. intros g Eg; discriminate Eg. }
-    destruct (components_sfrag_facts env _ Hcs) as [Hlen _]. rewrite length_map in Hlen.
+    (* a nullable intersection: of the candidate without null, the components made nullable *)
+    destruct (Hinter cs eq_refl) as [Hif [Hcs Hunif]]. cbn [bound_components] in Hcomp |- *.
+    assert (Hcomp': forall C, In C cs -> ifrag env C = true /\ plain_owners C = true /\ forall g, C = TypeVariable g -> param_of g <> p).
+    { intros C HC. destruct (Hcomp _ (in_map Nullable _ _ HC)) as [_ [HCo HCt]]. split; [exact (Hif C HC)|]. split; [exact HCo|].
+      intros g Eg. apply (HCt g). right. rewrite Eg. reflexivity. }
+    destruct (components_sfrag_facts env _ Hcs) as [Hlen Hshape]. rewrite length_map in Hlen.
     assert (Hcase: forall C, In C cs -> (exists m cl args, C = RootResolved m cl args)
         \/ (exists q, C = TypeVariable (mkGenericRef None false q []) /\ q <> p))
-        by (intros C HC; left; exact (proj2 (Hcomp' C HC))).
-    assert (Hnull: forall C, In C cs -> is_nullable env C = false)
-        by (intros C HC; destruct (proj2 (Hcomp' C HC)) as [m [cl [args ->]]]; reflexivity).
+        by (intros C HC; exact (static_component_cases env wf p cs C Hif Hcs (fun g Hg => proj2 (proj2 (Hcomp' _ Hg)) g eq_refl) HC)).
+    assert (Hnull: forall C, In C cs -> is_nullable env C = false).
+    { intros C HC. destruct (Hshape _ (in_map to_generic _ _ HC)) as [Hsh _]. unfold is_component_shape in Hsh.
+      apply andb_true_iff in Hsh. destruct Hsh as [_ Hsh]. apply negb_true_iff in Hsh.
+      destruct (Hcase C HC) as [[m [cl [args ->]]]|[q [-> _]]]; [reflexivity|exact Hsh]. }
     change (with_candidate env p c (Nullable (Intersection cs))) with (rewrap_nullable (with_candidate env p c (Intersection cs))) in H.
     rewrite (with_candidate_intersection env p c cs Hlen Hcase Hnull) in H. cbn [rewrap_nullable] in H.
     destruct n as [|n]; [discriminate H|].
     rewrite (nullable_target env n _ c s (proj1 Hc)) in H. rewrite <- (with_candidate_intersection env p c cs Hlen Hcase Hnull) in H.
     intros C' HC' _. apply in_map_iff in HC'. destruct HC' as [C [<- HC]].
-    destruct (Hcomp' C HC) as [[HCi [HCo HCt]] _].
-    destruct (rstatic_components n p cs c (nullable_assignee env c) s s' (fun C HC => proj1 (Hcomp' C HC)) Hcs Hunif Hc Hbc Hqc
+    destruct (Hcomp' C HC) as [HCi [HCo HCt]].
+    destruct (rstatic_components n p cs c (nullable_assignee env c) s s' Hcomp' Hcs Hunif Hc Hbc Hqc
         (fun b' Hob' => yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps)
             b' c (conj Hc (conj Hbc (conj Hob' Hqc)))) Hs H b Hpb Hbv Hob Hvb Hd Hr C HC) as [f Hf].
     assert (HvC: vars_in (fun q => param_eqb q p || bound_b b q) C = true)
         by (cbn [vars_in] in Hvb; rewrite forallb_forall in Hvb; exact (Hvb C HC)).
     destruct (Hone C HCi HCo HCt HvC) as [_ [HcC _]]. destruct (instance_ground _ HcC) as [_ [_ HgZ]].
     unfold rpinst.
-    rewrite (pinstance_candidate env wf (instantiate_free env b) p c (Nullable C) (Hif _ (in_map Nullable _ _ HC)) ltac:(intros g Eg; discriminate Eg)).
-    change (with_candidate env p c (Nullable C)) with (rewrap_nullable (with_candidate env p c C)).
-    rewrite (free_rewrap env b), rewrap_sigma.
-    exact (runtime_nullable_variable c _ _ f (proj1 Hc) Hqc HgZ HgZ eq_refl Hf).
+    destruct (Hcase C HC) as [[m [cl [args EC]]]|[q [EC Hq]]]; subst C.
+    - rewrite (pinstance_candidate env wf (instantiate_free env b) p c (Nullable (RootResolved m cl args)) (ifrag_nullable_intro env m cl args HCi)
+          ltac:(intros g Eg; discriminate Eg)).
+      change (with_candidate env p c (Nullable (RootResolved m cl args))) with (rewrap_nullable (with_candidate env p c (RootResolved m cl args))).
+      rewrite (free_rewrap env b), rewrap_sigma.
+      exact (runtime_nullable_variable c _ _ f (proj1 Hc) Hqc HgZ HgZ eq_refl Hf).
+    - (* a type variable, made nullable *)
+      rewrite (proj2 (candidate_reference env p c None false q Hq)). rewrite (candidate_other env p c q Hq) in Hf, HgZ.
+      cbn [pinstance ref_apply]. rewrite rewrap_sigma.
+      exact (runtime_nullable_variable c _ _ f (proj1 Hc) Hqc HgZ HgZ eq_refl Hf).
 Qed.
 
 (*

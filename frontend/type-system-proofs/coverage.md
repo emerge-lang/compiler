@@ -10,11 +10,10 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 2 | Nullable intersection bounds with type variables among their components | `T : (A & U)?` | The components of a nullable intersection the proofs admit are class types: each made nullable must be of `ifrag` |
 | 3 | A type parameter made nullable inside a bound | `fn f<A, B : List<A?>>` | The types of the parameters in the bounds the inference proofs admit (`ifrag`) make only class types nullable (`no_generics`); as the whole bound, `T : U?` is covered (`pfrag`), outside of generic code where the final values are class types (#10) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
-| 6 | Bounds containing `m T` or `T!` other than as the whole bound; and `T : m U` instantiated and on generic receivers | `B : List<mut A>`, `T : A & U!`; `T : mut U` in generic code at run time | Not in the fragment the inference proofs admit (`ifrag`, also of the components of intersections); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`), as for parameters (#12) |
+| 6 | Bounds containing `m T` or `T!` other than as the whole bound; and `T : m U` instantiated and on generic receivers | `B : List<mut A>`, `T : A & U!`, also `T : A? & U?` with `U : Any?`, whose components the compiler narrows; `T : mut U` in generic code at run time | Not in the fragment the inference proofs admit (`ifrag`, also of the components of intersections); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`), as for parameters (#12) |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, in non-generic code | Premise of FBounded: with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
@@ -71,7 +70,7 @@ Columns:
 | mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | intersection with variables (`T : A & Ord<in T>`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
-| nullable intersection with variables (`T : (A & Ord<in T>)?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
+| nullable intersection with variables (`T : A? & Ord<in T>?`, `T : A? & U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, narrowed (`T : U!`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter of a given mutability (`T : mut U`) | ✓*† | ✓*† | ◐*‡ | ✗ | ✗ |
 | contains `m T` / `T!` deeper (`B : List<mut A>`, `T : A & U!`) | ✗ | ✗ | ✗ | ✗ | ✗ |
@@ -129,8 +128,9 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
 3. The remaining type shapes, in that setting: of bounds, #1 closed intersections (done, of the bounds of the
-   inference interface, as FinalValues has them: `static_bound`, `bindings_within` through `inter_accepts`), #2 nullable intersections (of
-   class types done: `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`), #3 `T : U?`, #6 `m T` / `T!`
+   inference interface, as FinalValues has them: `static_bound`, `bindings_within` through `inter_accepts`), #2 nullable intersections (done:
+   `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`; of type variables among the components,
+   `components_of`, `rewrap_takes`), #3 `T : U?`, #6 `m T` / `T!`
    (as the whole bound done, `T : U?`, `T : U!`, `T : m U`, `T : m U?`, in every setting but `T : m U` instantiated and on
    generic receivers: `Constraints.reference_step`, `static_whole`; `FBounded.bindings_within` through
    `WithinBounds.param_refs`, `mentions_of_static`; `pinstance_candidate`, `gstatic_whole` through `mixed_parameter`;
