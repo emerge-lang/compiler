@@ -281,6 +281,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     so programs mentioning `read Nothing` anywhere, `List<read Nothing>` included, are outside them. With `Nothing`
     const, the model's const machinery makes every `m Nothing` behave like `exclusive Nothing`, and the proofs can
     admit `Nothing` of any mutability (`bottom_type`, `is_bottom` and the fragments built on them)
+36. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
+    component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
+    get narrowed (`U?` with `U : Any?` becomes the component `U!`)
 -----
 
 ## Future features
