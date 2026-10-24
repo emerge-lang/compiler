@@ -153,7 +153,15 @@ class TypeVariable private constructor(
             return this
         }
 
-        return context.getFinalTypeFor(this.parameter)
+        // as GenericTypeReference.instantiateAllParameters: the mutability given to the variable, and `!`, apply
+        var instantiated = context.getFinalTypeFor(this.parameter)
+        asGeneric.givenMutability?.let { givenMutability ->
+            instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
+        }
+        if (asGeneric.isNarrowed) {
+            instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        }
+        return instantiated
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

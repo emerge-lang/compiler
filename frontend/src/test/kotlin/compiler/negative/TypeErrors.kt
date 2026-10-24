@@ -499,6 +499,33 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ReturnTypeMismatchDiagnostic>()
             }
+
+            "in the return type of an invocation, is non-nullable" {
+                validateModule("""
+                    fn f<T : Any?>(t: T, n: T!) -> T! {
+                        return n
+                    }
+                    fn g(a: S32?) -> S32 {
+                        return f(a, 1)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in a type argument of the return type of an invocation, is non-nullable" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    fn f<T : Any?>(t: T, n: T!) -> Box<T!> {
+                        return Box(n)
+                    }
+                    fn g(a: S32?) {
+                        b: Box<S32?> = f(a, 1)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
         }
 
         "a type parameter with a mutability" - {
@@ -577,6 +604,38 @@ class TypeErrors : FreeSpec({
                     }
                     fn f(b: mut Box<read B>) -> mut B {
                         return b.p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in a type argument of the return type of an invocation, is of that mutability" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    class Foo {}
+                    fn f<T : Any>(t: T, m: mut T) -> Box<mut T> {
+                        return Box(m)
+                    }
+                    fn g(a: read Foo, m: mut Foo) {
+                        b: Box<read Foo> = f(a, m)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "in a type argument of the return type of an invocation, takes values of that mutability" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    class Foo {}
+                    fn f<T : Any>(t: T, m: mut T) -> Box<mut T> {
+                        return Box(m)
+                    }
+                    fn g(a: read Foo, m: mut Foo) {
+                        b: Box<mut Foo> = f(a, m)
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
