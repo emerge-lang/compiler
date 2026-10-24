@@ -113,6 +113,17 @@ Proof.
     split; [exact (wfrag_wtfrag env c (proj2 (Hcs c Hc)))|]. split; [exact I|exact (fold_and_in _ cs Hm c Hc)].
 Qed.
 
+Lemma caller_nullable_component: forall cs c, caller_type (Nullable (Intersection cs)) -> In c cs -> caller_type (Nullable c).
+Proof.
+    intros cs c [Hw [Hb Hm]] Hc. destruct (wcomponents_facts env cs Hw) as [_ Hcs]. destruct (Hcs c Hc) as [Hsh Hwc].
+    split; [|split; [exact I|exact (fold_and_in _ cs Hm c Hc)]].
+    assert (Hcl: is_class c || is_generic c = true) by (unfold is_component_shape in Hsh; apply andb_true_iff in Hsh; exact (proj1 Hsh)).
+    destruct c as [m cl args|n|g|me msg|v o n|g|cs']; try discriminate Hcl; cbn [wtfrag].
+    - change ((is_class (RootResolved m cl args) || is_generic (RootResolved m cl args)) && wfrag env (RootResolved m cl args) = true).
+      rewrite Hwc. reflexivity.
+    - change ((is_class (Generic g) || is_generic (Generic g)) && wfrag env (Generic g) = true). rewrite Hwc. reflexivity.
+Qed.
+
 Lemma built_without_null: forall t, built env declared t -> built env declared (without_null env t).
 Proof. intros. exact I. Qed.
 
@@ -612,7 +623,7 @@ Proof.
         (caller_type env declared ps) (caller_argument env declared ps) (caller_argument_nested env declared ps)
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env declared ps)
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
-        (caller_narrowed env wf declared ps) (caller_component env declared ps)
+        (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_nullable_component env declared ps)
         (caller_supertype_arguments env wf declared ps) supertype_bottom_only
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcb Hst Hfy Hrec Hfo Hobj Hzs Hxx HPs Hfold Hlow
         b Hbdef HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hfinal Hargs]]]].
@@ -654,9 +665,14 @@ Proof.
       destruct (Hst p S Hin) as [_ [Hsv [Hcl' Hvar]]]. destruct (no_vars S) eqn:Ens.
       + destruct (Hcl' eq_refl) as [HfS HqS].
         assert (HC': caller_type env declared ps C /\ gfrag env C = true).
-        { destruct S as [m c' args|n'|g|me msg|v o x|g|cs]; cbn [bound_components] in HC;
+        { destruct S as [m c' args|[m'' c'' a''|n''|g''|me' msg'|v' o' x'|g''|cs']|g|me msg|v o x|g|cs]; cbn [bound_components] in HC;
               try (destruct HC as [<-|[]]; exact (conj HqS (proj1 HfS))).
-          split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
+          - apply in_map_iff in HC. destruct HC as [c0 [<- Hc0]].
+            pose proof (proj1 HfS) as HgS. cbn [gfrag] in HgS. apply andb_true_iff in HgS. destruct HgS as [_ HgI].
+            destruct (proj2 (intersection_gfrag env cs' HgI) c0 Hc0) as [Hcc Hgc].
+            split; [exact (caller_nullable_component env declared ps cs' c0 HqS Hc0)|].
+            cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c0; first [exact Hcc|discriminate Hcc].
+          - split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
         rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').
       + destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCi HCo].
         apply (free_caller env wf declared ps b Hpb Hvals C HCi HCo).

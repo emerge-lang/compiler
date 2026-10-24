@@ -11,7 +11,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | # | what isn't covered | example | why |
 |---|---|---|---|
 | 1 | Bounds that are intersections without type variables, outside of generic code (◐‡) | `fn f<T : A & B>(t: T)` called with class-type arguments | FBounded requires a closed bound to be a class type; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
-| 2 | Nullable intersection bounds | `T : (A & Ord<in T>)?`, `T : (A & B)?` | Excluded by `static_bound` and by the class-type bounds elsewhere |
+| 2 | Nullable intersection bounds with type variables among their components, and closed ones outside of generic code | `T : (A & U)?`, `fn f<T : (A & B)?>(t: T)` called with class-type arguments | The components of a nullable intersection the proofs admit are class types: each made nullable must be of `ifrag`. A closed bound outside of generic code is #1 |
 | 3 | A bound that is another type parameter, made nullable | `fn f<U, T : U?>` | The components of the bounds the inference proofs admit are of `ifrag` (`static_bound`, `gstatic_form`), which has type variables only as `T`; as the whole type of a parameter, `T?` is covered (`pfrag`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
@@ -72,7 +72,7 @@ Columns:
 | mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | intersection with variables (`T : A & Ord<in T>`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
-| nullable intersection with variables | ✗ | ✗ | ✗ | ✗ | ✗ |
+| nullable intersection with variables (`T : (A & Ord<in T>)?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | contains `m T` / `T!` | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 \* only when every such variable gets a lower bound from the arguments, and only for inference (no explicit
@@ -127,8 +127,8 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `rstatic_whole`, `rleaf_all`, `generic_receiver_with_bounded_variables_sound`. With them arguments that aren't
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
-3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections,
-   #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12 (a type variable as the whole type of a parameter done,
+3. The remaining type shapes, in that setting: of bounds, #1 closed intersections, #2 nullable intersections (of
+   class types done: `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`), #3 `T : U?`, #6 `m T` / `T!`; of parameter types, #12 (a type variable as the whole type of a parameter done,
    `T?`, `T!`, `m T`, `m T?`, in every setting but `m T` instantiated and on generic receivers: `pfrag`, `pgeneric`,
    `pinstance`, `unify_variable_given`, `Generics.target_ordered`, `instance_never_fails`, `parameter_step`,
    `exact_parameter`, `generic_parameter`, `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`)
