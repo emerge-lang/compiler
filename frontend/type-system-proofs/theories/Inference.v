@@ -95,6 +95,11 @@ Definition reference_variable (t: EType): bool :=
 (* The types of the parameters, at their top *)
 Definition pfrag (t: EType): bool := ifrag t || reference_variable t.
 
+(* The components of an intersection: types of the parameters, or a type variable narrowed (`A & U!`),
+   as ofComponents makes a component whose bound is nullable *)
+Definition compfrag (t: EType): bool :=
+    ifrag t || match t with TypeVariable (mkGenericRef None true _ []) => reference_variable t | _ => false end.
+
 (* No mutability given to a type variable at the top of a type *)
 Definition no_given (t: EType): bool :=
     match t with
@@ -492,6 +497,24 @@ Lemma pinstance_ifrag: forall f t, ifrag t = true -> pinstance f t = f t.
 Proof.
     intros f t H. destruct (ifrag_cases t H) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]]; reflexivity.
 Qed.
+
+Lemma compfrag_cases: forall t, compfrag t = true -> ifrag t = true
+    \/ (exists p, t = TypeVariable (mkGenericRef None true p [])
+        /\ sfrag env (Generic (mkGenericRef None true p [])) = true /\ sfrag env (Generic (mkGenericRef None false p [])) = true).
+Proof.
+    intros t H. unfold compfrag in H. apply orb_true_iff in H. destruct H as [H|H]; [left; exact H|right].
+    destruct t as [m c args|n|g|me msg|v o n|[[m|] [|] p [|w ws]]|cs]; try discriminate H.
+    exists p. unfold reference_variable in H. apply andb_true_iff in H. split; [reflexivity|exact H].
+Qed.
+
+Lemma compfrag_pfrag: forall t, compfrag t = true -> pfrag t = true.
+Proof.
+    intros t H. destruct (compfrag_cases t H) as [H'|[p [-> Hs]]]; unfold pfrag; [rewrite H'; reflexivity|].
+    unfold reference_variable. destruct Hs as [Hs1 Hs2]. rewrite Hs1, Hs2, orb_true_r. reflexivity.
+Qed.
+
+Lemma compfrag_ifrag: forall t, compfrag t = true -> is_type_variable t = false -> ifrag t = true.
+Proof. intros t H Hv. destruct (compfrag_cases t H) as [H'|[p [-> _]]]; [exact H'|discriminate Hv]. Qed.
 
 Lemma pfrag_sfrag: forall t, pfrag t = true -> sfrag env (pgeneric t) = true.
 Proof.

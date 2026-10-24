@@ -163,10 +163,11 @@ Definition static_checked (s: VariableStates) (p: TypeParameterId) (st: Variable
             = Some (Ongoing []).
 
 (* A static upper bound with type variables: an intersection as ofComponents makes it, nullable or not,
-   of components of the types of the parameters, assigned as one mutability, none of them the variable
+   of components of the types of the parameters or narrowed type variables (compfrag), assigned as one
+   mutability, none of them the variable
    p itself; or a type variable other than p, of any mutability, narrowed or made nullable *)
 Definition static_form (p: TypeParameterId) (S: EType): Prop :=
-    (forall cs, inter_of S = Some cs -> (forall C, In C cs -> ifrag env C = true)
+    (forall cs, inter_of S = Some cs -> (forall C, In C cs -> compfrag env C = true)
         /\ components_sfrag env (map to_generic cs) = true
         /\ (forall C, In C cs -> assignment_mutability env C = assignment_mutability env (Intersection cs))
         /\ forall g, In (TypeVariable g) cs -> param_of g <> p)
@@ -478,11 +479,11 @@ Proof.
 Qed.
 
 (* Of a type variable as the target, the mutability given to it only rejects class types beyond it *)
-Lemma unify_variable_mutability: forall k m q bnd A s s', is_class A = true ->
-    unify env (S k) (TypeVariable (mkGenericRef (Some m) false q bnd)) A (Ongoing s) = Some (Ongoing s') ->
+Lemma unify_variable_mutability: forall k m nn q bnd A s s', is_class A = true ->
+    unify env (S k) (TypeVariable (mkGenericRef (Some m) nn q bnd)) A (Ongoing s) = Some (Ongoing s') ->
     unify env (S k) (TypeVariable (mkGenericRef None false q bnd)) A (Ongoing s) = Some (Ongoing s').
 Proof.
-    intros k m q bnd A s s' HA H. destruct A as [ma ca aargs| | | | | |]; try discriminate HA.
+    intros k m nn q bnd A s s' HA H. destruct A as [ma ca aargs| | | | | |]; try discriminate HA.
     rewrite unify_step_once in H |- *. unfold unify_step, unify_type_variable in H |- *.
     match type of H with context [given_mutability_fits ?e ?x ?y] => destruct (given_mutability_fits e x y) end;
         [exact H|discriminate H].
@@ -545,25 +546,26 @@ Qed.
 
 (* The components of an intersection that is a static upper bound: class types, and type variables
    other than p *)
-Lemma static_component_cases: forall p cs C, (forall C, In C cs -> ifrag env C = true) ->
+Lemma static_component_cases: forall p cs C, (forall C, In C cs -> compfrag env C = true) ->
     components_sfrag env (map to_generic cs) = true -> (forall g, In (TypeVariable g) cs -> param_of g <> p) -> In C cs ->
     (exists m cl args, C = RootResolved m cl args)
-    \/ (exists q, C = TypeVariable (mkGenericRef None false q []) /\ q <> p).
+    \/ (exists nn q, C = TypeVariable (mkGenericRef None nn q []) /\ q <> p).
 Proof.
     intros p cs C HSi Hcs Hnp Hin. destruct (components_sfrag_facts env _ Hcs) as [_ Hc].
     destruct (Hc (to_generic C) (in_map _ _ _ Hin)) as [Hsh _].
-    destruct (ifrag_cases env wf C (HSi C Hin)) as [[m [cl [args [-> _]]]]|[->|[[m [cl [args [-> _]]]]|[q [-> _]]]]].
+    destruct (compfrag_cases env C (HSi C Hin)) as [Hif|[q [-> _]]]; [|right; exists true, q; split; [reflexivity|exact (Hnp _ Hin)]].
+    destruct (ifrag_cases env wf C Hif) as [[m [cl [args [-> _]]]]|[->|[[m [cl [args [-> _]]]]|[q [-> _]]]]].
     - left. eauto.
     - left. unfold bottom_type. eauto.
     - simpl in Hsh. discriminate Hsh.
-    - right. exists q. split; [reflexivity|]. exact (Hnp _ Hin).
+    - right. exists false, q. split; [reflexivity|]. exact (Hnp _ Hin).
 Qed.
 
 (* An intersection that is a static upper bound, with the candidate for p: of the components with it,
    each of their common mutability *)
 Lemma with_candidate_intersection: forall p c cs, 2 <= length cs ->
     (forall C, In C cs -> (exists m cl args, C = RootResolved m cl args)
-        \/ (exists q, C = TypeVariable (mkGenericRef None false q []) /\ q <> p)) ->
+        \/ (exists nn q, C = TypeVariable (mkGenericRef None nn q []) /\ q <> p)) ->
     (forall C, In C cs -> is_nullable env C = false) ->
     with_candidate env p c (Intersection cs)
     = Intersection (map (fun C => with_mutability env (assignment_mutability env (Intersection cs)) (with_candidate env p c C)) cs).
@@ -572,9 +574,10 @@ Proof.
     assert (Hinst: forall C, In C cs -> intersected_components (with_candidate env p c C) = [with_candidate env p c C]
         /\ is_nullable env (with_candidate env p c C) = false /\ without_null env (with_candidate env p c C) = with_candidate env p c C
         /\ assignment_mutability env (with_candidate env p c C) = assignment_mutability env C).
-    { intros C HC. destruct (Hcases C HC) as [[m [cl [args ->]]]|[q [-> Hq]]].
+    { intros C HC. destruct (Hcases C HC) as [[m [cl [args ->]]]|[nn [q [-> Hq]]]].
       - unfold with_candidate. cbn [instantiate]. repeat split; reflexivity.
-      - rewrite (candidate_other p c q Hq). pose proof (Hn _ HC) as Hn'. repeat split; first [exact Hn'|reflexivity]. }
+      - rewrite (proj1 (candidate_reference p c None nn q Hq)). pose proof (Hn _ HC) as Hn'.
+        repeat split; first [exact Hn'|reflexivity]. }
     assert (Hflat: forall l, (forall C, In C l -> In C cs) ->
         flat_map intersected_components (map (with_candidate env p c) l) = map (with_candidate env p c) l).
     { induction l as [|C l IH]; intros Hsub; [reflexivity|]. cbn [map flat_map].
@@ -598,7 +601,7 @@ Qed.
    gives the components that aren't type variables a, and those that are what the others don't cover
    of it (Any of the mutability of a), or a itself. *)
 Lemma static_components: forall n p cs c a s s', target_step n -> (forall k, k < n -> leaf_step k) ->
-    (forall C, In C cs -> ifrag env C = true) -> components_sfrag env (map to_generic cs) = true ->
+    (forall C, In C cs -> compfrag env C = true) -> components_sfrag env (map to_generic cs) = true ->
     (forall C, In C cs -> assignment_mutability env C = assignment_mutability env (Intersection cs)) ->
     (forall g, In (TypeVariable g) cs -> param_of g <> p) ->
     afrag env c = true -> closed c = true -> afrag env a = true -> closed a = true -> wf_states s ->
@@ -611,12 +614,12 @@ Proof.
     intros n p cs c a s s' IH IHleaf HSi Hcs Hunif Hnp Hc HcC Ha HaC Hs H.
     destruct (components_sfrag_facts env _ Hcs) as [Hlen Hcomp]. rewrite length_map in Hlen.
     assert (Hcase: forall C, In C cs -> (exists m cl args, C = RootResolved m cl args)
-        \/ (exists q, C = TypeVariable (mkGenericRef None false q []) /\ q <> p))
+        \/ (exists nn q, C = TypeVariable (mkGenericRef None nn q []) /\ q <> p))
         by (intros C HC; exact (static_component_cases p cs C HSi Hcs Hnp HC)).
     assert (Hnull: forall C, In C cs -> is_nullable env C = false).
     { intros C HC. destruct (Hcomp _ (in_map to_generic _ _ HC)) as [Hsh _]. unfold is_component_shape in Hsh.
       apply andb_true_iff in Hsh. destruct Hsh as [_ Hsh]. apply negb_true_iff in Hsh.
-      destruct (Hcase C HC) as [[m [cl [args ->]]]|[q [-> _]]]; [reflexivity|exact Hsh]. }
+      destruct (Hcase C HC) as [[m [cl [args ->]]]|[nn [q [-> _]]]]; [reflexivity|exact Hsh]. }
     rewrite (with_candidate_intersection p c cs Hlen Hcase Hnull) in H.
     set (m0 := assignment_mutability env (Intersection cs)) in *.
     set (w := fun C => with_mutability env m0 (with_candidate env p c C)) in H.
@@ -634,15 +637,16 @@ Proof.
     assert (Hroot: forall C, In C cs -> is_type_variable (w C) = false -> forall s0 s0', wf_states s0 ->
         unify env n1 (w C) (RootResolved ma ca aargs) (Ongoing s0) = Some (Ongoing s0') ->
         wf_states s0' /\ (forall b, satisfies b s0' -> satisfies b s0) /\ Sound C s0').
-    { intros C HC Hv s0 s0' Hs0 E0. destruct (Hcase C HC) as [[m [cl [args EC]]]|[q [EC Hq]]].
-      2:{ unfold w in Hv. rewrite EC, (candidate_other p _ q Hq) in Hv. discriminate Hv. }
+    { intros C HC Hv s0 s0' Hs0 E0. destruct (Hcase C HC) as [[m [cl [args EC]]]|[nn [q [EC Hq]]]].
+      2:{ unfold w in Hv. rewrite EC, (proj1 (candidate_reference p c None nn q Hq)) in Hv. discriminate Hv. }
       assert (Ew: unify env n1 (w C) (RootResolved ma ca aargs) (Ongoing s0)
           = unify env n1 (with_candidate env p c C) (RootResolved ma ca aargs) (Ongoing s0)).
       { pose proof (Hunif C HC) as Hu. fold m0 in Hu. unfold w. rewrite EC in Hu |- *. unfold with_candidate.
         cbn [instantiate with_mutability]. apply unify_root_mutability; [reflexivity|].
         cbn [assignment_mutability] in Hu |- *. destruct (is_const (declaration_of env cl)); [reflexivity|exact (eq_sym Hu)]. }
       rewrite Ew in E0.
-      exact (IH1 _ _ s0 s0' (with_candidate_ifrag p _ Hc HcC C (HSi C HC)) Ha HaC Hs0 E0). }
+      exact (IH1 _ _ s0 s0' (with_candidate_ifrag p _ Hc HcC C (compfrag_ifrag env C (HSi C HC) ltac:(rewrite EC; reflexivity)))
+          Ha HaC Hs0 E0). }
     set (ns := filter (fun x => negb (is_type_variable x)) (map w cs)) in H.
     set (vs := filter is_type_variable (map w cs)) in H.
     assert (Hns: forall x, In x ns -> forall s0 s0', wf_states s0 ->
@@ -675,8 +679,8 @@ Proof.
         destruct (Hns cov Hcov s2 s3 Hs2 Ecov) as [Hs3 [Hn3 _]].
         apply filter_In in Hcov. destruct Hcov as [Hcov Hv]. apply negb_true_iff in Hv.
         apply in_map_iff in Hcov. destruct Hcov as [C1 [EC1 HC1]].
-        destruct (Hcase C1 HC1) as [[m1 [cl1 [args1 EC]]]|[q [EC Hq]]].
-        2:{ subst cov. unfold w in Hv. rewrite EC, (candidate_other p _ q Hq) in Hv. discriminate Hv. }
+        destruct (Hcase C1 HC1) as [[m1 [cl1 [args1 EC]]]|[nn [q [EC Hq]]]].
+        2:{ subst cov. unfold w in Hv. rewrite EC, (proj1 (candidate_reference p c None nn q Hq)) in Hv. discriminate Hv. }
         assert (Ecov': exists mc argsc, cov = RootResolved mc cl1 argsc).
         { subst cov. unfold w. rewrite EC. unfold with_candidate. cbn [instantiate with_mutability]. eauto. }
         destruct Ecov' as [mc [argsc ->]].
@@ -703,32 +707,32 @@ Proof.
         | r => r
         end = Some (Ongoing s0') ->
         wf_states s0' /\ (forall b, satisfies b s0' -> satisfies b s0)
-        /\ (forall q, x = TypeVariable (mkGenericRef (Some m0) false q []) -> forall o y, xfrag y -> in_fragment env y = true ->
+        /\ (forall nn q, x = TypeVariable (mkGenericRef (Some m0) nn q []) -> forall o y, xfrag y -> in_fragment env y = true ->
             (forall st', lookup_state s0' q = Some st' -> fits st' o y) ->
             exists f, unify env f y (RootResolved ma ca aargs) (Ongoing []) = Some (Ongoing []))).
     { intros x Hx s0 s0' Hs0 E0. apply filter_In in Hx. destruct Hx as [Hx Hv].
       apply in_map_iff in Hx. destruct Hx as [C0 [EC0 HC0]].
-      destruct (Hcase C0 HC0) as [[m [cl [args EC]]]|[q [EC Hq]]].
+      destruct (Hcase C0 HC0) as [[m [cl [args EC]]]|[nn [q [EC Hq]]]].
       { subst x. unfold w in Hv. rewrite EC in Hv. unfold with_candidate in Hv. cbn in Hv. discriminate Hv. }
-      assert (Ex: x = TypeVariable (mkGenericRef (Some m0) false q [])).
-      { subst x. unfold w. rewrite EC, (candidate_other p _ q Hq). reflexivity. }
+      assert (Ex: x = TypeVariable (mkGenericRef (Some m0) nn q [])).
+      { subst x. unfold w. rewrite EC, (proj1 (candidate_reference p c None nn q Hq)). reflexivity. }
       rewrite Ex in E0 |- *. destruct n1 as [|n2]; [discriminate E0|].
       assert (Hleaf: leaf_step n2) by (apply IHleaf; lia).
       (* the variable takes A, of the types of the arguments, through which it takes c *)
       assert (Hone: forall A, afrag env A = true -> closed A = true -> is_class A = true ->
           (forall y f, in_fragment env y = true -> unify env f y A (Ongoing []) = Some (Ongoing []) ->
               exists f', unify env f' y (RootResolved ma ca aargs) (Ongoing []) = Some (Ongoing [])) ->
-          unify env (S n2) (TypeVariable (mkGenericRef (Some m0) false q [])) A (Ongoing s0) = Some (Ongoing s0') ->
+          unify env (S n2) (TypeVariable (mkGenericRef (Some m0) nn q [])) A (Ongoing s0) = Some (Ongoing s0') ->
           wf_states s0' /\ (forall b, satisfies b s0' -> satisfies b s0)
-          /\ (forall q', TypeVariable (mkGenericRef (Some m0) false q []) = TypeVariable (mkGenericRef (Some m0) false q' []) ->
+          /\ (forall nn' q', TypeVariable (mkGenericRef (Some m0) nn q []) = TypeVariable (mkGenericRef (Some m0) nn' q' []) ->
               forall o y, xfrag y -> in_fragment env y = true -> (forall st', lookup_state s0' q' = Some st' -> fits st' o y) ->
               exists f, unify env f y (RootResolved ma ca aargs) (Ongoing []) = Some (Ongoing []))).
-      { intros A HAf HAc HAk Hthr EA. apply (unify_variable_mutability n2 m0 q [] A s0 s0' HAk) in EA.
+      { intros A HAf HAc HAk Hthr EA. apply (unify_variable_mutability n2 m0 nn q [] A s0 s0' HAk) in EA.
         destruct (state_of_target n2 q [] A s0 s0' (proj1 (afrag_parts env A HAf)) EA) as [st0 Hl0].
         destruct (Hleaf q [] st0 A s0 s0' Hs0 Hl0 HAf HAc EA) as [Hs0' [Hn0 Hsnd]].
         split; [exact Hs0'|]. split; [exact Hn0|].
-        intros q' Eq o y Hy Hyf Hfit. injection Eq as <-. destruct (Hsnd o y Hy Hfit) as [f Ef]. exact (Hthr y f Hyf Ef). }
-      destruct (unify env (S n2) (TypeVariable (mkGenericRef (Some m0) false q [])) na (Ongoing s0)) as [[u|]|] eqn:Ena;
+        intros nn' q' Eq o y Hy Hyf Hfit. injection Eq as <- <-. destruct (Hsnd o y Hy Hfit) as [f Ef]. exact (Hthr y f Hyf Ef). }
+      destruct (unify env (S n2) (TypeVariable (mkGenericRef (Some m0) nn q [])) na (Ongoing s0)) as [[u|]|] eqn:Ena;
           try discriminate E0.
       - cbn beta iota in E0. injection E0 as ->. exact (Hone na Hnaf Hnac Hnacl Hthrough Ena).
       - exact (Hone (RootResolved ma ca aargs) Ha HaC eq_refl (fun y f _ Ey => ex_intro _ f Ey) E0). }
@@ -738,32 +742,34 @@ Proof.
         end) in Hfold.
     assert (Hgf: forall x, gv Failed x = Some Failed).
     { intros x. unfold gv. rewrite (unify_keeps_failure env n1 x na). apply unify_keeps_failure. }
-    destruct (fold_steps gv (fun x u => forall q, x = TypeVariable (mkGenericRef (Some m0) false q []) -> forall o y, xfrag y ->
+    destruct (fold_steps gv (fun x u => forall nn q, x = TypeVariable (mkGenericRef (Some m0) nn q []) -> forall o y, xfrag y ->
             in_fragment env y = true -> (forall st', lookup_state u q = Some st' -> fits st' o y) ->
             exists f, unify env f y (RootResolved ma ca aargs) (Ongoing []) = Some (Ongoing [])) vs s3 s'
         Hgf Hvs Hs3 Hfold)
         as [Hs' [Hn' Hallv]].
     split; [exact Hs'|]. split; [intros b Hb; apply Hn2, Hn3, Hn', Hb|].
     intros C HC b K Hb Hsat Hbf.
-    destruct (Hcase C HC) as [[m [cl [args EC]]]|[q [EC Hq]]].
+    destruct (Hcase C HC) as [[m [cl [args EC]]]|[nn [q [EC Hq]]]].
     - (* a class type *)
       assert (Hin: In (w C) ns).
       { apply filter_In. split; [exact (in_map w cs C HC)|]. unfold w. rewrite EC. unfold with_candidate. reflexivity. }
       destruct (Hall2 _ Hin) as [u [HQ Hnu]].
       exact (HQ C HC eq_refl b K Hb (Hnu b (Hn3 b (Hn' b Hsat)))).
-    - (* a type variable *)
+    - (* a type variable, narrowed or not *)
       assert (Hin: In (w C) vs).
-      { apply filter_In. split; [exact (in_map w cs C HC)|]. unfold w. rewrite EC, (candidate_other p _ q Hq). reflexivity. }
+      { apply filter_In. split; [exact (in_map w cs C HC)|]. unfold w. rewrite EC, (proj1 (candidate_reference p c None nn q Hq)). reflexivity. }
       destruct (Hallv _ Hin) as [u [HQ Hnu]].
-      rewrite EC, (candidate_other p _ q Hq) in Hb |- *.
-      destruct (binds_ref_some env wf b K [] (mkGenericRef None false q []) Hb) as [o [y [Ey _]]]. cbn [param_of] in Ey.
+      rewrite EC, (proj1 (candidate_reference p c None nn q Hq)) in Hb |- *.
+      destruct (binds_ref_some env wf b K [] (mkGenericRef None nn q []) Hb) as [o [y [Ey _]]]. cbn [param_of] in Ey.
       destruct (Hnu b Hsat q o y Ey) as [Hy [st' [Hl' Hfit]]].
       assert (Hfits: forall st'', lookup_state u q = Some st'' -> fits st'' o y)
           by (intros st'' Hl''; rewrite Hl' in Hl''; injection Hl'' as <-; exact Hfit).
-      assert (Ew: w C = TypeVariable (mkGenericRef (Some m0) false q [])).
-      { unfold w. rewrite EC, (candidate_other p _ q Hq). reflexivity. }
-      destruct (HQ q Ew o y Hy (Hbf q o y Ey) Hfits) as [f Ef].
-      rewrite (inst_variable env b q [] _ _ _ Ey). exists f. exact Ef.
+      assert (Ew: w C = TypeVariable (mkGenericRef (Some m0) nn q [])).
+      { unfold w. rewrite EC, (proj1 (candidate_reference p c None nn q Hq)). reflexivity. }
+      destruct (HQ nn q Ew o y Hy (Hbf q o y Ey) Hfits) as [f Ef].
+      (* the type it stands for, without null where it is narrowed *)
+      rewrite (proj1 (inst_reference env b None nn q [] _ _ _ Ey)). exists f.
+      apply (class_reference_takes env f None nn y _ [] (Hbf q o y Ey) Hcf); [intros m' Em; discriminate Em|intros _; reflexivity|exact Ef].
 Qed.
 
 
@@ -858,12 +864,12 @@ Proof.
       cbn [intersected_components].
       destruct (components_sfrag_facts env _ Hcs) as [Hlen Hcomp]. rewrite length_map in Hlen.
       assert (Hcase: forall C, In C cs -> (exists m cl args, C = RootResolved m cl args)
-          \/ (exists q, C = TypeVariable (mkGenericRef None false q []) /\ q <> p))
+          \/ (exists nn q, C = TypeVariable (mkGenericRef None nn q []) /\ q <> p))
           by (intros C HC; exact (static_component_cases p cs C HSi Hcs Hnp HC)).
       assert (Hnull: forall C, In C cs -> is_nullable env C = false).
       { intros C HC. destruct (Hcomp _ (in_map to_generic _ _ HC)) as [Hsh _]. unfold is_component_shape in Hsh.
         apply andb_true_iff in Hsh. destruct Hsh as [_ Hsh]. apply negb_true_iff in Hsh.
-        destruct (Hcase C HC) as [[m [cl [args ->]]]|[q [-> _]]]; [reflexivity|exact Hsh]. }
+        destruct (Hcase C HC) as [[m [cl [args ->]]]|[nn [q [-> _]]]]; [reflexivity|exact Hsh]. }
       destruct (afrag_parts env c Hc) as [Hcf Hcn].
       assert (HA0: afrag env (without_null env c) = true /\ closed (without_null env c) = true).
       { destruct (fragment_cases env c Hcf) as [[ma [ca [aargs ->]]]|[ma [ca [aargs [-> HR]]]]];
@@ -877,16 +883,16 @@ Proof.
           as [Hs' [Hn' Hall]].
       split; [exact Hs'|]. split; [exact Hn'|].
       intros C' HC' b K Hb Hsat Hbf. apply in_map_iff in HC'. destruct HC' as [C [<- HC]].
-      destruct (Hcase C HC) as [[m [cl [args EC]]]|[q [EC Hq]]]; subst C.
+      destruct (Hcase C HC) as [[m [cl [args EC]]]|[nn [q [EC Hq]]]]; subst C.
       + destruct (Hall _ HC b K Hb Hsat (Hbf (ex_intro _ cs eq_refl))) as [f Hf].
         exists (S f). exact (unify_rewrap_target env _ _ c [] _ Hcf Hf).
       + (* a type variable, made nullable: the type it stands for takes the candidate without null *)
-        rewrite (proj2 (candidate_reference p c None false q Hq)) in Hb |- *.
-        destruct (binds_ref_some env wf b K [] (mkGenericRef None false q []) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
-        pose proof (Hall _ HC b K) as Hq'. rewrite (candidate_other p c q Hq) in Hq'.
+        rewrite (proj2 (candidate_reference p c None nn q Hq)) in Hb |- *.
+        destruct (binds_ref_some env wf b K [] (mkGenericRef None nn q []) Hb) as [o [x [Ex _]]]. cbn [param_of] in Ex.
+        pose proof (Hall _ HC b K) as Hq'. rewrite (proj1 (candidate_reference p c None nn q Hq)) in Hq'.
         destruct (Hq' Hb Hsat (Hbf (ex_intro _ cs eq_refl))) as [f Hf].
-        rewrite (proj1 (inst_reference env b None false q [] _ _ _ Ex)) in Hf.
-        rewrite (proj2 (inst_reference env b None false q [] _ _ _ Ex)). exists (S f). exact (unify_rewrap_target env _ _ c [] _ Hcf Hf).
+        rewrite (proj1 (inst_reference env b None nn q [] _ _ _ Ex)) in Hf.
+        rewrite (proj2 (inst_reference env b None nn q [] _ _ _ Ex)). exists (S f). exact (unify_rewrap_target env _ _ c [] _ Hcf Hf).
 Qed.
 
 Lemma leaf_all: forall n, target_step n -> leaf_step n.
