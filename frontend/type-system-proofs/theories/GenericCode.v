@@ -568,7 +568,8 @@ Hypothesis supertype_bottom_only: closest_common_supertype_keeps_bottom_only env
  * generic_member_call_with_bounded_variables_sound. The final values of the type parameters of the
  * function, instantiated, are within their static upper bounds with the type variables replaced and
  * instantiated, and each argument, instantiated, fits its parameter so replaced and instantiated. The
- * type parameters of the caller are none of those of the callee.
+ * type parameters of the caller are none of those of the callee. No type of a parameter, nor bound, is
+ * a type variable of a mutability given to it (no_given).
  *)
 Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U,
     (* the type parameters of the caller, bound to types within their declared bounds, instantiated *)
@@ -595,6 +596,7 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (forall P, In P Ps -> pfrag env P = true /\ plain_owners P = true
         /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true) ->
     (forall P, In P Ps -> no_given P = true) ->
+    (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) -> no_given C = true) ->
     (* the arguments: types of generic code *)
     (forall A, In A As -> of_fragment env declared A /\ bottom_only env A = true /\ caller_type env declared ps A) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
@@ -602,12 +604,13 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
         is_non_nullable_nothing env (lower_bound st) = false) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
-        exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p)) (instantiate env sigma (instantiate_free env b C)) = Some true)
+        exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p))
+            (instantiate env sigma (pinstance env (instantiate_free env b) C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (pinstance env (instantiate_free env b) P)) = Some true.
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcb Hst
-        Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPg HAs Hfold Hlow b Hbdef.
+        Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPg HSg HAs Hfold Hlow b Hbdef.
     (* none of the type parameters of the caller is bound in b, nor so their ownerships *)
     assert (Hnone: forall q, In q ps -> lookup_binding b q = None).
     { intros q Hq. pose proof (Hdis q Hq) as Hn. rewrite map_app in Hn. rewrite Hbdef, lookup_app.
@@ -673,9 +676,10 @@ Proof.
             split; [exact (caller_nullable_component env declared ps cs' c0 HqS Hc0)|].
             cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c0; first [exact Hcc|discriminate Hcc].
           - split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
+        rewrite (pinstance_no_vars env _ C (gfrag_no_vars env C (proj2 HC'))).
         rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').
       + destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCi HCo].
-        apply (free_caller env wf declared ps b Hpb Hvals C HCi HCo).
+        apply (pfree_caller env wf declared ps b Hpb Hvals C HCi (HSg p S Hin C HC) HCo).
         apply (vars_in_mono _ _ Hdomb').
         apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ (vars_in_bound_component _ S C Hsv HC)).
     - (* the arguments *)
