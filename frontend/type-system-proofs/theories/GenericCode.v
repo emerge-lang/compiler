@@ -421,18 +421,21 @@ Qed.
 Lemma pfree_caller: forall b, plain_values b ->
     (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> caller_type x) ->
     forall P, pfrag env P = true -> no_given P = true -> plain_owners P = true -> vars_in (bound_b b) P = true ->
-        caller_type (pinstance env (instantiate_free env b) P).
+        caller_type (instantiate_free env b P).
 Proof.
     intros b Hpb Hvals P HP Hg Ho Hv. destruct (pfrag_cases env P HP) as [HP'|[[gm [nn [p [-> _]]]]|[gm [nn [p [-> _]]]]]].
-    { rewrite (pinstance_ifrag env wf _ P HP'). exact (free_caller b Hpb Hvals P HP' Ho Hv). }
+    { exact (free_caller b Hpb Hvals P HP' Ho Hv). }
     all: destruct gm; [discriminate Hg|].
     all: cbn [vars_in] in Hv; rewrite andb_true_r in Hv; unfold bound_b in Hv.
     all: destruct (lookup_binding b p) as [a|] eqn:Ea; [|discriminate Hv].
     all: destruct (Hpb p a Ea) as [Hl [o [x [-> Hy]]]].
-    all: assert (Ei: forall nn', instantiate_free env b (TypeVariable (mkGenericRef None nn' p [])) = x)
+    all: assert (Ei: forall nn', instantiate_free env b (TypeVariable (mkGenericRef None nn' p [])) = ref_apply env None nn' x)
+        by (intros nn'; cbn [instantiate_free]; rewrite Ea; unfold final_argument; rewrite Hl, Hy; reflexivity).
+    all: assert (Ein: forall nn', instantiate_free env b (Nullable (TypeVariable (mkGenericRef None nn' p [])))
+        = rewrap_nullable (ref_apply env None nn' x))
         by (intros nn'; cbn [instantiate_free]; rewrite Ea; unfold final_argument; rewrite Hl, Hy; reflexivity).
     all: pose proof (Hvals p o x Ea) as Hx.
-    all: cbn [pinstance]; rewrite Ei.
+    all: first [rewrite Ein|rewrite Ei].
     2: apply caller_rewrap.
     all: unfold ref_apply; cbn zeta; destruct nn; [exact (caller_without_null x Hx)|exact Hx].
 Qed.
@@ -605,9 +608,9 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
         exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p))
-            (instantiate env sigma (pinstance env (instantiate_free env b) C)) = Some true)
+            (instantiate env sigma (instantiate_free env b C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
-        exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (pinstance env (instantiate_free env b) P)) = Some true.
+        exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcb Hst
         Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPg HSg HAs Hfold Hlow b Hbdef.
@@ -676,7 +679,6 @@ Proof.
             split; [exact (caller_nullable_component env declared ps cs' c0 HqS Hc0)|].
             cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c0; first [exact Hcc|discriminate Hcc].
           - split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
-        rewrite (pinstance_no_vars env _ C (gfrag_no_vars env C (proj2 HC'))).
         rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').
       + destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCi HCo].
         apply (pfree_caller env wf declared ps b Hpb Hvals C HCi (HSg p S Hin C HC) HCo).

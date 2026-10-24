@@ -134,10 +134,10 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    intersection done, as `T : A & U` with `U : Any?` has them: `Inference.compfrag`, `static_component_cases`,
    `narrowed_component`, `narrowed_variable_not_nullable`, `free_variable_any`; as the whole bound done, `T : U?`, `T : U!`, `T : m U`, `T : m U?`, in every setting but `T : m U` instantiated and on
    generic receivers: `Constraints.reference_step`, `static_whole`; `FBounded.bindings_within` through
-   `WithinBounds.param_refs`, `mentions_of_static`; `pinstance_candidate`, `gstatic_whole` through `mixed_parameter`;
-   `rpinst`, `rstatic_whole` through `runtime_mparameter`); of parameter types, #12 (a type variable as the whole type of a parameter done,
+   `WithinBounds.param_refs`, `mentions_of_static`; `gstatic_whole` through `mixed_parameter`;
+   `rstatic_whole` through `runtime_mparameter`); of parameter types, #12 (a type variable as the whole type of a parameter done,
    `T?`, `T!`, `m T`, `m T?`, in every setting but `m T` instantiated and on generic receivers: `pfrag`, `pgeneric`,
-   `pinstance`, `unify_variable_given`, `Generics.target_ordered`, `instance_never_fails`, `parameter_step`,
+   `unify_variable_given`, `Generics.target_ordered`, `instance_never_fails`, `parameter_step`,
    `exact_parameter`, `generic_parameter`, `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`)
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds

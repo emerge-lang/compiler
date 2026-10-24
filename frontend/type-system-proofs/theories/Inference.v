@@ -107,16 +107,6 @@ Definition no_given (t: EType): bool :=
     | _ => true
     end.
 
-(* The instance of the type of a parameter, with inst_vars instantiating type variables: as the
-   compiler instantiates the declared type, where a reference to a type parameter takes its type
-   argument with the mutability given to it, and without null where it is narrowed *)
-Definition pinstance (inst_vars: EType -> EType) (t: EType): EType :=
-    match t with
-    | TypeVariable (mkGenericRef gm nn p []) => ref_apply gm nn (inst_vars t)
-    | Nullable (TypeVariable (mkGenericRef gm nn p []) as v) => rewrap_nullable (ref_apply gm nn (inst_vars v))
-    | _ => inst_vars t
-    end.
-
 (* The types of the arguments *)
 Definition afrag (t: EType): bool := in_fragment env t && nothing_is_bottom t.
 
@@ -491,11 +481,6 @@ Qed.
 Lemma pgeneric_ifrag: forall t, ifrag t = true -> pgeneric t = to_generic t.
 Proof.
     intros t H. destruct (ifrag_cases t H) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]]; reflexivity.
-Qed.
-
-Lemma pinstance_ifrag: forall f t, ifrag t = true -> pinstance f t = f t.
-Proof.
-    intros f t H. destruct (ifrag_cases t H) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]]; reflexivity.
 Qed.
 
 Lemma compfrag_cases: forall t, compfrag t = true -> ifrag t = true

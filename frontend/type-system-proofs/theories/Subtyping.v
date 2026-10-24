@@ -551,9 +551,16 @@ Fixpoint instantiate_h (bindings: Bindings) (t: EType): EType :=
                 end
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
-    | TypeVariable (mkGenericRef _ _ p _) =>
+    | TypeVariable (mkGenericRef given narrowed p _) =>
         match lookup_binding bindings p with
-        | Some argument => final_argument argument
+        | Some argument =>
+            let final_value := final_argument argument in
+            let of_mutability :=
+                match given with
+                | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
+                | None => final_value
+                end in
+            if narrowed then without_null of_mutability else of_mutability
         | None => t
         end
     | Intersection components => of_components (flat_map intersected_components (map (instantiate_h bindings) components))
@@ -674,10 +681,17 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
     (* TypeVariable.instantiateAllParameters: a variable without a binding stays, as one of another
-       inference does *)
-    | TypeVariable (mkGenericRef _ _ p _) =>
+       inference does; the mutability given to it, and `!`, apply as to a type parameter *)
+    | TypeVariable (mkGenericRef given narrowed p _) =>
         match lookup_binding bindings p with
-        | Some argument => final_argument argument
+        | Some argument =>
+            let final_value := final_argument argument in
+            let of_mutability :=
+                match given with
+                | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
+                | None => final_value
+                end in
+            if narrowed then without_null of_mutability else of_mutability
         | None => t
         end
     | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))
@@ -749,9 +763,17 @@ Fixpoint instantiate_free (bindings: Bindings) (t: EType): EType :=
                 end
             else TypeArgument v o' (if is_nullable_instantiated then Nullable n_non_null else n_non_null)
         end
-    | TypeVariable (mkGenericRef _ _ p _) =>
+    (* TypeVariable.instantiateFreeVariables: the mutability given to the variable, and `!`, apply *)
+    | TypeVariable (mkGenericRef given narrowed p _) =>
         match lookup_binding bindings p with
-        | Some argument => final_argument argument
+        | Some argument =>
+            let final_value := final_argument argument in
+            let of_mutability :=
+                match given with
+                | Some m => with_mutability (intersect_mutability (mutability_of final_value) m) final_value
+                | None => final_value
+                end in
+            if narrowed then without_null of_mutability else of_mutability
         | None => t
         end
     (* BoundIntersectionTypeReference.intersectMappedComponents keeps the intersection where no component

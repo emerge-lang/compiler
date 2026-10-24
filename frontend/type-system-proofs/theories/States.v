@@ -618,8 +618,9 @@ Proof.
           simpl in Hn |- *; rewrite ?vars_in_rewrap; simpl in Hn |- *;
           try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
     - simpl. destruct vs; [|rewrite andb_false_r in H; discriminate H]. rewrite andb_true_r in H.
-      destruct (lookup_binding b p) eqn:E; [exact (vars_in_final_argument P' e (Hb p e E))|].
-      simpl. rewrite (HP p H E). reflexivity.
+      destruct (lookup_binding b p) eqn:E; [|simpl; rewrite (HP p H E); reflexivity].
+      pose proof (vars_in_final_argument P' e (Hb p e E)) as Hf.
+      destruct nn; [rewrite vars_in_without_null|]; (destruct gm; [apply vars_in_set_mutability|]; exact Hf).
     - simpl. apply vars_in_of_components. intros c Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]].
       apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. apply (vars_in_intersected P' _) in Hc; [exact Hc|].
       rewrite forallb_forall in H.
