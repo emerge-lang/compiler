@@ -134,6 +134,19 @@ Proof.
     rewrite (gkeeps env wf n y x [] u Hy Hx E). reflexivity.
 Qed.
 
+(* What a type of the fragment takes, it takes with a mutability given to it, and without null, where
+   that fits *)
+Lemma reference_takes_of_fragment: forall gm (nn: bool) x a n, of_fragment x -> in_fragment env a = true ->
+    (forall m, gm = Some m -> Model.is_subtype_of (assignment_mutability env a) m = true) -> (nn = true -> is_nullable env a = false) ->
+    unify env n x a (Ongoing []) = Some (Ongoing []) -> exists n', unify env n' (ref_apply env gm nn x) a (Ongoing []) = Some (Ongoing []).
+Proof.
+    intros gm nn x a n [Hx _] Ha Hgm Hnn H. apply (accepts a); [exact (in_fragment_of_fragment a Ha)| |].
+    - split; [|exact I]. unfold ref_apply. cbn zeta.
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+          first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
+    - exact (instance_never_fails env wf declared declared_wf n gm nn x a Hx (in_fragment_is_gfrag env a Ha) Hgm Hnn H).
+Qed.
+
 Lemma reflexive: forall x, of_fragment x -> exists n, unify env n x x (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x Hx. apply accepts; [exact Hx|exact Hx|].
@@ -217,7 +230,7 @@ Proof.
             (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             below_intersection above_supertype intersect_no_vars supertype_no_vars
-            (fun x a n Hx Ha Hna H => below_without_null env wf declared declared_wf n x a (proj1 Hx) (in_fragment_is_gfrag env a Ha) Hna H))
+            reference_takes_of_fragment)
         supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold (fun _ _ _ H => H)).

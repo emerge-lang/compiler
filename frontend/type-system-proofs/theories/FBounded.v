@@ -604,9 +604,10 @@ Proof.
     intros P Hpf Hv Ho.
     assert (Hplain: exists P', no_generics P' = true /\ vars_in (fun q => existsb (param_eqb q) ps) P' = true
         /\ owners_in (fun q => existsb (param_eqb q) ps) P' = true /\ bound_in env b K [] (pgeneric P) = bound_in env b K [] (to_generic P')).
-    { destruct (pfrag_cases env P Hpf) as [Hif|[nn [q [-> _]]]].
+    { destruct (pfrag_cases env P Hpf) as [Hif|[[gm [nn [q [-> _]]]]|[gm [nn [q [-> _]]]]]].
       - exists P. rewrite (pgeneric_ifrag env wf P Hif). exact (conj (ifrag_no_generics env P Hif) (conj Hv (conj Ho eq_refl))).
-      (* a type variable made nullable: the plain reference *)
+      (* a type variable of a mutability given to it, narrowed or made nullable: the plain reference *)
+      - exists (TypeVariable (mkGenericRef None false q [])). split; [reflexivity|]. split; [exact Hv|]. split; reflexivity.
       - exists (TypeVariable (mkGenericRef None false q [])). split; [reflexivity|]. split; [exact Hv|]. split; reflexivity. }
     destruct Hplain as [P' [Hng [Hv' [Ho' ->]]]].
     apply (refs_bound_in env wf b K (R rmax) (HR rmax K HK) (Hclose rmax)).

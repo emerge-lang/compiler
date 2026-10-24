@@ -201,10 +201,8 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => refs_within vars a /\ acc) True arguments
     | Nullable n => refs_within vars n
-    | Generic (mkGenericRef None false p []) | TypeVariable (mkGenericRef None false p []) =>
-        In (p, parameter_bound env p) vars /\ sfrag env (parameter_bound env p) = true /\ closed (parameter_bound env p) = true
-    (* narrowed, as in `T?` *)
-    | TypeVariable (mkGenericRef None true p []) =>
+    (* a type variable also of a mutability given to it, or narrowed, as at the top of the type of a parameter *)
+    | Generic (mkGenericRef None false p []) | TypeVariable (mkGenericRef _ _ p []) =>
         In (p, parameter_bound env p) vars /\ sfrag env (parameter_bound env p) = true /\ closed (parameter_bound env p) = true
     | Generic _ | TypeVariable _ => False
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
@@ -239,12 +237,12 @@ Lemma pbound_in_from_refs: forall vars b K t, pfrag env t = true -> refs_within 
     (forall q, In q (map fst vars) -> ownership_bound b (parameter_ownership q) = true) ->
     bound_in env b K [] (pgeneric t) = true.
 Proof.
-    intros vars b K t Ht H Hp Ho. destruct (pfrag_cases env t Ht) as [Hf|[nn [p [-> _]]]].
+    intros vars b K t Ht H Hp Ho. destruct (pfrag_cases env t Ht) as [Hf|[[gm [nn [p [-> _]]]]|[gm [nn [p [-> _]]]]]].
     - rewrite (pgeneric_ifrag env wf t Hf). exact (bound_in_from_refs vars b K t (or_introl Hf) H Hp Ho).
     - change (bound_in env b K [] (Generic (mkGenericRef None false p [])) = true).
-      assert (H': In (p, parameter_bound env p) vars /\ sfrag env (parameter_bound env p) = true /\ closed (parameter_bound env p) = true)
-          by (destruct nn; exact H).
-      destruct H' as [Hin [Hfb' Hcb]]. rewrite (binds_ref_closed env wf b K [] p Hfb' Hcb). exact (Hp p _ Hin).
+      destruct H as [Hin [Hfb' Hcb]]. rewrite (binds_ref_closed env wf b K [] p Hfb' Hcb). exact (Hp p _ Hin).
+    - change (bound_in env b K [] (Generic (mkGenericRef None false p [])) = true).
+      destruct H as [Hin [Hfb' Hcb]]. rewrite (binds_ref_closed env wf b K [] p Hfb' Hcb). exact (Hp p _ Hin).
 Qed.
 
 Lemma lookup_map_vars: forall (l: list (TypeParameterId * EType)) (g: TypeParameterId * EType -> EType) p bound,

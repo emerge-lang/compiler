@@ -1062,6 +1062,148 @@ Proof.
           exact (inter_target_all n zcs _ s s (gfrag_components_no_vars zcs Hz) (gfrag_no_vars _ Ht) I H c Hc).
 Qed.
 
+Lemma forall2_left: forall {A: Type} (R: A -> A -> Prop) l' l x', Forall2 R l' l -> In x' l' -> exists x, In x l /\ R x' x.
+Proof.
+    intros A R l' l x' H. induction H as [|a b l' l Hab H IH]; intros Hx; [destruct Hx|].
+    destruct Hx as [<-|Hx]; [exists b; split; [left; reflexivity|exact Hab]|].
+    destruct (IH Hx) as [x [Hin HR]]. exists x. split; [right; exact Hin|exact HR].
+Qed.
+
+(* A target of no more mutability, or without null, takes what the other takes, where that fits its
+   mutability and nullability: as bounds_ordered, but for the target *)
+Lemma target_ordered: forall n z z' a s, gfrag z = true -> gfrag z' = true -> gfrag a = true -> vle z' z ->
+    is_subtype_of (assignment_mutability env a) (assignment_mutability env z') = true ->
+    (is_nullable env z' = false -> is_nullable env a = false) ->
+    unify env n z a (Ongoing s) = Some (Ongoing s) -> never_fails z' a.
+Proof.
+    induction n as [|n IH]; intros z z' a s Hz Hz' Ha Hv Hm Hn H; [discriminate H|].
+    (* the bound of an assignee reference, and the components of an assignee intersection, fit as it does *)
+    assert (Hb: forall g, a = Generic g -> is_subtype_of (assignment_mutability env (effective_bound env g)) (assignment_mutability env z') = true
+        /\ (is_nullable env z' = false -> is_nullable env (effective_bound env g) = false)).
+    { intros g ->. rewrite <- (assignment_mutability_generic env ranked). split; [exact Hm|].
+      intros E. rewrite <- (is_nullable_generic env ranked). exact (Hn E). }
+    assert (Hc: forall cs c, a = Intersection cs -> In c cs -> gfrag c = true
+        /\ is_subtype_of (assignment_mutability env c) (assignment_mutability env z') = true
+        /\ (is_nullable env z' = false -> is_nullable env c = false)).
+    { intros cs c -> Hin. split; [exact (gfrag_component cs c Ha Hin)|].
+      rewrite (intersection_uniform env cs Ha c Hin). split; [exact Hm|].
+      intros _. exact (component_not_nullable c (proj1 (proj2 (intersection_gfrag cs Ha) c Hin))). }
+    destruct (gfrag_cases z Hz) as [[mz [cz [zargs ->]]]|[[zn [-> [Hzn Hz1]]]|[[gz [ngz [pz [bz [-> Hbz]]]]]|[zcs ->]]]].
+    - (* a class type *)
+      destruct (vle_root z' mz cz zargs Hv) as [m' [-> _]].
+      destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]].
+      + apply never_fails_step. intros f s' E.
+        pose proof (gsuccess_never_fails _ _ _ _ Hz Ha H (S f) s') as Ht0.
+        rewrite unify_classes in H, E, Ht0.
+        destruct (base_type_is_subtype_of env ca cz); [|discriminate H].
+        destruct (is_subtype_of (assignment_mutability env (RootResolved ma ca aargs)) (assignment_mutability env (RootResolved mz cz zargs)));
+            [|discriminate H].
+        rewrite Hm in E. exact (Ht0 E).
+      + discriminate (Hn eq_refl).
+      + destruct (Hb _ eq_refl) as [Hmb Hnb]. rewrite step_root_generic in H.
+        apply never_fails_step. intros f s' E. rewrite step_root_generic in E.
+        exact (IH _ _ _ s Hz Hz' (bound_gfrag _ Ha) Hv Hmb Hnb H f s' E).
+      + rewrite step_root_inter in H. destruct (flipped_some n _ acs s s H) as [c [Hin Hu]].
+        destruct (Hc acs c eq_refl Hin) as [Hgc [Hmc Hnc]].
+        apply never_fails_step. intros f s' E. rewrite step_root_inter in E.
+        eapply (flipped_never_fails f _ acs s' c Hin); [|exact E].
+        exact (IH _ _ _ s Hz Hz' Hgc Hv Hmc Hnc Hu f s').
+    - (* a nullable type: what it wraps takes the assignee without null *)
+      assert (Ha0: exists a0, gfrag a0 = true /\ is_nullable env a0 = false /\ assignment_mutability env a0 = assignment_mutability env a
+          /\ (forall k y s1, unify env (S k) (Nullable y) a (Ongoing s1) = unify env k y a0 (Ongoing s1))
+          /\ (is_nullable env a = false -> a0 = a)).
+      { destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> [Han Hfan]]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]].
+        - exists (RootResolved ma ca aargs). split; [exact Ha|]. split; [reflexivity|]. split; [reflexivity|]. split; [intros; reflexivity|]. intros _; reflexivity.
+        - exists an. split; [exact Hfan|]. split; [exact (non_null_not_nullable env an Han)|]. split; [reflexivity|].
+          split; [intros; reflexivity|]. intros E. discriminate E.
+        - exists (without_null env (Generic (mkGenericRef ga nga pa ba))). split; [exact (gfrag_without_null _ Ha)|].
+          split; [exact (without_null_not_nullable _ Ha)|]. split; [apply assignment_mutability_without_null|].
+          split; [intros; apply step_nullable_generic|]. intros E. exact (without_null_id _ Ha E).
+        - exists (Intersection acs). split; [exact Ha|]. split; [reflexivity|]. split; [reflexivity|]. split; [intros; reflexivity|]. intros _; reflexivity. }
+      destruct Ha0 as [a0 [Hga0 [Hna0 [Hma0 [Hstep Hid]]]]].
+      rewrite Hstep in H.
+      assert (Hnn: forall z1, gfrag z1 = true -> vle z1 zn -> is_subtype_of (assignment_mutability env a) (assignment_mutability env z1) = true ->
+          (is_nullable env z1 = false -> is_nullable env a = false) -> never_fails z1 a).
+      { intros z1 Hz1x Hv1 Hm1 Hn1.
+        assert (Ez1: is_nullable env z1 = false).
+        { apply not_true_iff_false. intros E1. pose proof (vle_nullable zn z1 Hv1 E1) as E2.
+          rewrite (non_null_not_nullable env zn Hzn) in E2. discriminate E2. }
+        rewrite <- (Hid (Hn1 Ez1)). rewrite <- Hma0 in Hm1. exact (IH zn z1 a0 s Hz1 Hz1x Hga0 Hv1 Hm1 (fun _ => Hna0) H). }
+      destruct (gfrag_cases z' Hz') as [[m' [c' [a' ->]]]|[[n' [-> [Hn' Hfn']]]|[[g' [ng' [p' [b' [-> _]]]]]|[cs' ->]]]];
+          try exact (Hnn _ Hz' Hv Hm Hn).
+      apply never_fails_step. intros f s' E. rewrite Hstep in E. rewrite <- Hma0 in Hm.
+      exact (IH zn n' a0 s Hz1 Hfn' Hga0 Hv Hm (fun _ => Hna0) H f s' E).
+    - (* a reference to a type parameter *)
+      subst bz. destruct (vle_generic z' _ Hv) as [g' [-> Hr]]. destruct g' as [gm' ng' p' b'].
+      destruct Hr as [Hp [Hv' _]]. cbn [param_of variables_of] in Hp, Hv'. subst p' b'.
+      destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]].
+      + rewrite step_generic_root in H. destruct (_ && _) eqn:E1 in H; [|discriminate H].
+        apply andb_true_iff in E1. destruct E1 as [HN _].
+        apply never_fails_step. intros f s' E. rewrite step_generic_root in E. rewrite HN, Hm in E. discriminate E.
+      + rewrite step_generic_nullable in H. discriminate H.
+      + destruct (Hb _ eq_refl) as [Hmb Hnb]. rewrite step_generic_generic in H.
+        apply never_fails_step. intros f s' E. rewrite step_generic_generic in E. cbn [param_of] in H, E.
+        destruct (param_eqb pa pz).
+        * rewrite Hm in E. destruct (is_nullable env (Generic (mkGenericRef gm' ng' pz []))) eqn:Ez.
+          -- rewrite orb_true_r in E. discriminate E.
+          -- rewrite (Hn eq_refl) in E. discriminate E.
+        * exact (IH _ _ _ s Hz Hz' (bound_gfrag _ Ha) Hv Hmb Hnb H f s' E).
+      + rewrite step_generic_inter in H. destruct (flipped_some n _ acs s s H) as [c [Hin Hu]].
+        destruct (Hc acs c eq_refl Hin) as [Hgc [Hmc Hnc]].
+        apply never_fails_step. intros f s' E. rewrite step_generic_inter in E.
+        eapply (flipped_never_fails f _ acs s' c Hin); [|exact E].
+        exact (IH _ _ _ s Hz Hz' Hgc Hv Hmc Hnc Hu f s').
+    - (* an intersection: each of its components *)
+      destruct (vle_intersection z' zcs Hv) as [zcs' [-> Hcv]].
+      pose proof (accepted_not_nullable (S n) _ a s Hz Ha eq_refl H) as Hna.
+      destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]];
+          [| discriminate Hna | |];
+          (apply inter_target_never_fails; [exact (gfrag_components_no_vars zcs' Hz')|exact (gfrag_no_vars _ Ha)|exact I|]);
+          (intros c' Hc'; destruct (forall2_left vle zcs' zcs c' Hcv Hc') as [c [Hin Hcv']];
+           apply (IH c c' _ s (gfrag_component zcs c Hz Hin) (gfrag_component zcs' c' Hz' Hc') Ha Hcv');
+           [rewrite (intersection_uniform env zcs' Hz' c' Hc'); exact Hm|intros _; exact Hna|
+            exact (inter_target_all n zcs _ s s (gfrag_components_no_vars zcs Hz) (gfrag_no_vars _ Ha) I H c Hin)]).
+Qed.
+
+(* What a type takes, the type with a mutability given to it, and narrowed, takes, where it fits: the
+   instance of a reference `m T!` with T bound to the type (GenericTypeReference.instantiateAllParameters) *)
+Lemma instance_never_fails: forall n gm (nn: bool) x a, gfrag x = true -> gfrag a = true ->
+    (forall m, gm = Some m -> is_subtype_of (assignment_mutability env a) m = true) ->
+    (nn = true -> is_nullable env a = false) ->
+    unify env n x a (Ongoing []) = Some (Ongoing []) ->
+    never_fails (let y := match gm with Some m => with_mutability env (intersect_mutability (mutability_of env x) m) x | None => x end in
+        if nn then without_null env y else y) a.
+Proof.
+    intros n gm nn x a Hx Ha Hgm Hnn H. cbn zeta.
+    assert (Hax: is_subtype_of (assignment_mutability env a) (assignment_mutability env x) = true)
+        by exact (accepted_mutability n x a [] Hx Ha H).
+    set (y := match gm with Some m => with_mutability env (intersect_mutability (mutability_of env x) m) x | None => x end).
+    assert (Hy: gfrag y = true /\ vle y x /\ is_subtype_of (assignment_mutability env a) (assignment_mutability env y) = true
+        /\ is_nullable env y = is_nullable env x).
+    { unfold y. destruct gm as [m|].
+      - pose proof (gfrag_with_mutability (intersect_mutability (mutability_of env x) m) x Hx) as Hg.
+        assert (Ham: is_subtype_of (assignment_mutability env (with_mutability env (intersect_mutability (mutability_of env x) m) x))
+            (assignment_mutability env x) = true /\
+            is_subtype_of (assignment_mutability env a)
+                (assignment_mutability env (with_mutability env (intersect_mutability (mutability_of env x) m) x)) = true).
+        { rewrite (assignment_with_mutability _ x Hx). destruct (top_const x) eqn:Et.
+          - rewrite (top_const_assigned_exclusive env ranked x Et) in Hax |- *. split; [reflexivity|exact Hax].
+          - rewrite (not_top_const x Et) in Hax |- *. split; [apply intersect_mutability_left|].
+            exact (intersect_mutability_greatest _ _ _ Hax (Hgm m eq_refl)). }
+        destruct Ham as [Hyx Hay]. split; [exact Hg|]. split.
+        + exact (applied_vle x (Some (intersect_mutability (mutability_of env x) m)) None Hx (gfrag_uniform env x Hx) Hyx).
+        + split; [exact Hay|apply is_nullable_with_mutability].
+      - split; [exact Hx|]. split; [|split; [exact Hax|reflexivity]].
+        exact (applied_vle x None None Hx (gfrag_uniform env x Hx) (mutability_is_subtype_of_refl _)). }
+    destruct Hy as [Hgy [Hvy [Hay Hny]]].
+    assert (Hnx: is_nullable env x = false -> is_nullable env a = false) by exact (fun E => accepted_not_nullable n x a [] Hx Ha E H).
+    destruct nn.
+    - apply (target_ordered n x _ a [] Hx (gfrag_without_null _ Hgy) Ha (vle_narrow_left _ _ Hvy)); [| |exact H].
+      + rewrite assignment_mutability_without_null. exact Hay.
+      + intros _. exact (Hnn eq_refl).
+    - apply (target_ordered n x y a [] Hx Hgy Ha Hvy Hay); [|exact H]. rewrite Hny. exact Hnx.
+Qed.
+
 Lemma without_null_twice: forall t, gfrag t = true -> without_null env (without_null env t) = without_null env t.
 Proof.
     intros t H. apply without_null_id; [apply gfrag_without_null, H|apply without_null_not_nullable, H].
