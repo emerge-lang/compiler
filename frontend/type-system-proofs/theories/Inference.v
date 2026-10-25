@@ -205,31 +205,6 @@ Definition pfrag (t: EType): bool := ifrag t || reference_variable t.
 Definition compfrag (t: EType): bool :=
     ifrag t || match t with TypeVariable (mkGenericRef None true _ []) => reference_variable t | _ => false end.
 
-(* No mutability given to a type variable, at the top of a type or in its type arguments *)
-Fixpoint no_given (t: EType): bool :=
-    match t with
-    | RootResolved _ _ arguments => forallb no_given arguments
-    | Nullable n => no_given n
-    | TypeVariable (mkGenericRef (Some _) _ _ _) => false
-    | TypeArgument _ _ n => no_given n
-    | Intersection components => forallb no_given components
-    | _ => true
-    end.
-
-Lemma no_given_root: forall m c args, no_given (RootResolved m c args) = true -> forall a, In a args -> no_given a = true.
-Proof. intros m c args H. change (forallb no_given args = true) in H. apply forallb_forall, H. Qed.
-
-Lemma no_vars_no_given: forall t, no_vars t = true -> no_given t = true.
-Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; cbn [no_vars] in H; cbn [no_given]; try reflexivity; try discriminate H.
-    - induction args as [|a args IHa]; [reflexivity|]. cbn [forallb] in H |- *. apply andb_true_iff in H.
-      rewrite (IH a (proj1 H)), (IHa (proj2 H)). reflexivity.
-    - exact (IH n H).
-    - exact (IH n H).
-    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [forallb] in H |- *. apply andb_true_iff in H.
-      rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
-Qed.
-
 (* The types of the arguments *)
 Definition afrag (t: EType): bool := in_fragment env t && nothing_is_bottom t.
 
@@ -559,31 +534,6 @@ Proof.
             first [reflexivity | apply IHt; [lia|exact Hn']].
 Qed.
 
-Lemma template_no_given: (forall y, In y ys -> no_given y = true) -> forall k,
-    (forall t, depth t <= k -> template_type env sub t = true -> no_given (instantiate env (bindings_of env sub ys) t) = true)
-    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true -> no_given (instantiate env (bindings_of env sub ys) r) = true).
-Proof.
-    intros Hgy k. induction k as [|k [IHt IHa]].
-    { split; intros t Hd Ht; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
-    assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k ->
-        template_type env sub (RootResolved m c targs) = true ->
-        no_given (RootResolved m c (map (instantiate env (bindings_of env sub ys)) targs)) = true).
-    { intros m c targs Hd Ht. destruct (root_template env sub m c targs Ht) as [_ Htargs].
-      change (forallb no_given (map (instantiate env (bindings_of env sub ys)) targs) = true). apply forallb_forall.
-      intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]]. pose proof (argument_depth_below m c targs a Ha).
-      apply IHa; [lia|apply Htargs, Ha]. }
-    split.
-    - intros t Hd Ht. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
-      + rewrite instantiate_class. exact (Hroot m c targs Hd Ht).
-      + rewrite depth_nullable in Hd. rewrite instantiate_nullable_class. exact (Hroot m c targs ltac:(lia) Ht').
-    - intros r Hd Hr. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
-      + destruct (nth_error_same_length _ ys i p (eq_sym Hlength) Hi) as [y Hy].
-        rewrite (selects env wf sub ys p bp i y Hi Hy (Hys y (nth_error_In _ _ Hy))). apply Hgy. eapply nth_error_In. exact Hy.
-      + simpl in Hd. rewrite (instantiate_template_argument env _ v o n Ho (template_shape env sub n Hn')).
-        destruct (mentions_loosely_bound _ n); [destruct v|]; cbn [no_given];
-            first [reflexivity | apply IHt; [lia|exact Hn']].
-Qed.
-
 End Templates.
 
 Lemma supertype_arguments_narrowed: forall sub super ys,
@@ -596,18 +546,6 @@ Proof.
     destruct (wf_supertypes_are_templates env wf sub super Hne Hn Hbase) as [_ Ht].
     rewrite parameterized_supertype_arguments_eq in Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
     exact (proj2 (template_narrowed sub ys Hl Hys Hny (argument_depth r)) r (le_n _) (Ht r Hr)).
-Qed.
-
-Lemma supertype_arguments_no_given: forall sub super ys,
-    sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
-    length ys = length (parameter_ids env sub) -> (forall y, In y ys -> is_type_argument y = true) ->
-    (forall y, In y ys -> no_given y = true) ->
-    forall a, In a (parameterized_supertype_arguments env sub ys super) -> no_given a = true.
-Proof.
-    intros sub super ys Hne Hn Hbase Hl Hys Hgy a Ha.
-    destruct (wf_supertypes_are_templates env wf sub super Hne Hn Hbase) as [_ Ht].
-    rewrite parameterized_supertype_arguments_eq in Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
-    exact (proj2 (template_no_given sub ys Hl Hys Hgy (argument_depth r)) r (le_n _) (Ht r Hr)).
 Qed.
 
 (* The type arguments of a supertype, normalized from those of a subclass with type variables, with
