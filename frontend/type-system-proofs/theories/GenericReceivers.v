@@ -2310,7 +2310,7 @@ Proof.
     destruct (pfrag_cases env P HP) as [HP'|[[gm [nn [p [-> [Hsr _]]]]]|[gm [nn [p [-> [Hsr _]]]]]]].
     {
       exact (proj1 (runtime_mixed b Hpb Hbv n) P A s s' (ifrag_mfrag env wf declared caller b P HP' Ho Hn)
-          (free_caller env wf declared ps b Hpb (fun q o x E => proj2 (Hbv q o x E)) P HP' Ho Hv Hg)
+          (free_caller env wf declared ps b Hpb (fun q o x E => proj2 (Hbv q o x E)) P HP' Ho Hv)
           (vars_in_mbinds b P Hv) (ifrag_nib P HP') Hg HA Hs Hd H Hr). }
     all: destruct gm; [discriminate Hg|].
     all: cbn [vars_in] in Hv; rewrite andb_true_r in Hv; unfold bound_b in Hv.
@@ -2554,7 +2554,7 @@ Proof.
       split; [|split; [exact (mbinds_candidate env wf b p c C HvC Hnc)|split; [exact (nib_candidate p c (proj1 Hc) (bottom_only_nib c Hbc) C HCi HCv)
           |exact (given_candidate p c (proj1 Hc) Hnc C HCi HCg HCv)]]].
       rewrite (free_candidate env b p c C Hpb (proj1 Hc) (unmentioned env b c (proj1 Hc) Hob) (ifrag_plain_variables env wf p C HCi HCo)).
-      apply (free_caller env wf declared ps (with_value p c b)); [| |exact HCi|exact HCo'| |exact HCg].
+      apply (free_caller env wf declared ps (with_value p c b)); [| |exact HCi|exact HCo'|].
       - intros q a0 Ea. cbn [with_value lookup_binding] in Ea. destruct (param_eqb q p).
         + injection Ea as <-. split; [reflexivity|]. exists ref, c. split; [reflexivity|exact Hcn].
         + exact (Hpb q a0 Ea).
@@ -2780,7 +2780,7 @@ Proof.
       split; [|split; [exact (mbinds_candidate env wf b p c C HvC Hnc)|split; [exact (nib_candidate p c (proj1 Hc) (bottom_only_nib c Hbc) C HCi HCv)
           |exact (given_candidate p c (proj1 Hc) Hnc C HCi HCg HCv)]]].
       rewrite (free_candidate env b p c C Hpb (proj1 Hc) (unmentioned env b c (proj1 Hc) Hob) (ifrag_plain_variables env wf p C HCi HCo)).
-      apply (free_caller env wf declared ps (with_value p c b)); [| |exact HCi|exact HCo'| |exact HCg].
+      apply (free_caller env wf declared ps (with_value p c b)); [| |exact HCi|exact HCo'|].
       - intros q a0 Ea. cbn [with_value lookup_binding] in Ea. destruct (param_eqb q p).
         + injection Ea as <-. split; [reflexivity|]. exists ref, c. split; [reflexivity|exact Hcn].
         + exact (Hpb q a0 Ea).
