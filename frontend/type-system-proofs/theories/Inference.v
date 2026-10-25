@@ -127,26 +127,29 @@ Proof.
       rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
 Qed.
 
-(* No type variables in type arguments but plain ones, as the fragment had it before nested references *)
-Fixpoint args_flat (t: EType): bool :=
+(* The type variables in type arguments but plain ones aren't p (`B : List<A?>` of the bound of B) *)
+Fixpoint args_avoid (p: TypeParameterId) (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments => forallb args_flat arguments
-    | Nullable n => args_flat n
+    | RootResolved _ _ arguments => forallb (args_avoid p) arguments
+    | Nullable n => args_avoid p n
     | TypeArgument _ _ n =>
         match n with
         | TypeVariable (mkGenericRef None false _ _) => true
-        | TypeVariable _ | Nullable (TypeVariable _) => false
-        | _ => args_flat n
+        | TypeVariable g | Nullable (TypeVariable g) => negb (param_eqb (param_of g) p)
+        | _ => args_avoid p n
         end
-    | Intersection components => forallb args_flat components
+    | Intersection components => forallb (args_avoid p) components
     | _ => true
     end.
 
-Lemma args_flat_argument: forall v o n, args_flat (TypeArgument v o n) = true -> args_flat n = true.
-Proof. intros v o [m c args|[| | | | |g|]|g|me msg|v' o' n'|g|cs] H; cbn [args_flat] in H |- *; first [exact H|reflexivity|discriminate H]. Qed.
+Lemma args_avoid_argument: forall p v o n, args_avoid p (TypeArgument v o n) = true -> args_avoid p n = true.
+Proof.
+    intros p v o [m c args|[| | | | |g|]|g|me msg|v' o' n'|[gm nn q vs]|cs] H; cbn [args_avoid] in H |- *;
+        first [exact H|reflexivity|discriminate H].
+Qed.
 
-Lemma args_flat_root: forall m c args, args_flat (RootResolved m c args) = true -> forall a, In a args -> args_flat a = true.
-Proof. intros m c args H. change (forallb args_flat args = true) in H. apply forallb_forall, H. Qed.
+Lemma args_avoid_root: forall p m c args, args_avoid p (RootResolved m c args) = true -> forall a, In a args -> args_avoid p a = true.
+Proof. intros p m c args H. change (forallb (args_avoid p) args = true) in H. apply forallb_forall, H. Qed.
 
 Lemma args_plain_argument: forall v o n, args_plain (TypeArgument v o n) = true -> args_plain n = true.
 Proof. intros v o [m c args|[| | | | |g|]|g|me msg|v' o' n'|g|cs] H; cbn [args_plain] in H |- *; first [exact H|reflexivity]. Qed.
@@ -673,13 +676,17 @@ Proof.
     - split; [left; reflexivity|exact Hs].
 Qed.
 
-(* A type of a type argument, flat: a type of the parameters *)
-Lemma flat_nfrag: forall v o n, nfrag n = true -> args_flat (TypeArgument v o n) = true -> ifrag n = true.
+(* A type of a type argument, other than a type variable p: a type of the parameters, or a type
+   variable other than p, of a mutability given to it, narrowed, or made nullable *)
+Lemma avoid_nfrag: forall p v o n, nfrag n = true -> args_avoid p (TypeArgument v o n) = true -> ifrag n = true
+    \/ (exists gm nn q, q <> p /\ (n = TypeVariable (mkGenericRef gm nn q []) \/ n = Nullable (TypeVariable (mkGenericRef gm nn q [])))
+        /\ sfrag env (Generic (mkGenericRef gm nn q [])) = true).
 Proof.
-    intros v o n Hn Hf. destruct (nfrag_cases n Hn) as [H|[gm [nn [q [[-> | ->] Hs]]]]]; [exact H| |cbn in Hf; discriminate Hf].
-    destruct gm, nn; cbn [args_flat] in Hf; try discriminate Hf. unfold ifrag. cbn [to_generic no_generics]. rewrite Hs. reflexivity.
+    intros p v o n Hn Ha. destruct (nfrag_cases n Hn) as [H|[gm [nn [q [Eq Hs]]]]]; [left; exact H|].
+    destruct (Nat.eq_dec q p) as [->|Hq]; [|right; exists gm, nn, q; split; [exact Hq|split; [exact Eq|exact Hs]]].
+    destruct Eq as [-> | ->]; [destruct gm, nn|]; cbn [args_avoid param_of] in Ha; rewrite ?param_eqb_refl in Ha; try discriminate Ha.
+    left. unfold ifrag. cbn [to_generic no_generics]. rewrite Hs. reflexivity.
 Qed.
-
 
 Lemma ifrag_cases: forall t, ifrag t = true ->
     (exists m c args, t = RootResolved m c args /\ class_eqb c nothing = false
@@ -742,46 +749,6 @@ Proof.
     destruct t as [| [| | | | |[gm nn p [|w ws]]|] | | | |[gm nn p [|w ws]]|]; try discriminate H;
         apply andb_true_iff in H; destruct H as [H1 H2]; [right|left]; exists gm, nn, p; auto.
 Qed.
-
-(* A type of the parameters, flat, has no type variables made nullable in its type arguments *)
-Lemma ifrag_flat_narrowed: forall k t, vsize t <= k -> ifrag t = true -> args_flat t = true -> args_narrowed t = true.
-Proof.
-    induction k as [|k IH]; intros t Hk Ht Hf.
-    { destruct (ifrag_cases t Ht) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]];
-          first [reflexivity|simpl in Hk; lia]. }
-    destruct (ifrag_cases t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Hr]]]]|[p [-> _]]]]];
-        try reflexivity.
-    - change (forallb nullable_narrowed args = true). apply forallb_forall. intros a Ha. pose proof (Hargs a Ha) as Ea.
-      destruct a as [| | | |v o n| |]; try discriminate Ea. change (nfrag n = true) in Ea. cbn [nullable_narrowed].
-      pose proof (args_flat_root m c args Hf _ Ha) as Hfa. pose proof (flat_nfrag v o n Ea Hfa) as Hn.
-      pose proof (vsize_below m c args _ Ha) as Hv. simpl in Hv, Hk.
-      pose proof (IH n ltac:(lia) Hn (args_flat_argument v o n Hfa)) as E.
-      destruct (ifrag_cases n Hn) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[? [-> _]]]]]; first [exact E|reflexivity].
-    - change (S (vsize (RootResolved m c args)) <= S k) in Hk. exact (IH (RootResolved m c args) ltac:(lia) Hr Hf).
-Qed.
-
-(* ... nor mutability given to its type variables *)
-Lemma ifrag_flat_no_given: forall k t, vsize t <= k -> ifrag t = true -> args_flat t = true -> no_given t = true.
-Proof.
-    induction k as [|k IH]; intros t Hk Ht Hf.
-    { destruct (ifrag_cases t Ht) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]];
-          first [reflexivity|simpl in Hk; lia]. }
-    destruct (ifrag_cases t Ht) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Hr]]]]|[p [-> _]]]]];
-        try reflexivity.
-    - change (forallb no_given args = true). apply forallb_forall. intros a Ha. pose proof (Hargs a Ha) as Ea.
-      destruct a as [| | | |v o n| |]; try discriminate Ea. change (nfrag n = true) in Ea. cbn [no_given].
-      pose proof (args_flat_root m c args Hf _ Ha) as Hfa. pose proof (flat_nfrag v o n Ea Hfa) as Hn.
-      pose proof (vsize_below m c args _ Ha) as Hv. simpl in Hv, Hk.
-      exact (IH n ltac:(lia) Hn (args_flat_argument v o n Hfa)).
-    - change (S (vsize (RootResolved m c args)) <= S k) in Hk. exact (IH (RootResolved m c args) ltac:(lia) Hr Hf).
-Qed.
-
-Lemma pfrag_flat_narrowed: forall t, pfrag t = true -> args_flat t = true -> args_narrowed t = true.
-Proof.
-    intros t Ht Hf. destruct (pfrag_cases t Ht) as [H|[[gm [nn [p [-> _]]]]|[gm [nn [p [-> _]]]]]]; [|reflexivity|reflexivity].
-    exact (ifrag_flat_narrowed (vsize t) t (le_n _) H Hf).
-Qed.
-
 
 Lemma pgeneric_ifrag: forall t, ifrag t = true -> pgeneric t = to_generic t.
 Proof.
@@ -1872,7 +1839,6 @@ Proof.
     intros c xs Hxs p o x E. destruct (lookup_combine_nth _ _ p _ E) as [i [_ Hx]].
     exact (Hxs _ (nth_error_In _ _ Hx)).
 Qed.
-
 
 Definition exact_argument (x: EType): bool :=
     match x with

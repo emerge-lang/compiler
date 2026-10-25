@@ -68,12 +68,21 @@ Qed.
 (* The bindings of the variable p to the candidate c, then those of b *)
 Definition with_value (p: TypeParameterId) (c: EType) (b: Bindings): Bindings := (p, TypeArgument invariant ref c) :: b.
 
-(* The static upper bounds: type variables only, no ownerships of type parameters *)
-Fixpoint plain_variables (t: EType): Prop :=
+(* A type variable other than p, of a mutability given to it, narrowed, or made nullable *)
+Definition other_ref (p: TypeParameterId) (n: EType): Prop :=
+    match n with
+    | TypeVariable (mkGenericRef _ _ q []) | Nullable (TypeVariable (mkGenericRef _ _ q [])) => q <> p
+    | _ => False
+    end.
+
+(* The static upper bounds of p: type variables only, no ownerships of type parameters; in type
+   arguments, type variables other than p also of a mutability given to them, narrowed, or made nullable *)
+Fixpoint plain_variables (p: TypeParameterId) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc =>
-        match a with TypeArgument _ o n => is_parameter_ownership o = false /\ plain_variables n | _ => False end /\ acc) True arguments
-    | Nullable n => plain_variables n /\ match n with RootResolved _ _ _ => True | _ => False end
+        match a with TypeArgument _ o n => is_parameter_ownership o = false /\ (plain_variables p n \/ other_ref p n) | _ => False end
+        /\ acc) True arguments
+    | Nullable n => plain_variables p n /\ match n with RootResolved _ _ _ => True | _ => False end
     | TypeVariable (mkGenericRef None false _ _) => True
     | Error _ _ => True
     | _ => False
@@ -87,9 +96,9 @@ Proof.
     destruct (instantiate_free env b n) as [| [| | | | | |] | | | | |]; try reflexivity; discriminate Hn.
 Qed.
 
-Lemma plain_variables_free: forall b t, plain_values b -> plain_variables t -> nests_argument (instantiate_free env b t) = false.
+Lemma plain_variables_free: forall q b t, plain_values b -> plain_variables q t -> nests_argument (instantiate_free env b t) = false.
 Proof.
-    intros b [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] Hb H; cbn [plain_variables] in H; try contradiction; try reflexivity.
+    intros q b [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] Hb H; cbn [plain_variables] in H; try contradiction; try reflexivity.
     - destruct H as [_ Hs]. destruct n as [m c args| | | | | |]; try contradiction. reflexivity.
     - destruct gm, nn; try contradiction. cbn [instantiate_free]. destruct (lookup_binding b p) as [a|] eqn:Ea; [|reflexivity].
       destruct (Hb p a Ea) as [Hl [o [y [-> Hy]]]]. unfold final_argument. rewrite Hl, Hy. exact Hy.
@@ -104,19 +113,41 @@ Qed.
 Lemma free_plain_ownership: forall b o, is_parameter_ownership o = false -> instantiate_free_ownership b o = o.
 Proof. intros b [| | |q] H; try reflexivity; discriminate H. Qed.
 
-Lemma plain_variables_only: forall b t, plain_variables t -> variables_only b t.
+Lemma plain_variables_only: forall q b t, plain_variables q t -> variables_only b t.
 Proof.
-    intros b. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; cbn [plain_variables] in H; cbn [variables_only];
+    intros q b. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; cbn [plain_variables] in H; cbn [variables_only];
         try contradiction; try exact I.
     - induction args as [|a args IHa]; [exact I|]. cbn [fold_right] in H |- *. destruct H as [Ha Has].
       split; [|exact (IHa Has)]. destruct a as [| | | |v o n| |]; try contradiction. destruct Ha as [Ho Hn].
-      cbn [variables_only]. split; [intros q Eq; subst o; discriminate Ho|exact (IH n Hn)].
+      cbn [variables_only]. split; [intros q' Eq; subst o; discriminate Ho|].
+      destruct Hn as [Hn|Hn]; [exact (IH n Hn)|].
+      destruct n as [| [| | | | |[? ? ? []]|] | | | |[? ? ? []]|]; cbn [other_ref] in Hn; try contradiction; exact I.
     - exact (IH n (proj1 H)).
+Qed.
+
+(* A type variable other than p, in a type argument: binding p first leaves it as it is, and binding
+   it then is binding it with p bound, too *)
+Lemma other_ref_unbound: forall p a v o n, is_parameter_ownership o = false -> other_ref p n ->
+    instantiate_free env [(p, a)] (TypeArgument v o n) = TypeArgument v o n.
+Proof.
+    intros p a v o n Ho Hn.
+    destruct n as [| [| | | | |[gm nn q []]|] | | | |[gm nn q []]|]; cbn [other_ref] in Hn; try contradiction;
+        cbn [instantiate_free lookup_binding mentions_loosely_bound_in_arguments]; unfold param_eqb;
+        rewrite (proj2 (Nat.eqb_neq q p) Hn), (free_plain_ownership _ o Ho); reflexivity.
+Qed.
+
+Lemma other_ref_bound: forall p c b v o n, is_parameter_ownership o = false -> other_ref p n ->
+    instantiate_free env (with_value p c b) (TypeArgument v o n) = instantiate_free env b (TypeArgument v o n).
+Proof.
+    intros p c b v o n Ho Hn. unfold with_value.
+    destruct n as [| [| | | | |[gm nn q []]|] | | | |[gm nn q []]|]; cbn [other_ref] in Hn; try contradiction;
+        cbn [instantiate_free lookup_binding mentions_loosely_bound_in_arguments]; unfold param_eqb;
+        rewrite (proj2 (Nat.eqb_neq q p) Hn), !(free_plain_ownership _ o Ho); reflexivity.
 Qed.
 
 (* Binding the free variables twice, the candidate first and then the others, is binding them at once *)
 Lemma free_compose: forall b p c, plain_values b -> gfrag env c = true -> mentions_bound b c = false ->
-    forall S, plain_variables S ->
+    forall S, plain_variables p S ->
     instantiate_free env b (instantiate_free env [(p, TypeArgument invariant ref c)] S) = instantiate_free env (with_value p c b) S.
 Proof.
     intros b p c Hb Hc Hm.
@@ -131,11 +162,12 @@ Proof.
     - cbn [instantiate_free]. f_equal. rewrite map_map.
       induction args as [|a args IHa]; [reflexivity|]. cbn [fold_right] in H. destruct H as [Ha Has].
       cbn [map]. f_equal; [|exact (IHa Has)].
-      destruct a as [| | | |v o n| |]; try contradiction. destruct Ha as [Ho Hn].
-      rewrite (free_argument _ v o n Hpp (plain_variables_free _ n Hpp Hn)), (free_plain_ownership _ o Ho).
+      destruct a as [| | | |v o n| |]; try contradiction. destruct Ha as [Ho [Hn|Hn]].
+      2:{ rewrite (other_ref_unbound p _ v o n Ho Hn). exact (eq_sym (other_ref_bound p c b v o n Ho Hn)). }
+      rewrite (free_argument _ v o n Hpp (plain_variables_free p _ n Hpp Hn)), (free_plain_ownership _ o Ho).
       pose proof (IH n Hn) as En.
-      rewrite (free_argument b v o _ Hb); [|rewrite En; exact (plain_variables_free _ n Hbp Hn)].
-      rewrite (free_argument _ v o n Hbp (plain_variables_free _ n Hbp Hn)), !(free_plain_ownership _ o Ho), En. reflexivity.
+      rewrite (free_argument b v o _ Hb); [|rewrite En; exact (plain_variables_free p _ n Hbp Hn)].
+      rewrite (free_argument _ v o n Hbp (plain_variables_free p _ n Hbp Hn)), !(free_plain_ownership _ o Ho), En. reflexivity.
     - destruct H as [Hn _].
       change (instantiate_free env b (rewrap_nullable (instantiate_free env [(p, TypeArgument invariant ref c)] n))
           = rewrap_nullable (instantiate_free env (with_value p c b) n)).
@@ -153,11 +185,11 @@ Qed.
  * other variables bound in b, is S with p bound to c, too, as c mentions none of the variables
  *)
 Lemma free_candidate: forall b p c S, plain_values b -> gfrag env c = true -> mentions_bound b c = false ->
-    plain_variables S ->
+    plain_variables p S ->
     instantiate_free env b (with_candidate env p c S) = instantiate_free env (with_value p c b) S.
 Proof.
     intros b p c S Hb Hc Hm HS. unfold with_candidate.
-    rewrite <- (instantiate_free_variables_only env _ S (plain_variables_only _ S HS)).
+    rewrite <- (instantiate_free_variables_only env _ S (plain_variables_only p _ S HS)).
     exact (free_compose b p c Hb Hc Hm S HS).
 Qed.
 

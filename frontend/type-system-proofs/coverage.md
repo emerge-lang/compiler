@@ -10,10 +10,10 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 3 | A type parameter made nullable inside a bound, in generic code | `fn f<A, B : List<A?>>` called from generic code | The bounds of the theorems of generic code have type variables in type arguments only plainly (`bplain`, `args_flat`); outside of generic code, `B : List<A?>` is covered (`ifrag`, `nfrag`), and as the whole bound, `T : U?`, outside of generic code where the final values are class types (#10) |
+| 3 | A type parameter made nullable inside a bound, in generic code where its bound isn't nullable; or the bounded parameter itself, made nullable, of a mutability given to it or narrowed, inside its bound, in generic code | `fn f<A : Any, B : List<A?>>` and `T : Ord<in T?>` called from generic code | The bounds of the theorems of generic code have type variables made nullable in type arguments only narrowed, as for parameters (#12), and the bounded variable itself only plainly (`bplain`: `args_narrowed`, `args_avoid`): with a candidate c in its place, `Ord<in c?>` or `Box<mut c>` isn't shown to be a mixed type (`mfrag`); outside of generic code, `B : List<A?>` is covered (`ifrag`, `nfrag`), and as the whole bound, `T : U?`, outside of generic code where the final values are class types (#10) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
-| 6 | Bounds containing `m T` or `T!` as a component of an intersection, other than narrowed, or in type arguments in generic code; and `T : m U` instantiated and on generic receivers | `T : A & mut U`; `B : List<mut A>`, `B : List<A!>` called from generic code; `T : mut U` in generic code at run time | Of the components of intersections, the inference proofs admit `compfrag`: `ifrag`, and `U!`, as ofComponents narrows a component whose bound is nullable. The bounds of the theorems of generic code have type variables in type arguments only plainly (`bplain`); outside of generic code, `B : List<mut A>` and `B : List<A!>` are covered where the final values are class types (#10); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`), as for parameters (#12) |
+| 6 | Bounds containing `m T` or `T!` as a component of an intersection, other than narrowed; and `T : m U`, also in type arguments, instantiated and on generic receivers | `T : A & mut U`; `T : mut U` and `B : List<mut A>` in generic code at run time | Of the components of intersections, the inference proofs admit `compfrag`: `ifrag`, and `U!`, as ofComponents narrows a component whose bound is nullable. In type arguments, `B : List<mut A>` and `B : List<A!>` are covered, outside of generic code where the final values are class types (#10), and in generic code but for the variable itself (#3); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability, also in type arguments (`no_given`), as for parameters (#12) |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>` or `x: Box<A!>` with `A` inferred to an intersection, in non-generic code | Premise of FBounded (of type arguments, where they aren't plain, `args_plain`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
@@ -68,8 +68,9 @@ Columns:
 | a type parameter of the class (`T : E`, `T : Ord<in E>`) | — | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, nullable (`T : U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
-| mentions another parameter made nullable in type arguments (`B : List<A?>`) | ✓* | ✓* | ✗ | ✗ | ✗ |
-| mentions another parameter of a given mutability or narrowed, in type arguments (`B : List<mut A>`, `B : List<A!>`) | ✓*† | ✓*† | ✗ | ✗ | ✗ |
+| mentions another parameter made nullable in type arguments (`B : List<A?>`) | ✓* | ✓* | ◐*‡§ | ◐*‡§ | ◐*‡§ |
+| mentions another parameter narrowed in type arguments (`B : List<A!>`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
+| mentions another parameter of a given mutability in type arguments (`B : List<mut A>`) | ✓*† | ✓*† | ◐*‡ | ✗ | ✗ |
 | F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | intersection with variables (`T : A & Ord<in T>`, `T : A & U` with `U : Any?`, a component `U!`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | nullable intersection with variables (`T : A? & Ord<in T>?`, `T : A? & U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
@@ -80,6 +81,7 @@ Columns:
 \* only when every such variable gets a lower bound from the arguments, and only for inference (no explicit
 type arguments).
 † only when the final values are class types.
+§ only where the bound of the variable made nullable is nullable, as the compiler then narrows it (#3, #12).
 ◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates`; in generic code
 also that the types of the arguments mention Nothing only as `exclusive Nothing`, and none of the callee's type
 parameters as an ownership. Of an intersection bound, the final value is shown within each component (`bound_components`).
@@ -151,8 +153,11 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `Inference.reference_target`, `reference_assignee`, `Constraints.nested_target_step`, `nested_assignee_step`,
    `Generics.instance_within_never_fails`, `MemberCalls.refs_fuel`, `FBounded.args_plain_candidate`,
    `GenericArguments.gnested_target`, `mnested_target`, `GenericReceivers.rnested_target`, `rmnested_target`; with
-   them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`. Next: those in bounds
-   in generic code, `T : A & m U`, `m T` instantiated and on generic receivers, intersections as parameter types)
+   them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`; in bounds in generic
+   code done, but `B : List<A?>` of a non-null bound, the bounded variable itself, and `B : List<m A>` instantiated
+   and on generic receivers: `GenericArguments.bplain`, `mfrag_candidate`, `FreeInstances.plain_variables`,
+   `other_ref_bound`, `GenericReceivers.nib_candidate`, `given_candidate`. Next: `T : A & m U`, `m T` instantiated
+   and on generic receivers, intersections as parameter types)
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds
 5. Member access in generic code and of other member types (#11)
