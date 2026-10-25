@@ -10,14 +10,14 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 3 | A type parameter made nullable inside a bound | `fn f<A, B : List<A?>>` | The types of the parameters in the bounds the inference proofs admit (`ifrag`) make only class types nullable (`no_generics`); as the whole bound, `T : U?` is covered (`pfrag`), outside of generic code where the final values are class types (#10) |
+| 3 | A type parameter made nullable inside a bound, in generic code | `fn f<A, B : List<A?>>` called from generic code | The bounds of the theorems of generic code have type variables in type arguments only plainly (`bplain`, `args_flat`); outside of generic code, `B : List<A?>` is covered (`ifrag`, `nfrag`), and as the whole bound, `T : U?`, outside of generic code where the final values are class types (#10) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
-| 6 | Bounds containing `m T` or `T!` other than as the whole bound or as a narrowed component of an intersection; and `T : m U` instantiated and on generic receivers | `B : List<mut A>`, `B : List<A!>`, `T : A & mut U`; `T : mut U` in generic code at run time | Not in the fragment the inference proofs admit (`ifrag`; of the components of intersections, `compfrag`, which adds `U!`, as ofComponents narrows a component whose bound is nullable); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`), as for parameters (#12) |
+| 6 | Bounds containing `m T` or `T!` as a component of an intersection, other than narrowed, or in type arguments in generic code; and `T : m U` instantiated and on generic receivers | `T : A & mut U`; `B : List<mut A>`, `B : List<A!>` called from generic code; `T : mut U` in generic code at run time | Of the components of intersections, the inference proofs admit `compfrag`: `ifrag`, and `U!`, as ofComponents narrows a component whose bound is nullable. The bounds of the theorems of generic code have type variables in type arguments only plainly (`bplain`); outside of generic code, `B : List<mut A>` and `B : List<A!>` are covered where the final values are class types (#10); as the whole bound, `T : U!`, `T : m U`, `T : m U?` are covered (`pfrag`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`), as for parameters (#12) |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
-| 10 | Bounds that are neither class types nor types of the parameters, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, in non-generic code | Premise of FBounded: with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
+| 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>` or `x: Box<A!>` with `A` inferred to an intersection, in non-generic code | Premise of FBounded (of type arguments, where they aren't plain, `args_plain`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
-| 12 | Parameter types of the callee that use its type parameters other than plainly, but as the whole type; and `m T` as the whole type, instantiated and on generic receivers | `Box<T?>`, `Box<mut T>`, `x: T & A`; `x: mut T` in generic code at run time; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `pfrag`: those of `ifrag`, with references to type variables only as `T` and nullable only class types (`no_generics`), and a type variable as the whole type, of a mutability given to it, narrowed, or made nullable (`m T`, `T!`, `T?`, `m T?`). The theorems of GenericCode and GenericReceivers take no given mutability (`no_given`): whether applying one keeps a type of generic code of the fragment (`wtfrag`) isn't shown |
+| 12 | Intersections as parameter types; in generic code, a type variable of a non-null bound made nullable in type arguments; and `m T`, as the whole type or in type arguments, instantiated and on generic receivers | `x: T & A`; `Box<T?>` with `T : Any`, called from generic code; `x: mut T` and `Box<mut T>` in generic code at run time; the same for the type parameters of the class in member functions | The parameter types of all call theorems are `pfrag`: those of `ifrag`, nullable only class types (`no_generics`), with type variables in type arguments of a mutability given to them, narrowed, or made nullable (`nfrag`: `Box<mut T>`, `Box<T!>`, `Box<T?>`), and a type variable as the whole type, of a mutability given to it, narrowed, or made nullable (`m T`, `T!`, `T?`, `m T?`). In generic code, a type variable made nullable in type arguments is narrowed (`args_narrowed`), as the compiler builds `T?` of a nullable bound: of a non-null bound, its instance may be a nullable type parameter of the caller, which `gfrag` doesn't have in type arguments. The theorems of GenericCode and GenericReceivers take no given mutability, also in type arguments (`no_given`): whether applying one keeps a type of generic code of the fragment (`wtfrag`) isn't shown. Outside of generic code, type arguments `m T` and `T!` take the final values to be class types (#10) |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 
 ## Subtyping (unify)
@@ -68,12 +68,14 @@ Columns:
 | a type parameter of the class (`T : E`, `T : Ord<in E>`) | — | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, nullable (`T : U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
+| mentions another parameter made nullable in type arguments (`B : List<A?>`) | ✓* | ✓* | ✗ | ✗ | ✗ |
+| mentions another parameter of a given mutability or narrowed, in type arguments (`B : List<mut A>`, `B : List<A!>`) | ✓*† | ✓*† | ✗ | ✗ | ✗ |
 | F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | intersection with variables (`T : A & Ord<in T>`, `T : A & U` with `U : Any?`, a component `U!`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | nullable intersection with variables (`T : A? & Ord<in T>?`, `T : A? & U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, narrowed (`T : U!`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter of a given mutability (`T : mut U`) | ✓*† | ✓*† | ◐*‡ | ✗ | ✗ |
-| contains `m T` / `T!` deeper (`B : List<mut A>`, `T : A & mut U`) | ✗ | ✗ | ✗ | ✗ | ✗ |
+| intersection with a component `m U` (`T : A & mut U`) | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 \* only when every such variable gets a lower bound from the arguments, and only for inference (no explicit
 type arguments).
@@ -81,6 +83,11 @@ type arguments).
 ◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates`; in generic code
 also that the types of the arguments mention Nothing only as `exclusive Nothing`, and none of the callee's type
 parameters as an ownership. Of an intersection bound, the final value is shown within each component (`bound_components`).
+
+Of parameter types, type variables in type arguments are covered in the cells above: made nullable (`Box<T?>`)
+in every column, in generic code only where the bound of the variable is nullable (#12); of a given mutability
+or narrowed (`Box<mut T>`, `Box<T!>`) with † for free and member functions, and in generic code, but `Box<mut T>`
+instantiated and on generic receivers.
 
 Within the covered cells, these are proven: explicit type arguments and receiver capture (`Inference.v`),
 lower and upper bounds and the final values chosen (`Constraints.v`), receivers of subclasses with exact
@@ -138,7 +145,14 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `rstatic_whole` through `runtime_mparameter`); of parameter types, #12 (a type variable as the whole type of a parameter done,
    `T?`, `T!`, `m T`, `m T?`, in every setting but `m T` instantiated and on generic receivers: `pfrag`, `pgeneric`,
    `unify_variable_given`, `Generics.target_ordered`, `instance_never_fails`, `parameter_step`,
-   `exact_parameter`, `generic_parameter`, `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`)
+   `exact_parameter`, `generic_parameter`, `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`; type
+   variables in type arguments of parameter types done, `Box<T?>`, `Box<T!>`, `Box<m T>`, in every setting but
+   `Box<T?>` of a non-null bound in generic code and `Box<m T>` instantiated and on generic receivers: `nfrag`,
+   `Inference.reference_target`, `reference_assignee`, `Constraints.nested_target_step`, `nested_assignee_step`,
+   `Generics.instance_within_never_fails`, `MemberCalls.refs_fuel`, `FBounded.args_plain_candidate`,
+   `GenericArguments.gnested_target`, `mnested_target`, `GenericReceivers.rnested_target`, `rmnested_target`; with
+   them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`. Next: those in bounds
+   in generic code, `T : A & m U`, `m T` instantiated and on generic receivers, intersections as parameter types)
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds
 5. Member access in generic code and of other member types (#11)

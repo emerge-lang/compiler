@@ -147,6 +147,30 @@ Proof.
     - exact (instance_never_fails env wf declared declared_wf n gm nn x a Hx (in_fragment_is_gfrag env a Ha) Hgm Hnn H).
 Qed.
 
+(* What is assigned a type of the fragment is assigned it with a mutability given to it, and without null *)
+Lemma reference_assigns_of_fragment: forall gm (nn: bool) x a n, of_fragment x -> in_fragment env a = true ->
+    unify env n a x (Ongoing []) = Some (Ongoing []) -> exists n', unify env n' a (ref_apply env gm nn x) (Ongoing []) = Some (Ongoing []).
+Proof.
+    intros gm nn x a n [Hx _] Ha H. apply (accepts (ref_apply env gm nn x) a); [| exact (in_fragment_of_fragment a Ha) |].
+    - split; [|exact I]. unfold ref_apply. cbn zeta.
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+          first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
+    - exact (instance_assigned_never_fails env wf declared declared_wf n gm nn x a Hx (in_fragment_is_gfrag env a Ha) H).
+Qed.
+
+(* What is within a class type is, of a mutability given to both and without null, within it *)
+Lemma reference_within_of_fragment: forall gm (nn: bool) x B n, of_fragment x -> in_fragment env B = true ->
+    unify env n B x (Ongoing []) = Some (Ongoing []) ->
+    exists n', unify env n' (bound_apply env gm nn B) (ref_apply env gm nn x) (Ongoing []) = Some (Ongoing []).
+Proof.
+    intros gm nn x B n [Hx _] HB H. apply (accepts (ref_apply env gm nn x) (bound_apply env gm nn B)).
+    - split; [|exact I]. unfold ref_apply. cbn zeta.
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+          first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
+    - exact (in_fragment_of_fragment _ (bound_apply_in_fragment env gm nn B HB)).
+    - exact (instance_within_never_fails env wf declared declared_wf n gm nn x B Hx HB H).
+Qed.
+
 Lemma reflexive: forall x, of_fragment x -> exists n, unify env n x x (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x Hx. apply accepts; [exact Hx|exact Hx|].
@@ -230,7 +254,7 @@ Proof.
             (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
             below_intersection above_supertype intersect_no_vars supertype_no_vars
-            reference_takes_of_fragment)
+            reference_takes_of_fragment reference_assigns_of_fragment reference_within_of_fragment)
         supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold (fun _ _ _ H => H)).
