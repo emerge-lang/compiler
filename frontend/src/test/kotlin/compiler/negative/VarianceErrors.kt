@@ -858,6 +858,120 @@ class VarianceErrors : FreeSpec({
         }
     }
 
+    "members typed other than as a plain type parameter" - {
+        val boxes = """
+            interface A {}
+            class X {
+                var n: S32 = 0
+            }
+            class MBox<T> {
+                var v: mut T = init
+            }
+            class NBox<T> {
+                var v: T! = init
+            }
+            class IBox<T> {
+                var v: A & T = init
+            }
+        """.trimIndent()
+
+        "a member of a mutability given to the type parameter" - {
+            "reads as read through a read reference" {
+                validateModule(boxes + "\n" + """
+                    fn r(b: read MBox<X>) -> mut X {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "reads as read through a read reference, in generic code" {
+                validateModule(boxes + "\n" + """
+                    fn r<E>(b: read MBox<E>) -> mut E {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "doesn't take a value of a weaker mutability" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut MBox<X>, x: read X) {
+                        set b.v = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take a value of a weaker mutability through an in-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut MBox<in X>, x: read X) {
+                        set b.v = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "a member typed as the type parameter narrowed" - {
+            "doesn't take null" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut NBox<X?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take null through an in-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut NBox<in X?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take null in generic code" {
+                validateModule(boxes + "\n" + """
+                    fn w<E>(b: mut NBox<E?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "reads as non-null through an out-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn r(b: read NBox<out X?>) -> read X {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a member typed as an intersection with the type parameter" - {
+            "takes a value of the intersection" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut IBox<X>, a: A & X) {
+                        set b.v = a
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "takes nothing through an out-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut IBox<out X>, a: mut A & X) {
+                        set b.v = a
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+    }
+
     "wildcard type arguments are not valid in function invocations" {
         validateModule("""
             interface B {}
