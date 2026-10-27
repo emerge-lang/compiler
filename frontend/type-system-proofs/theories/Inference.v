@@ -200,10 +200,11 @@ Definition reference_variable (t: EType): bool :=
 (* The types of the parameters, at their top *)
 Definition pfrag (t: EType): bool := ifrag t || reference_variable t.
 
-(* The components of an intersection: types of the parameters, or a type variable narrowed (`A & U!`),
-   as ofComponents makes a component whose bound is nullable *)
+(* The components of an intersection: types of the parameters, or a type variable of a mutability given
+   to it or narrowed (`A & mut U`, `A & U!`), as ofComponents gives the components their common
+   mutability and narrows a component whose bound is nullable *)
 Definition compfrag (t: EType): bool :=
-    ifrag t || match t with TypeVariable (mkGenericRef None true _ []) => reference_variable t | _ => false end.
+    ifrag t || match t with TypeVariable (mkGenericRef _ _ _ []) => reference_variable t | _ => false end.
 
 (* The types of the arguments *)
 Definition afrag (t: EType): bool := in_fragment env t && nothing_is_bottom t.
@@ -694,22 +695,33 @@ Proof.
 Qed.
 
 Lemma compfrag_cases: forall t, compfrag t = true -> ifrag t = true
-    \/ (exists p, t = TypeVariable (mkGenericRef None true p [])
-        /\ sfrag env (Generic (mkGenericRef None true p [])) = true /\ sfrag env (Generic (mkGenericRef None false p [])) = true).
+    \/ (exists gm nn p, t = TypeVariable (mkGenericRef gm nn p [])
+        /\ sfrag env (Generic (mkGenericRef gm nn p [])) = true /\ sfrag env (Generic (mkGenericRef None false p [])) = true).
 Proof.
     intros t H. unfold compfrag in H. apply orb_true_iff in H. destruct H as [H|H]; [left; exact H|right].
-    destruct t as [m c args|n|g|me msg|v o n|[[m|] [|] p [|w ws]]|cs]; try discriminate H.
-    exists p. unfold reference_variable in H. apply andb_true_iff in H. split; [reflexivity|exact H].
+    destruct t as [m c args|n|g|me msg|v o n|[gm nn p [|w ws]]|cs]; try discriminate H.
+    exists gm, nn, p. unfold reference_variable in H. apply andb_true_iff in H. split; [reflexivity|exact H].
 Qed.
 
 Lemma compfrag_pfrag: forall t, compfrag t = true -> pfrag t = true.
 Proof.
-    intros t H. destruct (compfrag_cases t H) as [H'|[p [-> Hs]]]; unfold pfrag; [rewrite H'; reflexivity|].
+    intros t H. destruct (compfrag_cases t H) as [H'|[gm [nn [p [-> Hs]]]]]; unfold pfrag; [rewrite H'; reflexivity|].
     unfold reference_variable. destruct Hs as [Hs1 Hs2]. rewrite Hs1, Hs2, orb_true_r. reflexivity.
 Qed.
 
 Lemma compfrag_ifrag: forall t, compfrag t = true -> is_type_variable t = false -> ifrag t = true.
-Proof. intros t H Hv. destruct (compfrag_cases t H) as [H'|[p [-> _]]]; [exact H'|discriminate Hv]. Qed.
+Proof. intros t H Hv. destruct (compfrag_cases t H) as [H'|[gm [nn [p [-> _]]]]]; [exact H'|discriminate Hv]. Qed.
+
+(* A type variable component of a mutability given to it is assigned as no more than that *)
+Lemma compfrag_given: forall gm nn p m, compfrag (TypeVariable (mkGenericRef gm nn p [])) = true -> gm = Some m ->
+    Model.is_subtype_of (assignment_mutability env (TypeVariable (mkGenericRef gm nn p []))) m = true.
+Proof.
+    intros gm nn p m H ->. destruct (compfrag_cases _ H) as [Hi|[gm' [nn' [p' [E [Hs _]]]]]].
+    - unfold ifrag in Hi. cbn [no_generics] in Hi. rewrite andb_false_r in Hi. discriminate Hi.
+    - injection E as <- <- <-. rewrite (assignment_mutability_type_variable env ranked).
+      rewrite (sfrag_generic env) in Hs. unfold as_written in Hs. cbn [given_mutability is_narrowed] in Hs.
+      rewrite !andb_true_iff in Hs. destruct Hs as [[[[Hw _] _] _] _]. exact Hw.
+Qed.
 
 Lemma pfrag_sfrag: forall t, pfrag t = true -> sfrag env (pgeneric t) = true.
 Proof.
