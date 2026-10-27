@@ -257,7 +257,8 @@ Proof.
             reference_takes_of_fragment reference_assigns_of_fragment reference_within_of_fragment)
         supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
-        HPs HAs Hfold (fun _ _ _ H => H)).
+        (fun P HP => conj (pfrag_qfrag env P (proj1 (HPs P HP))) (proj2 (HPs P HP))) HAs Hfold (fun _ _ _ H => H)
+        (fun Hi => False_ind _ (no_inter env Ps (fun P HP => proj1 (HPs P HP)) Hi))).
 Qed.
 
 End FinalValues.

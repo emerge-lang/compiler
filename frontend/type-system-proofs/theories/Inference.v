@@ -732,6 +732,40 @@ Qed.
 Lemma ifrag_pfrag: forall t, ifrag t = true -> pfrag t = true.
 Proof. intros t H. unfold pfrag. rewrite H. reflexivity. Qed.
 
+(* The components of an intersection that is the type of a parameter (`x: T & A`, `x: T? & A?`), as
+   ofComponents builds it: of compfrag, of the fragment, assigned as one mutability *)
+Definition param_components (cs: list EType): bool :=
+    forallb compfrag cs && components_sfrag env (map to_generic cs)
+    && forallb (fun c => Mutability_beq (assignment_mutability env c) (assignment_mutability env (Intersection cs))) cs.
+
+(* The types of the parameters: pfrag, and intersections, nullable or not *)
+Definition qfrag (t: EType): bool :=
+    pfrag t || match t with Intersection cs | Nullable (Intersection cs) => param_components cs | _ => false end.
+
+Lemma qfrag_cases: forall t, qfrag t = true -> pfrag t = true
+    \/ exists cs, (t = Intersection cs \/ t = Nullable (Intersection cs)) /\ (forall C, In C cs -> compfrag C = true)
+        /\ components_sfrag env (map to_generic cs) = true
+        /\ forall C, In C cs -> assignment_mutability env C = assignment_mutability env (Intersection cs).
+Proof.
+    intros t H. unfold qfrag in H. apply orb_true_iff in H. destruct H as [H|H]; [left; exact H|right].
+    assert (Hcs: forall cs, param_components cs = true -> (forall C, In C cs -> compfrag C = true)
+        /\ components_sfrag env (map to_generic cs) = true
+        /\ forall C, In C cs -> assignment_mutability env C = assignment_mutability env (Intersection cs)).
+    { intros cs Hp. unfold param_components in Hp. apply andb_true_iff in Hp. destruct Hp as [Hp Hu]. apply andb_true_iff in Hp.
+      destruct Hp as [Hc Hs]. rewrite forallb_forall in Hc, Hu. split; [exact Hc|]. split; [exact Hs|].
+      intros C HC. apply internal_Mutability_dec_bl, Hu, HC. }
+    destruct t as [m c args|[| | | | | |cs]|g|me msg|v o n|g|cs]; try discriminate H;
+        exists cs; [split; [right; reflexivity|exact (Hcs cs H)]|split; [left; reflexivity|exact (Hcs cs H)]].
+Qed.
+
+Lemma pfrag_qfrag: forall t, pfrag t = true -> qfrag t = true.
+Proof. intros t H. unfold qfrag. rewrite H. reflexivity. Qed.
+
+Lemma qfrag_tfrag: forall t, qfrag t = true -> tfrag env (pgeneric t) = true.
+Proof.
+    intros t H. destruct (qfrag_cases t H) as [Hp|[cs [[->| ->] [_ [Hs _]]]]]; [exact (sfrag_tfrag env _ (pfrag_sfrag t Hp))|exact Hs|exact Hs].
+Qed.
+
 Lemma inst_ref_apply: forall gm nn p vs x, inst_ref env (mkGenericRef gm nn p vs) x = ref_apply gm nn x.
 Proof. intros [m|] [] p vs x; reflexivity. Qed.
 

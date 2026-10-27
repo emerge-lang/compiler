@@ -186,15 +186,6 @@ Proof.
     apply IH. intros y Hy. apply H. right. exact Hy.
 Qed.
 
-Lemma uniform_fuel_list: forall {A: Type} (l: list A) (Q: nat -> A -> Prop),
-    (forall f f' x, f <= f' -> Q f x -> Q f' x) -> (forall x, In x l -> exists f, Q f x) ->
-    exists f, forall x, In x l -> Q f x.
-Proof.
-    intros A l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
-    destruct (H x (or_introl eq_refl)) as [f1 H1]. destruct (IH (fun y Hy => H y (or_intror Hy))) as [f2 H2].
-    exists (max f1 f2). intros y [<-|Hy]; [apply (Hm f1); [lia|exact H1]|apply (Hm f2); [lia|exact (H2 y Hy)]].
-Qed.
-
 (* The type parameters a type mentions, in references to them and as ownership, are among vars, with
    the bounds vars have for them, class types without type parameters *)
 Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
@@ -206,6 +197,7 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
         In (p, parameter_bound env p) vars /\ sfrag env (parameter_bound env p) = true /\ closed (parameter_bound env p) = true
     | Generic _ | TypeVariable _ => False
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
+    | Intersection components => fold_right (fun a acc => refs_within vars a /\ acc) True components
     | _ => True
     end.
 
@@ -266,8 +258,9 @@ Proof.
           destruct Eq as [-> | ->]; exact Hg.
 Qed.
 
-(* The same for the type of a parameter, a type variable made nullable as the plain reference *)
-Lemma pbound_in_from_refs: forall vars b K t, pfrag env t = true -> refs_within vars t ->
+(* The same for the type of a parameter, a type variable made nullable as the plain reference; of an
+   intersection, each component *)
+Lemma pbound_in_from_refs: forall vars b K t, qfrag env t = true -> refs_within vars t ->
     (forall p bound, In (p, bound) vars -> binds_exactly env b K [] p bound = true) ->
     (forall gm nn p, In (p, parameter_bound env p) vars -> sfrag env (Generic (mkGenericRef gm nn p [])) = true ->
         sfrag env (parameter_bound env p) = true -> closed (parameter_bound env p) = true ->
@@ -275,7 +268,17 @@ Lemma pbound_in_from_refs: forall vars b K t, pfrag env t = true -> refs_within 
     (forall q, In q (map fst vars) -> ownership_bound b (parameter_ownership q) = true) ->
     bound_in env b K [] (pgeneric t) = true.
 Proof.
-    intros vars b K t Ht H Hp Hr Ho. destruct (pfrag_cases env t Ht) as [Hf|[[gm [nn [p [-> _]]]]|[gm [nn [p [-> _]]]]]].
+    intros vars b K t Hq H Hp Hr Ho. destruct (qfrag_cases env t Hq) as [Ht|[cs [Et [HSi _]]]].
+    2:{ assert (Hcs: refs_within vars (Intersection cs)) by (destruct Et as [-> | ->]; exact H).
+        assert (Hall: bound_in env b K [] (Intersection (map to_generic cs)) = true).
+        { change (forallb (bound_in env b K []) (map to_generic cs) = true). apply forallb_forall. intros c' Hc'.
+          apply in_map_iff in Hc'. destruct Hc' as [C [<- HC]]. pose proof (fold_and_in _ cs Hcs C HC) as HrC.
+          destruct (compfrag_cases env C (HSi C HC)) as [Hif|[gm [nn [q [-> [Hsq _]]]]]].
+          - exact (bound_in_from_refs vars b K C (or_introl Hif) HrC Hp Hr Ho).
+          - destruct HrC as [Hin [Hfb Hcb]]. cbn [to_generic].
+            rewrite (closed_ref_bound_in b K _ Hsq eq_refl Hfb Hcb). exact (Hr gm nn q Hin Hsq Hfb Hcb). }
+        destruct Et as [-> | ->]; exact Hall. }
+    destruct (pfrag_cases env t Ht) as [Hf|[[gm [nn [p [-> _]]]]|[gm [nn [p [-> _]]]]]].
     - rewrite (pgeneric_ifrag env wf t Hf). exact (bound_in_from_refs vars b K t (or_introl Hf) H Hp Hr Ho).
     - change (bound_in env b K [] (Generic (mkGenericRef None false p [])) = true).
       destruct H as [Hin [Hfb' Hcb]]. rewrite (binds_ref_closed env wf b K [] p Hfb' Hcb). exact (Hp p _ Hin).
@@ -597,17 +600,19 @@ Theorem member_call_through_subtypes_sound: forall n mr c cvars ovars ma ca ys u
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> pfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> qfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     (* the final values of the type parameters of the function, which are bounds, are among the types
        variables are replaced with *)
     (forall p bound, In (p, bound) ovars -> bfrag (final_value_of U p) -> xfrag (final_value_of U p)) ->
+    (* where a parameter type is an intersection, they are class types *)
+    ((exists P cs, In P Ps /\ inter_of P = Some cs) -> forall p bound, In (p, bound) ovars -> in_fragment env (final_value_of U p) = true) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
     forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hxx Hzb
-        HPs HAs Hfold Hfinal b Hbdef.
+        HPs HAs Hfold Hfinal Hclass b Hbdef.
     pose proof (object_arguments_exact c mo e xs zs He (object_below n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) Hfo Hxx Hzs) as Hzx.
     destruct (receiver_and_object n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx)
         as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu [Hp _]]]]]]]]].
@@ -672,17 +677,31 @@ Proof.
       intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         destruct (Hlookup q bound Hin) as [o [x [Hl' [Ho _]]]]. simpl. rewrite Hl'. exact Ho. }
     destruct (invocation_sound nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold) as [_ Hsound].
-    (* the type arguments satisfy the variable states unify ends with *)
-    apply (Hsound b K Hb). intros p o x Hpb.
-    assert (Hin: exists bound, In (p, bound) vars).
-    { rewrite Hbdef, lookup_app in Hpb. destruct (lookup_binding (bindings_of env c zs) p) as [a|] eqn:Ec.
+    (* the type parameters bound in b *)
+    assert (Hvars: forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> exists bound, In (p, bound) vars).
+    { intros p o x Hpb. rewrite Hbdef, lookup_app in Hpb. destruct (lookup_binding (bindings_of env c zs) p) as [a|] eqn:Ec.
       - destruct (lookup_combine_nth _ zs p _ Ec) as [i [Hi _]]. change (nth_error (parameter_ids env c) i = Some p) in Hi.
         rewrite <- Hids, nth_error_map in Hi. destruct (nth_error cvars i) as [[p1 bound]|] eqn:Ev; [|discriminate Hi].
         simpl in Hi. injection Hi as ->. exists bound. apply in_or_app. left. exact (nth_error_In _ _ Ev).
       - destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of U q)) p _ Hpb) as [_ Hin].
         apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
         exists bound. apply in_or_app. right. exact Hin. }
-    destruct Hin as [bound Hin]. unfold vars in Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
+    (* where a parameter type is an intersection, class types *)
+    assert (Hbf: (exists P cs, In P Ps /\ inter_of P = Some cs) -> bindings_in_fragment env b).
+    { intros Hi p o x Hpb. destruct (Hvars p o x Hpb) as [bound Hin]. unfold vars in Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
+      - destruct (In_nth_error _ _ Hin) as [i Hi'].
+        assert (Hpi: nth_error (parameter_ids env c) i = Some p) by (rewrite <- Hids, nth_error_map, Hi'; reflexivity).
+        destruct (nth_error_same_length cvars zs i _ ltac:(lia) Hi') as [z Hz].
+        rewrite Hbdef, lookup_app, (lookup_parameter env wf c zs i p z Hpi Hz) in Hpb. injection Hpb as ->.
+        pose proof (Hzx _ (nth_error_In _ _ Hz)) as Hex. simpl in Hex. apply andb_true_iff in Hex. exact (proj2 Hex).
+      - assert (Hnin: ~ In p (parameter_ids env c))
+            by (rewrite <- Hids; intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
+        rewrite Hbdef, lookup_app, (lookup_combine_none _ zs p Hnin: lookup_binding (bindings_of env c zs) p = None) in Hpb.
+        destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of U q)) p _ Hpb) as [Ea _].
+        injection Ea as _ Ex2. subst x. exact (Hclass Hi p bound Hin). }
+    (* the type arguments satisfy the variable states unify ends with *)
+    apply (Hsound b K Hb); [|exact Hbf]. intros p o x Hpb.
+    destruct (Hvars p o x Hpb) as [bound Hin]. unfold vars in Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin].
     - (* a type parameter of c: the type argument of the object, captured by that of the receiver *)
       destruct (In_nth_error _ _ Hin) as [i Hi].
       assert (Hpi: nth_error (parameter_ids env c) i = Some p) by (rewrite <- Hids, nth_error_map, Hi; reflexivity).
@@ -721,23 +740,25 @@ Theorem member_call_with_type_parameters_sound: forall n mr c cvars ovars ma ys 
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     is_assignable_to env n0 (RootResolved mo c xs) (RootResolved ma c ys) = Some true ->
     (* the parameters and the arguments, accepted in turn *)
-    (forall P, In P Ps -> pfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> qfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     (* the final values of the type parameters of the function, which are bounds, are among the types
        variables are replaced with *)
     (forall p bound, In (p, bound) ovars -> bfrag (final_value_of U p) -> xfrag (final_value_of U p)) ->
+    (* where a parameter type is an intersection, they are class types *)
+    ((exists P cs, In P Ps /\ inter_of P = Some cs) -> forall p bound, In (p, bound) ovars -> in_fragment env (final_value_of U p) = true) ->
     forall b, b = bindings_of env c xs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of U (fst v)))) ovars ->
     forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
     intros n mr c cvars ovars ma ys u mo xs n0 Ps As nf U Hc Hids Hnd Hbounds Hfy Hrec Hlx Hxs Hxb Hobj HPs HAs Hfold Hfinal
-        b Hbdef.
+        Hclass b Hbdef.
     assert (Hfo: in_fragment env (RootResolved mo c xs) = true).
     { change (Nat.eqb (length xs) (length (parameter_ids env c)) && forallb (argument_in_fragment env) xs = true).
       rewrite Hlx, Nat.eqb_refl. apply forallb_forall. intros x Hx. pose proof (Hxs x Hx) as E.
       destruct x as [| | | |[] o nx| |]; try discriminate E. simpl in E |- *. apply andb_true_iff in E. apply E. }
     exact (member_call_through_subtypes_sound n mr c cvars ovars ma c ys u mo c xs xs n0 Ps As nf U Hc Hc Hc Hids Hnd Hbounds
-        Hfy Hrec Hfo Hobj ltac:(rewrite class_eqb_refl; reflexivity) Hxs Hxb HPs HAs Hfold Hfinal b Hbdef).
+        Hfy Hrec Hfo Hobj ltac:(rewrite class_eqb_refl; reflexivity) Hxs Hxb HPs HAs Hfold Hfinal Hclass b Hbdef).
 Qed.
 
 End MemberCalls.
