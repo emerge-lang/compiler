@@ -92,11 +92,12 @@ Fixpoint args_plain (t: EType): bool :=
     | _ => true
     end.
 
-(* A type variable made nullable is narrowed (`Box<T?>` of a nullable bound, as the compiler builds it) *)
+(* A type variable made nullable is narrowed, or of a non-null bound (`Box<T?>`, of a nullable bound
+   narrowed, as the compiler builds it) *)
 Fixpoint nullable_narrowed (t: EType): bool :=
     match t with
     | RootResolved _ _ arguments => forallb nullable_narrowed arguments
-    | Nullable (TypeVariable (mkGenericRef _ nn _ _)) => nn
+    | Nullable (TypeVariable (mkGenericRef _ nn p _)) => nn || negb (is_nullable env (Generic (mkGenericRef None false p [])))
     | Nullable n => nullable_narrowed n
     | TypeArgument _ _ n => nullable_narrowed n
     | Intersection components => forallb nullable_narrowed components
