@@ -622,6 +622,17 @@ Proof.
       exact (inter_target_all n (c0 :: tcs') _ s s (gfrag_components_no_vars _ Ht) (gfrag_no_vars _ Ha) I H c0 (or_introl eq_refl)).
 Qed.
 
+(* The same for a class type, whatever its type arguments *)
+Lemma root_accepts_not_nullable: forall n m c args a s, gfrag a = true ->
+    unify env n (RootResolved m c args) a (Ongoing s) = Some (Ongoing s) -> is_nullable env a = false.
+Proof.
+    induction n as [|n IH]; intros m c args a s Ha H; [discriminate H|].
+    destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> [Han Ha']]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]];
+        try reflexivity; try exact (gfrag_intersection_not_nullable _ Ha).
+    - rewrite unify_class_nullable in H. discriminate H.
+    - rewrite step_root_generic in H. rewrite (is_nullable_generic env ranked). exact (IH _ _ _ _ s (bound_gfrag _ Ha) H).
+Qed.
+
 (* ---------------------------------------------------------------------------------------------- *)
 (* Effective bounds                                                                                *)
 (* ---------------------------------------------------------------------------------------------- *)

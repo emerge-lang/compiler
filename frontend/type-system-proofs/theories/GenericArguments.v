@@ -4381,6 +4381,10 @@ Theorem member_call_in_generic_code_sound: forall n mr c cvars ovars ma ca ys u 
     (exists K, forall P, In P Ps -> bound_in env b K [] (pgeneric P) = true)
     /\ (forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> is_exact_ownership o = true
         /\ (In (TypeArgument Model.invariant o x) zs \/ exists bound, In (p, bound) ovars /\ x = final_value_of env U p))
+    (* the values, within their bounds *)
+    /\ plain_values b
+    /\ (forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) ->
+        exists bound, In (p, bound) (cvars ++ ovars) /\ of_fragment x /\ below x bound)
     /\ forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hxx Hzb
@@ -4517,6 +4521,29 @@ Proof.
       - destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of env U q)) p _ Hpb) as [Ea Hin].
         injection Ea as Eo Ex. subst o x. split; [reflexivity|right].
         apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1. exists bound. split; [exact Hin|reflexivity]. }
+    split.
+    { intros q a Eq. rewrite Hbdef, lookup_app in Eq. destruct (lookup_binding (bindings_of env c zs) q) as [a'|] eqn:Ec.
+      - injection Eq as <-. destruct (lookup_combine_nth _ zs q _ Ec) as [i [_ Hz]].
+        pose proof (Hzx _ (nth_error_In _ _ Hz)) as Hex.
+        destruct a' as [| | | |[] o x| |]; try discriminate Hex. simpl in Hex. apply andb_true_iff in Hex. destruct Hex as [Ho Hx].
+        split; [destruct o; first [reflexivity|discriminate Ho]|].
+        exists o, x. split; [reflexivity|exact (gfrag_not_nested env _ (in_fragment_is_gfrag env _ Hx))].
+      - destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of env U q)) q _ Eq) as [Ea Hin].
+        subst a. apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
+        split; [reflexivity|]. exists ref, (final_value_of env U q). split; [reflexivity|].
+        exact (gfrag_not_nested env _ (proj1 (Hfinal' q bound Hin))). }
+    split.
+    { intros p o x Hpb. pose proof Hpb as Hpb'.
+      assert (Hin: exists bound, In (p, bound) vars).
+      { rewrite Hbdef, lookup_app in Hpb'. destruct (lookup_binding (bindings_of env c zs) p) as [a|] eqn:Ec.
+        - destruct (lookup_combine_nth _ zs p _ Ec) as [i [Hi _]]. change (nth_error (parameter_ids env c) i = Some p) in Hi.
+          rewrite <- Hids, nth_error_map in Hi. destruct (nth_error cvars i) as [[p1 bound]|] eqn:Ev; [|discriminate Hi].
+          simpl in Hi. injection Hi as ->. exists bound. apply in_or_app. left. exact (nth_error_In _ _ Ev).
+        - destruct (lookup_own ovars (fun q => TypeArgument Model.invariant ref (final_value_of env U q)) p _ Hpb') as [_ Hin].
+          apply in_map_iff in Hin. destruct Hin as [[p1 bound] [Hfst Hin]]. simpl in Hfst. subst p1.
+          exists bound. apply in_or_app. right. exact Hin. }
+      destruct Hin as [bound Hin]. destruct (Hlookup p bound Hin) as [o' [x' [Hl' [_ [Hfx Hbx]]]]].
+      rewrite Hpb in Hl'. injection Hl' as <- <-. exists bound. split; [exact Hin|]. split; [exact Hfx|exact Hbx]. }
     intros P A HPA. destruct (Hsound Hsat P A HPA) as [f Ef].
     exists f. unfold is_assignable_to, empty_unification. rewrite Ef. reflexivity.
 Qed.
@@ -4561,6 +4588,9 @@ Theorem generic_member_call_with_bounded_variables_sound: forall n mr c cvars ov
     plain_values b
     /\ (forall q, In q (map fst (cvars ++ ovars)) -> bound_b b q = true)
     /\ (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> In (TypeArgument Model.invariant o x) zs \/ Qb x)
+    /\ (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> of_fragment x
+        /\ ((exists i S, nth_error cvars i = Some (q, S) /\ nth_error zs i = Some (TypeArgument Model.invariant o x))
+            \/ exists S, In (q, S) ovars /\ x = gfinal_of U q))
     /\ (forall p S, In (p, S) ovars -> Qb (gfinal_of U p)
         /\ forall C, In C (bound_components S) -> below (gfinal_of U p) (instantiate_free env b C))
     /\ (forall P A, In (P, A) (combine Ps As) -> below A (instantiate_free env b P)).
@@ -4671,6 +4701,10 @@ Proof.
     { intros q o x Eq. destruct (Hlb_in q _ Eq) as [[i [S [z [Hi [Hz Ez]]]]]|[S [Hin Ea]]].
       - left. rewrite Ez. exact (nth_error_In _ _ Hz).
       - right. injection Ea as _ ->. exact (Hqfin q S Hin). }
+    split.
+    { intros q o x Eq. split; [exact (Hbf q o x Eq)|]. destruct (Hlb_in q _ Eq) as [[i [S [z [Hi [Hz Ez]]]]]|[S [Hin Ea]]].
+      - left. exists i, S. split; [exact Hi|]. rewrite Ez. exact Hz.
+      - right. exists S. split; [exact Hin|]. injection Ea as _ Ex. exact Ex. }
     split.
     - (* the final values, within the static upper bounds *)
       intros p S Hin. split; [exact (Hqfin p S Hin)|]. intros C HC. destruct (Hfin p S Hin) as [st [HlU [He' [Hs [Ef [Hf Hfit]]]]]].

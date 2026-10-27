@@ -439,11 +439,10 @@ Qed.
 (* An intersection of types of generic code, as ofComponents makes it (the components flattened,
    without null, of the mutability they are assigned as in common), is one *)
 (* A value that may be null, other than a nullable type `X?`, is the value of a type parameter whose
-   bound is nullable, as Kotlin checks the values of type parameters against their bounds. The
-   theorems of instantiated generic code take it as a premise; that bound_in gives it is unproven
-   (coverage.md). Otherwise, the instance of an intersection with a type parameter of a non-null
-   bound among its components, `T & A?` with T bound to a P that may be null, keeps the nullability
-   of its components, and is no type of generic code. *)
+   bound is nullable, as the values are within their bounds (values_respected). Otherwise, the
+   instance of an intersection with a type parameter of a non-null bound among its components,
+   `T & A?` with T bound to a P that may be null, keeps the nullability of its components, and is no
+   type of generic code. *)
 Definition nullability_respected (p: TypeParameterId) (x: EType): Prop :=
     is_nullable env x = true -> is_nullable_type x = true \/ is_nullable env (Generic (mkGenericRef None false p [])) = true.
 
@@ -946,6 +945,108 @@ Proof.
     exact (caller_rewrap _ HI).
 Qed.
 
+Lemma is_nullable_to_generic: forall t, is_nullable env (to_generic t) = is_nullable env t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; cbn [to_generic is_nullable]; try reflexivity.
+    - exact (IH n).
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [map forallb]. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+(* A bound that isn't nullable has a component that isn't *)
+Lemma bound_components_not_nullable: forall S, is_nullable env S = false ->
+    exists C, In C (bound_components S) /\ is_nullable env C = false.
+Proof.
+    intros [m c args|n|g|me msg|v o n|g|cs] H; cbn [bound_components];
+        try (cbn [is_nullable] in H; discriminate H); try (eexists; split; [left; reflexivity|exact H]).
+    cbn [is_nullable] in H. revert H. induction cs as [|c cs IH]; intros H; [discriminate H|].
+    cbn [forallb] in H. destruct (is_nullable env c) eqn:Ec; [|exists c; split; [left; reflexivity|exact Ec]].
+    destruct (IH H) as [C [HC HnC]]. exists C. split; [right; exact HC|exact HnC].
+Qed.
+
+(*
+ * The values of type parameters of non-null bounds aren't nullable, where each is within its declared
+ * bound S, as Kotlin checks them: below it, below each of its components, or, a bound mentioning type
+ * variables, below the instance of each of its components. By the ranks of the type parameters: the
+ * type variables in a bound are of a lower rank than the type parameter bounded.
+ *)
+Lemma values_not_nullable: forall b, plain_values b ->
+    (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> of_fragment env declared x) ->
+    (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> exists S, to_generic S = parameter_bound env q
+        /\ ((gfrag env S = true /\ below env x S)
+            \/ (forall C, In C (bound_components S) -> gfrag env C = true /\ below env x C)
+            \/ (forall C, In C (bound_components S) -> pfrag env C = true /\ vars_in (bound_b b) C = true
+                /\ below env x (instantiate_free env b C)))) ->
+    forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) ->
+        is_nullable env (Generic (mkGenericRef None false q [])) = false -> is_nullable env x = false.
+Proof.
+    intros b Hpb Hbf Hform q. remember (parameter_rank env q) as r eqn:Er. revert q Er.
+    induction r as [r IH] using lt_wf_ind. intros q -> o x Eq Hnq.
+    destruct (Hform q o x Eq) as [S [ES Hcases]].
+    assert (HnS: is_nullable env S = false).
+    { rewrite <- is_nullable_to_generic, ES, <- (effective_bound_plain env ranked), <- (is_nullable_generic env ranked). exact Hnq. }
+    pose proof (Hbf q o x Eq) as Hx.
+    assert (Hacc: forall t, gfrag env t = true -> is_nullable env t = false -> below env x t -> is_nullable env x = false).
+    { intros t Ht Hnt [f Ef]. exact (accepted_not_nullable env wf declared declared_wf f t x [] Ht (proj1 Hx) Hnt Ef). }
+    destruct (bound_components_not_nullable S HnS) as [C [HC HnC]].
+    destruct Hcases as [[HgS HbS]|[Hcl|Hvar]].
+    - exact (Hacc S HgS HnS HbS).
+    - destruct (Hcl C HC) as [HgC HbC]. exact (Hacc C HgC HnC HbC).
+    - destruct (Hvar C HC) as [HCp [HvC [f Ef]]].
+      (* a component of the bound: of a lower rank *)
+      assert (Hr: ranked_below env (parameter_rank env q) (to_generic C) = true).
+      { pose proof (wf_bounds_ranked env wf q) as Hrk. rewrite <- ES in Hrk.
+        destruct S as [m c args|[m' c' a'|n'|g''|me' msg'|v' o' x'|g''|cs]|g'|me msg|v o' x'|g'|cs]; cbn [bound_components] in HC;
+            try (destruct HC as [<-|[]]; exact Hrk); cbn [to_generic ranked_below] in Hrk;
+            change (forallb (ranked_below env (parameter_rank env q)) (map to_generic cs) = true) in Hrk;
+            rewrite forallb_forall in Hrk.
+        - apply in_map_iff in HC. destruct HC as [c [<- Hc]]. exact (Hrk _ (in_map to_generic _ _ Hc)).
+        - exact (Hrk _ (in_map to_generic _ _ HC)). }
+      (* a type variable: the value of a type parameter of a lower rank, or without null *)
+      assert (Href: forall gm nn p, C = TypeVariable (mkGenericRef gm nn p []) -> is_nullable env x = false).
+      { intros gm nn p ->. cbn [vars_in] in HvC. rewrite andb_true_r in HvC. unfold bound_b in HvC.
+        destruct (lookup_binding b p) as [a|] eqn:Ea; [|discriminate HvC].
+        destruct (Hpb p a Ea) as [Hla [o' [x' [-> Hy]]]].
+        assert (Ei: instantiate_free env b (TypeVariable (mkGenericRef gm nn p [])) = ref_apply env gm nn x')
+            by (cbn [instantiate_free]; rewrite Ea; unfold final_argument; rewrite Hla, Hy; reflexivity).
+        rewrite Ei in Ef. apply (Hacc _ (proj1 (ref_apply_of_fragment env wf declared declared_wf gm nn x' (Hbf p o' x' Ea))));
+            [|exists f; exact Ef].
+        destruct nn.
+        - change (ref_apply env gm true x') with (without_null env (ref_apply env gm false x')).
+          exact (Generics.without_null_not_nullable env wf declared declared_wf _
+              (proj1 (ref_apply_of_fragment env wf declared declared_wf gm false x' (Hbf p o' x' Ea)))).
+        - cbn [to_generic ranked_below] in Hr. unfold rank_of in Hr. cbn [param_of] in Hr. apply Nat.ltb_lt in Hr.
+          assert (Hnp: is_nullable env (Generic (mkGenericRef None false p [])) = false).
+          { destruct gm as [m|]; [|exact HnC].
+            change (is_nullable env (TypeVariable (mkGenericRef (Some m) false p [])))
+                with (is_nullable env (Generic (mkGenericRef (Some m) false p []))) in HnC.
+            change (Generic (mkGenericRef (Some m) false p [])) with (with_mutability env m (Generic (mkGenericRef None false p []))) in HnC.
+            rewrite (is_nullable_with_mutability env wf) in HnC. exact HnC. }
+          pose proof (IH _ Hr p eq_refl o' x' Ea Hnp) as Hnx'.
+          destruct gm as [m|]; [cbn [ref_apply]; rewrite (is_nullable_with_mutability env wf)|]; exact Hnx'. }
+      destruct (pfrag_cases env C HCp) as [Hi|[[gm [nn [p [EC _]]]]|[gm [nn [p [-> _]]]]]].
+      + destruct (ifrag_cases env wf C Hi) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [EC _]]]]].
+        * cbn [instantiate_free] in Ef. exact (root_accepts_not_nullable env wf declared declared_wf f _ _ _ x [] (proj1 Hx) Ef).
+        * unfold bottom_type in Ef. cbn [instantiate_free] in Ef.
+          exact (root_accepts_not_nullable env wf declared declared_wf f _ _ _ x [] (proj1 Hx) Ef).
+        * cbn [is_nullable] in HnC. discriminate HnC.
+        * exact (Href None false p EC).
+      + exact (Href gm nn p EC).
+      + cbn [is_nullable] in HnC. discriminate HnC.
+Qed.
+
+Lemma values_respected: forall b, plain_values b ->
+    (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> of_fragment env declared x) ->
+    (forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> exists S, to_generic S = parameter_bound env q
+        /\ ((gfrag env S = true /\ below env x S)
+            \/ (forall C, In C (bound_components S) -> gfrag env C = true /\ below env x C)
+            \/ (forall C, In C (bound_components S) -> pfrag env C = true /\ vars_in (bound_b b) C = true
+                /\ below env x (instantiate_free env b C)))) ->
+    forall q o x, lookup_binding b q = Some (TypeArgument Model.invariant o x) -> nullability_respected q x.
+Proof.
+    intros b Hpb Hbf Hform q o x Eq Hn. destruct (is_nullable env (Generic (mkGenericRef None false q []))) eqn:E; [right; reflexivity|].
+    rewrite (values_not_nullable b Hpb Hbf Hform q o x Eq E) in Hn. discriminate Hn.
+Qed.
+
 End CallerTypes.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -1021,13 +1122,13 @@ Theorem member_call_in_generic_code_instantiated: forall ps sigma n mr c cvars o
     (forall p bound, In (p, bound) ovars -> caller_type env declared ps bound) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of env U (fst v)))) ovars ->
-    (* the values respect the nullability of the bounds, as Kotlin checks them (nullability_respected, unproven) *)
-    (forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> nullability_respected env p x) ->
+    (* the bounds: the declared ones *)
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> to_generic bound = parameter_bound env p) ->
     forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (inst env b P)) = Some true.
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hc Hca He Hids Hnd Hbounds Hfy Hrec
-        Hfo Hno Hcl Hobj Hzs Hxx Hzb HPs HPn HAs HQbounds Hfold b Hbdef Hnr P A HPA.
+        Hfo Hno Hcl Hobj Hzs Hxx Hzb HPs HPn HAs HQbounds Hfold b Hbdef Hdb P A HPA.
     destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates finite
         not_expansive intersect_in_fragment supertype_in_fragment intersect_below supertype_above
         (caller_type env declared ps) (caller_argument env declared ps) (caller_argument_nested env declared ps)
@@ -1038,7 +1139,13 @@ Proof.
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hxx Hzb HPs
         HPn HAs
         HQbounds Hfold) as [HQfin Hmain].
-    destruct (Hmain b Hbdef) as [[K0 HK0] [Hlook Hsound]].
+    destruct (Hmain b Hbdef) as [[K0 HK0] [Hlook [Hpbv [Hwb Hsound]]]].
+    (* the values, within their bounds, respect their nullability *)
+    assert (Hnr: forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> nullability_respected env p x).
+    { apply (values_respected env wf declared declared_wf b Hpbv).
+      - intros q o x Eq. destruct (Hwb q o x Eq) as [_ [_ [Hfx _]]]. exact Hfx.
+      - intros q o x Eq. destruct (Hwb q o x Eq) as [bound [Hin [_ Hbx]]]. exists bound. split; [exact (Hdb q bound Hin)|].
+        left. split; [exact (in_fragment_is_gfrag env _ (Hbounds q bound Hin))|exact Hbx]. }
     destruct (Hsound P A HPA) as [f0 Hf0].
     apply in_combine_l in HPA as HP. apply in_combine_r in HPA as HA.
     (* the type arguments of the object, as those of c *)
@@ -1114,8 +1221,10 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (forall p S st, In (p, S) ovars -> no_vars S = false -> lookup_state U p = Some st ->
         is_non_nullable_nothing env (lower_bound st) = false) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
-    (* the values respect the nullability of the bounds, as Kotlin checks them (nullability_respected, unproven) *)
-    (forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> nullability_respected env p x) ->
+    (* the bounds of the type parameters of c: the declared ones, and the type arguments of the object within them *)
+    (forall p S, In (p, S) cvars -> to_generic S = parameter_bound env p) ->
+    (forall i p S z, nth_error cvars i = Some (p, S) -> nth_error zs i = Some z ->
+        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f S x (Ongoing []) = Some (Ongoing [])) ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
         exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p))
             (instantiate env sigma (instantiate_free env b C)) = Some true)
@@ -1123,7 +1232,7 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcb Hst
-        Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hnr.
+        Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hcdecl Hzb.
     (* none of the type parameters of the caller is bound in b, nor so their ownerships *)
     assert (Hnone: forall q, In q ps -> lookup_binding b q = None).
     { intros q Hq. pose proof (Hdis q Hq) as Hn. rewrite map_app in Hn. rewrite Hbdef, lookup_app.
@@ -1142,7 +1251,7 @@ Proof.
         (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_nullable_component env declared ps)
         (caller_supertype_arguments env wf declared ps) supertype_bottom_only
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcb Hst Hfy Hrec Hfo Hobj Hzs Hxx HPs HPn Hfold Hlow
-        b Hbdef HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hfinal Hargs]]]].
+        b Hbdef HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hvx [Hfinal Hargs]]]]].
     (* the type arguments of the object, as those of c *)
     assert (Hzs': forall z, In z zs -> argument_in_fragment env z = true /\ nothing_is_bottom z = true /\ closed z = true).
     { pose proof (object_below env wf n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) as Hbe.
@@ -1165,6 +1274,25 @@ Proof.
       exact (classes_caller env declared ps (depth x) x (le_n _) Hfz Hnz Hcx). }
     assert (Hdomb': forall q, existsb (param_eqb q) (map fst (cvars ++ ovars)) = true -> bound_b b q = true).
     { intros q E. apply existsb_exists in E. destruct E as [q' [Hq' Eq]]. apply param_eqb_eq in Eq. subst q'. exact (Hdomb q Hq'). }
+    (* the values, within their bounds, respect their nullability *)
+    assert (Hnr: forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> nullability_respected env p x).
+    { apply (values_respected env wf declared declared_wf b Hpb).
+      - intros q o x Eq. exact (proj1 (Hvx q o x Eq)).
+      - intros q o x Eq. destruct (Hvx q o x Eq) as [_ [[i [S [Hi Hz]]]|[S [Hin ->]]]].
+        + exists S. split; [exact (Hcdecl q S (nth_error_In _ _ Hi))|]. left.
+          destruct (Hzb i q S _ Hi Hz) as [o' [x' [f [Ez Ef]]]]. injection Ez as <- <-.
+          split; [exact (in_fragment_is_gfrag env _ (Hcb q S (nth_error_In _ _ Hi)))|exists f; exact Ef].
+        + destruct (Hst q S Hin) as [ES [Hsv [Hcl' Hvar]]]. exists S. split; [exact ES|]. right.
+          destruct (Hfinal q S Hin) as [_ HbF]. destruct (no_vars S) eqn:Ens.
+          * left. intros C HC. destruct (Hcl' eq_refl) as [HfS HqS].
+            destruct (bound_component_of env wf declared declared_wf terminates finite not_expansive (caller_type env declared ps)
+                (caller_component env declared ps) (caller_nullable_component env declared ps) S C HfS HqS HC) as [HfC [HqC _]].
+            split; [exact (proj1 HfC)|]. pose proof (HbF C HC) as HbC.
+            rewrite (free_unmentioned env b Hpb C (proj1 HfC) (unmentioned env b C (proj1 HfC) (Hown C HqC))) in HbC. exact HbC.
+          * right. intros C HC. destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCp _].
+            split; [exact HCp|]. split; [|exact (HbF C HC)].
+            apply (vars_in_mono _ _ Hdomb').
+            apply (vars_in_mono _ _ (fun q E => proj2 (proj1 (andb_true_iff _ _) E)) _ (vars_in_bound_component _ S C Hsv HC)). }
     (* what unify accepts in generic code, instantiated *)
     assert (Hinst: forall x y, caller_type env declared ps x -> caller_type env declared ps y -> below env x y ->
         exists f, is_assignable_to env f (instantiate env sigma x) (instantiate env sigma y) = Some true).
