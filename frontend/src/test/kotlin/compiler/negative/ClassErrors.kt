@@ -40,6 +40,7 @@ import compiler.diagnostic.UndeclaredOverrideDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
+import compiler.diagnostic.UnsupportedFeatureDiagnostic
 import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Keyword
@@ -156,7 +157,38 @@ class ClassErrors : FreeSpec({
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
 
-        "decorated members".config(enabled = false) - {
+        "decorated members" - {
+            // the constructor doesn't tie the mutability of the object to that of a decorated value typed as a type
+            // parameter (T & _M is read T & read _M), nor to a const one when the object is assigned to a mut
+            // reference right away, and writes to decorated members don't take the mutability of the object
+            "are not supported yet" - {
+                "of a class type" {
+                    validateModule("""
+                        class X {}
+                        class W {
+                            decorates value: X = init
+                        }
+                        fn make(c: const X) -> mut W {
+                            return W(c)
+                        }
+                    """.trimIndent())
+                        .shouldFind<UnsupportedFeatureDiagnostic>()
+                }
+
+                "of a type parameter" {
+                    validateModule("""
+                        class X {}
+                        class Holder<T> {
+                            decorates value: T = init
+                        }
+                        fn leak(h: mut Holder<const X>) -> mut X {
+                            return h.value
+                        }
+                    """.trimIndent())
+                        .shouldFind<UnsupportedFeatureDiagnostic>()
+                }
+            }
+
             "duplicate decorates keyword" {
                 validateModule("""
                     interface A {}
@@ -183,7 +215,7 @@ class ClassErrors : FreeSpec({
                     }
             }
 
-            "decorates combined with non-read type".config(enabled = false) - {
+            "decorates combined with non-read type" - {
                 "with mut" {
                     validateModule("""
                         class A {}
@@ -198,7 +230,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class A {}
                         class Test {
-                            decorates n: mut A = init
+                            decorates n: const A = init
                         }
                     """.trimIndent())
                         .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
@@ -221,7 +253,7 @@ class ClassErrors : FreeSpec({
                             decorates n: N = init
                         }
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
+                        .shouldNotFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
                 }
             }
 

@@ -245,6 +245,13 @@ fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar
     add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.entryDeclaration, memberVar.attributes.firstDecoratesAttribute!!))
 }
 
+fun Diagnosis.decoratedMemberVariablesNotSupported(memberVar: BoundBaseTypeMemberVariable) {
+    add(UnsupportedFeatureDiagnostic(
+        "Decorated member variables are not supported yet: the mutability of the object isn't tied soundly to that of the decorated value",
+        memberVar.attributes.firstDecoratesAttribute!!.span,
+    ))
+}
+
 fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
     add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
         memberVar.entryDeclaration,
