@@ -49,6 +49,19 @@ internal fun SoftwareContext.parseType(
     return boundType
 }
 
+/**
+ * [parseType] within [baseType], so its type parameters can be referred to
+ */
+internal fun SoftwareContext.parseTypeIn(
+    baseType: String,
+    type: String,
+    module: String = "testmodule",
+): BoundTypeReference {
+    val astType = parse(type, Type)
+    val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
+    return moduleCtx.sourceFiles.first().context.resolveBaseType(baseType).first().typeRootContext.resolveType(astType)
+}
+
 internal fun SoftwareContext.parseTypeArgument(
     typeArgument: String,
     module: String = "testmodule",

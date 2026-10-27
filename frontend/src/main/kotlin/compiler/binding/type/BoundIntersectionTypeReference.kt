@@ -230,7 +230,9 @@ class BoundIntersectionTypeReference private constructor(
         }
 
         val astComponents = components.map { it.asAstReference() as NamedTypeReference }
-        return AstIntersectionType(astComponents, Span.range(*astComponents.map { it.span }.toTypedArray()) ?: Span.UNKNOWN)
+        // components can come from different source files, of which there is no range
+        val spans = astComponents.mapNotNull { it.span }.takeIf { spans -> spans.map { it.sourceFile }.distinct().size == 1 }
+        return AstIntersectionType(astComponents, spans?.let { Span.range(*it.toTypedArray()) } ?: Span.UNKNOWN)
     }
 
     /**
