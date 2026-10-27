@@ -673,8 +673,14 @@ Proof.
     destruct (afrag_parts env a Ha) as [Hcf Hcn].
     destruct (fragment_cases env a Hcf) as [[ma [ca [aargs Ea]]]|[ma [ca [aargs [Ea _]]]]]; subst a.
     2:{ (* a nullable assignee, for a non-null intersection *)
-        rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. discriminate H. }
-    rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. cbv zeta in H.
+        assert (Hwn: is_nullable env (Intersection (map w cs)) = false).
+        { destruct cs as [|C0 cs0]; [simpl in Hlen; lia|]. apply (intersection_not_nullable env (map w (C0 :: cs0)) (w C0) (or_introl eq_refl)).
+          unfold w. rewrite (proj1 (proj2 (with_mutability_keeps env ranked _ _))).
+          destruct (Hcase C0 (or_introl eq_refl)) as [[m [cl [args ->]]]|[gm [nn [q [-> Hq]]]]].
+          - unfold with_candidate. cbn [instantiate]. reflexivity.
+          - rewrite (proj1 (candidate_reference p c gm nn q Hq)). exact (Hnull _ (or_introl eq_refl)). }
+        rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. rewrite Hwn in H. discriminate H. }
+    rewrite unify_step_once in H. unfold unify_step, unify_intersection, intersection_body in H. cbv zeta in H.
     (* what the components take *)
     set (Sound := fun C u => forall b K, bound_in env b K [] (to_generic (with_candidate env p c C)) = true ->
         satisfies b u -> exists f, unify env f (inst env b (with_candidate env p c C))
@@ -986,8 +992,14 @@ Proof.
     destruct (afrag_parts env a Ha) as [Hcf Hcn].
     destruct (fragment_cases env a Hcf) as [[ma [ca [aargs Ea]]]|[ma [ca [aargs [Ea _]]]]]; subst a.
     2:{ (* a nullable argument, for a non-null intersection *)
-        rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. discriminate H. }
-    rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. cbv zeta in H.
+        destruct (components_sfrag_facts env _ Hcs) as [Hlen Hcomp]. rewrite length_map in Hlen.
+        assert (Hin: is_nullable env (Intersection cs) = false).
+        { destruct cs as [|C0 cs0]; [simpl in Hlen; lia|]. apply (intersection_not_nullable env (C0 :: cs0) C0 (or_introl eq_refl)).
+          destruct (Hcomp _ (in_map to_generic (C0 :: cs0) C0 (or_introl eq_refl))) as [Hsh _]. unfold is_component_shape in Hsh.
+          apply andb_true_iff in Hsh. destruct Hsh as [_ Hsh]. apply negb_true_iff in Hsh.
+          destruct (Hcase C0 (or_introl eq_refl)) as [[m [cl [args ->]]]|[gm [nn [q ->]]]]; [reflexivity|exact Hsh]. }
+        rewrite unify_step_once in H. unfold unify_step, unify_intersection in H. rewrite Hin in H. discriminate H. }
+    rewrite unify_step_once in H. unfold unify_step, unify_intersection, intersection_body in H. cbv zeta in H.
     (* what the components take *)
     set (Sound := fun C u => forall b K, bound_in env b K [] (to_generic C) = true ->
         satisfies b u -> exists f, unify env f (inst env b C) (RootResolved ma ca aargs) (Ongoing []) = Some (Ongoing [])).

@@ -201,7 +201,7 @@ Fixpoint is_nullable_h (t: EType): bool :=
     | Generic g | TypeVariable g => h_nullable H g
     | Error _ _ => false
     | TypeArgument _ _ n => is_nullable_h n
-    | Intersection _ => false
+    | Intersection components => forallb is_nullable_h components
     end.
 
 Fixpoint base_type_of_lower_bound_h (t: EType): Class :=
@@ -217,7 +217,7 @@ Fixpoint base_type_of_lower_bound_h (t: EType): Class :=
 Definition is_effectively_bottom_type_h (components: list EType): bool :=
     exists_unordered_pair
         (fun a b => negb (has_same_base_type_as a b))
-        (filter (fun c => negb (allows_subtypes (base_type_of_lower_bound_h c))) components).
+        (filter (fun c => negb (is_nullable_h c) && negb (allows_subtypes (base_type_of_lower_bound_h c))) components).
 
 Fixpoint is_non_nullable_nothing_h (t: EType): bool :=
     match t with
@@ -235,6 +235,8 @@ Fixpoint without_null_h (t: EType): EType :=
     | Nullable n => without_null_h n
     | Generic (mkGenericRef gm nn p vs) => Generic (mkGenericRef gm (nn || h_nullable H (mkGenericRef gm nn p vs)) p vs)
     | TypeArgument v o n => TypeArgument v o (without_null_h n)
+    | Intersection components =>
+        if forallb is_nullable_h components then Intersection (map without_null_h components) else t
     | _ => t
     end.
 
@@ -348,7 +350,7 @@ Fixpoint is_nullable (t: EType): bool :=
     | Generic g | TypeVariable g => ref_nullable g
     | Error _ _ => false
     | TypeArgument _ _ n => is_nullable n
-    | Intersection _ => false
+    | Intersection components => forallb is_nullable components
     end.
 
 (* BoundTypeReference.baseTypeOfLowerBound *)
@@ -363,11 +365,11 @@ Fixpoint base_type_of_lower_bound (t: EType): Class :=
     end.
 
 (* BoundIntersectionTypeReference.simplifyIsEffectivelyBottomType: two unrelated classes have no
-   common subtype *)
+   common subtype; null is one of two nullable components *)
 Definition is_effectively_bottom_type (components: list EType): bool :=
     exists_unordered_pair
         (fun a b => negb (has_same_base_type_as a b))
-        (filter (fun c => negb (allows_subtypes (base_type_of_lower_bound c))) components).
+        (filter (fun c => negb (is_nullable c) && negb (allows_subtypes (base_type_of_lower_bound c))) components).
 
 (* BoundTypeReference.isNonNullableNothing *)
 Fixpoint is_non_nullable_nothing (t: EType): bool :=
@@ -386,12 +388,15 @@ Fixpoint is_non_nullable_nothing (t: EType): bool :=
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* BoundTypeReference.withCombinedNullability(NOT_NULLABLE): `V!` for a type parameter V, which
-   narrows the reference where the bound is nullable *)
+   narrows the reference where the bound is nullable; an intersection that may be null narrows its
+   components *)
 Fixpoint without_null (t: EType): EType :=
     match t with
     | Nullable n => without_null n
     | Generic (mkGenericRef gm nn p vs) => Generic (mkGenericRef gm (nn || ref_nullable (mkGenericRef gm nn p vs)) p vs)
     | TypeArgument v o n => TypeArgument v o (without_null n)
+    | Intersection components =>
+        if forallb is_nullable components then Intersection (map without_null components) else t
     | _ => t
     end.
 
@@ -493,16 +498,24 @@ Definition intersected_components (t: EType): list EType :=
     | _ => [t]
     end.
 
-(* BoundIntersectionTypeReference.ofComponents, without simplifying: the components non-null, of
-   their common mutability; nullable iff all of them are. That is the mutability they are assigned as
-   in common: exclusive, where one of them is a const class, as the values are its objects. *)
+(* BoundIntersectionTypeReference.ofComponents, without simplifying: the components of their common
+   mutability, the mutability they are assigned as in common: exclusive, where one of them is a const
+   class, as the values are its objects. Where one of them isn't nullable, neither is the
+   intersection, and its components are non-null; where all of them are `X?`, it is the nullable
+   intersection of them non-null. Otherwise some of them may be null only as their instance may be, a
+   type parameter of a nullable bound, and the components keep their nullability: null is a value
+   where it is one of each. *)
+Definition is_nullable_type (t: EType): bool := match t with Nullable _ => true | _ => false end.
+
 Definition of_components (components: list EType): EType :=
     match components with
     | [component] => component
     | _ =>
         let m := fold_left intersect_mutability (map assignment_mutability components) readonly in
         let non_nullable := Intersection (map (fun c => with_mutability m (without_null c)) components) in
-        if forallb is_nullable components then Nullable non_nullable else non_nullable
+        if negb (forallb is_nullable components) then non_nullable else
+        if forallb is_nullable_type components then Nullable non_nullable else
+        Intersection (map (with_mutability m) components)
     end.
 
 (* instantiate, taking what a reference to a type parameter without a binding becomes from unbound *)
@@ -1091,8 +1104,9 @@ Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states
     match assignee with
     | Nullable assignee_nested => unify nested assignee_nested (Ongoing states)
     | TypeArgument v _ type => unify self (read_type v type) (Ongoing states)
-    (* null is taken care of: what's left is whether `V!` is a subtype of nested *)
-    | Generic _ => unify nested (without_null assignee) (Ongoing states)
+    (* null is taken care of: what's left is whether `V!`, or the intersection without null, is a
+       subtype of nested *)
+    | Generic _ | Intersection _ => unify nested (without_null assignee) (Ongoing states)
     | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     | _ => unify nested assignee (Ongoing states)
     end.
@@ -1213,16 +1227,10 @@ Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypePa
  * BoundIntersectionTypeReference.unify. Types are seen as the promises a value makes to its users:
  * before unifying the type variables among the components, the promises already covered by the
  * other components are subtracted from the assignee, so as not to force the variables into a
- * needlessly narrow corner.
+ * needlessly narrow corner. The components that aren't type variables take the assignee; those that
+ * are what the others don't cover of it, or the assignee itself.
  *)
-Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
-    match assignee with
-    | Nullable nested =>
-        (* a possibly null value to a non-null reference *)
-        if negb (is_nullable self) then Some Failed else unify self nested (Ongoing states)
-    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
-    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
-    | _ =>
+Definition intersection_body (unify: UnifyFn) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
         let var_components := filter is_type_variable components in
         let non_var_components := filter (fun c => negb (is_type_variable c)) components in
         let* carry2 := fold_unify (fun inner component => unify component assignee inner) non_var_components (Ongoing states) in
@@ -1250,7 +1258,16 @@ Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list E
                 | Some Failed => unify component assignee inner
                 | r => r
                 end) var_components (Ongoing states3)
-        end
+        end.
+
+Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
+    match assignee with
+    (* a possibly null value to a non-null reference; to one that may be null, the components, which
+       keep their nullability, take it *)
+    | Nullable _ => if negb (is_nullable self) then Some Failed else intersection_body unify components assignee states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
+    | _ => intersection_body unify components assignee states
     end.
 
 (* BoundTypeReference.unify, dispatching on the class of the target *)
@@ -1289,6 +1306,21 @@ Definition is_assignable_to (fuel: nat) (sub super: EType): option bool :=
 Lemma unify_keeps_failure: forall fuel target assignee,
     unify fuel target assignee Failed = Some Failed.
 Proof. intros [|fuel] target assignee; reflexivity. Qed.
+
+(* An intersection with a component that can't be null can't be either: it takes no nullable value *)
+Lemma intersection_not_nullable: forall cs c, In c cs -> is_nullable c = false -> is_nullable (Intersection cs) = false.
+Proof.
+    intros cs c Hc Hn. cbn [is_nullable]. destruct (forallb is_nullable cs) eqn:E; [|reflexivity].
+    rewrite forallb_forall in E. rewrite (E c Hc) in Hn. discriminate Hn.
+Qed.
+
+Lemma without_null_not_nullable_intersection: forall cs, is_nullable (Intersection cs) = false ->
+    without_null (Intersection cs) = Intersection cs.
+Proof. intros cs H. cbn [is_nullable] in H. cbn [without_null]. rewrite H. reflexivity. Qed.
+
+Lemma unify_not_nullable_intersection: forall fuel cs n s, is_nullable (Intersection cs) = false ->
+    unify (S fuel) (Intersection cs) (Nullable n) (Ongoing s) = Some Failed.
+Proof. intros fuel cs n s H. cbn [unify unify_step unify_intersection]. rewrite H. reflexivity. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* More fuel never changes an answer                                                               *)
@@ -1443,7 +1475,7 @@ Section StepRefines.
         - unfold unify_erroneous in *. solve_step H.
         - unfold unify_type_argument in *. solve_step H.
         - unfold unify_type_variable in *. solve_step H.
-        - unfold unify_intersection in *. solve_step H.
+        - unfold unify_intersection, intersection_body in *. solve_step H.
     Qed.
 End StepRefines.
 
@@ -1635,7 +1667,16 @@ Qed.
 Lemma is_nullable_h_agree: forall t, ranked_below k t = true -> is_nullable_h H1 t = is_nullable_h H2 t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
-        exact (proj1 (proj2 (proj2 (proj2 (Ha g (ref_ranked k g H)))))).
+        try exact (proj1 (proj2 (proj2 (proj2 (Ha g (ref_ranked k g H)))))).
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma forallb_is_nullable_h_agree: forall cs, forallb (ranked_below k) cs = true ->
+    forallb (is_nullable_h H1) cs = forallb (is_nullable_h H2) cs.
+Proof.
+    induction cs as [|c cs IHc]; intros H; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+    rewrite (is_nullable_h_agree c Hc), (IHc Hcs). reflexivity.
 Qed.
 
 Lemma base_type_of_lower_bound_h_agree: forall t, ranked_below k t = true -> base_type_of_lower_bound_h H1 t = base_type_of_lower_bound_h H2 t.
@@ -1655,7 +1696,7 @@ Proof.
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
     - unfold is_effectively_bottom_type_h. f_equal. clear IH.
       induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-      rewrite (base_type_of_lower_bound_h_agree c Hc), (IHc Hcs). reflexivity.
+      rewrite (is_nullable_h_agree c Hc), (base_type_of_lower_bound_h_agree c Hc), (IHc Hcs). reflexivity.
 Qed.
 
 Lemma with_mutability_h_ranked: forall H m t, ranked_below k t = true -> ranked_below k (with_mutability_h H m t) = true.
@@ -1683,7 +1724,13 @@ Proof.
 Qed.
 
 Lemma without_null_h_ranked: forall H t, ranked_below k t = true -> ranked_below k (without_null_h H t) = true.
-Proof. intros H. fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try exact Ht; exact (IH n Ht). Qed.
+Proof.
+    intros H. fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try exact Ht;
+        try exact (IH n Ht).
+    destruct (forallb (is_nullable_h H) cs); [|exact Ht]. simpl.
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
 
 Lemma without_null_h_agree: forall t, ranked_below k t = true -> without_null_h H1 t = without_null_h H2 t.
 Proof.
@@ -1691,6 +1738,9 @@ Proof.
     - exact (IH n Ht).
     - rewrite (proj1 (proj2 (proj2 (proj2 (Ha _ (ref_ranked k _ Ht)))))). reflexivity.
     - rewrite (IH n Ht). reflexivity.
+    - rewrite (forallb_is_nullable_h_agree cs Ht). destruct (forallb (is_nullable_h H2) cs); [|reflexivity].
+      f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
 End Agree.
@@ -2045,7 +2095,10 @@ Proof.
       assert (Ea: map assignment_mutability (map (with_type_variables_in ws) cs) = map assignment_mutability cs).
       { clear -Hall. induction cs as [|c cs IHc]; [reflexivity|]. simpl. pose proof (Hall c (or_introl eq_refl)) as E.
         unfold plain_properties in E. injection E as _ E _ _. rewrite E, IHc; [reflexivity|]. intros c' Hc'. apply Hall. right. exact Hc'. }
-      rewrite Etc, Em, Ea. reflexivity.
+      assert (En: forallb is_nullable (map (with_type_variables_in ws) cs) = forallb is_nullable cs).
+      { clear -Hall. induction cs as [|c cs IHc]; [reflexivity|]. simpl. pose proof (Hall c (or_introl eq_refl)) as E.
+        unfold plain_properties in E. injection E as _ _ E _. rewrite E, IHc; [reflexivity|]. intros c' Hc'. apply Hall. right. exact Hc'. }
+      rewrite Etc, Em, Ea, En. reflexivity.
 Qed.
 
 (* A reference as written, `T`, without type variables: the bound of the parameter *)
@@ -2059,6 +2112,7 @@ Proof.
     - discriminate H.
     - rewrite H, orb_false_r. reflexivity.
     - rewrite (IH n H). reflexivity.
+    - rewrite H. reflexivity.
 Qed.
 
 Lemma without_null_twice_any: forall t, without_null (without_null t) = without_null t.
@@ -2068,6 +2122,10 @@ Proof.
     - destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable (mkGenericRef gm false p vs)) eqn:E; [reflexivity|].
       rewrite E. reflexivity.
     - rewrite (IH n). reflexivity.
+    - destruct (forallb is_nullable cs) eqn:E; cbn [without_null]; [|rewrite E; reflexivity].
+      assert (Em: map without_null (map without_null cs) = map without_null cs).
+      { clear E. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity. }
+      destruct (forallb is_nullable (map without_null cs)); [rewrite Em|]; reflexivity.
 Qed.
 
 (* `T!` has the bound of T without null, where T has no type variables *)
@@ -2098,6 +2156,9 @@ Proof.
       destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable _); [|reflexivity].
       apply (IHk _ (ref_ranked k _ Hk)). exact (adjusted_bound_ranked (mkGenericRef gm false p vs)).
     - exact (IH n Hk).
+    - cbn [without_null]. destruct (forallb is_nullable cs); [|reflexivity]. cbn [top_const].
+      clear IHk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk |- *. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
 (* Applying a mutability keeps whether a type is const, and whether it is nullable, with `!` or not *)
@@ -2149,12 +2210,23 @@ Proof.
           by (intros gm'; split; reflexivity).
       destruct (Href (Some m) gm nn p vs Hg) as [Ht [Hn _]]. cbn [with_mutability without_null].
       destruct (E (Some m)) as [E1 E2]. destruct (E gm) as [E3 E4]. rewrite E1, E2, E3, E4. repeat split; assumption.
-    - cbn [with_mutability top_const is_nullable without_null]. split; [|split; reflexivity].
+    - cbn [with_mutability].
       generalize (fold_left intersect_mutability (map (fun c => assignment_mutability (with_mutability m c)) cs) readonly).
-      intros m'. simpl in Hk. clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk |- *.
-      apply andb_true_iff in Hk. destruct Hk as [Hc Hcs]. rewrite (proj1 (IH m' c Hc)), (IHc Hcs). reflexivity.
+      intros m'. simpl in Hk. clear -IH Hk.
+      assert (Hl: existsb top_const (map (with_mutability m') cs) = existsb top_const cs
+          /\ forallb is_nullable (map (with_mutability m') cs) = forallb is_nullable cs
+          /\ forallb is_nullable (map without_null (map (with_mutability m') cs)) = forallb is_nullable (map without_null cs)).
+      { induction cs as [|c cs IHc]; [repeat split|]. simpl in Hk |- *. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+        destruct (IH m' c Hc) as [E1 [E2 E3]]. destruct (IHc Hcs) as [F1 [F2 F3]]. rewrite E1, E2, E3, F1, F2, F3. repeat split. }
+      destruct Hl as [E1 [E2 E3]]. cbn [top_const is_nullable without_null]. rewrite E1, E2.
+      split; [reflexivity|]. split; [reflexivity|].
+      destruct (forallb is_nullable cs) eqn:Eb; cbn [is_nullable]; [exact E3|rewrite E2, Eb; reflexivity].
 Qed.
 
 End Equations.
 
 End Subtyping.
+
+(* Splits on whether the components of an intersection may be null, where without_null asks it *)
+Ltac split_nullable_components :=
+    cbn [without_null with_mutability rewrap_nullable]; repeat match goal with |- context [if ?b then _ else _] => destruct b end.

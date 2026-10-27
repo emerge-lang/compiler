@@ -22,23 +22,28 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
+/**
+ * Its values are those of every component. Whether null is one of them, [ofComponents] decides once:
+ * * if a component is non-nullable, so is the intersection, and its components are non-nullable
+ * * if every component is nullable (`A?`), the object structure is `NullableTypeReference(IntersectionTypeReference)`,
+ *   with non-nullable components
+ * * otherwise some components are nullable only in so far as their instance is, as a type parameter of a nullable
+ *   bound (`A? & T` with `T : Any?`): then the components keep their nullability, and so null is one of the values
+ *   exactly where it is one of each component. [isNullable] says it may be, as it does of the type parameter.
+ */
 class BoundIntersectionTypeReference private constructor(
     override val context: CTContext,
     val astNode: AstIntersectionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
     init {
-        check(components.none { it.isNullable }) {
-            """
-                if only some components are nullable the intersection type is still not nullable.
-                if all components are nullable, the canonical object structure is NullableTypeReference(IntersectionTypeReference),
-                which leaves all the components to the intersection as non-nullable
-            """.trimIndent()
+        check(components.none { it.isNullable } || (components.all { it.isNullable } && !components.all { it is NullableTypeReference })) {
+            "the nullability of an intersection is decided in ${Companion::ofComponents.name}"
         }
     }
 
     override val span = astNode?.span
-    override val isNullable get()= false
+    override val isNullable get()= components.all { it.isNullable }
     override val mutability: TypeMutability = if (components.any { it.isOfConstClass }) {
         TypeMutability.IMMUTABLE
     } else {
@@ -86,8 +91,8 @@ class BoundIntersectionTypeReference private constructor(
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return when (nullability) {
-            TypeReference.Nullability.UNSPECIFIED,
-            TypeReference.Nullability.NOT_NULLABLE -> this
+            TypeReference.Nullability.UNSPECIFIED -> this
+            TypeReference.Nullability.NOT_NULLABLE -> if (isNullable) mapComponents { it.withCombinedNullability(nullability) } else this
             TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
         }
     }
@@ -126,15 +131,13 @@ class BoundIntersectionTypeReference private constructor(
         assignmentLocation: Span,
         carry: TypeUnification,
     ): TypeUnification {
+        if (assigneeType is NullableTypeReference && !this.isNullable) {
+            return carry.plusDiagnostic(
+                ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
+            )
+        }
+        // a nullable assignee is left to the components, which keep their nullability
         when (assigneeType) {
-            is NullableTypeReference -> {
-                if (!this.isNullable) {
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
-                    )
-                }
-                return unify(assigneeType.nested, assignmentLocation, carry)
-            }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             else -> {
@@ -335,24 +338,31 @@ class BoundIntersectionTypeReference private constructor(
             simplify: Boolean = false,
         ): BoundTypeReference {
             components.singleOrNull()?.let { return it }
-            val isNullable = nullabilityOfComponents(components)
+            val nullability = nullabilityOfComponents(components)
             val mutability = mutabilityOfComponents(components)
-            var nonNullableIntersection: BoundTypeReference = BoundIntersectionTypeReference(
+            var intersection: BoundTypeReference = BoundIntersectionTypeReference(
                 context,
                 ref,
                 components.map {
                     it
-                        .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+                        .withCombinedNullability(if (nullability == TypeReference.Nullability.UNSPECIFIED) nullability else TypeReference.Nullability.NOT_NULLABLE)
                         .withMutability(mutability)
                 },
             )
             if (simplify) {
-                nonNullableIntersection = (nonNullableIntersection as BoundIntersectionTypeReference).simplify()
+                intersection = (intersection as BoundIntersectionTypeReference).simplify()
             }
-            return if (isNullable) NullableTypeReference(nonNullableIntersection) else nonNullableIntersection
+            return if (nullability == TypeReference.Nullability.NULLABLE) NullableTypeReference(intersection) else intersection
         }
 
-        private fun nullabilityOfComponents(components: Iterable<BoundTypeReference>): Boolean = components.all { it.isNullable }
+        /**
+         * [TypeReference.Nullability.UNSPECIFIED] where the components keep their nullability, see [BoundIntersectionTypeReference]
+         */
+        private fun nullabilityOfComponents(components: Iterable<BoundTypeReference>): TypeReference.Nullability = when {
+            components.any { !it.isNullable } -> TypeReference.Nullability.NOT_NULLABLE
+            components.all { it is NullableTypeReference } -> TypeReference.Nullability.NULLABLE
+            else -> TypeReference.Nullability.UNSPECIFIED
+        }
         private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.assignmentMutability }.reduce(TypeMutability::intersect)
 
         private val BoundTypeReference.isOfConstClass: Boolean
@@ -413,7 +423,7 @@ class BoundIntersectionTypeReference private constructor(
 
         private fun simplifyIsEffectivelyBottomType(components: List<BoundTypeReference>): Boolean {
             return components
-                .filterNot { it.baseTypeOfLowerBound.kind.allowsSubtypes }
+                .filterNot { it.isNullable || it.baseTypeOfLowerBound.kind.allowsSubtypes }
                 .twoElementPermutationsUnordered()
                 .filter { (a, b) -> !a.hasSameBaseTypeAs(b) }
                 .any()

@@ -727,6 +727,13 @@ Proof.
       destruct vs as [|w ws]; [exact (Hsame us)|]. unfold with_type_variables. cbn [with_type_variables_in].
       destruct (existsb (param_eqb p) (w :: ws)); [reflexivity|]. exact (Hsame (us ++ w :: ws)).
     - clear IH. destruct vs; reflexivity.
+    - assert (Hl: forall xs, can_refer_to_object (with_type_variables vs (Intersection xs))
+          = forallb (fun c => can_refer_to_object (with_type_variables vs c)) xs).
+      { clear. intros xs. destruct vs as [|w ws]; [reflexivity|]. cbn [with_type_variables with_type_variables_in can_refer_to_object].
+        induction xs as [|x xs IHx]; [reflexivity|]. cbn [map forallb]. rewrite IHx. reflexivity. }
+      cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      rewrite !Hl. simpl in Hk. clear IHk Hl. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk.
+      apply andb_true_iff in Hk. destruct Hk as [Hc Hcs]. cbn [map forallb]. rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
 Lemma without_null_keeps: forall t,
@@ -745,6 +752,14 @@ Proof.
       apply (IHk _ (ref_ranked env k _ Hk)).
       exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
     - simpl. rewrite (IH n Hk). reflexivity.
+    - cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      simpl in Hk. clear IHk. cbn [mutability_of].
+      assert (Ht: existsb (top_const env) (map (without_null env) cs) = existsb (top_const env) cs).
+      { clear IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map existsb]. rewrite (top_const_without_null env ranked c), IHc. reflexivity. }
+      assert (Hm: map (mutability_of env) (map (without_null env) cs) = map (mutability_of env) cs).
+      { clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+        cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)]. }
+      rewrite Ht, Hm. reflexivity.
 Qed.
 
 Lemma without_null_keeps_assignment_mutability: forall t,
@@ -762,6 +777,10 @@ Proof.
       apply (IHk _ (ref_ranked env k _ Hk)).
       exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
     - exact (IH n Hk).
+    - cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      simpl in Hk. clear IHk. cbn [assignment_mutability]. f_equal.
+      clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+      cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)].
 Qed.
 
 Lemma generic_mutability_below_bound: forall g,
@@ -946,7 +965,10 @@ Proof.
           change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
           eapply IH; [exact Hu|exact Ht|]. rewrite <- can_refer_generic. exact Ha. }
         destruct tn as [| |[]| | | |]; first [exact (Hnested H) | exact (Hself H)].
-      + eapply IH; eassumption.
+      + (* the assignee without null, unified with the nested type *)
+        destruct (without_null_keeps (Intersection acs)) as [_ Hc].
+        rewrite <- (without_null_keeps_assignment_mutability (Intersection acs)).
+        eapply IH; [exact H|exact Ht|rewrite Hc; exact Ha].
     - (* Generic *)
       cbv beta iota delta [unify_generic] in H.
       destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
@@ -959,7 +981,7 @@ Proof.
         eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Intersection *)
-      cbv beta iota zeta delta [unify_intersection] in H.
+      cbv beta iota zeta delta [unify_intersection intersection_body] in H.
       destruct (no_type_variables _ Ht) as [Hvar Hnonvar].
       assert (Hcomponents: forall s', fold_unify (fun inner c => unify env fuel c assignee inner) tcs (Ongoing states) = Some (Ongoing s') ->
           is_subtype_of (assignment_mutability env assignee) (assignment_mutability env (Intersection tcs)) = true).
@@ -970,6 +992,7 @@ Proof.
         eapply IH; [exact Hu| |exact Ha]. rewrite forallb_forall in Ht. apply Ht, Hc. }
       destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha;
           try (simpl in H; discriminate H);
+          try (destruct (negb (is_nullable env (Intersection tcs))); [discriminate H|]);
           rewrite Hnonvar in H;
           (destruct (fold_unify _ tcs (Ongoing states)) as [[s2|]|] eqn:Efold; try discriminate H);
           eapply Hcomponents; reflexivity.

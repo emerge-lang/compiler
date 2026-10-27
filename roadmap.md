@@ -289,9 +289,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
     object. Three things broke that:
     * a member typed as a type parameter of the class got no such parameter (it's "already generic"), so
-      `mut Holder<const X>` could be constructed from a `const X` and its member read as `mut X`. Tying it can't work
-      as an intersection: since intersections have one common mutability, `T & _M` is `read T & read _M`, which isn't
-      assignable to the member typed `T`. That is likely why the shortcut was added
+      `mut Holder<const X>` could be constructed from a `const X` and its member read as `mut X`. Tying it like the
+      others, through a parameter typed `T & _M`, is rejected: assigning that parameter to the member typed `T`
+      reports "cannot be proven to be a subtype of T". Not because of the common mutability of intersections (`read T`
+      instantiates to the instance of `T` met with `read`, so it is `T` for a read bound); not looked into yet, but
+      likely why the shortcut was added
     * a constructor call assigned to a `mut W` right away (`w: mut W = W(constX)`) is accepted, where the same
       signature as an intrinsic function (`fn ctor<_M, _V : X & _M>(v: _V) -> W & _M`) isn't; not looked into yet
     * writes to a decorated `var` member take the declared type, not the mutability of the object: a `read X` can

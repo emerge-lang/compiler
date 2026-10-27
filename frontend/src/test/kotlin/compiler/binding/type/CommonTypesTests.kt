@@ -54,12 +54,35 @@ class CommonTypesTests : FreeSpec({
         }
     }
 
-    // fails: ofComponents counts a type parameter of a nullable bound as nullable, so `Any? & P` and `P & P` are `P?`,
-    // which isn't below `P`; as an upper bound in inference, that lets null into a `Box<P>`. Pending a decision on the fix
-    "the intersection is below both types".config(enabled = false) {
+    "the intersection is below both types" {
         val violations = violationsOf { a, b ->
             val intersection = a.intersect(b)
             intersection.takeUnless { it.isBelow(a) && it.isBelow(b) }?.toString()
+        }
+        withClue(violations.joinToString("\n")) {
+            violations.shouldBeEmpty()
+        }
+    }
+
+    // the type parameters of Ctx, bound in ways that tell their mutability and nullability apart
+    val instantiations = listOf(
+        "Ctx<mut A, mut C, A?>",
+        "Ctx<const A, C, mut C>",
+        "Ctx<A?, const A, const C?>",
+        "Ctx<exclusive C, exclusive C, exclusive Nothing?>",
+        "Ctx<mut Box<A>?, mut A, mut A?>",
+    ).map { it to swCtx.parseType(it).inherentTypeBindings }
+
+    "the instance of the intersection is below the instances of both types" {
+        val violations = instantiations.flatMap { (ctxStr, bindings) ->
+            violationsOf { a, b ->
+                val intersection = a.intersect(b).instantiateAllParameters(bindings)
+                val aInstance = a.instantiateAllParameters(bindings)
+                val bInstance = b.instantiateAllParameters(bindings)
+                intersection
+                    .takeUnless { it.isBelow(aInstance) && it.isBelow(bInstance) }
+                    ?.let { "in $ctxStr: $it, of $aInstance and $bInstance" }
+            }
         }
         withClue(violations.joinToString("\n")) {
             violations.shouldBeEmpty()

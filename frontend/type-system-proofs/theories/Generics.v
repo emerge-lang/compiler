@@ -198,9 +198,22 @@ Lemma step_nullable_generic: forall n zn g s,
     unify env (S n) (Nullable zn) (Generic g) (Ongoing s) = unify env n zn (without_null env (Generic g)) (Ongoing s).
 Proof. reflexivity. Qed.
 
-Lemma step_nullable_inter: forall n zn cs s,
+Lemma gfrag_intersection_not_nullable: forall cs, gfrag (Intersection cs) = true -> is_nullable env (Intersection cs) = false.
+Proof.
+    intros cs H. destruct (Fragment.intersection_gfrag env cs H) as [Hne Hc]. destruct cs as [|c cs']; [contradiction (Hne eq_refl)|].
+    apply (intersection_not_nullable env (c :: cs') c (or_introl eq_refl)).
+    destruct (Hc c (or_introl eq_refl)) as [Hcomp _]. destruct c as [| |[]| | | |]; try discriminate Hcomp; [reflexivity|].
+    apply negb_true_iff, Hcomp.
+Qed.
+
+(* an intersection of the fragment isn't nullable, and so is assigned to what is nested as it is *)
+Lemma step_nullable_inter: forall n zn cs s, gfrag (Intersection cs) = true ->
     unify env (S n) (Nullable zn) (Intersection cs) (Ongoing s) = unify env n zn (Intersection cs) (Ongoing s).
-Proof. reflexivity. Qed.
+Proof.
+    intros n zn cs s H.
+    change (unify env (S n) (Nullable zn) (Intersection cs) (Ongoing s)) with (unify env n zn (without_null env (Intersection cs)) (Ongoing s)).
+    rewrite (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable cs H)). reflexivity.
+Qed.
 
 Lemma step_generic_root: forall n gm nn p b m c args s,
     unify env (S n) (Generic (mkGenericRef gm nn p b)) (RootResolved m c args) (Ongoing s) =
@@ -225,8 +238,9 @@ Lemma step_generic_inter: forall n g cs s,
     unify env (S n) (Generic g) (Intersection cs) (Ongoing s) = intersection_flipped_unify (unify env n) (Generic g) cs s.
 Proof. intros n [] cs s. reflexivity. Qed.
 
-Lemma step_inter_nullable: forall n cs a s, unify env (S n) (Intersection cs) (Nullable a) (Ongoing s) = Some Failed.
-Proof. reflexivity. Qed.
+Lemma step_inter_nullable: forall n cs a s, gfrag (Intersection cs) = true ->
+    unify env (S n) (Intersection cs) (Nullable a) (Ongoing s) = Some Failed.
+Proof. intros n cs a s H. exact (unify_not_nullable_intersection env n cs a s (gfrag_intersection_not_nullable cs H)). Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Never failing                                                                                    *)
@@ -291,7 +305,7 @@ Lemma inter_target_all: forall n cs a s r, forallb no_vars cs = true -> no_vars 
     unify env (S n) (Intersection cs) a (Ongoing s) = Some (Ongoing r) ->
     forall c, In c cs -> unify env n c a (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros n cs a s r Hcs Ha Hshape H. rewrite unify_step_once in H. unfold unify_step, unify_intersection in H.
+    intros n cs a s r Hcs Ha Hshape H. rewrite unify_step_once in H. unfold unify_step, unify_intersection, intersection_body in H.
     destruct (no_vars_filter cs Hcs) as [Hvar Hnonvar].
     assert (Hk: forall c u, In c cs -> unify env n c a (Ongoing s) = Some (Ongoing u) -> u = s).
     { intros c u Hc E. rewrite forallb_forall in Hcs.
@@ -307,7 +321,7 @@ Lemma inter_target_never_fails: forall cs a, forallb no_vars cs = true -> no_var
     (forall c, In c cs -> never_fails c a) -> never_fails (Intersection cs) a.
 Proof.
     intros cs a Hcs Ha Hshape H. apply never_fails_step. intros f s E.
-    rewrite unify_step_once in E. unfold unify_step, unify_intersection in E.
+    rewrite unify_step_once in E. unfold unify_step, unify_intersection, intersection_body in E.
     destruct (no_vars_filter cs Hcs) as [Hvar Hnonvar]. rewrite forallb_forall in Hcs.
     assert (Hfold: fold_unify (fun inner c => unify env f c a inner) cs (Ongoing s) = None
         \/ fold_unify (fun inner c => unify env f c a inner) cs (Ongoing s) = Some (Ongoing s)).
@@ -345,7 +359,9 @@ Proof. intros cs H. apply forallb_forall. intros c Hc. apply gfrag_no_vars, (gfr
 
 Lemma gfrag_without_null: forall t, gfrag t = true -> gfrag (without_null env t) = true.
 Proof.
-    fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H; simpl in H |- *; try exact H; try discriminate H.
+    fix IH 1. intros [m c args|n|[gm nn p b]|me msg|v o n|g|cs] H.
+    all: try (rewrite (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable cs H)); exact H).
+    all: simpl in H |- *; try exact H; try discriminate H.
     apply andb_true_iff in H. exact (IH n (proj2 H)).
 Qed.
 
@@ -407,6 +423,15 @@ Proof.
       destruct (existsb top_const cs), cs; try contradiction; destruct m; reflexivity.
 Qed.
 
+Lemma non_null_with_mutability: forall m n, non_null env n = true -> non_null env (with_mutability env m n) = true.
+Proof.
+    intros m [mn cn an| |[gm nn p vs]| | | |csn] Hn; try (simpl in Hn; discriminate Hn); try reflexivity.
+    - change (negb (is_nullable env (with_mutability env m (Generic (mkGenericRef gm nn p vs)))) = true).
+      rewrite (proj1 (proj2 (with_mutability_keeps env ranked m _))). exact Hn.
+    - change (negb (is_nullable env (with_mutability env m (Intersection csn))) = true).
+      rewrite (proj1 (proj2 (with_mutability_keeps env ranked m _))). exact Hn.
+Qed.
+
 Lemma gfrag_with_mutability: forall m t, gfrag t = true -> gfrag (with_mutability env m t) = true.
 Proof.
     assert (Hcomp: forall m c, is_component env c = true -> is_component env (with_mutability env m c) = true).
@@ -419,9 +444,7 @@ Proof.
       assert (Hr: forall x, non_null env x = true -> gfrag x = true -> gfrag (rewrap_nullable x) = true)
           by (intros [| | | | | |] Hx Hfx; try (simpl in Hx; discriminate Hx); cbn [rewrap_nullable];
               change (gfrag (Nullable ?y)) with (non_null env y && gfrag y); rewrite Hx, Hfx; reflexivity).
-      cbn [with_mutability]. apply Hr; [|exact Hf'].
-      destruct n as [mn cn an| |gn| | | |csn]; simpl in Hn; try discriminate Hn; try reflexivity.
-      destruct gn. exact (Hcomp m (Generic _) Hn).
+      cbn [with_mutability]. apply Hr; [exact (non_null_with_mutability m n Hn)|exact Hf'].
     - exact H.
     - destruct (intersection_gfrag cs H) as [Hne Hcs].
       assert (Hall: forall m' c, In c cs -> assignment_mutability env (with_mutability env m' c) = if top_const c then exclusive else m')
@@ -483,7 +506,10 @@ Proof. intros. exact I. Qed.
 Lemma without_null_not_nullable: forall t, gfrag t = true -> is_nullable env (without_null env t) = false.
 Proof.
     intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hk H; simpl in H; try reflexivity; try discriminate H.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hk H.
+    all: try (rewrite (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable cs H));
+              exact (gfrag_intersection_not_nullable cs H)).
+    all: simpl in H; try reflexivity; try discriminate H.
     - apply andb_true_iff in H. exact (IH n Hk (proj2 H)).
     - destruct vs; [|discriminate H]. cbn [without_null].
       change (ref_nullable env (mkGenericRef gm nn p [])) with (is_nullable env (Generic (mkGenericRef gm nn p []))).
@@ -555,7 +581,7 @@ Proof.
       + rewrite unify_nullable_nullable in H. exact (IH tn an s Ht' Ha' H).
       + rewrite step_nullable_generic in H. rewrite <- assignment_mutability_without_null.
         exact (IH tn _ s Ht' (gfrag_without_null _ Ha) H).
-      + rewrite step_nullable_inter in H. exact (IH tn _ s Ht' Ha H).
+      + rewrite step_nullable_inter in H by assumption. exact (IH tn _ s Ht' Ha H).
     - destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> [Han Ha']]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]].
       + rewrite step_generic_root in H. destruct (_ && _) eqn:E in H; [|discriminate H]. apply andb_true_iff in E. apply E.
       + rewrite step_generic_nullable in H. discriminate H.
@@ -568,7 +594,7 @@ Proof.
     - rewrite (intersection_assignment_mutability env). apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|].
       intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hc]].
       destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [ba [-> _]]]]]|[acs ->]]]];
-          [| rewrite step_inter_nullable in H; discriminate H| |];
+          [| rewrite step_inter_nullable in H by assumption; discriminate H| |];
           exact (IH c _ s (gfrag_component tcs c Ht Hc) Ha
               (inter_target_all n tcs _ s s (gfrag_components_no_vars tcs Ht) (gfrag_no_vars _ Ha) I H c Hc)).
 Qed.
@@ -581,7 +607,7 @@ Proof.
     destruct (gfrag_cases t Ht) as [[mt [ct [targs ->]]]|[[tn [-> [Htn Ht']]]|[[gt [ngt [pt [bt [-> Hbt]]]]]|[tcs ->]]]];
         [|discriminate Hn| |];
         destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> [Han Ha']]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]];
-        try reflexivity.
+        try reflexivity; try exact (gfrag_intersection_not_nullable _ Ha).
     - rewrite unify_class_nullable in H. discriminate H.
     - rewrite step_root_generic in H. rewrite (is_nullable_generic env ranked). exact (IH _ _ s Ht (bound_gfrag _ Ha) Hn H).
     - rewrite step_generic_nullable in H. discriminate H.
@@ -589,7 +615,7 @@ Proof.
       + destruct (_ && _) eqn:E in H; [|discriminate H]. apply andb_true_iff in E. destruct E as [_ E].
         rewrite Hn, orb_false_r in E. apply negb_true_iff, E.
       + rewrite (is_nullable_generic env ranked (mkGenericRef ga nga pa ba)). exact (IH _ _ s Ht (bound_gfrag _ Ha) Hn H).
-    - rewrite step_inter_nullable in H. discriminate H.
+    - rewrite step_inter_nullable in H by assumption. discriminate H.
     - destruct (intersection_gfrag tcs Ht) as [Hne Hcs]. destruct tcs as [|c0 tcs']; [contradiction|].
       destruct (Hcs c0 (or_introl eq_refl)) as [Hc0 Hf0].
       apply (IH c0 _ s Hf0 Ha (component_not_nullable c0 Hc0)).
@@ -695,10 +721,18 @@ Qed.
 
 Lemma vle_nullable: forall t t', vle t' t -> is_nullable env t' = true -> is_nullable env t = true.
 Proof.
-    intros [m c args|n|g|me msg|v o n|g|cs] t' H Hn; try reflexivity; simpl in H; try contradiction.
+    intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> t' H Hn.
+    destruct t as [m c args|n|g|me msg|v o n|g|cs]; try reflexivity; simpl in H; try contradiction.
     - destruct t' as [| | | | | |]; try contradiction. discriminate Hn.
     - destruct t' as [| |g'| | | |]; try contradiction. exact (proj2 (proj2 (proj2 (proj2 H))) Hn).
-    - destruct t' as [| | | | | |]; try contradiction. discriminate Hn.
+    - destruct t' as [| | | | | |cs']; try contradiction. apply vle_inter in H. cbn [is_nullable] in Hn |- *.
+      assert (Hpair: forall x, In x cs -> exists x', In x' cs' /\ vle x' x).
+      { clear -H. induction H as [|x' x l' l Hx Hl IHl]; intros y Hy; [destruct Hy|].
+        destruct Hy as [<-|Hy]; [exists x'; split; [left; reflexivity|exact Hx]|].
+        destruct (IHl y Hy) as [y' [Hy' Hv]]. exists y'. split; [right; exact Hy'|exact Hv]. }
+      apply forallb_forall. intros x Hx. destruct (Hpair x Hx) as [x' [Hx' Hv]].
+      rewrite forallb_forall in Hn. pose proof (esize_in cs x Hx).
+      exact (IH (esize x) ltac:(cbn [esize]; lia) x eq_refl x' Hv (Hn x' Hx')).
 Qed.
 
 (* A reference without type variables, made non-null: of the fragment, assigned as before, non-null *)
@@ -712,7 +746,7 @@ Proof.
 Qed.
 
 Lemma without_null_shape: forall t, match without_null env t with Nullable _ => False | _ => True end.
-Proof. fix IH 1. intros [| |[]| | | |]; simpl; try exact I. apply IH. Qed.
+Proof. fix IH 1. intros [| |[]| | | |cs]; simpl; try exact I; [apply IH|]. destruct (forallb _ cs); exact I. Qed.
 
 Lemma vle_nullable_right: forall t' n, match t' with Nullable _ => False | _ => True end -> vle t' n -> vle t' (Nullable n).
 Proof. intros [| | | | | |] n Hs H; simpl; first [contradiction|exact H]. Qed.
@@ -731,15 +765,20 @@ Proof.
     - simpl in H. contradiction.
     - simpl in H. contradiction.
     - simpl in H. contradiction.
-    - destruct t' as [| | | | | |]; simpl in H; try contradiction. exact H.
+    - destruct t' as [| | | | | |cs']; simpl in H; try contradiction. cbn [without_null].
+      destruct (forallb (is_nullable env) cs'); [|exact H].
+      cbn [vle]. revert cs' H. induction cs as [|x l IHl]; intros [|x' l'] H; simpl in H |- *; try contradiction; [exact I|].
+      destruct H as [Hx Hl]. split; [exact (IH x x' Hx)|exact (IHl l' Hl)].
 Qed.
 
-Lemma vle_narrow_right: forall t t', vle t' t -> is_nullable env t' = false -> vle t' (without_null env t).
+(* of the fragment, where the only intersections are non-null *)
+Lemma vle_narrow_right: forall t t', gfrag t = true -> vle t' t -> is_nullable env t' = false -> vle t' (without_null env t).
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] t' H Hn'.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] t' Ht H Hn'.
     - exact H.
-    - cbn [without_null]. destruct t' as [m' c' a'|n'|g'|me' msg'|v' o' n'|g'|cs'];
-          [exact (IH n _ H Hn')|simpl in Hn'; discriminate Hn'|exact (IH n _ H Hn')..].
+    - cbn [without_null]. assert (Hfn: gfrag n = true) by (simpl in Ht; apply andb_true_iff in Ht; exact (proj2 Ht)).
+      destruct t' as [m' c' a'|n'|g'|me' msg'|v' o' n'|g'|cs'];
+          [exact (IH n _ Hfn H Hn')|simpl in Hn'; discriminate Hn'|exact (IH n _ Hfn H Hn')..].
     - destruct t' as [| |g'| | | |]; simpl in H; try contradiction. destruct g as [gm nn p vs].
       destruct H as [Hp [Hv' [Hv [Hm Hn]]]]. cbn [variables_of] in Hv. subst vs.
       destruct (narrowed_ref gm nn p) as [E [Em En]]. rewrite E in Em |- *.
@@ -748,13 +787,13 @@ Proof.
     - simpl in H. contradiction.
     - simpl in H. contradiction.
     - simpl in H. contradiction.
-    - exact H.
+    - rewrite (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable cs Ht)). exact H.
 Qed.
 
 Lemma vle_without_null: forall t t', gfrag t = true -> gfrag t' = true -> vle t' t -> vle (without_null env t') (without_null env t).
 Proof.
     intros t t' Ht Ht' H. pose proof (vle_narrow_left t t' H) as H'.
-    exact (vle_narrow_right t _ H' (without_null_not_nullable t' Ht')).
+    exact (vle_narrow_right t _ Ht H' (without_null_not_nullable t' Ht')).
 Qed.
 
 Lemma is_nullable_with_mutability: forall m t, is_nullable env (with_mutability env m t) = is_nullable env t.
@@ -965,7 +1004,7 @@ Proof.
     destruct nn1, nn2.
     - exact (vle_without_null _ _ Hf2 Hf1 V).
     - exact (vle_narrow_left _ _ V).
-    - apply vle_narrow_right; [exact V|]. apply not_true_iff_false. intros E.
+    - apply vle_narrow_right; [exact Hf2|exact V|]. apply not_true_iff_false. intros E.
       rewrite (without_null_not_nullable a2 Hf2) in Hn. discriminate (Hn E).
     - exact V.
 Qed.
@@ -1019,13 +1058,13 @@ Proof.
           -- exact (IH _ _ _ s Hz' Ht'' Ht' Hv H f s' E).
           -- apply not_true_iff_false. intros En. pose proof (vle_nullable tn _ Hv En) as Ex.
              rewrite (non_null_not_nullable env tn Htn) in Ex. discriminate Ex.
-        * rewrite step_nullable_inter in E. exact (IH _ _ _ s Hz' Ht'' Ht' Hv H f s' E).
+        * rewrite step_nullable_inter in E by assumption. exact (IH _ _ _ s Hz' Ht'' Ht' Hv H f s' E).
       + destruct (vle_generic t' _ Hv) as [gt' [-> _]].
         rewrite step_nullable_generic in H. apply never_fails_step. intros f s' E. rewrite step_nullable_generic in E.
         exact (IH _ _ _ s Hz' (gfrag_without_null _ Ht) (gfrag_without_null _ Ht')
             (vle_without_null _ _ Ht Ht' Hv) H f s' E).
       + destruct (vle_intersection t' tcs Hv) as [tcs' [-> _]].
-        rewrite step_nullable_inter in H. apply never_fails_step. intros f s' E. rewrite step_nullable_inter in E.
+        rewrite step_nullable_inter in H by assumption. apply never_fails_step. intros f s' E. rewrite step_nullable_inter in E by assumption.
         exact (IH _ _ _ s Hz' Ht Ht' Hv H f s' E).
     - destruct (gfrag_cases t Ht) as [[mt [ct [targs ->]]]|[[tn [-> [Htn Ht'']]]|[[gt [ngt [pt [bt [-> Hbt]]]]]|[tcs ->]]]].
       + (* a class type to a type parameter: Nothing *)
@@ -1054,7 +1093,7 @@ Proof.
     - (* an intersection as the target *)
       destruct (gfrag_cases t Ht) as [[mt [ct [targs ->]]]|[[tn [-> _]]|[[gt [ngt [pt [bt [-> _]]]]]|[tcs ->]]]];
           [destruct (vle_root t' mt ct targs Hv) as [m' [-> _]]
-          |rewrite step_inter_nullable in H; discriminate H
+          |rewrite step_inter_nullable in H by assumption; discriminate H
           |destruct (vle_generic t' _ Hv) as [gt' [-> _]]
           |destruct (vle_intersection t' tcs Hv) as [tcs' [-> _]]];
           (apply inter_target_never_fails; [exact (gfrag_components_no_vars zcs Hz)|exact (gfrag_no_vars _ Ht')|exact I|]);
@@ -1119,7 +1158,8 @@ Proof.
         - exists (without_null env (Generic (mkGenericRef ga nga pa ba))). split; [exact (gfrag_without_null _ Ha)|].
           split; [exact (without_null_not_nullable _ Ha)|]. split; [apply assignment_mutability_without_null|].
           split; [intros; apply step_nullable_generic|]. intros E. exact (without_null_id _ Ha E).
-        - exists (Intersection acs). split; [exact Ha|]. split; [reflexivity|]. split; [reflexivity|]. split; [intros; reflexivity|]. intros _; reflexivity. }
+        - exists (Intersection acs). split; [exact Ha|]. split; [exact (gfrag_intersection_not_nullable _ Ha)|]. split; [reflexivity|].
+          split; [intros; apply step_nullable_inter, Ha|]. intros _; reflexivity. }
       destruct Ha0 as [a0 [Hga0 [Hna0 [Hma0 [Hstep Hid]]]]].
       rewrite Hstep in H.
       assert (Hnn: forall z1, gfrag z1 = true -> vle z1 zn -> is_subtype_of (assignment_mutability env a) (assignment_mutability env z1) = true ->
@@ -1155,7 +1195,7 @@ Proof.
         exact (IH _ _ _ s Hz Hz' Hgc Hv Hmc Hnc Hu f s').
     - (* an intersection: each of its components *)
       destruct (vle_intersection z' zcs Hv) as [zcs' [-> Hcv]].
-      pose proof (accepted_not_nullable (S n) _ a s Hz Ha eq_refl H) as Hna.
+      pose proof (accepted_not_nullable (S n) _ a s Hz Ha (gfrag_intersection_not_nullable _ Hz) H) as Hna.
       destruct (gfrag_cases a Ha) as [[ma [ca [aargs ->]]]|[[an [-> _]]|[[ga [nga [pa [ba [-> Hba]]]]]|[acs ->]]]];
           [| discriminate Hna | |];
           (apply inter_target_never_fails; [exact (gfrag_components_no_vars zcs' Hz')|exact (gfrag_no_vars _ Ha)|exact I|]);
@@ -1269,7 +1309,7 @@ Proof.
     - rewrite unify_nullable_nullable in H |- *. exact (remut_target_step f mz mz' cz zargs an s Ha' Hm H).
     - rewrite step_nullable_generic in H |- *. apply (remut_target_step f mz mz' cz zargs _ s (gfrag_without_null _ Ha)); [|exact H].
       rewrite assignment_mutability_without_null. exact Hm.
-    - rewrite step_nullable_inter in H |- *. exact (remut_target_step f mz mz' cz zargs _ s Ha Hm H).
+    - rewrite step_nullable_inter in H |- * by assumption. exact (remut_target_step f mz mz' cz zargs _ s Ha Hm H).
 Qed.
 
 Lemma vle_strip: forall t' n, vle t' (Nullable n) -> vle (without_null env t') n.
@@ -1340,7 +1380,7 @@ Proof.
           - exists (without_null env (Generic (mkGenericRef gx ngx px bx))). split; [exact (gfrag_without_null _ Hx)|].
             split; [exact (vle_without_null _ _ Hx Hgy Hvy)|]. rewrite step_nullable_generic in H. exact H.
           - exists (Intersection xcs). split; [exact Hx|]. split; [exact (vle_narrow_left _ _ Hvy)|].
-            rewrite step_nullable_inter in H. exact H. }
+            rewrite step_nullable_inter in H by assumption. exact H. }
         destruct Ht as [t [Hgt [Hvt Ht]]].
         pose proof (bounds_ordered n _ t _ [] HgR Hgt Hwy Hvt Ht) as Hnf.
         destruct gm as [m|]; cbn [with_mutability rewrap_nullable without_null].
@@ -1398,7 +1438,7 @@ Proof.
     - subst by'. destruct (narrowed_ref gy ngy py) as [Ey [Emy Eny]]. rewrite Ey in Emy, Eny |- *.
       destruct (is_nullable env x) eqn:Ex.
       + destruct (gfrag_cases x Hx) as [[mx [cx [xargs ->]]]|[[xn [-> _]]|[[gx [ngx [px [bx [-> Hbx]]]]]|[xcs ->]]]];
-            try (simpl in Ex; discriminate Ex).
+            try (simpl in Ex; discriminate Ex); try (rewrite (gfrag_intersection_not_nullable _ Hx) in Ex; discriminate Ex).
         * rewrite step_generic_nullable in H. discriminate H.
         * subst bx. destruct (narrowed_ref gx ngx px) as [Ex' [Emx Enx]]. rewrite Ex' in Emx, Enx |- *.
           rewrite step_generic_generic in H |- *. cbn [param_of] in H |- *. destruct (param_eqb px py).
@@ -1407,8 +1447,9 @@ Proof.
           -- rewrite (effective_bound_narrowed env ranked), <- Ey. exact (IH _ _ s Hy (bound_gfrag _ Hx) I H).
       + rewrite (without_null_id x Hx Ex).
         rewrite (generic_target_bound_irrelevant (S n) gy _ ngy py [] x s Emy Hx Ex). exact H.
-    - rewrite (without_null_id x Hx); [exact H|].
-      exact (accepted_not_nullable (S n) _ x s Hy Hx eq_refl H).
+    - rewrite (without_null_not_nullable_intersection env ycs (gfrag_intersection_not_nullable _ Hy)).
+      rewrite (without_null_id x Hx); [exact H|].
+      exact (accepted_not_nullable (S n) _ x s Hy Hx (gfrag_intersection_not_nullable _ Hy) H).
 Qed.
 
 (* What takes a non-null type takes it without null, too *)
@@ -1429,7 +1470,7 @@ Proof.
       - rewrite unify_nullable_class in H. exact H.
       - discriminate Hna.
       - rewrite step_nullable_generic, (without_null_id _ Ha Hna) in H. exact H.
-      - rewrite step_nullable_inter in H. exact H. }
+      - rewrite step_nullable_inter in H by assumption. exact H. }
     change (without_null env (Nullable z)) with (without_null env z).
     apply (Hshape n z a Hgz Ha Hna); [|exact Hz']. destruct z; try exact I. discriminate Hz.
 Qed.
@@ -1541,7 +1582,8 @@ Proof.
       + rewrite unify_nullable_class in E. exact (Hz' E).
       + discriminate Hnz.
       + rewrite step_nullable_generic in E. exact (Hz' E).
-      + rewrite step_nullable_inter in E. exact (Hz' E).
+      + rewrite step_nullable_inter in E by assumption.
+        rewrite (without_null_not_nullable_intersection env _ (gfrag_intersection_not_nullable _ Hz)) in Hz'. exact (Hz' E).
     - destruct (gfrag_cases z Hz) as [[mz [cz [zargs ->]]]|[[zn [-> _]]|[[gz [ngz [pz [bz [-> Hbz]]]]]|[zcs ->]]]].
       + unfold bottom_type in H. rewrite unify_classes in H.
         destruct (base_type_is_subtype_of env cz nothing) eqn:Hb; [|discriminate H].
@@ -1636,7 +1678,7 @@ Proof.
       pose proof (IH zn s Hzn H t Ht Hn f s') as Hz'.
       destruct (gfrag_cases t Ht) as [[? [? [? ->]]]|[[? [-> _]]|[[? [? [? [? [-> _]]]]]|[? ->]]]];
           [rewrite unify_nullable_class in E|discriminate Hn|rewrite step_nullable_generic, (without_null_id _ Ht Hn) in E
-          |rewrite step_nullable_inter in E]; exact (Hz' E).
+          |rewrite step_nullable_inter in E by assumption]; exact (Hz' E).
     - rewrite step_generic_root in H. simpl in H. discriminate H.
     - apply inter_target_never_fails; [exact (gfrag_components_no_vars zcs Hz)|exact (gfrag_no_vars _ Ht)| |].
       + destruct (gfrag_cases t Ht) as [[? [? [? ->]]]|[[? [-> _]]|[[? [? [? [? [-> _]]]]]|[? ->]]]]; try exact I. discriminate Hn.
@@ -1662,9 +1704,9 @@ Proof.
       + rewrite unify_nullable_nullable in E. exact (takes_any n zn s Hz' H tn Ht' (non_null_not_nullable env tn Htn) f s' E).
       + rewrite step_nullable_generic in E.
         exact (takes_any n zn s Hz' H _ (gfrag_without_null _ Ht) (without_null_not_nullable _ Ht) f s' E).
-      + rewrite step_nullable_inter in E. exact (takes_any n zn s Hz' H _ Ht eq_refl f s' E).
+      + rewrite step_nullable_inter in E by assumption. exact (takes_any n zn s Hz' H _ Ht (gfrag_intersection_not_nullable _ Ht) f s' E).
     - rewrite step_generic_nullable in H. discriminate H.
-    - rewrite step_inter_nullable in H. discriminate H.
+    - rewrite step_inter_nullable in H by assumption. discriminate H.
 Qed.
 
 Lemma arguments_never_fail: forall f (ts as': list EType) s,
@@ -1931,14 +1973,14 @@ Proof.
           -- rewrite unify_class_nullable in H. discriminate H.
           -- rewrite unify_nullable_nullable in H, E. exact (Hf zn m'' ltac:(lia) Hzn Hrz H f s' E).
           -- rewrite step_generic_nullable in H. discriminate H.
-          -- rewrite step_inter_nullable in H. discriminate H.
+          -- rewrite step_inter_nullable in H by assumption. discriminate H.
         * intros Hm z m' Hm' Hz Hrz H. destruct m' as [|m'']; [discriminate H|].
           apply never_fails_step. intros f s' E.
           destruct (gfrag_cases z Hz) as [[mz [cz [zargs ->]]]|[[zn [-> [_ Hzn]]]|[[gz [ngz [pz [bz [-> Hbz]]]]]|[zcs ->]]]].
           -- rewrite unify_nullable_class in H, E. exact (Hb Hm _ m'' ltac:(lia) Hz Hrz H f s' E).
           -- rewrite unify_nullable_nullable in H, E. exact (Hb Hm zn m'' ltac:(lia) Hzn Hrz H f s' E).
           -- rewrite step_nullable_generic in H, E. exact (Hb Hm _ m'' ltac:(lia) (gfrag_without_null _ Hz) (refs_wf_without_null _ Hz Hrz) H f s' E).
-          -- rewrite step_nullable_inter in H, E. exact (Hb Hm _ m'' ltac:(lia) Hz Hrz H f s' E).
+          -- rewrite step_nullable_inter in H, E by assumption. exact (Hb Hm _ m'' ltac:(lia) Hz Hrz H f s' E).
     - intros a Ha. destruct (template_kind env sub a Ha) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn]]]]]]].
       + (* a type parameter of sub: its type arguments, as they are *)
         destruct (nth_error_same_length _ xs i p (eq_sym Hlx) Hi) as [x Hx].
@@ -2144,7 +2186,7 @@ Proof.
         * (* through an intersection: one of its components is below z *)
           rewrite step_root_inter in H2. destruct (flipped_some n2' _ ycs s s H2) as [c [Hc Hu2]].
           destruct (gfrag_cases x Hx) as [[mx [cx [xargs ->]]]|[[xn [-> _]]|[[gx [ngx [px [bx [-> Hbx]]]]]|[xcs ->]]]];
-              [| rewrite step_inter_nullable in H1; discriminate H1 | |];
+              [| rewrite step_inter_nullable in H1 by assumption; discriminate H1 | |];
               (pose proof (inter_target_all n1' ycs _ s s (gfrag_components_no_vars ycs Hy) (gfrag_no_vars _ Hx) I H1 c Hc) as Hu1);
               exact (IHt _ c _ n1' n2' s ltac:(lia) Hx (gfrag_component ycs c Hy Hc) Hz Hrx (refs_wf_components ycs Hry c Hc) Hrz Hu1 Hu2).
       + (* to a nullable type *)
@@ -2159,22 +2201,22 @@ Proof.
              - rewrite step_nullable_generic in H1. apply never_fails_step. intros f s' E. rewrite step_nullable_generic in E.
                exact (IHt _ yn zn n1' n2' s ltac:(lia) (gfrag_without_null _ Hx) Hy' Hz' (refs_wf_without_null _ Hx Hrx) Hry Hrz
                    H1 H2 f s' E).
-             - rewrite step_nullable_inter in H1. apply never_fails_step. intros f s' E. rewrite step_nullable_inter in E.
+             - rewrite step_nullable_inter in H1 by assumption. apply never_fails_step. intros f s' E. rewrite step_nullable_inter in E by assumption.
                exact (IHt _ yn zn n1' n2' s ltac:(lia) Hx Hy' Hz' Hrx Hry Hrz H1 H2 f s' E). }
         all: match type of H2 with unify env _ (Nullable ?zz) ?yy _ = _ =>
                  assert (H2': unify env n2' zz (without_null env yy) (Ongoing s) = Some (Ongoing s)) by
-                     (first [rewrite unify_nullable_class in H2 | rewrite step_nullable_generic in H2 | rewrite step_nullable_inter in H2];
-                      exact H2) end.
+                     (first [rewrite unify_nullable_class in H2; exact H2 | rewrite step_nullable_generic in H2; exact H2
+                            | exact H2]) end.
         all: pose proof (accepted_without_null (S n1') _ x s Hy Hx I H1o) as H1'.
         all: pose proof (IHt _ _ zn (S n1') n2' s ltac:(lia) (gfrag_without_null _ Hx) (gfrag_without_null _ Hy) Hz'
                  (refs_wf_without_null _ Hx Hrx) (refs_wf_without_null _ Hy Hry) Hrz H1' H2') as Hnf.
         all: apply never_fails_step; intros f s' E.
         all: destruct (gfrag_cases x Hx) as [[mx [cx [xargs ->]]]|[[xn [-> _]]|[[gx [ngx [px [bx [-> Hbx]]]]]|[xcs ->]]]];
                  [rewrite unify_nullable_class in E
-                 | first [rewrite unify_class_nullable in H1o | rewrite step_generic_nullable in H1o | rewrite step_inter_nullable in H1o];
+                 | first [rewrite unify_class_nullable in H1o | rewrite step_generic_nullable in H1o | rewrite step_inter_nullable in H1o by assumption];
                    discriminate H1o
                  | rewrite step_nullable_generic in E
-                 | rewrite step_nullable_inter in E]; exact (Hnf f s' E).
+                 | cbn [unify unify_step unify_nullable] in E]; exact (Hnf f s' E).
       + (* to a type parameter *)
         destruct (gfrag_cases y Hy) as [[my [cy [yargs ->]]]|[[yn [-> _]]|[[gy [ngy [py [by' [-> Hby]]]]]|[ycs ->]]]].
         * (* Nothing in between *)
@@ -2259,14 +2301,14 @@ Proof.
                     Hu H2o f s').
         * rewrite step_generic_inter in H2. destruct (flipped_some n2' _ ycs s s H2) as [c [Hc Hu2]].
           destruct (gfrag_cases x Hx) as [[mx [cx [xargs ->]]]|[[xn [-> _]]|[[gx [ngx [px [bx [-> Hbx]]]]]|[xcs ->]]]];
-              [| rewrite step_inter_nullable in H1; discriminate H1 | |];
+              [| rewrite step_inter_nullable in H1 by assumption; discriminate H1 | |];
               (pose proof (inter_target_all n1' ycs _ s s (gfrag_components_no_vars ycs Hy) (gfrag_no_vars _ Hx) I H1 c Hc) as Hu1);
               exact (IHt _ c _ n1' n2' s ltac:(lia) Hx (gfrag_component ycs c Hy Hc) Hz Hrx (refs_wf_components ycs Hry c Hc) Hrz Hu1 Hu2).
       + (* to an intersection: each of its components *)
         destruct (gfrag_cases y Hy) as [[my [cy [yargs ->]]]|[[yn [-> _]]|[[gy [ngy [py [by' [-> Hby]]]]]|[ycs ->]]]];
-            [| rewrite step_inter_nullable in H2; discriminate H2 | |];
+            [| rewrite step_inter_nullable in H2 by assumption; discriminate H2 | |];
             (destruct (gfrag_cases x Hx) as [[mx [cx [xargs ->]]]|[[xn [-> _]]|[[gx [ngx [px [bx [-> Hbx]]]]]|[xcs ->]]]];
-                [| first [rewrite unify_class_nullable in H1 | rewrite step_generic_nullable in H1 | rewrite step_inter_nullable in H1];
+                [| first [rewrite unify_class_nullable in H1 | rewrite step_generic_nullable in H1 | rewrite step_inter_nullable in H1 by assumption];
                    discriminate H1 | |]);
             (apply inter_target_never_fails; [exact (gfrag_components_no_vars zcs Hz)|exact (gfrag_no_vars _ Hx)|exact I|]);
             intros c Hc;
@@ -2332,3 +2374,9 @@ Proof.
 Qed.
 
 End Generics.
+
+(* A hypothesis that the type is of the fragment, also as part of a conjunction *)
+Ltac gfrag_hyp :=
+    first [ assumption
+          | match goal with H: _ |- _ => exact (proj1 H) end
+          | match goal with H: _ |- _ => exact (proj1 (proj1 H)) end ].

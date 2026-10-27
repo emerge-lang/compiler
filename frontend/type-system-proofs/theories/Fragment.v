@@ -34,7 +34,7 @@ Definition is_component (t: EType): bool :=
 (* What a nullable type wraps *)
 Definition non_null (t: EType): bool :=
     match t with
-    | Intersection _ => true
+    | Intersection _ => negb (is_nullable env t)
     | _ => is_component t
     end.
 
@@ -113,7 +113,7 @@ Proof.
 Qed.
 
 Lemma non_null_not_nullable: forall t, non_null t = true -> is_nullable env t = false.
-Proof. intros [| |[gm nn p b]| | | |] H; simpl in H |- *; try discriminate H; try reflexivity. apply negb_true_iff, H. Qed.
+Proof. intros [| |[gm nn p b]| | | |] H; cbn [non_null is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
 
 Lemma in_fragment_gfrag: forall k,
     (forall t, depth t <= k -> in_fragment env t = true -> gfrag t = true)

@@ -33,8 +33,13 @@ Proof.
             (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly) (without_null env c)) cs) = true).
     { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       apply no_vars_set_mutability. rewrite no_vars_without_null. exact (H c' Hc'). }
+    assert (Hk: forallb no_vars (map (with_mutability env
+            (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly)) cs) = true).
+    { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
+      apply no_vars_set_mutability. exact (H c' Hc'). }
     destruct cs as [|c [|c' cs']]; [reflexivity|exact (H c (or_introl eq_refl))|].
-    unfold of_components. destruct (forallb (is_nullable env) _); exact Hi.
+    unfold of_components. destruct (negb (forallb (is_nullable env) _)); [exact Hi|].
+    destruct (forallb is_nullable_type _); [exact Hi|exact Hk].
 Qed.
 
 Lemma no_vars_intersected: forall t, no_vars t = true -> forall c, In c (intersected_components t) -> no_vars c = true.
@@ -249,10 +254,10 @@ Proof.
       + rewrite (Hf tt ta s s' _ Ht Ha E). simpl in H |- *. free H.
       + rewrite (Hf tt ta s s' _ Ht Ha E). simpl in H |- *. rewrite Hff in H |- *. injection H as <-. reflexivity.
     - (* an intersection *)
-      unfold unify_intersection in H |- *.
+      unfold unify_intersection, intersection_body in H |- *.
       destruct (no_vars_filter tcs Ht) as [Hv Hnv].
       destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; simpl in Ha; try discriminate Ha;
-          try (destruct (negb (is_nullable env _)); [injection H as <-; reflexivity|]; free H);
+          try (destruct (negb (is_nullable env _)); [injection H as <-; reflexivity|]; inter (Nullable an) H Ht Hv Hnv tcs s s');
           try free H.
       + inter (RootResolved ma ca aargs) H Ht Hv Hnv tcs s s'.
       + inter (Generic (mkGenericRef ga nna pa ba)) H Ht Hv Hnv tcs s s'.
@@ -462,9 +467,11 @@ Proof.
       + apply (keeps_exact_trans s w s'); [exact (Hf _ _ _ _ Ew)|exact (Hf _ _ _ _ H)].
       + rewrite Hff in H. discriminate H.
     - unfold unify_type_variable in H. destruct a; cbn beta iota zeta in H; keeps H.
-    - unfold unify_intersection in H.
+    - unfold unify_intersection, intersection_body in H.
       destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; cbn beta iota zeta in H;
           try (keeps H; fail).
+      (* a nullable assignee, where the intersection may be null *)
+      all: try (match type of H with (if ?c then _ else _) = _ => destruct c; [discriminate H|] end).
       all: match type of H with context [fold_unify ?h ?l (Ongoing ?q0)] =>
           destruct (fold_unify h l (Ongoing q0)) as [[s2|]|] eqn:E1; cbn beta iota in H; try discriminate H;
           assert (K1: keeps_exact s s2) by
@@ -558,7 +565,9 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 
 Lemma vars_in_without_null: forall P t, vars_in P (without_null env t) = vars_in P t.
 Proof.
-    intros P. fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+    intros P. fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH|].
+    destruct (forallb (is_nullable env) cs); [|reflexivity]. simpl.
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
 Lemma vars_in_set_mutability: forall P m t, vars_in P t = true -> vars_in P (with_mutability env m t) = true.
@@ -577,8 +586,13 @@ Proof.
             (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly) (without_null env c)) cs) = true).
     { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
       apply vars_in_set_mutability. rewrite vars_in_without_null. exact (H c' Hc'). }
+    assert (Hk: forallb (vars_in P) (map (with_mutability env
+            (fold_left intersect_mutability (map (assignment_mutability env) cs) readonly)) cs) = true).
+    { apply forallb_forall. intros c Hc. apply in_map_iff in Hc. destruct Hc as [c' [<- Hc']].
+      apply vars_in_set_mutability. exact (H c' Hc'). }
     destruct cs as [|c [|c' cs']]; [reflexivity|exact (H c (or_introl eq_refl))|].
-    unfold of_components. destruct (forallb (is_nullable env) _); exact Hi.
+    unfold of_components. destruct (negb (forallb (is_nullable env) _)); [exact Hi|].
+    destruct (forallb is_nullable_type _); [exact Hi|exact Hk].
 Qed.
 
 Lemma vars_in_intersected: forall P t, vars_in P t = true -> forall c, In c (intersected_components t) -> vars_in P c = true.
@@ -956,9 +970,11 @@ Proof.
         - split; [exact (Ht x Hin)|right; split; [exact (Ht x Hin)|exact Ha]]. }
       assert (Hone: forall x a', In x tcs -> (one_side r x a \/ no_vars a' = true) -> a' = a \/ no_vars a' = true -> one_side r x a').
       { intros x a' Hin _ [->|Ha']; [exact (proj2 (Hx x Hin))|right; split; [exact (proj1 (Hx x Hin))|exact Ha']]. }
-      unfold unify_intersection in H.
+      unfold unify_intersection, intersection_body in H.
       destruct a as [ma ca aargs|an|[ga nna pa ba]|mae msga|va oa ta|[ga nna pa ba]|acs]; cbn beta iota zeta in H;
           try (destruct Hside as [[Ht Ha]|[Ht Ha]]; simpl in Ht, Ha; try discriminate Ht; try discriminate Ha; kf H; fail).
+      (* a nullable assignee, where the intersection may be null *)
+      all: try (match type of H with (if ?c then _ else _) = _ => destruct c; [discriminate H|] end).
       all: match type of H with context [fold_unify ?h ?l (Ongoing ?q0)] =>
           destruct (fold_unify h l (Ongoing q0)) as [[s2|]|] eqn:E1; cbn beta iota in H; try discriminate H end.
       all: assert (K1: keeps_from r s s2 /\ ranked_states s2) by

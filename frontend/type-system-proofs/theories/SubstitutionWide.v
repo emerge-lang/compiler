@@ -123,34 +123,54 @@ Qed.
 (* unify on ground types                                                                           *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* A ground intersection, nullable or not, has components that aren't *)
+Lemma ground_intersection_not_nullable: forall ys,
+    ground (Intersection ys) = true \/ ground (Nullable (Intersection ys)) = true -> is_nullable env (Intersection ys) = false.
+Proof.
+    intros ys [H|H]; [exact (gfrag_intersection_not_nullable env ys (ground_gfrag _ H))|].
+    pose proof (ground_gfrag _ H) as Hg. change (non_null env (Intersection ys) && gfrag env (Intersection ys) = true) in Hg.
+    apply andb_true_iff in Hg. destruct Hg as [Hn _]. apply negb_true_iff, Hn.
+Qed.
+
+Ltac ground_intersection HX :=
+    try (match goal with |- context [without_null env (Nullable (Intersection ?ys))] =>
+        change (without_null env (Nullable (Intersection ys))) with (without_null env (Intersection ys)) end);
+    match goal with |- context [without_null env (Intersection ?ys)] =>
+        rewrite (without_null_not_nullable_intersection env ys
+            (ground_intersection_not_nullable ys ltac:(first [left; exact HX|right; exact HX])))
+    end.
+
 (* A nullable target takes what the type in it takes without null *)
 Lemma ground_nullable_target: forall f T y s, ground y = true ->
     unify env (S f) (Nullable T) y (Ongoing s) = unify env f T (without_null env y) (Ongoing s).
 Proof.
     intros f T y s Hy.
-    destruct (ground_cases y Hy) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; reflexivity.
+    destruct (ground_cases y Hy) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; try reflexivity.
+    ground_intersection Hy. reflexivity.
 Qed.
 
 Lemma ground_rewrap: forall X, ground X = true -> rewrap_nullable X = Nullable (without_null env X).
 Proof.
-    intros X HX. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; reflexivity.
+    intros X HX. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; try reflexivity;
+        repeat ground_intersection HX; reflexivity.
 Qed.
 
 Lemma ground_without_null_idempotent: forall X, ground X = true -> without_null env (without_null env X) = without_null env X.
 Proof.
-    intros X HX. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; reflexivity.
+    intros X HX. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; try reflexivity;
+        repeat ground_intersection HX; reflexivity.
 Qed.
 
 Lemma ground_without_null: forall X, ground X = true -> ground (without_null env X) = true.
 Proof.
     intros X HX. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]];
-        first [exact HX|exact (ground_nullable_inner _ HX)].
+        try ground_intersection HX; first [exact HX|exact (ground_nullable_inner _ HX)].
 Qed.
 
 Lemma ground_non_null_without_null: forall X, ground X = true -> is_nullable env X = false -> without_null env X = X.
 Proof.
     intros X HX Hn. destruct (ground_cases X HX) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]];
-        first [reflexivity|discriminate Hn].
+        first [reflexivity|discriminate Hn|exact (without_null_not_nullable_intersection env ys Hn)].
 Qed.
 
 Lemma ground_keeps: forall f D y s r, ground D = true -> ground y = true ->
@@ -166,8 +186,10 @@ Lemma ground_non_null: forall f D y s r, ground D = true -> ground y = true -> i
 Proof.
     intros [|f] D y s r HD Hy Hn H; [discriminate H|].
     destruct (ground_cases y Hy) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]]; try reflexivity;
+        try exact (ground_intersection_not_nullable ys (or_introl Hy));
     destruct (ground_cases D HD) as [[md [cd [dargs ->]]]|[[md [cd [dargs ->]]]|[[ds [-> _]]|[ds [-> _]]]]];
-        try discriminate Hn; simpl in H; discriminate H.
+        try discriminate Hn;
+        first [simpl in H; discriminate H | rewrite (unify_not_nullable_intersection env f ds _ s Hn) in H; discriminate H].
 Qed.
 
 (* Without null on both sides, what is taken stays taken *)
@@ -180,8 +202,9 @@ Proof.
       destruct (ground_cases D HD) as [[md [cd [dargs ->]]]|[[md [cd [dargs ->]]]|[[ds [-> _]]|[ds [-> _]]]]].
       + discriminate En.
       + rewrite ground_nullable_target in H by exact Hy. apply (unify_fuel_monotone env f); [lia|exact H].
-      + discriminate En.
-      + rewrite ground_nullable_target in H by exact Hy. apply (unify_fuel_monotone env f); [lia|exact H].
+      + rewrite (ground_intersection_not_nullable ds (or_introl HD)) in En. discriminate En.
+      + ground_intersection HD.
+        rewrite ground_nullable_target in H by exact Hy. apply (unify_fuel_monotone env f); [lia|exact H].
     - rewrite (ground_non_null_without_null D HD En), (ground_non_null_without_null y Hy (ground_non_null f D y s r HD Hy En H)).
       exact H.
 Qed.
@@ -206,7 +229,9 @@ Proof.
       exact (IH _ _ s r (ground_nullable_inner _ HD) (ground_without_null y Hy) H).
     - destruct (is_nullable env y) eqn:Eny.
       { destruct (ground_cases y Hy) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]];
-            try discriminate Eny; simpl in H; discriminate H. }
+            try discriminate Eny; try (rewrite (ground_intersection_not_nullable ys (or_introl Hy)) in Eny; discriminate Eny);
+            rewrite (unify_not_nullable_intersection env f ds _ s (ground_intersection_not_nullable ds (or_introl HD))) in H;
+            discriminate H. }
       assert (Hshape: match y with Nullable _ | TypeVariable _ | Error _ _ => False | _ => True end)
           by (destruct (ground_cases y Hy) as [[m [c [args ->]]]|[[m [c [args ->]]]|[[ys [-> _]]|[ys [-> _]]]]];
               first [exact I|discriminate Eny]).
@@ -262,6 +287,15 @@ Definition wtfrag (t: EType): bool :=
     end.
 
 Definition argument_wfrag (a: EType): bool := match a with TypeArgument _ _ n => wtfrag n | _ => false end.
+
+(* An intersection of the fragment isn't nullable, its components aren't *)
+Lemma wcomponents_not_nullable: forall cs, wcomponents cs = true -> is_nullable env (Intersection cs) = false.
+Proof.
+    intros cs Hcs. unfold wcomponents in Hcs. apply andb_true_iff in Hcs. destruct Hcs as [Hl Hcs'].
+    destruct cs as [|c0 cs0]; [discriminate Hl|]. simpl in Hcs'. apply andb_true_iff in Hcs'. destruct Hcs' as [Hc0 _].
+    apply andb_true_iff in Hc0. destruct Hc0 as [Hc0 _]. unfold is_component_shape in Hc0. apply andb_true_iff in Hc0.
+    exact (intersection_not_nullable env (c0 :: cs0) c0 (or_introl eq_refl) (proj1 (negb_true_iff _) (proj2 Hc0))).
+Qed.
 
 Lemma wfrag_cases: forall t, wfrag t = true ->
     (exists m c args, t = RootResolved m c args /\ class_eqb c nothing = false
@@ -445,7 +479,12 @@ Proof.
       { intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]]. apply (Hall c Hin). }
       change (instantiate env b (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env b) cs))).
       rewrite (of_class_types _ ltac:(rewrite length_map; exact Hl) Hys).
-      split; [|split; [|split; [|split; [reflexivity|split; [reflexivity|intros H0; discriminate H0]]]]].
+      assert (Hnn: forall k xs, xs <> [] -> (forall x, In x xs -> is_class x = true) ->
+          is_nullable env (Intersection (map (with_mutability env k) xs)) = false).
+      { intros k [|x xs] Hne Hx; [contradiction|]. apply (intersection_not_nullable env (map (with_mutability env k) (x :: xs)) (with_mutability env k x) (or_introl eq_refl)).
+        pose proof (Hx x (or_introl eq_refl)) as Hcx. destruct x; try discriminate Hcx. reflexivity. }
+      split; [|split; [|split; [|split; [reflexivity|split;
+          [intros _; apply Hnn; [destruct cs; [simpl in Hl; lia|discriminate]|exact Hys]|intros H0; discriminate H0]]]]].
       + unfold ground. apply andb_true_iff. split.
         * set (ys := map (instantiate env b) cs) in *.
           change (negb (Nat.eqb (length (map (with_mutability env (common_mutability env ys)) ys)) 0)
@@ -474,11 +513,20 @@ Proof.
       destruct (IH (esize (Intersection cs)) ltac:(simpl; lia) (Intersection cs) eq_refl Hcs Hb)
           as [Hg [Hm [Hmi [_ [Hn _]]]]].
       change (instantiate env b (Nullable (Intersection cs))) with (rewrap_nullable (instantiate env b (Intersection cs))).
-      pose proof (Hn eq_refl) as Hn'.
+      assert (Hnc: is_nullable env (Intersection cs) = false).
+      { unfold wtfrag, wcomponents in Hcs. apply andb_true_iff in Hcs. destruct Hcs as [Hl Hcs'].
+        destruct cs as [|c0 cs0]; [discriminate Hl|]. simpl in Hcs'. apply andb_true_iff in Hcs'. destruct Hcs' as [Hc0 _].
+        apply andb_true_iff in Hc0. destruct Hc0 as [Hc0 _]. unfold is_component_shape in Hc0. apply andb_true_iff in Hc0.
+        exact (intersection_not_nullable env (c0 :: cs0) c0 (or_introl eq_refl) (proj1 (negb_true_iff _) (proj2 Hc0))). }
+      pose proof (Hn Hnc) as Hn'.
       destruct (ground_cases env _ Hg) as [[m [c [args E]]]|[[m [c [args E]]]|[[ys [E _]]|[ys [E _]]]]];
           rewrite E in Hg, Hn' |- *; try discriminate Hn'; cbn [rewrap_nullable].
       + split; [exact Hg|]. split; [exact Hm|]. split; [exact Hmi|]. split; [reflexivity|]. split; intros H0; discriminate H0.
-      + split; [exact Hg|]. split; [exact Hm|]. split; [exact Hmi|]. split; [reflexivity|]. split; intros H0; discriminate H0.
+      + split.
+        { unfold ground in Hg |- *. apply andb_true_iff in Hg. destruct Hg as [Hg1 Hg2]. apply andb_true_iff. split; [|exact Hg2].
+          change (non_null env (Intersection ys) && gfrag env (Intersection ys) = true). rewrite Hg1, andb_true_r.
+          apply negb_true_iff, Hn'. }
+        split; [exact Hm|]. split; [exact Hmi|]. split; [reflexivity|]. split; intros H0; discriminate H0.
 Qed.
 
 (* A type argument of the wide fragment, instantiated *)
@@ -737,7 +785,9 @@ Proof.
     destruct D as [m c args|[m c args| | | | | |]| | | | |]; try contradiction.
     - exact (flipped_never_fails env f _ ys s y Hin (H f s)).
     - change (unify env (S f) (Nullable (RootResolved m c args)) (Intersection ys) (Ongoing s))
-          with (unify env f (RootResolved m c args) (Intersection ys) (Ongoing s)).
+          with (unify env f (RootResolved m c args) (without_null env (Intersection ys)) (Ongoing s)).
+      rewrite (without_null_not_nullable_intersection env ys
+          (intersection_not_nullable env ys y Hin ltac:(destruct y; try discriminate Hy; reflexivity))).
       destruct f as [|f]; [discriminate|].
       apply (flipped_never_fails env f _ ys s y Hin).
       destruct y as [my cy argsy| | | | | |]; try discriminate Hy.
@@ -813,6 +863,7 @@ Definition nullable_assignee (a: EType): EType :=
     match a with
     | Nullable n => n
     | Generic g => Generic (narrow_ref env g)
+    | Intersection _ => without_null env a
     | _ => a
     end.
 
@@ -951,7 +1002,8 @@ Proof.
         rewrite <- (inst_nested_instantiate env wf b K [] _ (sfrag_tfrag env _ Hfn) Hbn), Hin.
         rewrite (inst_nested_instantiate env wf b K [] _ (sfrag_tfrag env _ (generic_sfrag_sfrag env wf ga Hga)) Hba).
         apply (ground_without_null_idempotent env). exact (proj1 (inst_facts _ Ha Hba)).
-      - split; [exact Ha|split; [exact Hba|reflexivity]]. }
+      - rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs Ha)).
+        split; [exact Ha|split; [exact Hba|reflexivity]]. }
     destruct Ha' as [Hwa [Hba' Hwn]].
     rewrite (unify_nullable_step env n t0 a [] ltac:(destruct a; try discriminate Ha; exact I)) in H.
     destruct (IH t0 _ Ht0 Hwa Hbt Hba' u H) as [f Hf].
@@ -969,7 +1021,8 @@ Lemma wide_intersection_target: forall n ts a, types_claim n ->
 Proof.
     intros n ts a IH Hts Ha Hbt Hba u H. destruct (wcomponents_facts env ts Hts) as [Hl Hc].
     assert (Hshape: match a with Nullable _ | TypeVariable _ | Error _ _ => False | _ => True end).
-    { destruct a; try exact I; try discriminate Ha. simpl in H. discriminate H. }
+    { destruct a; try exact I; try discriminate Ha.
+      rewrite (unify_not_nullable_intersection env n ts _ [] (wcomponents_not_nullable env ts Hts)) in H. discriminate H. }
     assert (Hnv: forall c, In c ts -> is_type_variable c = false)
         by (intros c Hin; pose proof (proj1 (Hc c Hin)) as Hsh; destruct c; first [reflexivity|discriminate Hsh]).
     assert (Hne: ts <> []) by (intros ->; simpl in Hl; lia).

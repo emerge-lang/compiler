@@ -416,8 +416,21 @@ Qed.
 Lemma srest_without_null: forall t, srest (without_null env t) = srest t.
 Proof.
     fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; try reflexivity.
-    exact (IH n).
+    - exact (IH n).
+    - cbn [without_null]. destruct (forallb _ cs); reflexivity.
 Qed.
+
+(* An intersection of the fragment is not nullable, and so stays as it is without null *)
+Lemma components_sfrag_not_nullable: forall cs, components_sfrag cs = true -> is_nullable env (Intersection cs) = false.
+Proof.
+    intros cs H. unfold components_sfrag in H. apply andb_true_iff in H. destruct H as [Hl H].
+    destruct cs as [|c cs]; [discriminate Hl|]. simpl in H. apply andb_true_iff in H. destruct H as [Hc _].
+    apply andb_true_iff in Hc. destruct Hc as [Hc _]. unfold is_component_shape in Hc. apply andb_true_iff in Hc.
+    apply (intersection_not_nullable env (c :: cs) c (or_introl eq_refl)). apply negb_true_iff, (proj2 Hc).
+Qed.
+
+Lemma components_sfrag_without_null: forall cs, components_sfrag cs = true -> without_null env (Intersection cs) = Intersection cs.
+Proof. intros cs H. exact (without_null_not_nullable_intersection env cs (components_sfrag_not_nullable cs H)). Qed.
 
 (* What is below the top of a type of the fragment stays as it is with a mutability applied or null
    removed *)
@@ -427,9 +440,12 @@ Lemma trest_adjust: forall t, tfrag t = true ->
 Proof.
     assert (Hmap: forall k cs, forallb srest (map (with_mutability env k) cs) = forallb srest cs).
     { intros k cs. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite srest_with_mutability, IHc. reflexivity. }
+    assert (Hmap2: forall cs, forallb srest (map (without_null env) cs) = forallb srest cs).
+    { intros cs. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite srest_without_null, IHc. reflexivity. }
     intros t Ht.
     destruct t as [mt c args|[mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs];
-        simpl in Ht; try discriminate Ht; (split; [|split]); try intros m; try reflexivity; simpl; apply Hmap.
+        simpl in Ht; try discriminate Ht; (split; [|split]); try intros m; try reflexivity; simpl;
+        first [apply Hmap | match goal with |- context [if ?b then _ else _] => destruct b end; simpl; rewrite ?Hmap2, ?Hmap; reflexivity].
 Qed.
 
 (* The effective bound of a reference of the fragment is of the fragment: at its top as top_tfrag
@@ -681,6 +697,13 @@ Proof.
     split; [apply Nat.leb_le, Hl|]. intros y Hy. rewrite forallb_forall in H. apply andb_true_iff, H, Hy.
 Qed.
 
+Lemma class_components_not_nullable: forall ys, class_components ys = true -> is_nullable env (Intersection ys) = false.
+Proof.
+    intros ys H. destruct (class_components_facts ys H) as [Hl Hc]. destruct ys as [|y0 ys0]; [simpl in Hl; lia|].
+    apply (intersection_not_nullable env (y0 :: ys0) y0 (or_introl eq_refl)).
+    destruct (Hc y0 (or_introl eq_refl)) as [Hcl _]. destruct y0; try discriminate Hcl; reflexivity.
+Qed.
+
 Lemma cfrag_cases: forall t, cfrag t = true ->
     in_fragment env t = true
     \/ (exists ys, t = Intersection ys /\ class_components ys = true)
@@ -747,7 +770,7 @@ Proof.
         with (unify_intersection env (unify env f) (Intersection cs) cs a s) in H.
     destruct cs as [|c1 cs']; [exfalso; exact (Hne eq_refl)|].
     destruct a as [| | | | | |]; try contradiction.
-    all: unfold unify_intersection in H; cbn zeta in H; rewrite Hvar, Hnonvar in H.
+    all: unfold unify_intersection, intersection_body in H; cbn zeta in H; rewrite Hvar, Hnonvar in H.
     all: destruct (fold_unify _ (c1 :: cs') (Ongoing s)) as [[s2|]|] eqn:Ef in H; try discriminate H.
     all: destruct (fold_each f _ (c1 :: cs') s s2 Hk Ef) as [-> Hall].
     all: cbn [find_first] in H; rewrite (Hall c1 (or_introl eq_refl)) in H.
@@ -765,7 +788,7 @@ Proof.
         with (unify_intersection env (unify env f) (Intersection cs) cs a s).
     destruct cs as [|c1 cs']; [exfalso; exact (Hne eq_refl)|].
     destruct a as [| | | | | |]; try contradiction.
-    all: unfold unify_intersection; cbn zeta; rewrite Hvar, Hnonvar.
+    all: unfold unify_intersection, intersection_body; cbn zeta; rewrite Hvar, Hnonvar.
     all: rewrite (fold_all_succeed f _ (c1 :: cs') s Hall); cbn [find_first].
     all: rewrite (Hall c1 (or_introl eq_refl)); reflexivity.
 Qed.
@@ -776,7 +799,8 @@ Lemma inter_accepts: forall f ys y s r, class_components ys = true -> in_fragmen
     r = s /\ is_nullable env y = false /\ forall c, In c ys -> unify env f c y (Ongoing s) = Some (Ongoing s).
 Proof.
     intros f ys y s r Hys Hy H. destruct (class_components_facts ys Hys) as [Hl Hc].
-    destruct (fragment_cases env y Hy) as [[m [cy [args ->]]]|[m [cy [args [-> _]]]]]; [|simpl in H; discriminate H].
+    destruct (fragment_cases env y Hy) as [[m [cy [args ->]]]|[m [cy [args [-> _]]]]].
+    2:{ rewrite (unify_not_nullable_intersection env f _ _ s (class_components_not_nullable ys Hys)) in H. discriminate H. }
     destruct (intersection_target f ys (RootResolved m cy args) s r (class_components_not_variables ys Hys)
         ltac:(intros ->; simpl in Hl; lia) I
         (fun c u Hin E => proj1 (keeps_states_with_arguments env wf f) c _ s u (proj2 (Hc c Hin)) Hy E) H) as [-> Hall].
@@ -848,15 +872,24 @@ Lemma cfrag_without_null: forall f D x s r, cfrag D = true -> in_fragment env x 
 Proof.
     intros f D x s r HD Hx H. destruct (cfrag_cases D HD) as [HD'|[[ys [-> Hys]]|[ys [-> Hys]]]].
     - exact (unify_without_null f D x s r HD' Hx H).
-    - rewrite (without_null_non_null x Hx (cfrag_non_null f _ x s r HD Hx eq_refl H)). exact H.
-    - destruct f as [|f]; [discriminate H|]. rewrite unify_nullable_target in H by exact Hx.
+    - rewrite (without_null_not_nullable_intersection env ys (class_components_not_nullable ys Hys)).
+      rewrite (without_null_non_null x Hx (cfrag_non_null f _ x s r HD Hx (class_components_not_nullable ys Hys) H)). exact H.
+    - change (without_null env (Nullable (Intersection ys))) with (without_null env (Intersection ys)).
+      rewrite (without_null_not_nullable_intersection env ys (class_components_not_nullable ys Hys)).
+      destruct f as [|f]; [discriminate H|]. rewrite unify_nullable_target in H by exact Hx.
       apply (unify_fuel_monotone env f); [lia|exact H].
+Qed.
+
+Lemma cfrag_intersection_not_nullable: forall ys, cfrag (Intersection ys) = true -> is_nullable env (Intersection ys) = false.
+Proof.
+    intros ys H. destruct (cfrag_cases _ H) as [Hf|[[ys' [E Hys]]|[ys' [E _]]]]; [discriminate Hf| |discriminate E].
+    injection E as <-. exact (class_components_not_nullable ys Hys).
 Qed.
 
 Lemma cfrag_without_null_non_null: forall D, cfrag D = true -> is_nullable env D = false -> without_null env D = D.
 Proof.
     intros D HD Hn. destruct (cfrag_cases D HD) as [HD'|[[ys [-> _]]|[ys [-> _]]]];
-        [exact (without_null_non_null D HD' Hn)|reflexivity|discriminate Hn].
+        [exact (without_null_non_null D HD' Hn)|exact (without_null_not_nullable_intersection env ys Hn)|discriminate Hn].
 Qed.
 
 Lemma without_null_rewrap: forall t, without_null env (rewrap_nullable t) = without_null env t.
@@ -1006,7 +1039,9 @@ Lemma inst_ref_not_variable: forall g x, gfrag env x = true -> is_type_variable 
 Proof.
     intros [[k|] [|] p bound] x Hx; unfold inst_ref, inst_fit; cbn [given_mutability is_narrowed];
         (destruct x as [m c args|n|[gm nn q bq]|me msg|v o n|g|cs]; simpl in Hx; try discriminate Hx; try reflexivity;
-         destruct n as [| |[]| | | |]; simpl in Hx; try discriminate Hx; reflexivity).
+         try (cbn [without_null with_mutability rewrap_nullable]; repeat match goal with |- context [if ?b then _ else _] => destruct b end; reflexivity);
+         destruct n as [| |[]| | | |]; simpl in Hx; try discriminate Hx; try reflexivity;
+         cbn [without_null with_mutability rewrap_nullable]; repeat match goal with |- context [if ?b then _ else _] => destruct b end; reflexivity).
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -1213,6 +1248,8 @@ Proof.
     - simpl. rewrite (proj2 (IH n)). reflexivity.
     - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
       intros k. clear m. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj1 (IH c) k), IHc. reflexivity.
+    - cbn [without_null]. destruct (forallb _ cs); [|reflexivity]. cbn [brest].
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj2 (IH c)), IHc. reflexivity.
 Qed.
 
 (* The type parameters in the effective bound of a reference are bound: at its top as top_bound_in
@@ -1317,6 +1354,8 @@ Proof.
     - simpl. rewrite (proj2 (IH n)). reflexivity.
     - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
       intros k. clear m. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj1 (IH c) k), IHc. reflexivity.
+    - cbn [without_null]. destruct (forallb _ cs); [|reflexivity]. simpl.
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj2 (IH c)), IHc. reflexivity.
 Qed.
 
 Lemma bex_generic: forall g, bex (Generic g) = true -> bex (effective_bound env g) = true.
@@ -1597,8 +1636,8 @@ Lemma gfrag_inst_ref_flat: forall g x, gfrag env x = true -> nests_argument (ins
 Proof.
     intros g x Hx. unfold inst_ref, inst_fit.
     destruct (gfrag_cases env x Hx) as [[m [c [args ->]]]|[[n [-> [Hn _]]]|[[gm [nn [p [bound [-> _]]]]]|[cs ->]]]];
-        destruct (given_mutability g), (is_narrowed g); try reflexivity;
-        destruct n as [| | [] | | | |]; simpl in Hn; try discriminate Hn; reflexivity.
+        destruct (given_mutability g), (is_narrowed g); try reflexivity; try (split_nullable_components; reflexivity);
+        destruct n as [| | [] | | | |]; simpl in Hn; try discriminate Hn; try reflexivity; split_nullable_components; reflexivity.
 Qed.
 
 (* Bound exactly, a reference instantiates to the instance of the reference *)
@@ -2068,8 +2107,9 @@ Proof.
       + change (without_null env (Nullable (Generic g))) with (without_null env (Generic g)). rewrite without_null_generic.
         change (assignment_mutability env (Nullable (Generic g))) with (assignment_mutability env (Generic g)).
         apply Hgen; [change (S (tdepth (Generic g)) < S k) in Hd; lia|exact Hg].
-    - split; [exact Hcs|split; reflexivity].
-    - split; [exact Hcs|split; reflexivity].
+    - rewrite (components_sfrag_without_null cs Hcs). split; [exact Hcs|split; [reflexivity|exact (components_sfrag_not_nullable cs Hcs)]].
+    - change (without_null env (Nullable (Intersection cs))) with (without_null env (Intersection cs)).
+      rewrite (components_sfrag_without_null cs Hcs). split; [exact Hcs|split; [reflexivity|exact (components_sfrag_not_nullable cs Hcs)]].
 Qed.
 
 Section Instances.
@@ -2165,7 +2205,7 @@ Proof.
         rewrite (assignment_mutability_of_without_null _ HI), <- (inst_nested_generic g _ o x Ex).
         exact (proj1 (Hgen g ltac:(change (S (tdepth (Generic g)) < S k) in Hd; lia) Hg Hb Htop)).
     - destruct (Hinter cs Hd Hcs Hb Htop) as [[ys [Heq Hys]] Hm]. rewrite Heq in Hm |- *.
-      split; [exact Hys|split; [exact Hm|intros _; reflexivity]].
+      split; [exact Hys|split; [exact Hm|intros _; exact (class_components_not_nullable ys Hys)]].
     - destruct (Hinter cs ltac:(simpl in Hd |- *; lia) Hcs Hb Htop) as [[ys [Heq Hys]] Hm].
       change (inst_nested b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested b (Intersection cs))).
       rewrite Heq in Hm |- *. split; [exact Hys|split; [exact Hm|intros H0; discriminate H0]].
@@ -2229,13 +2269,12 @@ Proof.
         pose proof (inst_ref_in_fragment g x (Hbf _ o x Ex)) as HI. rewrite (rewrap_without_null _ HI).
         change (without_null env (Nullable (without_null env (inst_ref g x)))) with (without_null env (without_null env (inst_ref g x))).
         symmetry. apply without_null_idempotent, HI.
-    - split; [exact Hb|]. destruct (instance_facts _ _ (le_n _) Ht Hb) as [HB [_ Hn]].
-      change (without_null env (Intersection cs)) with (Intersection cs).
-      symmetry. exact (cfrag_without_null_non_null _ HB (Hn eq_refl)).
-    - change (without_null env (Nullable (Intersection cs))) with (Intersection cs). split; [exact Hb|].
+    - rewrite (components_sfrag_without_null cs Hcs). split; [exact Hb|]. destruct (instance_facts _ _ (le_n _) Ht Hb) as [HB [_ Hn]].
+      symmetry. exact (cfrag_without_null_non_null _ HB (Hn (components_sfrag_not_nullable cs Hcs))).
+    - change (without_null env (Nullable (Intersection cs))) with (without_null env (Intersection cs)). rewrite (components_sfrag_without_null cs Hcs) in *. split; [exact Hb|].
       destruct (instance_facts _ (Intersection cs) (le_n _) Hcs Hb) as [HB [_ Hn]].
       change (inst_nested b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested b (Intersection cs))).
-      rewrite without_null_rewrap. symmetry. exact (cfrag_without_null_non_null _ HB (Hn eq_refl)).
+      rewrite without_null_rewrap. symmetry. exact (cfrag_without_null_non_null _ HB (Hn (components_sfrag_not_nullable cs Hcs))).
 Qed.
 
 (* Made non-null, the instance of a type is its instance made non-null: with bindings, and at the top
@@ -2271,12 +2310,12 @@ Proof.
         change (without_null env (Nullable (without_null env (inst_ref g x)))) with (without_null env (without_null env (inst_ref g x))).
         symmetry. apply without_null_idempotent, HI.
     - destruct (instance_facts_ex _ _ (le_n _) Ht Hb Htop) as [HB [_ Hn]].
-      change (without_null env (Intersection cs)) with (Intersection cs).
-      symmetry. exact (cfrag_without_null_non_null _ HB (Hn eq_refl)).
-    - change (without_null env (Nullable (Intersection cs))) with (Intersection cs).
+      rewrite (components_sfrag_without_null cs Hcs) in *.
+      symmetry. exact (cfrag_without_null_non_null _ HB (Hn (components_sfrag_not_nullable cs Hcs))).
+    - change (without_null env (Nullable (Intersection cs))) with (without_null env (Intersection cs)). rewrite (components_sfrag_without_null cs Hcs) in *.
       destruct (instance_facts_ex _ (Intersection cs) (le_n _) Hcs Hb Htop) as [HB [_ Hn]].
       change (inst_nested b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested b (Intersection cs))).
-      rewrite without_null_rewrap. symmetry. exact (cfrag_without_null_non_null _ HB (Hn eq_refl)).
+      rewrite without_null_rewrap. symmetry. exact (cfrag_without_null_non_null _ HB (Hn (components_sfrag_not_nullable cs Hcs))).
 Qed.
 
 Lemma narrow_generic: forall g, generic_sfrag g -> bound_in (Generic g) = true ->
@@ -2340,7 +2379,7 @@ Proof.
         + destruct (unify_into_components n' _ cs s u Hu eq_refl) as [c [Hin Hi]].
           exists c. split; [exact Hin|left; split; [|exact Hwx]]. apply (unify_fuel_monotone env n'); [lia|exact Hi].
         + change (unify env (S n') (Nullable (RootResolved m ct args)) (Intersection cs) (Ongoing s))
-              with (unify env n' (RootResolved m ct args) (Intersection cs) (Ongoing s)) in Hu.
+              with (unify env n' (RootResolved m ct args) (without_null env (Intersection cs)) (Ongoing s)) in Hu. rewrite (components_sfrag_without_null cs Hcs) in Hu.
           destruct n' as [|n'']; [discriminate Hu|].
           destruct (unify_into_components n'' _ cs s u Hu eq_refl) as [c [Hin Hi]].
           exists c. split; [exact Hin|right]. exists (RootResolved m ct args). split; [reflexivity|split; [exact Ht0|]].
@@ -2348,7 +2387,7 @@ Proof.
         + destruct (unify_into_components n' _ cs s u Hu eq_refl) as [c [Hin Hi]].
           exists c. split; [exact Hin|left; split; [|exact Hwx]]. apply (unify_fuel_monotone env n'); [lia|exact Hi].
         + change (unify env (S n') (Nullable (Generic g)) (Intersection cs) (Ongoing s))
-              with (unify env n' (Generic g) (Intersection cs) (Ongoing s)) in Hu.
+              with (unify env n' (Generic g) (without_null env (Intersection cs)) (Ongoing s)) in Hu. rewrite (components_sfrag_without_null cs Hcs) in Hu.
           destruct n' as [|n'']; [discriminate Hu|].
           destruct (unify_into_components n'' _ cs s u Hu eq_refl) as [c [Hin Hi]].
           exists c. split; [exact Hin|right]. exists (Generic g). split; [reflexivity|split; [exact (generic_sfrag_sfrag g Hg)|]].
@@ -2614,7 +2653,7 @@ Proof.
     (* a possibly null value is no intersection's *)
     assert (Hshape: match a with Nullable _ | TypeVariable _ | Error _ _ => False | _ => True end).
     { destruct (sfrag_cases a Ha) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[? [-> _]]|[? [-> _]]]]]];
-          first [exact I|simpl in H; discriminate H]. }
+          first [exact I|rewrite (unify_not_nullable_intersection env n cs _ s (components_sfrag_not_nullable cs Hcs)) in H; discriminate H]. }
     assert (Hk: forall c u', In c cs -> unify env n c a (Ongoing s) = Some (Ongoing u') -> u' = s)
         by (intros c u' Hin E'; exact (proj1 (IH c a u' (proj2 (Hc c Hin)) Ha (bound_in_component cs c Hb Hin) Hba E'))).
     destruct (intersection_target n cs a s u Hnv Hne Hshape Hk H) as [-> Hall]. split; [reflexivity|].
@@ -2679,7 +2718,8 @@ Proof.
       split; [reflexivity|]. rewrite (inst_nested_nullable_generic ga _ o x Ex), without_null_rewrap.
       rewrite (inst_nested_generic ga _ o x Ex) in Hi. rewrite Heq in HI, Hi.
       apply (unify_fuel_monotone env (S (n' * S (S K) + E))); [simpl; lia|].
-      exact (cfrag_without_null _ _ _ s s HI HIg Hi).
+      pose proof (cfrag_without_null _ _ _ s s HI HIg Hi) as Hw.
+      rewrite (cfrag_without_null_non_null _ HI (cfrag_intersection_not_nullable _ HI)) in Hw. exact Hw.
 Qed.
 
 End Main.

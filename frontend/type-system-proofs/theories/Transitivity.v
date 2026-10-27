@@ -258,7 +258,9 @@ Let supertypes_compose := wf_supertypes_compose wf.
 
 Lemma no_vars_without_null: forall t, no_vars (without_null env t) = no_vars t.
 Proof.
-    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH].
+    fix IH 1. intros [m c a|n|[gm nn p b]|m msg|v o n|g|cs]; try reflexivity; simpl; [apply IH|apply IH|].
+    destruct (forallb (is_nullable env) cs); [|reflexivity]. simpl.
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
 Lemma no_vars_set_mutability: forall m t, no_vars t = true -> no_vars (with_mutability env m t) = true.

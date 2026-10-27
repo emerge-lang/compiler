@@ -385,7 +385,10 @@ Proof.
       replace (inst_nested env b (adjust env m nn (Intersection cs)))
           with (inst_nested env b (Intersection (map (with_mutability env (fold_left intersect_mutability
               (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly)) cs)))
-          by (destruct nn; reflexivity).
+          by (destruct nn; [|reflexivity]; unfold adjust;
+              assert (Hwn: is_nullable env (with_mutability env m (Intersection cs)) = false)
+                  by (rewrite (proj1 (proj2 (with_mutability_keeps env ranked m _))); exact (components_sfrag_not_nullable env cs HD));
+              cbn [with_mutability] in Hwn |- *; rewrite (without_null_not_nullable_intersection env _ Hwn); reflexivity).
       rewrite Eys. exists f'. destruct nn; [rewrite (without_null_non_null env Z HZ HnZ)|]; exact H'.
     - (* a nullable intersection *)
       destruct f as [|f]; [discriminate H|].
@@ -402,7 +405,9 @@ Proof.
       set (k := fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) in Eys.
       destruct nn.
       + replace (inst_nested env b (adjust env m true (Nullable (Intersection cs)))) with (inst_nested env b (Intersection (map (with_mutability env k) cs)))
-            by reflexivity.
+            by (unfold adjust; assert (Hwn: is_nullable env (with_mutability env m (Intersection cs)) = false)
+                    by (rewrite (proj1 (proj2 (with_mutability_keeps env ranked m _))); exact (components_sfrag_not_nullable env cs Hcs));
+                cbn [with_mutability rewrap_nullable without_null is_nullable] in Hwn |- *; rewrite Hwn; reflexivity).
         rewrite Eys. exists f'. exact H'.
       + replace (inst_nested env b (adjust env m false (Nullable (Intersection cs))))
             with (rewrap_nullable (inst_nested env b (Intersection (map (with_mutability env k) cs)))) by reflexivity.
@@ -522,6 +527,8 @@ Proof.
     - simpl. rewrite (proj2 (IH n)). reflexivity.
     - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
       intros k. clear m. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj1 (IH c) k), IHc. reflexivity.
+    - cbn [without_null]. destruct (forallb _ cs); [|reflexivity]. simpl.
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (proj2 (IH c)), IHc. reflexivity.
 Qed.
 
 Lemma mentions_only_with_mutability: forall m t, mentions_only t -> mentions_only (with_mutability env m t).
@@ -591,6 +598,8 @@ Proof.
     - destruct Ht as [Ho Hn]. exact (conj Ho (proj2 (IH n Hn))).
     - simpl. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly).
       intros k. clear m. induction cs as [|c cs IHc]; [exact I|]. destruct Ht as [Hc Hcs]. exact (conj (proj1 (IH c Hc) k) (IHc Hcs)).
+    - cbn [without_null]. destruct (forallb (is_nullable env) cs); [|exact Ht]. simpl.
+      induction cs as [|c cs IHc]; [exact I|]. destruct Ht as [Hc Hcs]. exact (conj (proj2 (IH c Hc)) (IHc Hcs)).
 Qed.
 
 Lemma ownership_bound_caller: forall o, (forall q, o = parameter_ownership q -> In q ps) -> ownership_bound b o = true.
