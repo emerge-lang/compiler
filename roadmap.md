@@ -284,6 +284,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 36. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)
+37. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
+    The constructor ties the mutability of the object, `_M` in its return type `exclusive W & _M`, to that of each
+    decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
+    object. Three things broke that:
+    * a member typed as a type parameter of the class got no such parameter (it's "already generic"), so
+      `mut Holder<const X>` could be constructed from a `const X` and its member read as `mut X`. Tying it can't work
+      as an intersection: since intersections have one common mutability, `T & _M` is `read T & read _M`, which isn't
+      assignable to the member typed `T`. That is likely why the shortcut was added
+    * a constructor call assigned to a `mut W` right away (`w: mut W = W(constX)`) is accepted, where the same
+      signature as an intrinsic function (`fn ctor<_M, _V : X & _M>(v: _V) -> W & _M`) isn't; not looked into yet
+    * writes to a decorated `var` member take the declared type, not the mutability of the object: a `read X` can
+      be written into a `mut W` and read back as `mut X`
+
+    `_M` likely wants to be a mutability-only parameter rather than an intersection component. The tests in
+    `ClassErrors` ("decorated members") and `DecoratorMutabilityTests` describe the intended behaviour
 -----
 
 ## Future features
