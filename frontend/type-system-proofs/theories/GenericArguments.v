@@ -4588,6 +4588,36 @@ Proof.
     apply IH. intros Hin. apply H. right. exact Hin.
 Qed.
 
+(* A class type mentions Nothing only as `exclusive Nothing`, where it does only as the bottom type *)
+Lemma class_bottom_only: forall t, in_fragment env t = true -> nothing_is_bottom t = true -> bottom_only t = true.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hf Hn; try (cbn [in_fragment] in Hf; discriminate Hf).
+    - destruct (root_in_fragment env m c args Hf) as [_ Hargs]. cbn [nothing_is_bottom] in Hn. cbn [bottom_only].
+      apply andb_true_iff in Hn. destruct Hn as [Hc Hns]. rewrite Hc. cbn [andb]. clear Hf Hc.
+      induction args as [|a args IHa]; [reflexivity|]. cbn [forallb] in Hns |- *. apply andb_true_iff in Hns. destruct Hns as [Ha Has].
+      rewrite (IHa Has (fun x Hx => Hargs x (or_intror Hx))), andb_true_r.
+      pose proof (Hargs a (or_introl eq_refl)) as Hfa.
+      destruct a as [| | | |v o n| |]; cbn [argument_in_fragment] in Hfa; try discriminate Hfa.
+      cbn [nothing_is_bottom] in Ha. cbn [bottom_only]. exact (IH n Hfa Ha).
+    - destruct (fragment_cases env _ Hf) as [[? [? [? E]]]|[m [c [args [E Hr]]]]]; [discriminate E|]. injection E as En.
+      rewrite <- En in Hr. exact (IH n Hr Hn).
+Qed.
+
+(* ... and a class type without ownerships of type parameters has none of any *)
+Lemma closed_owners_outside: forall ids t, in_fragment env t = true -> closed t = true -> owners_outside ids t.
+Proof.
+    intros ids. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hf Hc; try (cbn [in_fragment] in Hf; discriminate Hf).
+    - destruct (root_in_fragment env m c args Hf) as [_ Hargs]. change (forallb closed args = true) in Hc. cbn [owners_outside].
+      clear Hf. induction args as [|a args IHa]; [exact I|]. cbn [forallb] in Hc. apply andb_true_iff in Hc. destruct Hc as [Ha Has].
+      split; [|exact (IHa Has (fun x Hx => Hargs x (or_intror Hx)))].
+      pose proof (Hargs a (or_introl eq_refl)) as Hfa.
+      destruct a as [| | | |v o n| |]; cbn [argument_in_fragment] in Hfa; try discriminate Hfa.
+      destruct (closed_argument v o n Ha) as [Hop Hcn]. cbn [owners_outside].
+      split; [destruct o; first [exact I|discriminate Hop]|exact (IH n Hfa Hcn)].
+    - destruct (fragment_cases env _ Hf) as [[? [? [? E]]]|[m [c [args [E Hr]]]]]; [discriminate E|]. injection E as En.
+      rewrite <- En in Hr. exact (IH n Hr Hc).
+Qed.
+
 (*
  * Calling a member function in generic code is sound: as FinalValues.member_call_with_any_final_values_sound,
  * with the types of the arguments of the fragment of Fragment.v, mentioning the type parameters of the
@@ -5040,3 +5070,81 @@ Proof.
 Qed.
 
 End GenericArguments.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Member calls, whatever the final values, with intersections as the types of parameters           *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Section AnyFinalValues.
+
+Variable env: Environment.
+Hypothesis wf: wellformed env.
+Hypothesis intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect env a b) = true.
+Hypothesis supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true ->
+    no_vars (closest_common_supertype_with env a b) = true.
+Variable declared: TypeParameterId -> EType.
+Hypothesis declared_wf: bounds_wellformed env declared.
+
+(* The conjectures of Conjectures.v *)
+Hypothesis terminates: unify_terminates.
+Hypothesis finite: finitely_many_templates env.
+Hypothesis not_expansive: non_expansive env.
+Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
+Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
+Hypothesis intersect_below: intersect_is_below_both env declared.
+Hypothesis supertype_above: closest_common_supertype_is_above_both env declared.
+
+(*
+ * Calling a member function is sound, whatever the final values of its type parameters are, also where
+ * the types of the parameters are intersections, as ofComponents makes their instances: as
+ * FinalValues.member_call_with_any_final_values_sound, through member_call_in_generic_code_sound with no
+ * type parameters of the caller. There, the final values are types of the fragment of Fragment.v, such
+ * as intersections, which the components of the instance of an intersection are made of; and a type
+ * variable made nullable in type arguments is narrowed, or of a non-null bound, as the compiler builds
+ * `T?`, whose value, within the declared bound, isn't nullable.
+ *)
+Theorem member_call_with_any_final_values_and_intersections_sound:
+    forall n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U,
+    c <> nothing -> ca <> nothing -> e <> nothing ->
+    map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> in_fragment env bound = true) ->
+    (* the bounds: the declared ones *)
+    (forall p bound, In (p, bound) (cvars ++ ovars) -> to_generic bound = parameter_bound env p) ->
+    (* the receiver, unified with the receiver parameter *)
+    in_fragment env (RootResolved ma ca ys) = true ->
+    unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
+        (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
+    (* the object it is; its type arguments are exact, and as those of c within the bounds *)
+    in_fragment env (RootResolved mo e xs) = true ->
+    is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
+    zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
+    (forall x, In x xs -> exact_argument env x = true) ->
+    (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
+        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
+    (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
+    (forall P, In P Ps -> qfrag env P = true /\ refs_within env (cvars ++ ovars) P) ->
+    (* the type variables made nullable in type arguments of the parameters: narrowed, or of non-null bounds *)
+    (forall P, In P Ps -> args_narrowed env P = true) ->
+    (forall A, In A As -> afrag env A = true /\ closed A = true) ->
+    fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
+    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (final_value_of env U (fst v)))) ovars ->
+    forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
+Proof.
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hdecl Hfy Hrec Hfo Hobj Hzs Hxx Hzb
+        HPs HPn HAs Hfold b Hbdef P A HPA.
+    assert (HAs': forall A, In A As -> of_fragment env declared A /\ bottom_only env A = true
+        /\ owners_outside env (map fst (cvars ++ ovars)) A /\ True).
+    { intros A' HA'. destruct (HAs A' HA') as [Ha HcA]. destruct (afrag_parts env A' Ha) as [Hf Hn].
+      split; [exact (of_fragment_of_class env declared _ Hf)|]. split; [exact (class_bottom_only env A' Hf Hn)|].
+      split; [exact (closed_owners_outside env _ A' Hf HcA)|exact I]. }
+    destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates finite
+        not_expansive intersect_in_fragment supertype_in_fragment intersect_below supertype_above
+        (fun _ => True) (fun _ => True) (fun _ _ _ _ => I) (fun _ _ _ _ _ _ => I) (fun _ _ _ _ _ _ => I) I I (fun _ => I)
+        (fun _ _ _ _ _ _ => I) (fun _ _ => I) (fun _ _ => I) (fun _ _ => I) (fun _ _ _ _ => I)
+        (fun _ _ _ _ _ _ _ _ _ _ => I)
+        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hdecl Hfy Hrec Hfo Hobj Hzs Hxx Hzb
+        HPs HPn HAs' (fun _ _ _ => I) Hfold) as [_ Hmain].
+    destruct (Hmain b Hbdef) as [_ [_ [_ [_ Hsound]]]]. exact (Hsound P A HPA).
+Qed.
+
+End AnyFinalValues.
