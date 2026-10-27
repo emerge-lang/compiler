@@ -87,7 +87,8 @@ class GenericTypeReference private constructor(
         return when(nullability) {
             TypeReference.Nullability.UNSPECIFIED -> this
             TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
-            TypeReference.Nullability.NOT_NULLABLE -> if (isNullable) copy(isNarrowed = true) else this
+            // narrowing a parameter of a non-nullable bound changes nothing, so in its own bound it is narrowed regardless
+            TypeReference.Nullability.NOT_NULLABLE -> if (parameter.isResolvingBound || isNullable) copy(isNarrowed = true) else this
         }
     }
 

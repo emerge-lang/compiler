@@ -28,11 +28,22 @@ data class BoundTypeParameter(
      * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
     val bound: BoundTypeReference by lazy {
-        astNode.bound
-            ?.takeIf { selfReferenceAtTopOfBound == null }
-            ?.let(modifiedContext::resolveType)
-            ?: context.swCtx.getTopType(astNode.span)
+        isResolvingBound = true
+        try {
+            astNode.bound
+                ?.takeIf { selfReferenceAtTopOfBound == null }
+                ?.let(modifiedContext::resolveType)
+                ?: context.swCtx.getTopType(astNode.span)
+        } finally {
+            isResolvingBound = false
+        }
     }
+
+    /**
+     * Whether [bound] is being resolved, so that references to this parameter in it (`T : Ord<in T?>`) can't ask for it
+     */
+    var isResolvingBound = false
+        private set
 
     private val selfReferenceAtTopOfBound: TypeReference? by lazy {
         astNode.bound?.let(::findSelfReferenceAtTop)

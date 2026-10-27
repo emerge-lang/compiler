@@ -1221,6 +1221,100 @@ class TypeErrors : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
 
+        "a type parameter made nullable in its own bound" - {
+            val nullableOrd = ord + "\n" + """
+                class NOrd : Ord<NOrd?> {
+                    override fn compare(self, other: NOrd?) -> S32 {
+                        return 0
+                    }
+                }
+                intrinsic fn max<T : Ord<in T?>>(a: T, b: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        x: NOrd = max(NOrd(), NOrd())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take an argument comparable to non-null values only" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        max(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+            }
+
+            "takes explicit type arguments within the bound" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        x: NOrd = max::<NOrd>(NOrd(), NOrd())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take explicit type arguments outside the bound" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        max::<Num>(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>>(e: E) {
+                            x: E = max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a type parameter comparable to non-null values only" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E>>(e: E) {
+                            max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "doesn't take a possibly null type parameter" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>?>(e: E) {
+                            max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "takes a possibly null type parameter, narrowed" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>?>(e: E) {
+                            x: E = max(e!!, e!!)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a narrowed type parameter comparable to non-null values only" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E>?>(e: E) {
+                            max(e!!, e!!)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
         "a type parameter cannot bound itself" - {
             "directly" {
                 validateModule("fn f<T : T>() {}")
