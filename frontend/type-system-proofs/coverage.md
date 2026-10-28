@@ -10,13 +10,12 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 3 | A type parameter made nullable inside a bound, in generic code where its bound isn't nullable; or the bounded parameter itself, made nullable, of a mutability given to it or narrowed, inside its bound, in generic code | `fn f<A : Any, B : List<A?>>` and `T : Ord<in T?>` called from generic code | The bounds of the theorems of generic code have type variables made nullable in type arguments only narrowed, as for parameters (#12), and the bounded variable itself only plainly (`bplain`: `args_narrowed`, `args_avoid`): with a candidate c in its place, `Ord<in c?>` or `Box<mut c>` isn't shown to be a mixed type (`mfrag`); outside of generic code, `B : List<A?>` is covered (`ifrag`, `nfrag`), and as the whole bound, `T : U?`, outside of generic code where the final values are class types (#10) |
+| 3 | The bounded parameter itself, made nullable, of a mutability given to it or narrowed, inside its bound, in generic code | `T : Ord<in T?>` called from generic code | The bounds of the theorems of generic code have the bounded variable itself in type arguments only plainly (`bplain`: `args_avoid`): with a candidate c in its place, `Ord<in c?>` or `Box<mut c>` isn't shown to be a mixed type (`mfrag`). The other type variables made nullable in type arguments of bounds are covered, also of non-null bounds (`B : List<A?>` with `A : Any`): their values aren't nullable, as those of the lower bounds checked against non-null bounds aren't (`GenericArguments.gstatic_checked`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
-| 12 | A type variable of a non-null bound made nullable in type arguments, of parameter types on receivers of generic code where the bounds of the function mention type variables, and in bounds in generic code | `Box<T?>` with `T : Any`, as the type of a parameter of `fn m<U : Ord<in U>>`, called on `list: List<T>`; `B : List<A?>` with `A : Any` | The parameter types of the call theorems are `qfrag`: intersections of components of `compfrag`, nullable or not, assigned as one mutability, as ofComponents builds them, and those of `pfrag` (`FinalValues.member_call_with_any_final_values_sound`, with fewer premises, only those of `pfrag`). In generic code, a type variable made nullable in type arguments is narrowed, as the compiler builds `T?` of a nullable bound, or of a non-null bound (`args_narrowed`): its value, within the bound, isn't nullable (`GenericArguments.nonnull_values`, from the values being within the declared bounds, `values_not_nullable`), so its instance is of `gfrag`. On receivers of generic code where the bounds of the function mention type variables, and in the bounds themselves, it is narrowed (`args_strict`): the values of the type parameters of the class are the type arguments of the object at run time, which no static check relates to their bounds there, and the bounds are checked before their values are known. A type of generic code given a mutability, the meet with its own, as instantiating `m T` gives it, is one (`GenericCode.caller_ref_apply`, through `wtfrag_given`), and its instance at run time is the instance given the mutability (`GenericReceivers.instance_ref_apply`). Outside of generic code, type arguments `m T` and `T!` take the final values to be class types (#10) |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 | 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment |
 
@@ -46,7 +45,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | area | status |
 |---|---|
 | Read and write through variant type arguments; members typed `T`, `T?`, class types of those; explicit ownership | ✓ `MemberAccess.v` |
-| Member types `m T`, `T!`, intersections; type arguments of the object that aren't class types; generic code | ✗ (#12) |
+| Member types `m T`, `T!`, intersections; type arguments of the object that aren't class types; generic code | ✗ (#11) |
 
 ## Calls and inference, by the callee's bound shape
 
@@ -68,7 +67,7 @@ Columns:
 | a type parameter of the class (`T : E`, `T : Ord<in E>`) | — | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | another parameter, nullable (`T : U?`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | mentions another parameter (`B : List<A>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
-| mentions another parameter made nullable in type arguments (`B : List<A?>`) | ✓* | ✓* | ◐*‡§ | ◐*‡§ | ◐*‡§ |
+| mentions another parameter made nullable in type arguments (`B : List<A?>`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
 | mentions another parameter narrowed in type arguments (`B : List<A!>`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | mentions another parameter of a given mutability in type arguments (`B : List<mut A>`) | ✓*† | ✓*† | ◐*‡ | ◐*‡ | ◐*‡ |
 | F-bound (`T : Ord<in T>`, `T : Ord<in T>?`) | ✓* | ✓* | ◐*‡ | ◐*‡ | ◐*‡ |
@@ -80,17 +79,15 @@ Columns:
 \* only when every such variable gets a lower bound from the arguments, and only for inference (no explicit
 type arguments).
 † only when the final values are class types.
-§ only where the bound of the variable made nullable is nullable, as the compiler then narrows it (#3, #12).
 ◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates`; in generic code
 also that the types of the arguments mention Nothing only as `exclusive Nothing`, and none of the callee's type
 parameters as an ownership. Of an intersection bound, the final value is shown within each component (`bound_components`).
 
 Of parameter types, type variables in type arguments are covered in the cells above: made nullable (`Box<T?>`)
-in every column, in generic code only where the bound of the variable is nullable (#12); of a given mutability
-or narrowed (`Box<mut T>`, `Box<T!>`) with † for free and member functions, and in generic code. So are
-intersections, nullable or not (`x: T & A`, `x: T? & A?`), with † for free and member functions, and in generic
-code, instantiated and on generic receivers but where the function's bounds mention type variables (#12): the
-argument is below the instance of the whole intersection, as ofComponents makes it.
+in every column, of non-null bounds too; of a given mutability or narrowed (`Box<mut T>`, `Box<T!>`) with † for
+free and member functions, and in generic code. So are intersections, nullable or not (`x: T & A`, `x: T? & A?`),
+with † for free and member functions, and in generic code: the argument is below the instance of the whole
+intersection, as ofComponents makes it.
 
 Within the covered cells, these are proven: explicit type arguments and receiver capture (`Inference.v`),
 lower and upper bounds and the final values chosen (`Constraints.v`), receivers of subclasses with exact
@@ -150,13 +147,12 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `T?`, `T!`, `m T`, `m T?`, in every setting: `pfrag`, `pgeneric`,
    `unify_variable_given`, `Generics.target_ordered`, `instance_never_fails`, `parameter_step`,
    `exact_parameter`, `generic_parameter`, `mixed_parameter`, `runtime_parameter`, `runtime_mparameter`; type
-   variables in type arguments of parameter types done, `Box<T?>`, `Box<T!>`, `Box<m T>`, in every setting but
-   `Box<T?>` of a non-null bound on generic receivers where the function's bounds mention type variables: `nfrag`,
+   variables in type arguments of parameter types done, `Box<T?>`, `Box<T!>`, `Box<m T>`, in every setting: `nfrag`,
    `Inference.reference_target`, `reference_assignee`, `Constraints.nested_target_step`, `nested_assignee_step`,
    `Generics.instance_within_never_fails`, `MemberCalls.refs_fuel`, `FBounded.args_plain_candidate`,
    `GenericArguments.gnested_target`, `mnested_target`, `GenericReceivers.rnested_target`, `rmnested_target`; with
    them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`; in bounds in generic
-   code done, but `B : List<A?>` of a non-null bound and the bounded variable itself: `GenericArguments.bplain`,
+   code done, but the bounded variable itself (#3): `GenericArguments.bplain`,
    `mfrag_candidate`, `FreeInstances.plain_variables`, `other_ref_bound`, `GenericReceivers.nib_candidate`; `m T`
    instantiated and on generic receivers done, as the whole type and in type arguments, of parameters and bounds:
    `GenericCode.tfrag_given`, `wtfrag_given`, `caller_ref_apply`; `GenericReceivers.ground_given_target`,
@@ -164,7 +160,7 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `MemberCalls.pbound_in_from_refs`, `FBounded.bindings_within`,
    `GenericArguments.below_of_components`, `gparam_components`, `generic_qparameter`, `mparam_components`,
    `mqparameter`, `GenericCode.caller_of_components`, `qinst_caller`, `qfree_caller`,
-   `GenericReceivers.rparam_components`, `runtime_qparameter`. The model follows ofComponents in keeping the nullability of components that may be null only as their instance may (#15), with instantiated generic code taking the values of type parameters of non-null bounds to be non-null, as they are within their declared bounds: `GenericCode.values_not_nullable`, from the bounds of the type parameters of the callee being the declared ones and, in `generic_member_call_with_bounded_variables_instantiated`, the type arguments of the object within them, as `member_call_in_generic_code_instantiated` already took them. With explicit type arguments, intersections as parameter types done: `Inference.exact_components`, `exact_qparameter`, as `member_call_sound` has them. Whatever the final values, intersections as parameter types done: `GenericArguments.member_call_with_any_final_values_and_intersections_sound`; on generic receivers where the function's bounds mention type variables done: `GenericReceivers.rmparam_components`, `runtime_mqparameter`, and at run time, below the instance of each component, below that of the intersection ofComponents makes of them (`runtime_of_components`). Left of #12: `T?` of a non-null bound in type arguments there and in bounds)
+   `GenericReceivers.rparam_components`, `runtime_qparameter`. The model follows ofComponents in keeping the nullability of components that may be null only as their instance may (#15), with instantiated generic code taking the values of type parameters of non-null bounds to be non-null, as they are within their declared bounds: `GenericCode.values_not_nullable`, from the bounds of the type parameters of the callee being the declared ones and, in `generic_member_call_with_bounded_variables_instantiated`, the type arguments of the object within them, as `member_call_in_generic_code_instantiated` already took them. With explicit type arguments, intersections as parameter types done: `Inference.exact_components`, `exact_qparameter`, as `member_call_sound` has them. Whatever the final values, intersections as parameter types done: `GenericArguments.member_call_with_any_final_values_and_intersections_sound`; on generic receivers where the function's bounds mention type variables done: `GenericReceivers.rmparam_components`, `runtime_mqparameter`, and at run time, below the instance of each component, below that of the intersection ofComponents makes of them (`runtime_of_components`). `T?` of a non-null bound in type arguments there and in bounds done: a lower bound checked against a non-null static upper bound isn't nullable, as unify took it (`GenericArguments.gstatic_checked`, `gstatic_whole`, `variable_takes_not_nullable`), so neither are the final values of non-null bounds (`gfinal_not_nullable`), and the checks hold for bindings of such values (`nonnull_values`); on generic receivers, with the type arguments of the object within the bounds of the class)
 4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
    with such bounds
 5. Member access in generic code and of other member types (#11)
