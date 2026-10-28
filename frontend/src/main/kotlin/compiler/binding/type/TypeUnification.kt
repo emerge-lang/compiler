@@ -24,6 +24,9 @@ class TypeUnification private constructor(
     private val variableStates: Map<BoundTypeParameter, TypeUnification.VariableState>,
     val diagnostics: Set<Diagnostic>,
 ) {
+    /** what of this unification steers unify: the states of the variables, not the diagnostics */
+    internal val stateOfVariables: Any get() = variableStates
+
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
         return diagnostics.asSequence()
             .filter { it.severity >= Diagnostic.Severity.ERROR }

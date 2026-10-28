@@ -1344,5 +1344,16 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
+
+        "a supertype check that comes back to itself fails, rather than not finishing" {
+            validateModule("""
+                interface Cn<T> {}
+                class K : Cn<Cn<in K>> {}
+                fn test(k: K) {
+                    x: Cn<in K> = k
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
     }
 })

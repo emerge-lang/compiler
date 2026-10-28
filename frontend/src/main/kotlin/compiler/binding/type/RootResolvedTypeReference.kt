@@ -280,14 +280,30 @@ class RootResolvedTypeReference private constructor(
                     return carry
                 }
 
-                val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
-                val selfArgs = this.arguments ?: emptyList()
-                val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
-                return selfArgs
-                    .zip(assigneeArgs)
-                    .fold(carry) { innerCarry, (targetArg, sourceArg) ->
-                        targetArg.unify(sourceArg, assignmentLocation, innerCarry)
-                    }
+                /*
+                deciding this can come back to deciding it again, through supertypes with `in` type arguments
+                (`class K : Cn<Cn<in K>>`, K to `Cn<in K>`), and would never finish. As Kennedy and Pierce do, the
+                goal fails then: what holds only by assuming it doesn't hold.
+                 */
+                val goal = Triple(this, assigneeType, carry.stateOfVariables)
+                val goalsInProgress = goalsInProgress.get()
+                if (!goalsInProgress.add(goal)) {
+                    return carry.plusDiagnostic(
+                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a subtype of ${this.baseType.simpleName} only if it already is", assignmentLocation)
+                    )
+                }
+                try {
+                    val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
+                    val selfArgs = this.arguments ?: emptyList()
+                    val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
+                    return selfArgs
+                        .zip(assigneeArgs)
+                        .fold(carry) { innerCarry, (targetArg, sourceArg) ->
+                            targetArg.unify(sourceArg, assignmentLocation, innerCarry)
+                        }
+                } finally {
+                    goalsInProgress.remove(goal)
+                }
             }
             is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
@@ -402,6 +418,10 @@ class RootResolvedTypeReference private constructor(
         result = 31 * result + arguments.hashCode()
         result = 31 * result + mutability.hashCode()
         return result
+    }
+
+    private companion object {
+        val goalsInProgress: ThreadLocal<MutableSet<Triple<RootResolvedTypeReference, RootResolvedTypeReference, Any>>> = ThreadLocal.withInitial { HashSet() }
     }
 }
 
