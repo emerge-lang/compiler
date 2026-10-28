@@ -995,7 +995,7 @@ Hypothesis declared_wf: bounds_wellformed env declared.
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
 Hypothesis tame: tame_inheritance env.
-Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
+Hypothesis intersect_in_fragment: intersect_always_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
 Hypothesis supertype_above: closest_common_supertype_is_above_both env declared.

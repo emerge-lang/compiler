@@ -13,9 +13,10 @@ import io.kotest.matchers.collections.shouldBeEmpty
  * `GenericCode.closest_common_supertype_stays_in_generic_code`), checked for every pair of a set of types. A
  * conjecture about the types of a fragment claims nothing about others, so each check takes the pairs of it.
  *
- * Of two types of the fragment, `A?` and `P` with `P : Any?`, the intersection is `A? & P`, outside of it: the
- * conjectures that intersections stay in the fragments are false there, and the checks leave such intersections
- * out until the proofs cover them (coverage #15).
+ * Of two types of the fragment, `A?` and `P` with `P : Any?`, the intersection is `A? & P`, outside of it:
+ * `Conjectures.intersect_stays_in_fragment` is claimed only of operands that don't keep their nullability so
+ * ([keepsNullability]), and the checks of `intersect_always_stays_in_fragment` and
+ * `intersect_stays_in_generic_code`, false there, leave such intersections out (coverage #15).
  */
 class CommonTypesTests : FreeSpec({
     val types = TypeGrid.types
@@ -63,7 +64,15 @@ class CommonTypesTests : FreeSpec({
         }.shouldBeNone()
     }
 
-    "the intersection of types of the fragment is of it" {
+    "the intersection of types of the fragment that don't keep their nullability is of it" {
+        violationsOf(BoundTypeReference::isOfFragment) { a, b ->
+            if (keepsNullability(a, b)) null else a.intersect(b)
+                .takeUnless { it.isOfFragment() && (!it.isBareNullable() || a.isBareNullable() || b.isBareNullable()) }
+                ?.toString()
+        }.shouldBeNone()
+    }
+
+    "the intersection of types of the fragment is of it, but where they keep their nullability" {
         violationsOf(BoundTypeReference::isOfFragment) { a, b ->
             a.intersect(b).takeUnless { it.isOfFragment() || it.keepsNullableComponents() }?.toString()
         }.shouldBeNone()
@@ -71,7 +80,9 @@ class CommonTypesTests : FreeSpec({
 
     "the closest common supertype of types of the fragment is of it" {
         violationsOf(BoundTypeReference::isOfFragment) { a, b ->
-            a.closestCommonSupertypeWith(b).takeUnless { it.isOfFragment() }?.toString()
+            a.closestCommonSupertypeWith(b)
+                .takeUnless { it.isOfFragment() && (!it.isBareNullable() || a.isBareNullable() || b.isBareNullable()) }
+                ?.toString()
         }.shouldBeNone()
     }
 

@@ -109,8 +109,22 @@ Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env
 Hypothesis intersect_below: intersect_is_below_both env declared.
 Hypothesis supertype_above: closest_common_supertype_is_above_both env declared.
 Hypothesis supertype_of_classes: closest_common_supertype_of_classes env.
+Hypothesis intersect_no_bare: intersect_makes_no_bare_nullable env declared.
+Hypothesis supertype_no_bare: closest_common_supertype_makes_no_bare_nullable env declared.
 
 Let of_fragment (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
+
+(* The bounds of the type variables: made of class types, they are no references to type parameters
+   of nullable bounds as they are, so that intersect keeps them of the fragment (keeps_nullability) *)
+Let bound_fragment (t: EType): Prop := of_fragment t /\ bare_nullable env t = false.
+
+Lemma class_not_bare: forall t, in_fragment env t = true -> bare_nullable env t = false.
+Proof. intros t H. destruct (fragment_cases env t H) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; reflexivity. Qed.
+
+Lemma bound_not_kept: forall a b, bound_fragment a -> in_fragment env b = true -> keeps_nullability env a b = false.
+Proof.
+    intros a b [_ Ha] Hb. unfold keeps_nullability. rewrite Ha, (class_not_bare b Hb). cbn [orb]. apply andb_false_r.
+Qed.
 
 Lemma in_fragment_refs_wf: forall k,
     (forall t, depth t <= k -> in_fragment env t = true -> refs_wf env declared t)
@@ -192,12 +206,12 @@ Let transitive := transitivity_terminating env wf declared declared_wf
     terminates finite tame.
 
 (* What is assignable to the intersection of a bound and a type is assignable to each of them *)
-Lemma below_intersection: forall a b x n, of_fragment a -> in_fragment env b = true -> of_fragment x ->
+Lemma below_intersection: forall a b x n, bound_fragment a -> in_fragment env b = true -> of_fragment x ->
     unify env n (intersect env a b) x (Ongoing []) = Some (Ongoing []) ->
     (exists n1, unify env n1 a x (Ongoing []) = Some (Ongoing [])) /\ (exists n1, unify env n1 b x (Ongoing []) = Some (Ongoing [])).
 Proof.
-    intros a b x n Ha HB Hx H. pose proof (in_fragment_of_fragment b HB) as Hb.
-    destruct (intersect_in_fragment a b Ha Hb) as [Hi Hri]. destruct (intersect_below a b Ha Hb) as [[na Hna] [nb Hnb]].
+    intros a b x n Hab HB Hx H. pose proof (in_fragment_of_fragment b HB) as Hb. pose proof (proj1 Hab) as Ha.
+    destruct (intersect_in_fragment a b Ha Hb (bound_not_kept a b Hab HB)) as [Hi Hri]. destruct (intersect_below a b Ha Hb) as [[na Hna] [nb Hnb]].
     apply unify_assignable in H.
     destruct (transitive n na x _ a (proj1 Hx) Hi (proj1 Ha) (proj2 Hx) Hri (proj2 Ha) H Hna) as [fa Ea].
     destruct (transitive n nb x _ b (proj1 Hx) Hi (proj1 Hb) (proj2 Hx) Hri (proj2 Hb) H Hnb) as [fb Eb].
@@ -248,16 +262,20 @@ Theorem member_call_with_any_final_values_sound: forall n mr c cvars ovars ma ca
 Proof.
     intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
         HPs HAs Hfold.
-    exact (member_call_through_subtypes_sound env wf of_fragment of_fragment
-        (Build_inference_types env of_fragment of_fragment (fun x H => proj1 H) in_fragment_of_fragment reflexive
-            in_fragment_of_fragment
-            (fun a b Ha Hb => intersect_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-            (fun a b Ha Hb => supertype_in_fragment a b Ha (in_fragment_of_fragment b Hb))
-            below_intersection above_supertype intersect_no_vars supertype_no_vars
+    exact (member_call_through_subtypes_sound env wf of_fragment bound_fragment
+        (Build_inference_types env of_fragment bound_fragment (fun x H => proj1 H) in_fragment_of_fragment reflexive
+            (fun x H => conj (in_fragment_of_fragment x H) (class_not_bare x H))
+            (fun a b Ha Hb => conj
+                (intersect_in_fragment a b (proj1 Ha) (in_fragment_of_fragment b Hb) (bound_not_kept a b Ha Hb))
+                (intersect_no_bare a b (proj1 Ha) (in_fragment_of_fragment b Hb) (proj2 Ha) (class_not_bare b Hb)))
+            (fun a b Ha Hb => conj
+                (supertype_in_fragment a b (proj1 Ha) (in_fragment_of_fragment b Hb))
+                (supertype_no_bare a b (proj1 Ha) (in_fragment_of_fragment b Hb) (proj2 Ha) (class_not_bare b Hb)))
+            below_intersection (fun a b x n Ha => above_supertype a b x n (proj1 Ha)) intersect_no_vars supertype_no_vars
             reference_takes_of_fragment reference_assigns_of_fragment reference_within_of_fragment)
         supertype_of_classes
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx Hzb
-        (fun P HP => conj (pfrag_qfrag env P (proj1 (HPs P HP))) (proj2 (HPs P HP))) HAs Hfold (fun _ _ _ H => H)
+        (fun P HP => conj (pfrag_qfrag env P (proj1 (HPs P HP))) (proj2 (HPs P HP))) HAs Hfold (fun _ _ _ H => proj1 H)
         (fun Hi => False_ind _ (no_inter env Ps (fun P HP => proj1 (HPs P HP)) Hi))).
 Qed.
 

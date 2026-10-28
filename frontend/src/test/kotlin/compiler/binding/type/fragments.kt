@@ -92,6 +92,13 @@ private fun intersectionOf(components: List<BoundTypeReference>, ofComponent: (B
  */
 internal fun BoundTypeReference.keepsNullableComponents(): Boolean = intersectionComponents()?.any { it.isNullable } == true
 
+/** `Conjectures.bare_nullable`: a reference to a type parameter of a nullable bound, neither narrowed nor `T?` */
+internal fun BoundTypeReference.isBareNullable(): Boolean = this is GenericTypeReference && isNullable
+
+/** `Conjectures.keeps_nullability`: whether ofComponents may make an intersection of these that [keepsNullableComponents] */
+internal fun keepsNullability(a: BoundTypeReference, b: BoundTypeReference): Boolean =
+    a.isNullable && b.isNullable && (a.isBareNullable() || b.isBareNullable())
+
 /** `SubstitutionWide.wtfrag` */
 private fun isWide(t: BoundTypeReference): Boolean = t.intersectionComponents()?.let { intersectionOf(it, ::isWideBelowTop) } ?: isWideBelowTop(t)
 

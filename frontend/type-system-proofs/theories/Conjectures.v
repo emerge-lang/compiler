@@ -35,10 +35,34 @@ Variable declared: TypeParameterId -> EType.
 
 Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
 
+(* A reference to a type parameter of a nullable bound, as it is: neither narrowed nor `T?` *)
+Definition bare_nullable (t: EType): bool :=
+    match t with Generic _ => is_nullable env t | _ => false end.
+
+(* Whether ofComponents may make, of a and b, an intersection whose components keep their nullability
+   (`A? & P` of `A?` and `P : Any?`, coverage #15): both may be null, and one is such a reference *)
+Definition keeps_nullability (a b: EType): bool :=
+    is_nullable env a && is_nullable env b && (bare_nullable a || bare_nullable b).
+
 (* BoundIntersectionTypeReference.intersect builds types of the fragment: it flattens intersections,
-   nullable ones too, and makes them with ofComponents. *)
+   nullable ones too, and makes them with ofComponents; but where the components keep their
+   nullability, which the fragment doesn't have *)
 Definition intersect_stays_in_fragment: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> keeps_nullability a b = false -> in_gfrag (intersect env a b).
+
+(* That claimed of all types of the fragment. False of the frontend, where the components keep their
+   nullability (coverage #15); the theorems of generic code take it until the fragment has those *)
+Definition intersect_always_stays_in_fragment: Prop :=
     forall a b, in_gfrag a -> in_gfrag b -> in_gfrag (intersect env a b).
+
+(* Neither makes a reference to a type parameter of a nullable bound, as it is, of types that aren't *)
+Definition intersect_makes_no_bare_nullable: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (intersect env a b) = false.
+
+Definition closest_common_supertype_makes_no_bare_nullable: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (closest_common_supertype_with env a b) = false.
 
 (* closestCommonSupertypeWith builds types of the fragment: of class types, the common supertype
    with the type arguments combined by BoundTypeArgument.intersect; of a reference to a type
@@ -85,12 +109,12 @@ Let transitive := transitivity_never_fails env wf declared declared_wf.
 (* What is assignable to the intersection of two types, unify never rejects for each of them *)
 Theorem below_intersection_never_fails:
     intersect_stays_in_fragment env declared -> intersect_is_below_both env declared ->
-    forall a b x n, in_gfrag a -> in_gfrag b -> in_gfrag x ->
+    forall a b x n, in_gfrag a -> in_gfrag b -> in_gfrag x -> keeps_nullability env a b = false ->
         is_assignable_to env n x (intersect env a b) = Some true ->
         forall f, is_assignable_to env f x a <> Some false /\ is_assignable_to env f x b <> Some false.
 Proof.
-    intros Hfrag Hbelow a b x n Ha Hb Hx H f.
-    destruct (Hfrag a b Ha Hb) as [Hi Hri]. destruct (Hbelow a b Ha Hb) as [[na Hna] [nb Hnb]].
+    intros Hfrag Hbelow a b x n Ha Hb Hx Hk H f.
+    destruct (Hfrag a b Ha Hb Hk) as [Hi Hri]. destruct (Hbelow a b Ha Hb) as [[na Hna] [nb Hnb]].
     split.
     - exact (transitive n na x _ a (proj1 Hx) Hi (proj1 Ha) (proj2 Hx) Hri (proj2 Ha) H Hna f).
     - exact (transitive n nb x _ b (proj1 Hx) Hi (proj1 Hb) (proj2 Hx) Hri (proj2 Hb) H Hnb f).
