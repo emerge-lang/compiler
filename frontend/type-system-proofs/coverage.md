@@ -117,13 +117,22 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | area |
 |---|
 | Overload resolution |
+| Casts and instance-of checks (`as`, `is`): out of scope until there is runtime reflection on type arguments (roadmap 13); their type arguments go unchecked until then, by design |
 | Constructors and object initialization (`PartialObjectInitialization`), mixins |
 | Lifetimes and exclusive-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only |
 | Declaration-site variance, which emerge doesn't have |
 
 ## Order of work
 
-Towards full coverage, in this order, each step unblocking the next or removing the most risk for its cost:
+Towards full coverage, in this order: first what is likeliest to turn up soundness problems, and tests of the
+compiler where they narrow a gap for much less than a proof would. The proofs are about the model, which is tied
+to the Kotlin code by review only, and every hole found so far was where the two were compared: by modelling
+Kotlin code (`V` assignable to `V!`, a nullable value taken for `T!`, type variables losing `!` and their
+mutability on instantiation, the closest common supertype of variant type arguments), or by testing Kotlin over a
+grid of types (`CommonTypesTests`: `ofComponents` taking `P : Any?` as nullable). So tests come first. Then come
+proofs, of what the tests leave most at risk.
+
+Done:
 
 1. ~~Override dispatch~~ (done: `Overrides.v`)
 2. ~~Generic code with bounds that mention type variables~~ (done: free and member functions called from generic
@@ -134,7 +143,7 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `rstatic_whole`, `rleaf_all`, `generic_receiver_with_bounded_variables_sound`. With them arguments that aren't
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
-3. The remaining type shapes, in that setting: of bounds, #1 closed intersections (done, of the bounds of the
+3. ~~The remaining type shapes, in that setting~~, all but #3 and #15 (steps 9 and 8 below): of bounds, #1 closed intersections (done, of the bounds of the
    inference interface, as FinalValues has them: `static_bound`, `bindings_within` through `inter_accepts`), #2 nullable intersections (done:
    `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`; of type variables among the components,
    `components_of`, `rewrap_takes`), #3 `T : U?`, #6 `m T` / `T!` (type variables among the components of an
@@ -161,9 +170,51 @@ Towards full coverage, in this order, each step unblocking the next or removing 
    `GenericArguments.below_of_components`, `gparam_components`, `generic_qparameter`, `mparam_components`,
    `mqparameter`, `GenericCode.caller_of_components`, `qinst_caller`, `qfree_caller`,
    `GenericReceivers.rparam_components`, `runtime_qparameter`. The model follows ofComponents in keeping the nullability of components that may be null only as their instance may (#15), with instantiated generic code taking the values of type parameters of non-null bounds to be non-null, as they are within their declared bounds: `GenericCode.values_not_nullable`, from the bounds of the type parameters of the callee being the declared ones and, in `generic_member_call_with_bounded_variables_instantiated`, the type arguments of the object within them, as `member_call_in_generic_code_instantiated` already took them. With explicit type arguments, intersections as parameter types done: `Inference.exact_components`, `exact_qparameter`, as `member_call_sound` has them. Whatever the final values, intersections as parameter types done: `GenericArguments.member_call_with_any_final_values_and_intersections_sound`; on generic receivers where the function's bounds mention type variables done: `GenericReceivers.rmparam_components`, `runtime_mqparameter`, and at run time, below the instance of each component, below that of the intersection ofComponents makes of them (`runtime_of_components`). `T?` of a non-null bound in type arguments there and in bounds done: a lower bound checked against a non-null static upper bound isn't nullable, as unify took it (`GenericArguments.gstatic_checked`, `gstatic_whole`, `variable_takes_not_nullable`), so neither are the final values of non-null bounds (`gfinal_not_nullable`), and the checks hold for bindings of such values (`nonnull_values`); on generic receivers, with the type arguments of the object within the bounds of the class)
-4. Inference variants and receivers: #4 no lower bound, #5 explicit type arguments, #9 receivers of classes
-   with such bounds
-5. Member access in generic code and of other member types (#11)
-6. `unify_terminates`, which turns every ◐ into ✓
-7. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
-   of types
+Tests, of the Kotlin code:
+
+4. The conjectures over more types (`CommonTypesTests`). Every ◐ rests on them.
+   - Add to the grid the shapes the proofs now cover: intersections with type-variable components of a given
+     mutability or narrowed (`A & read U`, `A & U!`), three components, `Box<T?>`, F-bounded parameters.
+     Add #15's `A? & P` too.
+   - Check the conjectures that aren't tested yet:
+     - that the results stay of the fragment (`intersect_stays_in_fragment`,
+       `closest_common_supertype_stays_in_fragment`, and the same in generic code);
+     - `closest_common_supertype_keeps_bottom_only`;
+     - `closest_common_supertype_of_classes`.
+5. Kotlin's unify, for what the proofs show of the model's. Over the same grid, test:
+   - transitivity and reflexivity;
+   - that bindings within the bounds keep assignability when instantiated (`Substitution.v`);
+   - that unify finishes, under a step or stack limit (`unify_terminates`). Use class tables with F-bounds and
+     deep nesting that `ExpansiveInheritance.kt` lets through.
+
+   A violation is a divergence between Kotlin and the model, or a counterexample to a conjecture.
+6. End-to-end probes of the blind spots and of what is outside the model, likeliest first. Each probe tries to
+   put a value where its type says it can't be: null into a non-null type, a `read` reference into `mut`, an `A`
+   into a `B`.
+   - #15 `A? & P`: the third case of `ofComponents` is new code, and `intersect_stays_in_fragment` doesn't
+     hold of it.
+   - #11 member reads and writes through variant type arguments in generic code, and members typed `mut T`,
+     `T!`, `A & T`.
+   - Exclusive references and lifetimes (outside the model): roadmap 20 is a known hole.
+   - Overrides whose parameter or return types are `m T`, `T!` or intersections.
+   - Partial object initialization and mixins (outside the model).
+   - #9 receivers of classes with variable bounds, #4 variables without a lower bound, #5 explicit type
+     arguments.
+   - #3 `T : Ord<in T?>`: its bound narrows T while it is resolved (`isResolvingBound`).
+   - #13 `read Nothing`.
+
+   A hole found by any of steps 4 to 6 is fixed and proven next, before the steps below. Whatever a probe finds
+   outside the model also goes into the roadmap.
+
+Proofs:
+
+7. #11 member access in generic code and of other member types; overrides beyond class types.
+8. #15 intersections whose components keep their nullability: gfrag widened to them, and
+   `intersect_stays_in_fragment` with it.
+9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
+   bounds, #4 no lower bound, #5 explicit type arguments, #3.
+10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
+11. `unify_terminates`, which turns every ◐ into ✓. It is last of the type system, as it isn't a soundness
+    problem: if unify doesn't finish, the compiler rejects the program. Step 5 tests it meanwhile.
+12. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
+    of types.
