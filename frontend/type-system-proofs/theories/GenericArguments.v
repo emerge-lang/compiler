@@ -3358,7 +3358,7 @@ Proof.
         apply filter_In in Hcov. destruct Hcov as [Hcov Hv]. apply negb_true_iff in Hv.
         destruct (Hcase cov Hcov) as [[mc [cl1 [argsc ->]]]|[gm [nn [q ->]]]]; [|discriminate Hv].
         destruct (root_takes n1 mc cl1 argsc A s2 s3 (proj1 Ha) Ecov) as [Hcn' Hcm].
-        rewrite Hcn', andb_false_r in H.
+        rewrite Hcn' in H.
         set (m' := intersect_mutability (mutability_of env A) (mutability_of env (RootResolved mc cl1 argsc))) in H.
         assert (Hm': is_subtype_of (assignment_mutability env A) m' = true).
         { unfold m'. apply intersect_mutability_greatest.
@@ -3658,7 +3658,7 @@ Proof.
         { subst cov. unfold w. rewrite EC. unfold with_candidate. cbn [instantiate with_mutability]. eauto. }
         destruct Ecov' as [mc [argsc ->]].
         destruct (root_takes n1 mc cl1 argsc a s2 s3 (proj1 Ha) Ecov) as [Hcn Hcm].
-        rewrite Hcn, andb_false_r in H.
+        rewrite Hcn in H.
         set (m' := intersect_mutability (mutability_of env a) (mutability_of env (RootResolved mc cl1 argsc))) in H.
         assert (Hm': is_subtype_of (assignment_mutability env a) m' = true).
         { unfold m'. apply intersect_mutability_greatest.
@@ -4268,7 +4268,7 @@ Proof.
         apply filter_In in Hcov. destruct Hcov as [Hcov Hv]. apply negb_true_iff in Hv.
         destruct (Hcase cov Hcov) as [[mc [cl1 [argsc ->]]]|[gm [nn [q ->]]]]; [|discriminate Hv].
         destruct (root_takes n1 mc cl1 argsc A s2 s3 (proj1 Ha) Ecov) as [Hcn' Hcm].
-        rewrite Hcn', andb_false_r in H.
+        rewrite Hcn' in H.
         set (m' := intersect_mutability (mutability_of env A) (mutability_of env (RootResolved mc cl1 argsc))) in H.
         assert (Hm': is_subtype_of (assignment_mutability env A) m' = true).
         { unfold m'. apply intersect_mutability_greatest.

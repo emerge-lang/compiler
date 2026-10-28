@@ -701,7 +701,7 @@ Proof.
         assert (Ecov': exists mc argsc, cov = RootResolved mc cl1 argsc).
         { subst cov. unfold w. rewrite EC. unfold with_candidate. cbn [instantiate with_mutability]. eauto. }
         destruct Ecov' as [mc [argsc ->]].
-        cbn [is_nullable] in H. rewrite andb_false_r in H.
+        cbn [is_nullable] in H.
         set (m' := intersect_mutability (mutability_of env (RootResolved ma ca aargs)) (mutability_of env (RootResolved mc cl1 argsc))) in H.
         assert (Hm': Model.is_subtype_of (assignment_mutability env (RootResolved ma ca aargs)) m' = true).
         { unfold m'. apply Ops.intersect_mutability_greatest; [exact (assigned_below_own (RootResolved ma ca aargs) eq_refl)|].
@@ -984,7 +984,7 @@ Proof.
         destruct (Hns cov Hcov s2 s3 Hs2 Ecov) as [Hs3 [Hn3 _]].
         apply filter_In in Hcov. destruct Hcov as [Hcov Hv]. apply negb_true_iff in Hv.
         destruct (Hcase cov Hcov) as [[mc [cl1 [argsc ->]]]|[gm [nn [q ->]]]]; [|discriminate Hv].
-        cbn [is_nullable] in H. rewrite andb_false_r in H.
+        cbn [is_nullable] in H.
         set (m' := intersect_mutability (mutability_of env (RootResolved ma ca aargs)) (mutability_of env (RootResolved mc cl1 argsc))) in H.
         assert (Hm': Model.is_subtype_of (assignment_mutability env (RootResolved ma ca aargs)) m' = true).
         { unfold m'. apply Ops.intersect_mutability_greatest; [exact (assigned_below_own (RootResolved ma ca aargs) eq_refl)|].

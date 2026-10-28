@@ -15,9 +15,9 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
-| 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
+| 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those. Nor is there member access through a value of a type parameter: the frontend read and wrote its members as the bound of their type, so `set t.value = b` with `T : mut Box<A>` took any value; they are now those of its bound, of the type arguments there (roadmap 32). An intersection with a component instantiated to a variant type argument is now that type argument (`A? & P`, `P` bound to `in A`, is `in A`, where it was `A`: a read of an `H<in A>` gave null as an `A`), where the model's `inst_component` drops the variance |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
-| 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment. Worse, `intersect` makes them of types of the fragment, `A?` and `P` giving `A? & P`, as inference does of upper bounds: `intersect_stays_in_fragment` and `intersect_stays_in_generic_code` are false of the compiler there, so the theorems that take them (of `FinalValues`, `GenericArguments`, `GenericCode`, `GenericReceivers`) don't apply to it as they stand. `CommonTypesTests` leaves these intersections out of its checks of the conjectures |
+| 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment. Worse, `intersect` makes them of types of the fragment, `A?` and `P` giving `A? & P`, as inference does of upper bounds: `intersect_stays_in_fragment` and `intersect_stays_in_generic_code` are false of the compiler there, so the theorems that take them (of `FinalValues`, `GenericArguments`, `GenericCode`, `GenericReceivers`) don't apply to it as they stand. `CommonTypesTests` leaves these intersections out of its checks of the conjectures. Inferring from an argument that may be null, the frontend and the model took null as covered by the component that takes the argument, and bound `P` to a non-null `Any`: `id(null)` with `fn id<P>(x: A? & P) -> A? & P` was an `A`. Both now leave null to every component (`Subtyping.intersection_body`) |
 | 16 | Programs with classes whose supertypes have `in` type arguments nested in their type arguments, wherever the theorems rest on `unify_terminates` (◐) | `class K : Cn<Cn<in K>>` | Deciding `K` below `Cn<in K>` decides it again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's example): the model's unify doesn't terminate. The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't, and `unify_terminates` is conjectured only where supertypes are without contravariance (`Conjectures.tame_inheritance`) |
 
 ## Subtyping (unify)
@@ -120,7 +120,7 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | Overload resolution |
 | Casts and instance-of checks (`as`, `is`): out of scope until there is runtime reflection on type arguments (roadmap 13); their type arguments go unchecked until then, by design |
 | Constructors and object initialization (`PartialObjectInitialization`), mixins |
-| Lifetimes and exclusive-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only |
+| Lifetimes and exclusive-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only. Unsound through type variables: a value of type `T` is copied freely, and an exclusive value passed for a parameter of type `T` keeps its lifetime, `T` inferred as its exclusive type (roadmap 20) |
 | Declaration-site variance, which emerge doesn't have |
 
 ## Order of work
@@ -185,28 +185,30 @@ Tests, of the Kotlin code:
    recursion through type arguments. It didn't on Kennedy and Pierce's example, `class K : Cn<Cn<in K>>`, the
    frontend overflowing its stack: `unify_terminates` was false. The frontend now fails a goal that comes up again
    while it is decided, and the conjecture takes supertypes without contravariance (#16))
-6. End-to-end probes of the blind spots and of what is outside the model, likeliest first. Each probe tries to
-   put a value where its type says it can't be: null into a non-null type, a `read` reference into `mut`, an `A`
-   into a `B`.
-   - #15 `A? & P`: the third case of `ofComponents` is new code, and `intersect` makes such types.
-   - #11 member reads and writes through variant type arguments in generic code, and members typed `mut T`,
-     `T!`, `A & T`.
-   - Exclusive references and lifetimes (outside the model): roadmap 20 is a known hole.
-   - Overrides whose parameter or return types are `m T`, `T!` or intersections.
-   - Partial object initialization and mixins (outside the model).
-   - #9 receivers of classes with variable bounds, #4 variables without a lower bound, #5 explicit type
-     arguments.
-   - #3 `T : Ord<in T?>`: its bound narrows T while it is resolved (`isResolvingBound`).
-   - #13 `read Nothing`.
+6. ~~End-to-end probes of the blind spots and of what is outside the model~~ (done: some 250 programs, each
+   putting a value where its type says it can't be, of #15, #11, members typed `m T`, `T!`, `A & T`, overrides,
+   #9, #4, #5, #3, #13, exclusive references and object initialization; regression tests in `TypeErrors`. Found,
+   and fixed in the frontend:
+   - #15: null as an argument for `A? & P` bound `P` to a non-null `Any`, in the model too
+   - #15: `A? & P` with `P` bound to `in A` lost null; such an intersection is now the type argument
+   - #11: the members of a value of a type parameter were read and written as the bound of their type, any
+     value written (roadmap 32)
+   - two crashes: inferring from `Box<A?>` for `Box<A? & P>` (an intersection made non-null with a type
+     variable among the components), and an intersection in the type arguments of a supertype (roadmap 38,
+     outside the type system, open)
 
-   A hole found by step 6 is fixed and proven next, before the steps below. Whatever a probe finds
-   outside the model also goes into the roadmap.
+   And outside the model, open: exclusive values through type variables (roadmap 20). Overrides, receivers,
+   explicit type arguments, variables without a lower bound, `T : Ord<in T?>`, `read Nothing` and object
+   initialization held. Steps 7 and 8 prove what was fixed)
 
 Proofs:
 
 7. #15 intersections whose components keep their nullability: gfrag widened to them, and
-   `intersect_stays_in_fragment` with it, which until then is false of the compiler.
-8. #11 member access in generic code and of other member types; overrides beyond class types.
+   `intersect_stays_in_fragment` with it, which until then is false of the compiler; with them, null as an
+   argument for one, as step 6 found.
+8. #11 member access in generic code and of other member types, through values of type parameters too, and of
+   intersections with components instantiated to variant type arguments (the model's `inst_component` to lift
+   the variance, as the frontend now does); overrides beyond class types.
 9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
    bounds, #4 no lower bound, #5 explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.

@@ -1245,8 +1245,10 @@ Definition intersection_body (unify: UnifyFn) (components: list EType) (assignee
                     let covered_any := RootResolved
                         (Some (intersect_mutability (mutability_of assignee) (mutability_of covering)))
                         any [] in
+                    (* null isn't covered by any one component: where a nullable assignee gets here,
+                       each must take null *)
                     let new_assignee :=
-                        if negb (is_nullable covering) && is_nullable assignee
+                        if is_nullable assignee
                         then Nullable covered_any
                         else covered_any in
                     (new_assignee, states3)
