@@ -41,6 +41,7 @@ it shows and why; the tables below are the map.
 | `Overrides.v`        | what a call is checked against holds of the override dynamic dispatch runs                      | `override_parameter`, `override_return`, `override_receiver`            |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`, `generic_member_call_with_bounded_variables_instantiated` |
 | `GenericReceivers.v` | calls in generic code on receivers mentioning the type parameters of the caller, at run time      | `member_call_on_generic_receiver`, `generic_receiver_with_bounded_variables_sound` |
+| `Composition.v`      | instantiating twice is instantiating once with the bindings instantiated: member access in generic code, overrides | `generic_member_read_sound`, `generic_member_write_sound`, `override_parameter_composed`, `override_return_composed` |
 | `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : A & Comparable<T>`), for free and member functions | `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound` |
 
 ### Fragments

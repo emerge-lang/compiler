@@ -15,7 +15,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
 | 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
-| 11 | Member reads and writes in generic code, and through values of type parameters | `box.value` with `box: Box<T>`; `t.value` with `T : mut Box<A>` | MemberAccess covers class-type type arguments of the object and of the reference, and members typed `T`, `T?`, `m T`, `T!`, `m T?`, or class types of those; MemberIntersections members typed as intersections of those, where an intersection with a component instantiated to a variant type argument is that type argument (`Subtyping.intersect_instances`). Through a value of a type parameter, the frontend read and wrote the members as the bound of their type, so `set t.value = b` with `T : mut Box<A>` took any value; they are now those of its bound, of the type arguments there (roadmap 32), unproven |
+| 11 | Member access in generic code where the instances aren't class types, or of members typed as intersections; overrides of intersection types | `box.value` with `box: Box<A & T>`; `b.v` with `b: H<T>` and `v: A & X`; an override taking `A & T` | `Composition.v` covers reads and writes through a reference mentioning type parameters, and through a value of a type parameter, which the frontend reads as its bound (roadmap 32): instantiated for the run-time bindings, they are those through the reference at run time (`compose_member`, for member types as MemberAccess has them, mentioning Nothing only as `exclusive Nothing`). At run time, MemberAccess takes over, which needs the instances of the type arguments of the reference, and of a value written, to be class types. Intersections as member types are left out: `A? & T` instantiated with a type parameter of nullable bound is outside the fragment until step 12. The frontend agrees over the grid (`MemberAccessPropertiesTests`) |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 | 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment. Worse, `intersect` makes them of types of the fragment, `A?` and `P` giving `A? & P`, as inference does of upper bounds. So `intersect_stays_in_fragment` is claimed only where the operands don't keep their nullability (`keeps_nullability`), which non-generic code meets: its bounds are never references to type parameters of nullable bounds as they are (`FinalValues.bound_fragment`), and `member_call_with_any_final_values_sound` applies to the compiler. The theorems of generic code (`GenericArguments`, `GenericCode`, `GenericReceivers`) take it of all operands (`intersect_always_stays_in_fragment`), as `intersect_stays_in_generic_code`: false of the compiler, so they don't apply to it as they stand, until the fragments have these intersections (step 12). Inferring from an argument that may be null, the frontend and the model took null as covered by the component that takes the argument, and bound `P` to a non-null `Any`: `id(null)` with `fn id<P>(x: A? & P) -> A? & P` was an `A`. Both now leave null to every component (`Subtyping.intersection_body`) |
 | 16 | Programs with classes whose supertypes have `in` type arguments nested in their type arguments, wherever the theorems rest on `unify_terminates` (◐) | `class K : Cn<Cn<in K>>` | Deciding `K` below `Cn<in K>` decides it again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's example): the model's unify doesn't terminate. The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't, and `unify_terminates` is conjectured only where supertypes are without contravariance (`Conjectures.tame_inheritance`) |
@@ -47,7 +47,8 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 |---|---|
 | Read and write through variant type arguments; members typed `T`, `T?`, `m T`, `T!`, `m T?`, class types of those; explicit ownership | ✓ `MemberAccess.v` |
 | Member types that are intersections of those, made nullable or not (`A & T`, `(A & T!)?`, `A? & T`), but of components `T?` | ◐ `MemberIntersections.v` (assumes `unify_terminates`) |
-| Type arguments of the object that aren't class types; generic code; through values of type parameters | ✗ (#11) |
+| In generic code and through values of type parameters, for the member types of `MemberAccess.v`: what is read and written, instantiated, is so through the reference at run time | ◐ `Composition.v`: `generic_member_read_sound`, `generic_member_write_sound` (assumes `unify_terminates`; run-time type arguments class types, #11) |
+| Members typed as intersections in generic code | ✗ (#11) |
 | Objects of a subclass of the reference's class | — only classes have member variables, and classes have no subtypes (`BoundBaseType.Kind`) |
 
 ## Calls and inference, by the callee's bound shape
@@ -111,7 +112,8 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | An argument the call takes fits the override's parameter, with the type parameters of the object's class bound | ✓ | `Overrides.v`: `override_parameter` |
 | What the override returns fits the return type the call expects | ✓ where the object's type arguments are within their bounds | `override_return` |
 | The object fits the override's declared receiver (an override can't demand `mut` where the overridden function takes `read`) | ✓ class-type receivers; the intersection Kotlin checks is taken unsimplified | `override_receiver` |
-| Parameter and return types beyond class types and plain references to the class's type parameters (`m T`, `T!`, intersections) | ✗ | — |
+| Parameter and return types `m T`, `T!`, `T?`, class types of those | ◐ assumes `unify_terminates` | `Composition.v`: `override_parameter_composed`, `override_return_composed` |
+| Parameter and return types that are intersections | ✗ (#11) | — |
 | Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
 | Every function a concrete class inherits is implemented, so dispatch finds one | assumed: the compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction`) | readme, assumptions |
 
@@ -211,16 +213,15 @@ Proofs:
    `closest_common_supertype_makes_no_bare_nullable`: `FinalValues.bound_fragment`. Widening gfrag to the
    intersections themselves, which generic code needs, touches some ninety places where the proofs take
    intersections of the fragment to be non-null, the transitivity proof among them: step 12)
-8. #11 member access: of members typed `m T`, `T!` (done: `MemberAccess.inst_ref_mono`) and intersections (done:
-   `MemberIntersections.v`, the model lifting the variance as the frontend does, `Subtyping.intersect_instances`.
-   Found, and fixed in the frontend: written through a variantly bound type argument, a member typed as an
-   intersection nullable only as its components are took null, `Box<P>? & Q` with `Q` bound to `out B?`, where
-   the object may hold a `Box<A> & B`; `instantiateAllParametersForWriting` now leaves null to members declared
-   `X?`, as the model has it). In generic code and through values of type parameters, tested:
-   `MemberAccessPropertiesTests` checks over the grid that what is read through a reference mentioning type
-   parameters, instantiated, is above what is read through the reference at run time, and what is written fits
-   what it takes then, which holds. Next: the proofs of that, with overrides beyond class types, which rest on
-   the same composition of instantiations.
+8. ~~#11 member access~~ (done, but intersections in generic code: of members typed `m T`, `T!`
+   (`MemberAccess.inst_ref_mono`) and intersections (`MemberIntersections.v`, the model lifting the variance as
+   the frontend does, `Subtyping.intersect_instances`); in generic code and through values of type parameters,
+   and overrides of those types (`Composition.v`: instantiating twice is instantiating once with the bindings
+   instantiated, `compose_member`, which `MemberAccessPropertiesTests` also checks of the frontend). Found, and
+   fixed in the frontend: written through a variantly bound type argument, a member typed as an intersection
+   nullable only as its components are took null, `Box<P>? & Q` with `Q` bound to `out B?`, where the object
+   may hold a `Box<A> & B`; `instantiateAllParametersForWriting` now leaves null to members declared `X?`, as
+   the model has it)
 9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
    bounds, #4 no lower bound, #5 explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
@@ -230,6 +231,7 @@ Proofs:
     rejects the program.
 12. #15 in generic code: gfrag widened to intersections whose components keep their nullability, and the
     theorems of generic code with it, taking `intersect_stays_in_fragment` rather than
-    `intersect_always_stays_in_fragment`; with them, null as an argument for one, as step 6 found.
+    `intersect_always_stays_in_fragment`; with them, null as an argument for one, as step 6 found, and members
+    and overrides typed as intersections in generic code (#11).
 13. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
     of types.
