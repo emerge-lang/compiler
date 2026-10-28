@@ -170,23 +170,47 @@ Definition non_expansive: Prop :=
 Definition finitely_many_templates: Prop :=
     exists classes: list Class, forall sub super, supertype_arguments env sub super <> [] -> In sub classes.
 
+(* No in-variant type argument, nested ones included *)
+Fixpoint without_contravariance (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb without_contravariance arguments
+    | Nullable n => without_contravariance n
+    | TypeArgument v _ n => negb (Variance_beq v input) && without_contravariance n
+    | Intersection components => forallb without_contravariance components
+    | _ => true
+    end.
+
+(* The type arguments of supertypes are without contravariance. With it, unify needn't terminate:
+   with `class K : Cn<Cn<in K>>`, deciding K below `Cn<in K>` decides it again, after K is normalized to
+   `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's
+   example). The frontend fails such a goal (RootResolvedTypeReference.unify), which the model doesn't *)
+Definition supertypes_without_contravariance: Prop :=
+    forall sub super, forallb without_contravariance (supertype_arguments env sub super) = true.
+
+(* Inheritance unify is conjectured to terminate on *)
+Definition tame_inheritance: Prop := non_expansive /\ supertypes_without_contravariance.
+
 End Expansive.
 
 (*
  * unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive, as
- * ExpansiveInheritance.kt makes sure.
+ * ExpansiveInheritance.kt makes sure, and the type arguments of supertypes are without contravariance
+ * (tame_inheritance). The frontend doesn't make sure of the latter, but fails a goal that comes up
+ * again while it is being decided; programs with such supertypes are outside of the theorems taking
+ * this conjecture.
  *
  * Why this stays a conjecture: Kennedy and Pierce show the goals reachable from a query finite where
  * inheritance isn't expansive, for a much smaller calculus. Here no size of the types decreases:
  * normalizing an assignee to a supertype grows its type arguments (`B<E> : A<Box<E>>`), and an
  * in-variant type argument swaps target and assignee. A measure would have to come from the rank of
  * non_expansive, and cover effective bounds, intersections, nullability and Nothing as well. That
- * declared supertypes have no variance on their type arguments (wf_supertypes_are_exact) helps:
- * inheritance alone brings in no contravariance, which their undecidable examples rest on; `in`
- * comes only from the types written, or nested in the type arguments of supertypes.
+ * declared supertypes have no variance on their type arguments (wf_supertypes_are_exact), nor
+ * contravariance nested in them (supertypes_without_contravariance), helps: inheritance alone brings
+ * in no contravariance, which their undecidable examples rest on; `in` comes only from the types
+ * written.
  *
  * What it would take if it didn't hold: where the frontend runs unify, it would not finish (a stack
- * overflow), and so reject a program, never accept one. The theorems resting on it, though, are about
+ * overflow), or fail a goal that comes up again, and so reject a program, never accept one. The theorems resting on it, though, are about
  * unifications the frontend never runs: of the instances of generic code (SubstitutionTerminating.v,
  * SubstitutionWide.v) and of the final values of inference (FinalValues.v). For those, unify never
  * rejecting is proven without it (transitivity_never_fails, instances_never_fail); what rests on it is
@@ -198,7 +222,7 @@ Definition unify_terminates: Prop :=
     forall env declared,
         wellformed env ->
         bounds_wellformed env declared ->
-        finitely_many_templates env -> non_expansive env ->
+        finitely_many_templates env -> tame_inheritance env ->
         forall t a s, gfrag env t = true -> gfrag env a = true -> refs_wf env declared t -> refs_wf env declared a ->
             exists n, unify env n t a (Ongoing s) <> None.
 
@@ -213,7 +237,7 @@ Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
-Hypothesis not_expansive: non_expansive env.
+Hypothesis tame: tame_inheritance env.
 
 (* Transitivity, as usual, where unify terminates *)
 Theorem transitivity_terminating: forall n1 n2 x y z,
@@ -223,7 +247,7 @@ Theorem transitivity_terminating: forall n1 n2 x y z,
     exists f, is_assignable_to env f x z = Some true.
 Proof.
     intros n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2.
-    destruct (terminates env declared wf declared_wf finite not_expansive
+    destruct (terminates env declared wf declared_wf finite tame
         z x [] Hz Hx Hrz Hrx) as [f Hf].
     exists f. pose proof (transitivity_never_fails env wf declared declared_wf
         n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 f) as Hnf.

@@ -2,7 +2,6 @@ package compiler.compiler.binding.type
 
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeReference
-import compiler.compiler.negative.validateModule
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -19,33 +18,8 @@ import io.kotest.matchers.collections.shouldBeEmpty
  * out until the proofs cover them (coverage #15).
  */
 class CommonTypesTests : FreeSpec({
-    val swCtx = validateModule("""
-        interface A {}
-        interface B {}
-        interface C : A {}
-        interface Ord<T> {}
-        class N : Ord<N> {}
-        class Box<E> {}
-        class Ctx<P, Q : A, R : A?, F : Ord<in F>> {}
-    """.trimIndent()).first
-
-    val ctxParameters = setOf("P", "Q", "R", "F")
-
-    val types = listOf(
-        "A", "mut A", "const A", "exclusive A", "A?", "mut A?",
-        "B", "const B?",
-        "C", "mut C", "exclusive C?",
-        "N", "mut N", "Ord<N>", "Ord<in N>",
-        "Any", "Any?", "mut Any", "exclusive Nothing", "exclusive Nothing?",
-        "Box<A>", "Box<C>", "Box<in A>", "Box<out A>", "Box<in C>", "Box<out C>", "Box<mut A>", "Box<A?>", "mut Box<out A>?",
-        "Box<A & B>", "Box<out A & Q>", "Box<exclusive Nothing>",
-        "P", "P?", "P!", "mut P", "Q", "const Q", "Q?", "R", "R!", "R?", "read R", "mut R?",
-        "F", "F?", "mut F", "Ord<in F>",
-        "Box<P>", "Box<P?>", "Box<out Q>", "Box<R!>", "Box<R?>", "Box<mut R>", "Box<F>",
-        "A & B", "mut A & B", "A? & B?", "C & Q", "Q & B", "A & B & Q", "A & P", "mut A & R", "B & F", "A? & R?",
-        // components that keep their nullability (coverage #15)
-        "A? & P", "P & R",
-    ).map { it to swCtx.parseTypeIn("Ctx", it) }
+    val types = TypeGrid.types
+    val ctxParameters = TypeGrid.ctxParameters
 
     fun violationsOf(
         of: (BoundTypeReference) -> Boolean = { true },
@@ -125,14 +99,7 @@ class CommonTypesTests : FreeSpec({
         }.shouldBeNone()
     }
 
-    // the type parameters of Ctx, bound in ways that tell their mutability and nullability apart
-    val instantiations = listOf(
-        "Ctx<mut A, mut C, A?, N>",
-        "Ctx<const A, C, mut C, mut N>",
-        "Ctx<A?, const A, const C?, const N>",
-        "Ctx<exclusive C, exclusive C, exclusive Nothing?, exclusive N>",
-        "Ctx<mut Box<A>?, mut A, mut A?, N>",
-    ).map { it to swCtx.parseType(it).inherentTypeBindings }
+    val instantiations = TypeGrid.instantiations
 
     "the instance of the intersection is below the instances of both types" {
         instantiations.flatMap { (ctxStr, bindings) ->

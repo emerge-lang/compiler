@@ -54,7 +54,7 @@ Hypothesis declared_wf: bounds_wellformed env declared.
 (* The conjectures of Conjectures.v *)
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
-Hypothesis not_expansive: non_expansive env.
+Hypothesis tame: tame_inheritance env.
 Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
@@ -112,7 +112,7 @@ Qed.
 Lemma gaccepts: forall x y, of_fragment x -> of_fragment y -> never_fails env y x -> below x y.
 Proof.
     intros x y [Hx Hrx] [Hy Hry] Hnf.
-    destruct (terminates env declared wf declared_wf finite not_expansive y x [] Hy Hx Hry Hrx) as [n Hn].
+    destruct (terminates env declared wf declared_wf finite tame y x [] Hy Hx Hry Hrx) as [n Hn].
     exists n. specialize (Hnf n []).
     destruct (unify env n y x (Ongoing [])) as [[u|]|] eqn:E; [|contradiction Hnf; reflexivity|contradiction Hn; reflexivity].
     rewrite (gkeeps env wf n y x [] u Hy Hx E). reflexivity.
@@ -128,7 +128,7 @@ Qed.
 Lemma below_trans: forall x y z, of_fragment x -> of_fragment y -> of_fragment z -> below x y -> below y z -> below x z.
 Proof.
     intros x y z [Hx Hrx] [Hy Hry] [Hz Hrz] [n1 H1] [n2 H2].
-    destruct (transitivity_terminating env wf declared declared_wf terminates finite not_expansive n1 n2 x y z Hx Hy Hz Hrx Hry Hrz)
+    destruct (transitivity_terminating env wf declared declared_wf terminates finite tame n1 n2 x y z Hx Hy Hz Hrx Hry Hrz)
         as [f Hf].
     - unfold is_assignable_to, empty_unification. rewrite H1. reflexivity.
     - unfold is_assignable_to, empty_unification. rewrite H2. reflexivity.
@@ -5087,7 +5087,7 @@ Hypothesis declared_wf: bounds_wellformed env declared.
 (* The conjectures of Conjectures.v *)
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
-Hypothesis not_expansive: non_expansive env.
+Hypothesis tame: tame_inheritance env.
 Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
@@ -5137,7 +5137,7 @@ Proof.
       split; [exact (of_fragment_of_class env declared _ Hf)|]. split; [exact (class_bottom_only env A' Hf Hn)|].
       split; [exact (closed_owners_outside env _ A' Hf HcA)|exact I]. }
     destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates finite
-        not_expansive intersect_in_fragment supertype_in_fragment intersect_below supertype_above
+        tame intersect_in_fragment supertype_in_fragment intersect_below supertype_above
         (fun _ => True) (fun _ => True) (fun _ _ _ _ => I) (fun _ _ _ _ _ _ => I) (fun _ _ _ _ _ _ => I) I I (fun _ => I)
         (fun _ _ _ _ _ _ => I) (fun _ _ => I) (fun _ _ => I) (fun _ _ => I) (fun _ _ _ _ => I)
         (fun _ _ _ _ _ _ _ _ _ _ => I)

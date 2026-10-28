@@ -41,7 +41,7 @@ Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Hypothesis terminates: unify_terminates.
 Hypothesis finite: finitely_many_templates env.
-Hypothesis not_expansive: non_expansive env.
+Hypothesis tame: tame_inheritance env.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* The instances                                                                                    *)
@@ -344,7 +344,7 @@ Proof.
     pose proof (instances_never_fail fuel t a u Ht Ha Hbt Hba Eu) as Hnf.
     pose proof (proj1 (instance_facts env wf b K [] Hbf _ t (le_n _) Ht Hbt)) as HT.
     pose proof (proj1 (instance_facts env wf b K [] Hbf _ a (le_n _) Ha Hba)) as HA.
-    destruct (accepts env wf declared declared_wf terminates finite not_expansive _ _
+    destruct (accepts env wf declared declared_wf terminates finite tame _ _
         (cfrag_of_fragment _ HA) (cfrag_of_fragment _ HT) Hnf) as [f Hf].
     exists f. rewrite Hf. reflexivity.
 Qed.

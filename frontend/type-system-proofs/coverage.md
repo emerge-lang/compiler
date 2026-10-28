@@ -18,6 +18,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
 | 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment. Worse, `intersect` makes them of types of the fragment, `A?` and `P` giving `A? & P`, as inference does of upper bounds: `intersect_stays_in_fragment` and `intersect_stays_in_generic_code` are false of the compiler there, so the theorems that take them (of `FinalValues`, `GenericArguments`, `GenericCode`, `GenericReceivers`) don't apply to it as they stand. `CommonTypesTests` leaves these intersections out of its checks of the conjectures |
+| 16 | Programs with classes whose supertypes have `in` type arguments nested in their type arguments, wherever the theorems rest on `unify_terminates` (◐) | `class K : Cn<Cn<in K>>` | Deciding `K` below `Cn<in K>` decides it again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's example): the model's unify doesn't terminate. The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't, and `unify_terminates` is conjectured only where supertypes are without contravariance (`Conjectures.tame_inheritance`) |
 
 ## Subtyping (unify)
 
@@ -178,13 +179,12 @@ Tests, of the Kotlin code:
    `fragments.kt`. Found: the intersection of disjoint classes was `m Nothing` of the components' mutability,
    which generic code admits only as `exclusive Nothing`, now that, the bottom type; and `intersect` makes #15's types of types of
    the fragment, so #15 comes first of the proofs)
-5. Kotlin's unify, for what the proofs show of the model's. Over the same grid, test:
-   - transitivity and reflexivity;
-   - that bindings within the bounds keep assignability when instantiated (`Substitution.v`);
-   - that unify finishes, under a step or stack limit (`unify_terminates`). Use class tables with F-bounds and
-     deep nesting that `ExpansiveInheritance.kt` lets through.
-
-   A violation is a divergence between Kotlin and the model, or a counterexample to a conjecture.
+5. ~~Kotlin's unify, for what the proofs show of the model's~~ (done: `UnificationPropertiesTests`, over the grid
+   of `CommonTypesTests`, now `TypeGrid`: reflexivity, transitivity, and that bindings within the bounds keep
+   assignability when instantiated, all of which hold; and that unify finishes, on class tables with F-bounds and
+   recursion through type arguments. It didn't on Kennedy and Pierce's example, `class K : Cn<Cn<in K>>`, the
+   frontend overflowing its stack: `unify_terminates` was false. The frontend now fails a goal that comes up again
+   while it is decided, and the conjecture takes supertypes without contravariance (#16))
 6. End-to-end probes of the blind spots and of what is outside the model, likeliest first. Each probe tries to
    put a value where its type says it can't be: null into a non-null type, a `read` reference into `mut`, an `A`
    into a `B`.
@@ -199,7 +199,7 @@ Tests, of the Kotlin code:
    - #3 `T : Ord<in T?>`: its bound narrows T while it is resolved (`isResolvingBound`).
    - #13 `read Nothing`.
 
-   A hole found by any of steps 5 and 6 is fixed and proven next, before the steps below. Whatever a probe finds
+   A hole found by step 6 is fixed and proven next, before the steps below. Whatever a probe finds
    outside the model also goes into the roadmap.
 
 Proofs:
@@ -210,7 +210,9 @@ Proofs:
 9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
    bounds, #4 no lower bound, #5 explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
-11. `unify_terminates`, which turns every ◐ into ✓. It is last of the type system, as it isn't a soundness
-    problem: if unify doesn't finish, the compiler rejects the program. Step 5 tests it meanwhile.
+11. `unify_terminates`, which turns every ◐ into ✓, and with it #16: the model failing goals that come up again
+    while they are decided, as the frontend does, so that it terminates on all inheritance that isn't expansive.
+    It is last of the type system, as it isn't a soundness problem: where unify doesn't finish, the compiler
+    rejects the program.
 12. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
     of types.
