@@ -1682,11 +1682,19 @@ Proof.
         inst_nested b (Intersection cs) = instantiate env b (Intersection cs)).
     { intros cs Hcs Hb. destruct (components_sfrag_facts cs Hcs) as [_ Hc].
       change (inst_nested b (Intersection cs)) with (inst_intersection b cs). unfold inst_intersection.
-      change (instantiate env b (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env b) cs))).
-      f_equal. f_equal. apply map_ext_in. intros c Hin. rewrite (inst_component_nested c (proj1 (Hc c Hin))).
-      pose proof (proj1 (Hc c Hin)) as Hsh.
+      assert (Hm: map (inst_component b) cs = map (instantiate env b) cs).
+      { apply map_ext_in. intros c Hin. rewrite (inst_component_nested c (proj1 (Hc c Hin))).
+        pose proof (proj1 (Hc c Hin)) as Hsh.
+        destruct c as [m d args|n|g|me msg|v o n|g|cs']; try discriminate Hsh; [reflexivity|].
+        exact (Hgen g (bound_in_component cs _ Hb Hin)). }
+      change (instantiate env b (Intersection cs)) with (intersect_instances env (map (instantiate env b) cs)).
+      rewrite <- Hm, intersect_instances_plain; [reflexivity|].
+      intros t Ht. apply in_map_iff in Ht. destruct Ht as [c [<- Hin]]. pose proof (proj1 (Hc c Hin)) as Hsh.
+      rewrite (inst_component_nested c Hsh).
       destruct c as [m d args|n|g|me msg|v o n|g|cs']; try discriminate Hsh; [reflexivity|].
-      exact (Hgen g (bound_in_component cs _ Hb Hin)). }
+      destruct (binds_ref_some g (bound_in_component cs _ Hb Hin)) as [o [x [E [Ho [Hx _]]]]].
+      rewrite (inst_nested_generic g _ o x E). pose proof (gfrag_inst_ref_flat g x Hx) as Hn.
+      destruct (inst_ref g x); first [reflexivity|discriminate Hn]. }
     intros t Ht Hb. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
     - destruct (sfrag_cases t Hs) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]]; try reflexivity.
       + exact (Hgen g Hb).

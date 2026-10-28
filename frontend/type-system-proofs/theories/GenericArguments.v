@@ -1078,6 +1078,15 @@ Proof.
     rewrite Ewr' in Ewr. discriminate Ewr.
 Qed.
 
+(* The same, of the intersection the frontend makes of instances of the fragment, none of them a
+   type argument *)
+Lemma below_intersect_instances: forall A ys, of_fragment A -> is_nullable env A = false -> 2 <= length ys ->
+    (forall y, In y ys -> of_fragment y /\ below A y) -> below A (intersect_instances env ys).
+Proof.
+    intros A ys HA HnA Hl Hys. rewrite intersect_instances_plain; [exact (proj1 (below_of_components A ys HA HnA Hl Hys))|].
+    intros y Hy. destruct (Hys y Hy) as [[Hg _] _]. destruct y; first [reflexivity|discriminate Hg].
+Qed.
+
 (* What a type argument takes, other than Nothing, is assignable to its type *)
 Lemma argument_value_below: forall n v o X A, Variance_beq v output = false -> of_fragment X -> of_fragment A ->
     unify env (S n) (TypeArgument v o X) A (Ongoing []) = Some (Ongoing []) -> below A X.
@@ -3479,7 +3488,7 @@ Proof.
           by (cbn [vars_in] in Hv; rewrite forallb_forall in Hv; exact Hv).
       cbn [instantiate_free]. destruct (existsb (mentions_bound b) cs) eqn:Em.
       - destruct (components_sfrag_facts env _ Hcs) as [Hl _]. rewrite length_map in Hl.
-        refine (proj1 (below_of_components A0 _ (proj1 HA0) HnA ltac:(rewrite length_map; exact Hl) _)).
+        refine (below_intersect_instances A0 _ (proj1 HA0) HnA ltac:(rewrite length_map; exact Hl) _).
         intros y Hy. apply in_map_iff in Hy. destruct Hy as [C [<- HC]].
         split; [|exact (Hall Hsb C HC (vars_in_mbinds b C (HvC C HC)))].
         destruct (param_component_cases env wf cs C HSi Hcs HC) as [[m [cl [args EC]]]|[gm [nn [q EC]]]].

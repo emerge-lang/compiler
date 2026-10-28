@@ -240,7 +240,7 @@ Proof.
     - assert (Em: existsb (mentions_bound b1) cs = existsb (mentions_bound b2) cs).
       { induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (mentions_bound_ext b1 b2 E c), IHc. reflexivity. }
       rewrite Em. destruct (existsb (mentions_bound b2) cs); [|reflexivity]. clear Em.
-      f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map]. rewrite (IH c), IHc. reflexivity.
+      f_equal. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map]. rewrite (IH c), IHc. reflexivity.
 Qed.
 
 (* Binding p again to what b binds it to changes nothing *)

@@ -543,6 +543,14 @@ Proof.
     rewrite Ewr' in Ewr. discriminate Ewr.
 Qed.
 
+Lemma caller_intersect_instances: forall ys, 2 <= length ys -> (forall y, In y ys -> caller_type y) ->
+    (forall y, In y ys -> is_nullable env y = true -> match y with Nullable _ => True | _ => False end) ->
+    caller_type (intersect_instances env ys).
+Proof.
+    intros ys Hl Hys Hno. rewrite intersect_instances_plain; [exact (caller_of_components ys Hl Hys Hno)|].
+    intros y Hy. destruct (Hys y Hy) as [Hw _]. destruct y; first [reflexivity|discriminate Hw].
+Qed.
+
 (* The type arguments of supertypes, made of those of a subclass *)
 Section Templates.
 
@@ -900,7 +908,7 @@ Proof.
     destruct (components_sfrag_facts env _ Hcs) as [Hl Hcsf]. rewrite length_map in Hl.
     assert (HI: caller_type (instantiate_free env b (Intersection cs))).
     { cbn [instantiate_free]. destruct (existsb (mentions_bound b) cs) eqn:Em.
-      - apply caller_of_components; [rewrite length_map; exact Hl| |].
+      - apply caller_intersect_instances; [rewrite length_map; exact Hl| |].
         2:{ intros y Hy Hn. apply in_map_iff in Hy. destruct Hy as [C [<- HC]].
             destruct (Hcsf _ (in_map to_generic _ _ HC)) as [Hsh _]. unfold is_component_shape in Hsh.
             apply andb_true_iff in Hsh. destruct Hsh as [_ Hsh]. apply negb_true_iff in Hsh.

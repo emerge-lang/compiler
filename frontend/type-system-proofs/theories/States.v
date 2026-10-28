@@ -75,10 +75,14 @@ Proof.
           repeat match goal with |- context [match ?x with _ => _ end] => destruct x end;
           simpl in Hn |- *; rewrite ?no_vars_rewrap; simpl in Hn |- *;
           try reflexivity; try exact Hn; try (rewrite ?andb_true_r; exact Hn).
-    - simpl. apply no_vars_of_components. intros c Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]].
-      apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. apply (no_vars_intersected _ ) in Hc; [exact Hc|].
-      rewrite forallb_forall in H.
-      apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
+    - simpl. rewrite forallb_forall in H.
+      assert (Hcs: forall c', In c' cs -> no_vars (instantiate_h env U b c') = true)
+          by (intros c' Hc'; apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc']).
+      destruct (intersect_instances_cases env (map (instantiate_h env U b) cs)) as [l' [Hl' [E|[v E]]]]; rewrite E; cbn [no_vars];
+          apply no_vars_of_components; intros c Hc; apply in_flat_map in Hc; destruct Hc as [i [Hi Hc]];
+          refine (no_vars_intersected i _ c Hc);
+          destruct (Hl' i Hi) as [Hi'|[v' [o' Hi']]]; apply in_map_iff in Hi'; destruct Hi' as [c' [Ec Hc']];
+          pose proof (Hcs c' Hc') as Hn; rewrite Ec in Hn; exact Hn.
 Qed.
 
 (* An unbound type parameter becomes its effective bound, instantiated, the type parameters without
@@ -635,9 +639,8 @@ Proof.
       destruct (lookup_binding b p) eqn:E; [|simpl; rewrite (HP p H E); reflexivity].
       pose proof (vars_in_final_argument P' e (Hb p e E)) as Hf.
       destruct nn; [rewrite vars_in_without_null|]; (destruct gm; [apply vars_in_set_mutability|]; exact Hf).
-    - simpl. apply vars_in_of_components. intros c Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]].
-      apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. apply (vars_in_intersected P' _) in Hc; [exact Hc|].
-      rewrite forallb_forall in H.
+    - simpl. apply (intersect_instances_keeps env (vars_in P')); [apply vars_in_of_components|apply vars_in_intersected|reflexivity|].
+      intros i Hi. apply in_map_iff in Hi. destruct Hi as [c' [<- Hc']]. rewrite forallb_forall in H.
       apply (IH (esize c')); [pose proof (esize_in cs c' Hc'); simpl; lia|reflexivity|apply H, Hc'].
 Qed.
 

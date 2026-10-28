@@ -380,6 +380,13 @@ Variable b: Bindings.
 Variable K: nat.
 Hypothesis Hbf: bindings_in_fragment env b.
 
+Lemma intersect_classes: forall ys, (forall y, In y ys -> is_class y = true) ->
+    intersect_instances env ys = of_components env (flat_map intersected_components ys).
+Proof.
+    intros ys H. apply intersect_instances_plain. intros t Ht. pose proof (H t Ht) as Hc.
+    destruct t; first [reflexivity|discriminate Hc].
+Qed.
+
 Lemma of_class_types: forall ys, 2 <= length ys -> (forall y, In y ys -> is_class y = true) ->
     of_components env (flat_map intersected_components ys) = Intersection (map (with_mutability env (common_mutability env ys)) ys).
 Proof.
@@ -477,8 +484,8 @@ Proof.
         exact (conj Hg (conj (Hcl Hsh) (conj Hm Hmi))). }
       assert (Hys: forall y, In y (map (instantiate env b) cs) -> is_class y = true).
       { intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]]. apply (Hall c Hin). }
-      change (instantiate env b (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env b) cs))).
-      rewrite (of_class_types _ ltac:(rewrite length_map; exact Hl) Hys).
+      change (instantiate env b (Intersection cs)) with (intersect_instances env (map (instantiate env b) cs)).
+      rewrite (intersect_classes _ Hys), (of_class_types _ ltac:(rewrite length_map; exact Hl) Hys).
       assert (Hnn: forall k xs, xs <> [] -> (forall x, In x xs -> is_class x = true) ->
           is_nullable env (Intersection (map (with_mutability env k) xs)) = false).
       { intros k [|x xs] Hne Hx; [contradiction|]. apply (intersection_not_nullable env (map (with_mutability env k) (x :: xs)) (with_mutability env k x) (or_introl eq_refl)).
@@ -927,7 +934,8 @@ Proof.
       destruct (inst_facts c (wfrag_wtfrag env c Hwc) (bound_in_component env b K [] cs c Hb Hin)) as [Hg [_ Hcl]].
       exact (conj Hg (Hcl Hsh)). }
     split; [|exact Hall].
-    change (instantiate env b (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env b) cs))).
+    change (instantiate env b (Intersection cs)) with (intersect_instances env (map (instantiate env b) cs)).
+    rewrite intersect_classes by (intros y Hy; apply in_map_iff in Hy; destruct Hy as [c [<- Hin]]; apply (Hall c Hin)).
     apply of_class_types; [rewrite length_map; exact Hl|].
     intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]]. apply (Hall c Hin).
 Qed.

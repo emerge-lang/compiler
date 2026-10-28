@@ -518,6 +518,65 @@ Definition of_components (components: list EType): EType :=
         Intersection (map (with_mutability m) components)
     end.
 
+(* BoundIntersectionTypeReference.intersectMappedComponents: the intersection of the instances of the
+   components. Where one of them is a type argument, a type parameter bound to one, the intersection is
+   one: out-variant where any of them is, as it may be Nothing, the in-variant ones dropped, as they
+   read as the top type; in-variant otherwise, taking what each of them takes. Kotlin has no
+   ownership, the type argument is of any. *)
+Definition is_argument_of (v: Variance) (t: EType): bool :=
+    match t with TypeArgument w _ _ => Variance_beq w v | _ => false end.
+
+Definition unwrap_argument (t: EType): EType :=
+    match t with TypeArgument _ _ x => x | _ => t end.
+
+Definition intersect_instances (instances: list EType): EType :=
+    if existsb (fun t => match t with TypeArgument _ _ _ => true | _ => false end) instances then
+        let v := if existsb (is_argument_of output) instances then output
+                 else if existsb (is_argument_of input) instances then input
+                 else invariant in
+        let kept := filter (fun t => negb (Variance_beq v output && is_argument_of input t)) instances in
+        let type := of_components (flat_map intersected_components (map unwrap_argument kept)) in
+        match v with invariant => type | _ => TypeArgument v any_ownership type end
+    else of_components (flat_map intersected_components instances).
+
+Definition not_argument (t: EType): bool := match t with TypeArgument _ _ _ => false | _ => true end.
+
+Lemma intersect_instances_plain: forall l, (forall t, In t l -> not_argument t = true) ->
+    intersect_instances l = of_components (flat_map intersected_components l).
+Proof.
+    intros l H. unfold intersect_instances. destruct (existsb _ l) eqn:E; [|reflexivity].
+    apply existsb_exists in E. destruct E as [t [Ht Et]]. specialize (H t Ht). destruct t; discriminate.
+Qed.
+
+(* The intersection of some of the instances, or of the types in those that are type arguments; as
+   it is, or a type argument of it *)
+Lemma intersect_instances_cases: forall l, exists l',
+    (forall t, In t l' -> In t l \/ exists v o, In (TypeArgument v o t) l)
+    /\ (intersect_instances l = of_components (flat_map intersected_components l')
+        \/ exists v, intersect_instances l = TypeArgument v any_ownership (of_components (flat_map intersected_components l'))).
+Proof.
+    intros l. unfold intersect_instances. destruct (existsb _ l).
+    - generalize (if existsb (is_argument_of output) l then output else if existsb (is_argument_of input) l then input else invariant).
+      intros v. exists (map unwrap_argument (filter (fun t => negb (Variance_beq v output && is_argument_of input t)) l)). split.
+      + intros t Ht. apply in_map_iff in Ht. destruct Ht as [u [<- Hu]]. apply filter_In in Hu. destruct Hu as [Hu _].
+        destruct u as [| | | |w o x| |]; try (left; exact Hu). right. exists w, o. exact Hu.
+      + destruct v; [left; reflexivity|right; eexists; reflexivity|right; eexists; reflexivity].
+    - exists l. split; [intros t Ht; left; exact Ht|left; reflexivity].
+Qed.
+
+(* What holds of the instances holds of their intersection, where it holds of the intersection of
+   components, and of type arguments as of their types *)
+Lemma intersect_instances_keeps: forall (Q: EType -> bool) l,
+    (forall cs, (forall c, In c cs -> Q c = true) -> Q (of_components cs) = true) ->
+    (forall t, Q t = true -> forall c, In c (intersected_components t) -> Q c = true) ->
+    (forall v o x, Q (TypeArgument v o x) = Q x) ->
+    (forall t, In t l -> Q t = true) -> Q (intersect_instances l) = true.
+Proof.
+    intros Q l Hof Hint Harg Hl. destruct (intersect_instances_cases l) as [l' [Hl' [E|[v E]]]]; rewrite E;
+        [|rewrite Harg]; apply Hof; intros c Hc; apply in_flat_map in Hc; destruct Hc as [i [Hi Hc]];
+        refine (Hint i _ c Hc); (destruct (Hl' i Hi) as [Hi'|[v' [o' Hi']]]; [exact (Hl i Hi')|rewrite <- (Harg v' o'); exact (Hl _ Hi')]).
+Qed.
+
 (* instantiate, taking what a reference to a type parameter without a binding becomes from unbound *)
 Section InstantiateWith.
 
@@ -576,7 +635,7 @@ Fixpoint instantiate_h (bindings: Bindings) (t: EType): EType :=
             if narrowed then without_null of_mutability else of_mutability
         | None => t
         end
-    | Intersection components => of_components (flat_map intersected_components (map (instantiate_h bindings) components))
+    | Intersection components => intersect_instances (map (instantiate_h bindings) components)
     end.
 
 End InstantiateWith.
@@ -707,7 +766,7 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
             if narrowed then without_null of_mutability else of_mutability
         | None => t
         end
-    | Intersection components => of_components (flat_map intersected_components (map (instantiate bindings) components))
+    | Intersection components => intersect_instances (map (instantiate bindings) components)
     end.
 
 (* instantiate_ownership, where a type parameter without a binding keeps its ownership: one of the
@@ -793,7 +852,7 @@ Fixpoint instantiate_free (bindings: Bindings) (t: EType): EType :=
        changed; a component changes where it mentions what is bound *)
     | Intersection components =>
         if existsb (mentions_bound bindings) components then
-            of_components (flat_map intersected_components (map (instantiate_free bindings) components))
+            intersect_instances (map (instantiate_free bindings) components)
         else t
     end.
 
@@ -1988,7 +2047,7 @@ Proof.
     - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
     - rewrite (IH n). reflexivity.
     - rewrite (IH n). reflexivity.
-    - f_equal. f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+    - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
 Lemma deep_ranked_mono: forall p k k', k <= k' -> forall t, deep_ranked p k t = true -> deep_ranked p k' t = true.

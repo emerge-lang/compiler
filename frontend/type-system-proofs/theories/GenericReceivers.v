@@ -953,12 +953,28 @@ Proof.
         as [Hb [Hrw _]].
     destruct (below_of_components env wf declared declared_wf terminates finite tame A _ HfA HnA (Hlen false) (Hall false))
         as [Hb' _].
+    assert (Hna: forall (nn: bool) y, In y (map (instantiate env sigma)
+        (map (fun c => if nn then with_mutability env m (without_null env c) else with_mutability env m c) (z1 :: z2 :: zs'))) ->
+        not_argument y = true)
+        by (intros nn y Hy; destruct (Hall nn y Hy) as [[Hg _] _]; destruct y; first [reflexivity|discriminate Hg]).
+    rewrite <- (intersect_instances_plain env _ (Hna true)) in Hb, Hrw.
+    rewrite <- (intersect_instances_plain env _ (Hna false)) in Hb'.
     unfold of_components. cbv beta iota zeta. fold m.
     destruct (negb (forallb (is_nullable env) (z1 :: z2 :: zs'))); [exact Hb|].
     destruct (forallb is_nullable_type (z1 :: z2 :: zs')); [|exact Hb'].
     change (instantiate env sigma (Nullable (Intersection (map (fun c => with_mutability env m (without_null env c)) (z1 :: z2 :: zs')))))
         with (rewrap_nullable (instantiate env sigma (Intersection (map (fun c => with_mutability env m (without_null env c)) (z1 :: z2 :: zs'))))).
     exact Hrw.
+Qed.
+
+Lemma runtime_intersect_instances: forall A ys, ground env A = true -> is_nullable env A = false ->
+    2 <= length (flat_map intersected_components ys) ->
+    (forall y, In y ys -> of_fragment env declared y /\ caller y
+        /\ exists f, unify env f (instantiate env sigma y) A (Ongoing []) = Some (Ongoing [])) ->
+    exists f, unify env f (instantiate env sigma (intersect_instances env ys)) A (Ongoing []) = Some (Ongoing []).
+Proof.
+    intros A ys HgA HnA Hl Hys. rewrite intersect_instances_plain; [exact (runtime_of_components A ys HgA HnA Hl Hys)|].
+    intros y Hy. destruct (Hys y Hy) as [[Hg _] _]. destruct y; first [reflexivity|discriminate Hg].
 Qed.
 
 Section Main.
@@ -3258,7 +3274,7 @@ Proof.
       destruct (instance_ground A0 (proj2 (proj2 (proj2 HA0)))) as [KA [HbA HgA]].
       pose proof (proj1 (proj2 (inst_facts env wf sigma KA Hsf A0 (proj1 (proj2 (proj2 (proj2 HA0)))) HbA)) HnA) as HnsA.
       cbn [instantiate_free]. destruct (existsb (mentions_bound b) cs) eqn:Em.
-      - apply (runtime_of_components _ _ HgA HnsA).
+      - apply (runtime_intersect_instances _ _ HgA HnsA).
         + apply (Nat.le_trans _ (length (map (instantiate_free env b) cs))); [rewrite length_map; exact Hl|].
           apply flat_length. intros y Hy'. apply in_map_iff in Hy'. destruct Hy' as [C [<- HC]].
           exact (intersected_not_nil _ (proj1 (proj1 (Hy C HC)))).
@@ -3278,7 +3294,10 @@ Proof.
           rewrite (to_generic_closed C Hcl) in HsfC.
           destruct (proj1 (closed_facts env wf [] 0 [] _) C (le_n _) HsfC Hcl) as [Hfr _].
           split; [exact Hfr|exact (free_unmentioned env b Hpb C (in_fragment_is_gfrag env C Hfr) EmC)]. }
-        change (instantiate env sigma (Intersection cs)) with (of_components env (flat_map intersected_components (map (instantiate env sigma) cs))).
+        change (instantiate env sigma (Intersection cs)) with (intersect_instances env (map (instantiate env sigma) cs)).
+        rewrite intersect_instances_plain.
+        2:{ intros y Hy'. apply in_map_iff in Hy'. destruct Hy' as [C [<- HC]].
+            destruct (fragment_cases env C (proj1 (Hcl C HC))) as [[m [cl [args ->]]]|[m [cl [args [-> _]]]]]; reflexivity. }
         refine (proj1 (below_of_components env wf declared declared_wf terminates finite tame _ _
             (ground_of_fragment env declared _ HgA) HnsA _ _)).
         + rewrite length_map. exact Hl.

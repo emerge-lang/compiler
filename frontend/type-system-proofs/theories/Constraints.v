@@ -592,8 +592,11 @@ Proof.
         flat_map intersected_components (map (with_candidate env p c) l) = map (with_candidate env p c) l).
     { induction l as [|C l IH]; intros Hsub; [reflexivity|]. cbn [map flat_map].
       rewrite (proj1 (Hinst C (Hsub C (or_introl eq_refl)))), IH by (intros C' H'; apply Hsub; right; exact H'). reflexivity. }
-    change (with_candidate env p c (Intersection cs))
-        with (of_components env (flat_map intersected_components (map (with_candidate env p c) cs))).
+    change (with_candidate env p c (Intersection cs)) with (intersect_instances env (map (with_candidate env p c) cs)).
+    rewrite intersect_instances_plain.
+    2:{ intros t Ht. apply in_map_iff in Ht. destruct Ht as [C [<- HC]].
+        destruct (Hcases C HC) as [[m [cl [args ->]]]|[gm [nn [q [-> Hq]]]]];
+            [reflexivity|rewrite (proj1 (candidate_reference p c gm nn q Hq)); reflexivity]. }
     rewrite (Hflat cs (fun C H => H)).
     rewrite (of_components_many env (map (with_candidate env p c) cs)).
     - f_equal. rewrite map_map. apply map_ext_in. intros C HC.
