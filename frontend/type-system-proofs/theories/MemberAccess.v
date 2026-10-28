@@ -724,6 +724,76 @@ Proof.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
+(* Components of intersections                                                                    *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* A component of an intersection a member is typed as: a class type as above, or a type parameter
+   of the class, of any mutability given to it or narrowed *)
+Definition member_component (c: Class) (C: EType): bool :=
+    match C with
+    | Generic g => existsb (param_eqb (param_of g)) (parameter_ids env c)
+    | _ => member_template c C
+    end.
+
+(* The instances of a component, through the object and through the reference: through the object,
+   a class type; through the reference, one above it, and below it, too, where the reference doesn't
+   widen it; or a type argument, of a type related to it as the type arguments of the reference are
+   to those of the object *)
+Lemma component_instances: forall n' s c xs ys C,
+    length xs = length (parameter_ids env c) -> length ys = length (parameter_ids env c) ->
+    (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
+    Forall2 (fun x y => unify env n' y x (Ongoing s) = Some (Ongoing s)) xs ys ->
+    member_component c C = true ->
+    in_fragment env (instantiate env (bindings_of env c xs) C) = true
+    /\ not_argument (instantiate env (bindings_of env c xs) C) = true
+    /\ ((in_fragment env (instantiate env (bindings_of env c ys) C) = true
+         /\ not_argument (instantiate env (bindings_of env c ys) C) = true
+         /\ (exists f, unify env f (instantiate env (bindings_of env c ys) C) (instantiate env (bindings_of env c xs) C) (Ongoing s)
+                = Some (Ongoing s))
+         /\ (mentions_loosely_bound_in_arguments (bindings_of env c ys) C = false ->
+             exists f, unify env f (instantiate env (bindings_of env c xs) C) (instantiate env (bindings_of env c ys) C) (Ongoing s)
+                = Some (Ongoing s)))
+        \/ exists v o Y, instantiate env (bindings_of env c ys) C = TypeArgument v o Y /\ in_fragment env Y = true
+            /\ related s v (instantiate env (bindings_of env c xs) C) Y).
+Proof.
+    intros n' s c xs ys C Hlx Hly Hxs Hys H HC.
+    assert (Hna: forall t, in_fragment env t = true -> not_argument t = true)
+        by (intros t Ht; destruct (fragment_cases env t Ht) as [[? [? [? ->]]]|[? [? [? [-> _]]]]]; reflexivity).
+    destruct C as [m d args|C'|g|me msg|v0 o0 n0|g|cs]; cbn [member_component] in HC;
+        try (destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys H (depth _)) _ (le_n _) HC)
+                as [[Hfx [Hfy [Hup Hdown]]] _];
+             split; [exact Hfx|]; split; [exact (Hna _ Hfx)|]; left;
+             split; [exact Hfy|]; split; [exact (Hna _ Hfy)|]; split; [exact Hup|];
+             intros Hm; apply Hdown; rewrite <- (mentions_member c _ _ HC); exact Hm);
+        try (simpl in HC; discriminate HC).
+    (* a type parameter of the class *)
+    destruct (member_parameter c (param_of g) HC) as [i Hi].
+    destruct (nth_error_same_length _ xs i _ (eq_sym Hlx) Hi) as [x Ex].
+    destruct (nth_error_same_length _ ys i _ (eq_sym Hly) Hi) as [y Ey].
+    pose proof (Hxs x (nth_error_In _ _ Ex)) as Hex.
+    destruct (exact_argument_facts x Hex) as [ox [X [-> [HX [_ Hlx']]]]].
+    pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
+    destruct y as [| | | |vy oy Y| |]; simpl in Hy; try discriminate Hy.
+    pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
+    destruct n' as [|n'']; [discriminate E|].
+    rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
+    destruct (ownership_is_assignable_to ox oy); [|discriminate E].
+    pose proof (lookup_parameter env wf c xs i (param_of g) _ Hi Ex) as Lx.
+    pose proof (lookup_parameter env wf c ys i (param_of g) _ Hi Ey) as Ly.
+    pose proof (related_inst_ref g s vy X Y HX Hy (related_of_compare n'' s vy X Y HX Hy E)) as Hrel.
+    pose proof (inst_ref_in_fragment env g X HX) as HX'. pose proof (inst_ref_in_fragment env g Y Hy) as HY'.
+    rewrite (instantiate_bound_reference _ g _ _ _ Lx HX), (instantiate_bound_reference _ g _ _ _ Ly Hy).
+    unfold final_argument. rewrite (fragment_not_nesting _ HX'), (fragment_not_nesting _ HY'), !orb_false_r.
+    change (is_loose (TypeArgument Model.invariant ox (inst_ref env g X))) with (is_loose (TypeArgument Model.invariant ox X)).
+    rewrite Hlx'. split; [exact HX'|]. split; [exact (Hna _ HX')|].
+    destruct (is_loose (TypeArgument vy oy (inst_ref env g Y))) eqn:El.
+    - right. exists vy, oy, (inst_ref env g Y). split; [reflexivity|]. split; [exact HY'|exact Hrel].
+    - left. assert (Hv: vy = Model.invariant) by (destruct vy; first [reflexivity|discriminate El]). subst vy.
+      destruct Hrel as [Hup Hdown]. split; [exact HY'|]. split; [exact (Hna _ HY')|].
+      split; [exact (Hup ltac:(discriminate))|intros _; exact (Hdown ltac:(discriminate))].
+Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
 (* Soundness                                                                                       *)
 (* ---------------------------------------------------------------------------------------------- *)
 

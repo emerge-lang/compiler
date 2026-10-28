@@ -24,7 +24,7 @@ it shows and why; the tables below are the map.
 | `Transitivity.v`     | well-formed environments; transitivity and reflexivity of unify on class types                  | `transitivity`, `reflexivity`                                           |
 | `Fragment.v`         | the fragment of type parameters and intersections, as the frontend builds them                  |                                                                         |
 | `Substitution.v`     | instantiating type parameters keeps assignability                                              | `substitution_lemma`                                                    |
-| `MemberAccess.v`     | reading and writing members through a reference of variant type arguments                       | `member_read_sound`, `member_write_sound`                               |
+| `MemberAccess.v`     | reading and writing members through a reference of variant type arguments (members typed `T`, `m T`, `T!`, `T?`, class types of those) | `member_read_sound`, `member_write_sound`                               |
 | `Inference.v`        | inference with type variables bound exactly (explicit type arguments, a captured receiver)      | `member_call_sound`                                                     |
 | `States.v`           | unify on types without type variables doesn't touch the variable states                       | `unify_free`, `unify_keeps_exact`                                       |
 | `Constraints.v`      | inference with lower and upper bounds, and the final values it picks                            | `invocation_sound`, `final_values_satisfy`                              |
@@ -36,6 +36,7 @@ it shows and why; the tables below are the map.
 | `SubstitutionTerminating.v` | substitution with intersections as assignees, where unify terminates                      | `substitution_terminating`                                              |
 | `SubstitutionWide.v` | substitution with intersections in type arguments, where unify terminates                       | `substitution_wide`                                                     |
 | `GenericArguments.v` | inference with the type parameters of the caller in the arguments: calls in generic code, also of functions whose bounds mention type variables | `member_call_in_generic_code_sound`, `generic_invocation_with_bounded_variables_sound`, `generic_member_call_with_bounded_variables_sound`, `member_call_with_any_final_values_and_intersections_sound` |
+| `MemberIntersections.v` | reading and writing members typed as intersections (`A & T`), where unify terminates     | `intersection_member_read_sound`, `intersection_member_write_sound`     |
 | `WithinBounds.v`     | type arguments within their declared bounds are within the effective bounds of references       | `bound_in_derived`                                                      |
 | `Overrides.v`        | what a call is checked against holds of the override dynamic dispatch runs                      | `override_parameter`, `override_return`, `override_receiver`            |
 | `GenericCode.v`      | calls in generic code stay sound with the type parameters of the caller instantiated            | `member_call_in_generic_code_instantiated`, `generic_member_call_with_bounded_variables_instantiated` |
