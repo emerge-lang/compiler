@@ -349,13 +349,13 @@ private class IrTypeArgumentImpl(
  * `Box<T>` with `T` bound to `out A` might be a `Box<B>` or a `Box<C>`, only `Nothing` fits all of them.
  */
 fun BoundTypeReference.instantiateAllParametersForWriting(context: TypeUnification): BoundTypeReference {
-    val instantiated = instantiateAllParameters(context)
     if (!mentionsVariantlyBoundParameterInTypeArguments(context)) {
-        return instantiated
+        return instantiateAllParameters(context)
     }
 
+    // null only where the member is nullable whatever the object: `Box<P>? & Q` with Q bound to `out B?` might be a `Box<A> & B`
     val bottomType = this.context.swCtx.getBottomType(span ?: Span.UNKNOWN)
-    return if (instantiated.isNullable) NullableTypeReference(bottomType) else bottomType
+    return if (this is NullableTypeReference) NullableTypeReference(bottomType) else bottomType
 }
 
 /**

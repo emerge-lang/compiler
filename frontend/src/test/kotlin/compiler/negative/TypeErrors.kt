@@ -1440,5 +1440,40 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
         }
+
+        "a member written through a variantly bound type argument takes null only where it is declared nullable" - {
+            "an intersection whose components keep their nullability" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    class H<P, Q> {
+                        var v: Box<P>? & Q = init
+                    }
+                    fn test(h: mut H<out A, out B?>) {
+                        set h.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "a nullable type" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    class H<P> {
+                        var v: Box<P>? = init
+                    }
+                    fn test(h: mut H<out A>) {
+                        set h.v = null
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
     }
 })
