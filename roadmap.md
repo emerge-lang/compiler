@@ -275,7 +275,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 35. declare `Nothing` const (`class Nothing : const Any`): it has no values, so its mutability promises nothing, and
     every `m Nothing` could fit every reference, as values of const classes do (29). Today the mutability of
     `Nothing` counts: `read Nothing` isn't assignable to `mut A`, and the closest common supertype of `mut A` and
-    `read Nothing` is `read A` (`ResolvedTypeReferenceTest`, `IntersectionTypeTests` nail that down). So a branch that
+    `read Nothing` is `read A` (`ResolvedTypeReferenceTest` nails that down; the intersection of disjoint classes is `exclusive Nothing`). So a branch that
     returns `-> Nothing` (`read Nothing`) likely weakens `if c { mutA } else { panic(...) }` to `read A`; unverified.
     The type system proofs admit Nothing only as `exclusive Nothing` (`wf_nothing_is_not_const` in `Transitivity.v`),
     so programs mentioning `read Nothing` anywhere, `List<read Nothing>` included, are outside them. With `Nothing`

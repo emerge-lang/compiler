@@ -517,11 +517,11 @@ class BoundIntersectionTypeReference private constructor(
 
         private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
             if (simplifyIsEffectivelyBottomType(components)) {
-                val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+                // the bottom type: below every type, as no other Nothing is
                 return listOf(
                     context.swCtx.getBottomType(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-                        .withMutability(selfMutability)
+                        .withMutability(TypeMutability.EXCLUSIVE)
                 )
             }
 
