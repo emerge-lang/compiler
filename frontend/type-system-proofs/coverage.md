@@ -216,8 +216,11 @@ Proofs:
    Found, and fixed in the frontend: written through a variantly bound type argument, a member typed as an
    intersection nullable only as its components are took null, `Box<P>? & Q` with `Q` bound to `out B?`, where
    the object may hold a `Box<A> & B`; `instantiateAllParametersForWriting` now leaves null to members declared
-   `X?`, as the model has it). Next: in generic code and through values of type parameters; overrides beyond
-   class types.
+   `X?`, as the model has it). In generic code and through values of type parameters, tested:
+   `MemberAccessPropertiesTests` checks over the grid that what is read through a reference mentioning type
+   parameters, instantiated, is above what is read through the reference at run time, and what is written fits
+   what it takes then, which holds. Next: the proofs of that, with overrides beyond class types, which rest on
+   the same composition of instantiations.
 9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
    bounds, #4 no lower bound, #5 explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.

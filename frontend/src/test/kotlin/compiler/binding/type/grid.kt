@@ -16,6 +16,7 @@ internal object TypeGrid {
         interface Ord<T> {}
         class N : Ord<N> {}
         class Box<E> {}
+        class H<X> {}
         class Ctx<P, Q : A, R : A?, F : Ord<in F>> {}
     """.trimIndent())
 
