@@ -56,7 +56,8 @@ class GenericTypeReference private constructor(
     override val mutability: TypeMutability get() = effectiveBound.mutability
     override val assignmentMutability: TypeMutability get() = effectiveBound.assignmentMutability
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
-    override val inherentTypeBindings = TypeUnification.EMPTY
+    // the members of a T are those of its bound, of the type arguments there: `t.value` with `T : mut Box<A>` is an A
+    override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
     override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
 

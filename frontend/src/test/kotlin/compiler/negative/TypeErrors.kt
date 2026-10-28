@@ -1355,5 +1355,90 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+
+        "intersections whose components keep their nullability" - {
+            "null as an argument is a value of every component" {
+                validateModule("""
+                    interface A {}
+                    fn id<P>(x: A? & P) -> A? & P = x
+                    fn test() -> A = id(null)
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "inferred from a type argument" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {}
+                    fn g<P>(x: Box<A? & P>) {}
+                    fn test(b: Box<A?>) {
+                        g(b)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "a component instantiated to an in-variant type argument doesn't take null away" {
+                validateModule("""
+                    interface A {}
+                    class H<P> {
+                        v: A? & P = init
+                    }
+                    fn test(h: H<in A>) -> A = h.v
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "in a type argument, a component instantiated to an in-variant type argument makes it in-variant" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {}
+                    class H<P> {
+                        v: Box<A? & P> = init
+                    }
+                    fn test(h: H<in A>) -> Box<A> = h.v
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
+
+        "the members of a value of a type parameter are those of its bound" - {
+            "written" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    fn test<T : mut Box<A>>(t: T, b: B) {
+                        set t.value = b
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "written through an out-variant type argument" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    fn test<T : mut Box<out A>>(t: T, a: A) {
+                        set t.value = a
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "read, of a bound mentioning another type parameter" {
+                validateModule("""
+                    class Holder<X> {
+                        value: X = init
+                    }
+                    fn unwrap<A, B : Holder<A>>(b: B) -> A = b.value
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
     }
 })

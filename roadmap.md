@@ -153,6 +153,23 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
+    Generic code does the same without an `exclusive` type argument being written: a value of type `T` is copied
+    freely, and passing an exclusive value for a parameter of type `T` doesn't end its lifetime, though `T` is
+    inferred as `exclusive Foo`:
+    ```
+    fn g<T>(x: T) -> T = x
+    fn f(x: exclusive Foo) -> exclusive Foo {
+        y = g(x) // y: exclusive Foo
+        return x // a second exclusive reference
+    }
+    fn take<T>(b: read Box<T>) -> T = b.value
+    fn h(b: Box<exclusive Foo>) {
+        x: const Foo = take(b)
+        y: mut Foo = take(b) // the same object
+    }
+    ```
+    Either type variables don't take `exclusive` values, or generic code treats values of type `T` as possibly
+    exclusive (their lifetime ends where they are captured)
 21. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
@@ -245,8 +262,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 31. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
     not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
     Look for an equally concise and expressive term that says that more precisely
-32. reading a member through a value whose type is a type parameter bounded by a class type mentioning another type
-    parameter loses that parameter: the member reads as the bound of it instead
+32. ~~reading a member through a value whose type is a type parameter bounded by a class type mentioning another type
+    parameter loses that parameter: the member reads as the bound of it instead~~ (done: the members of a value of a
+    type parameter are those of its bound, of the type arguments there, `GenericTypeReference.inherentTypeBindings`.
+    It was a soundness problem after all: the member was written as the bound of its type, too, so
+    `fn f<T : mut Box<A>>(t: T, b: B) { set t.value = b }` compiled, through `T : mut Box<out A>` as well)
     ```
     class Holder<X> {
         value: X = init
@@ -301,6 +321,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     `_M` likely wants to be a mutability-only parameter rather than an intersection component. The tests in
     `ClassErrors` ("decorated members") and `DecoratorMutabilityTests` describe the intended behaviour
+38. the compiler crashes (`InternalCompilerError`: `preprocessedInheritanceTree` accessed before semantic analysis
+    phase 1 is complete) on an intersection of different base types in the type arguments of a supertype whose
+    virtual functions are inherited:
+    ```
+    interface A {}
+    interface B {}
+    interface I<T> {
+        fn put(self, x: T)
+    }
+    class C : I<A? & B?> {
+        override fn put(self, x: A) {}
+    }
+    ```
+    `InheritedBoundMemberFunction.semanticAnalysisPhase1` checks the receiver, and so unifies the type arguments,
+    before the inheritance trees of `A` and `B` are built
 -----
 
 ## Future features

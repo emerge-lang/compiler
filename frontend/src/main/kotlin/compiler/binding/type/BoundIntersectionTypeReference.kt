@@ -5,6 +5,7 @@ import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
@@ -37,7 +38,8 @@ class BoundIntersectionTypeReference private constructor(
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
     init {
-        check(components.none { it.isNullable } || (components.all { it.isNullable } && !components.all { it is NullableTypeReference })) {
+        // a type variable can't be made non-null (TypeVariable.withCombinedNullability), so beside a non-null component it stays as it is
+        check(components.none { it.isNullable && it !is TypeVariable } || (components.all { it.isNullable } && !components.all { it is NullableTypeReference })) {
             "the nullability of an intersection is decided in ${Companion::ofComponents.name}"
         }
     }
@@ -168,11 +170,12 @@ class BoundIntersectionTypeReference private constructor(
                         break
                     }
                 }
+                // null isn't covered by any one component: where a nullable assignee gets here, each must take null
                 val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
                     context.swCtx.any
                         .getBoundReferenceAssertNoTypeParameters(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
-                        .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
+                        .withCombinedNullability(if (assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
                 }
                 return varComponents.fold(carry3) { innerCarry, component ->
                     val withCoveredSubtracted = component.unify(newAssignee, assignmentLocation, innerCarry)
@@ -282,7 +285,27 @@ class BoundIntersectionTypeReference private constructor(
             return this
         }
 
-        return ofComponents(context, null, mappedComponents.flatMap { it.intersectedComponents() }, simplify = true)
+        if (mappedComponents.none { it is BoundTypeArgument }) {
+            return ofComponents(context, null, mappedComponents.flatMap { it.intersectedComponents() }, simplify = true)
+        }
+
+        // a component instantiated to a variant type argument makes the intersection one: out where any component
+        // is, as it may be Nothing, the in-variant ones reading as the top type; in otherwise, taking what each takes
+        val variances = mappedComponents.mapNotNull { (it as? BoundTypeArgument)?.variance }
+        val variance = when {
+            TypeVariance.OUT in variances -> TypeVariance.OUT
+            TypeVariance.IN in variances -> TypeVariance.IN
+            else -> TypeVariance.UNSPECIFIED
+        }
+        val type = mappedComponents
+            .filterNot { variance == TypeVariance.OUT && it is BoundTypeArgument && it.variance == TypeVariance.IN }
+            .map { if (it is BoundTypeArgument) it.type else it }
+            .let { ofComponents(context, null, it.flatMap { c -> c.intersectedComponents() }, simplify = true) }
+        if (variance == TypeVariance.UNSPECIFIED) {
+            return type
+        }
+
+        return BoundTypeArgument(context, AstSpecificTypeArgument(variance, type.asAstReference()), variance, type)
     }
 
     private val _backendIr by lazy {
