@@ -17,7 +17,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member reads and writes in generic code, or of non-plain member types | `box.value` with `box: Box<T>`; members typed `mut T`, `T!`, `A & T` | MemberAccess only covers class-type type arguments, and members typed `T`, `T?` or class types of those |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
-| 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment |
+| 15 | Intersections whose components keep their nullability, where one may be null only as its instance may: `A? & P`, `P & R` with `P, R : Any?` | `x: A? & U` with `U : Any?`; an upper bound `A?` and one `P` of the same variable | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component. The fragments (`gfrag`) have only the first two shapes, so the theorems don't cover these types, and `intersect_stays_in_fragment` doesn't hold of such operands. As instances of the components of parameter types, the argument is shown below them (`GenericArguments.below_of_components`), but not that they are of the fragment. Worse, `intersect` makes them of types of the fragment, `A?` and `P` giving `A? & P`, as inference does of upper bounds: `intersect_stays_in_fragment` and `intersect_stays_in_generic_code` are false of the compiler there, so the theorems that take them (of `FinalValues`, `GenericArguments`, `GenericCode`, `GenericReceivers`) don't apply to it as they stand. `CommonTypesTests` leaves these intersections out of its checks of the conjectures |
 
 ## Subtyping (unify)
 
@@ -143,7 +143,7 @@ Done:
    `rstatic_whole`, `rleaf_all`, `generic_receiver_with_bounded_variables_sound`. With them arguments that aren't
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
-3. ~~The remaining type shapes, in that setting~~, all but #3 and #15 (steps 9 and 8 below): of bounds, #1 closed intersections (done, of the bounds of the
+3. ~~The remaining type shapes, in that setting~~, all but #3 and #15 (steps 9 and 7 below): of bounds, #1 closed intersections (done, of the bounds of the
    inference interface, as FinalValues has them: `static_bound`, `bindings_within` through `inter_accepts`), #2 nullable intersections (done:
    `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`; of type variables among the components,
    `components_of`, `rewrap_takes`), #3 `T : U?`, #6 `m T` / `T!` (type variables among the components of an
@@ -172,15 +172,12 @@ Done:
    `GenericReceivers.rparam_components`, `runtime_qparameter`. The model follows ofComponents in keeping the nullability of components that may be null only as their instance may (#15), with instantiated generic code taking the values of type parameters of non-null bounds to be non-null, as they are within their declared bounds: `GenericCode.values_not_nullable`, from the bounds of the type parameters of the callee being the declared ones and, in `generic_member_call_with_bounded_variables_instantiated`, the type arguments of the object within them, as `member_call_in_generic_code_instantiated` already took them. With explicit type arguments, intersections as parameter types done: `Inference.exact_components`, `exact_qparameter`, as `member_call_sound` has them. Whatever the final values, intersections as parameter types done: `GenericArguments.member_call_with_any_final_values_and_intersections_sound`; on generic receivers where the function's bounds mention type variables done: `GenericReceivers.rmparam_components`, `runtime_mqparameter`, and at run time, below the instance of each component, below that of the intersection ofComponents makes of them (`runtime_of_components`). `T?` of a non-null bound in type arguments there and in bounds done: a lower bound checked against a non-null static upper bound isn't nullable, as unify took it (`GenericArguments.gstatic_checked`, `gstatic_whole`, `variable_takes_not_nullable`), so neither are the final values of non-null bounds (`gfinal_not_nullable`), and the checks hold for bindings of such values (`nonnull_values`); on generic receivers, with the type arguments of the object within the bounds of the class)
 Tests, of the Kotlin code:
 
-4. The conjectures over more types (`CommonTypesTests`). Every ◐ rests on them.
-   - Add to the grid the shapes the proofs now cover: intersections with type-variable components of a given
-     mutability or narrowed (`A & read U`, `A & U!`), three components, `Box<T?>`, F-bounded parameters.
-     Add #15's `A? & P` too.
-   - Check the conjectures that aren't tested yet:
-     - that the results stay of the fragment (`intersect_stays_in_fragment`,
-       `closest_common_supertype_stays_in_fragment`, and the same in generic code);
-     - `closest_common_supertype_keeps_bottom_only`;
-     - `closest_common_supertype_of_classes`.
+4. ~~The conjectures over more types~~ (done: `CommonTypesTests` checks every conjecture about `intersect` and
+   `closestCommonSupertypeWith`, over a grid with type-variable components of a given mutability or narrowed,
+   three components, `Box<T?>`, F-bounded parameters and #15's `A? & P`, the fragments mirrored in
+   `fragments.kt`. Found: the intersection of disjoint classes was `m Nothing` of the components' mutability,
+   which generic code admits only as `exclusive Nothing`, now that, the bottom type; and `intersect` makes #15's types of types of
+   the fragment, so #15 comes first of the proofs)
 5. Kotlin's unify, for what the proofs show of the model's. Over the same grid, test:
    - transitivity and reflexivity;
    - that bindings within the bounds keep assignability when instantiated (`Substitution.v`);
@@ -191,8 +188,7 @@ Tests, of the Kotlin code:
 6. End-to-end probes of the blind spots and of what is outside the model, likeliest first. Each probe tries to
    put a value where its type says it can't be: null into a non-null type, a `read` reference into `mut`, an `A`
    into a `B`.
-   - #15 `A? & P`: the third case of `ofComponents` is new code, and `intersect_stays_in_fragment` doesn't
-     hold of it.
+   - #15 `A? & P`: the third case of `ofComponents` is new code, and `intersect` makes such types.
    - #11 member reads and writes through variant type arguments in generic code, and members typed `mut T`,
      `T!`, `A & T`.
    - Exclusive references and lifetimes (outside the model): roadmap 20 is a known hole.
@@ -203,14 +199,14 @@ Tests, of the Kotlin code:
    - #3 `T : Ord<in T?>`: its bound narrows T while it is resolved (`isResolvingBound`).
    - #13 `read Nothing`.
 
-   A hole found by any of steps 4 to 6 is fixed and proven next, before the steps below. Whatever a probe finds
+   A hole found by any of steps 5 and 6 is fixed and proven next, before the steps below. Whatever a probe finds
    outside the model also goes into the roadmap.
 
 Proofs:
 
-7. #11 member access in generic code and of other member types; overrides beyond class types.
-8. #15 intersections whose components keep their nullability: gfrag widened to them, and
-   `intersect_stays_in_fragment` with it.
+7. #15 intersections whose components keep their nullability: gfrag widened to them, and
+   `intersect_stays_in_fragment` with it, which until then is false of the compiler.
+8. #11 member access in generic code and of other member types; overrides beyond class types.
 9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
    bounds, #4 no lower bound, #5 explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
