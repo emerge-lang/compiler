@@ -72,6 +72,27 @@ class MemberAccessPropertiesTests : FreeSpec({
         }.shouldBeNone()
     }
 
+    // what an override relies on (Overrides.instantiate_compose): the inherited parameter and return types,
+    // instantiated with the supertype arguments of the class and then with the type arguments of the object, are
+    // those instantiated with the supertype arguments instantiated, as the call has them
+    "instantiating twice is instantiating once with the bindings instantiated" {
+        TypeGrid.instantiations.flatMap { (ctxStr, bindings) ->
+            references.filter { (refStr, _) -> !refStr.startsWith("H<in ") && !refStr.startsWith("H<out ") }.flatMap { (refStr, ref) ->
+                val runtimeRef = ref.instantiateAllParameters(bindings)
+                members.mapNotNull { (memberStr, member) ->
+                    try {
+                        val twice = member.instantiateAllParameters(ref.inherentTypeBindings).instantiateAllParameters(bindings)
+                        val once = member.instantiateAllParameters(runtimeRef.inherentTypeBindings)
+                        "in $ctxStr: $memberStr of $refStr is $twice instantiated twice, $once once"
+                            .takeUnless { twice.isBelow(once) && once.isBelow(twice) }
+                    } catch (e: Exception) {
+                        "in $ctxStr: $memberStr of $refStr: ${e::class.simpleName} ${e.message}"
+                    }
+                }
+            }
+        }.shouldBeNone()
+    }
+
     "what is written in generic code, instantiated, fits what is written at run time" {
         TypeGrid.instantiations.flatMap { (ctxStr, bindings) ->
             references.flatMap { (refStr, ref) ->
