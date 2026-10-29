@@ -243,6 +243,84 @@ Proof.
       f_equal. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map]. rewrite (IH c), IHc. reflexivity.
 Qed.
 
+(* The type parameters a type refers to, as a type variable, a reference or an ownership, all of P *)
+Fixpoint refs_among (P: TypeParameterId -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb (refs_among P) arguments
+    | Nullable n => refs_among P n
+    | Generic (mkGenericRef _ _ p _) | TypeVariable (mkGenericRef _ _ p _) => P p
+    | Error _ _ => true
+    | TypeArgument _ o n => match o with parameter_ownership q => P q | _ => true end && refs_among P n
+    | Intersection components => forallb (refs_among P) components
+    end.
+
+(* Bindings that look up the same, for the type parameters of P *)
+Definition same_lookups_on (P: TypeParameterId -> bool) (b1 b2: Bindings): Prop :=
+    forall q, P q = true -> lookup_binding b1 q = lookup_binding b2 q.
+
+Lemma loosely_ext_on: forall P b1 b2, same_lookups_on P b1 b2 ->
+    forall t, refs_among P t = true -> mentions_loosely_bound b1 t = mentions_loosely_bound b2 t.
+Proof.
+    intros P b1 b2 E. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] H; cbn [mentions_loosely_bound refs_among] in H |- *;
+        try reflexivity; try (rewrite (E p H); reflexivity).
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH a (proj1 H)), (IHa (proj2 H)). reflexivity.
+    - exact (IH n H).
+    - apply andb_true_iff in H. exact (IH n (proj2 H)).
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
+Qed.
+
+Lemma loosely_arguments_ext_on: forall P b1 b2, same_lookups_on P b1 b2 ->
+    forall t, refs_among P t = true -> mentions_loosely_bound_in_arguments b1 t = mentions_loosely_bound_in_arguments b2 t.
+Proof.
+    intros P b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; cbn [mentions_loosely_bound_in_arguments refs_among] in H |- *;
+        try reflexivity.
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (loosely_ext_on P b1 b2 E a (proj1 H)), (IHa (proj2 H)). reflexivity.
+    - exact (IH n H).
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
+Qed.
+
+Lemma mentions_bound_ext_on: forall P b1 b2, same_lookups_on P b1 b2 ->
+    forall t, refs_among P t = true -> mentions_bound b1 t = mentions_bound b2 t.
+Proof.
+    intros P b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] H; cbn [mentions_bound refs_among] in H |- *;
+        try reflexivity.
+    - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH a (proj1 H)), (IHa (proj2 H)). reflexivity.
+    - exact (IH n H).
+    - apply andb_true_iff in H. destruct H as [Ho Hn]. rewrite (IH n Hn).
+      destruct o as [| | |q]; try reflexivity. rewrite (E q Ho). reflexivity.
+    - rewrite (E p H). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
+Qed.
+
+(* Instantiating the free variables of a type looks up only the type parameters it refers to *)
+Lemma free_ext_on: forall P b1 b2, same_lookups_on P b1 b2 ->
+    forall t, refs_among P t = true -> instantiate_free env b1 t = instantiate_free env b2 t.
+Proof.
+    intros P b1 b2 E. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] H; cbn [instantiate_free refs_among] in H |- *;
+        try reflexivity.
+    - f_equal. induction args as [|a args IHa]; [reflexivity|]. cbn [map forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH a (proj1 H)), (IHa (proj2 H)). reflexivity.
+    - rewrite (IH n H). reflexivity.
+    - apply andb_true_iff in H. destruct H as [Ho Hn].
+      rewrite (IH n Hn), (loosely_arguments_ext_on P b1 b2 E n Hn).
+      assert (Eo: instantiate_free_ownership b1 o = instantiate_free_ownership b2 o)
+          by (destruct o as [| | |q]; try reflexivity; cbn [instantiate_free_ownership]; rewrite (E q Ho); reflexivity).
+      rewrite Eo. reflexivity.
+    - rewrite (E p H). reflexivity.
+    - assert (Em: existsb (mentions_bound b1) cs = existsb (mentions_bound b2) cs).
+      { induction cs as [|c cs IHc]; [reflexivity|]. cbn [existsb forallb] in H |- *. apply andb_true_iff in H.
+        rewrite (mentions_bound_ext_on P b1 b2 E c (proj1 H)), (IHc (proj2 H)). reflexivity. }
+      rewrite Em. destruct (existsb (mentions_bound b2) cs); [|reflexivity]. clear Em.
+      f_equal. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map forallb] in H |- *. apply andb_true_iff in H.
+      rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
+Qed.
+
 (* Binding p again to what b binds it to changes nothing *)
 Lemma with_value_same: forall b p c, lookup_binding b p = Some (TypeArgument invariant ref c) ->
     same_lookups (with_value p c b) b.

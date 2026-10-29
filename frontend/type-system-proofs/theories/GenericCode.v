@@ -1108,7 +1108,7 @@ Hypothesis supertype_bottom_only: closest_common_supertype_keeps_bottom_only env
  * instantiated, and each argument, instantiated, fits its parameter so replaced and instantiated. The
  * type parameters of the caller are none of those of the callee.
  *)
-Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U,
+Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U fv,
     (* the type parameters of the caller, bound to types within their declared bounds, instantiated *)
     bindings_in_fragment env sigma ->
     (forall p, In p ps -> exists o x, lookup_binding sigma p = Some (TypeArgument Model.invariant o x)
@@ -1139,21 +1139,29 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (* the arguments: types of generic code *)
     (forall A, In A As -> of_fragment env declared A /\ bottom_only env A = true /\ caller_type env declared ps A) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
+    (* the final values, as generic_member_call_with_bounded_variables_sound has them *)
+    (forall p S st, In (p, S) ovars -> no_vars S = false -> vars_in (fun q => negb (param_eqb q p)) S = false ->
+        lookup_state U p = Some st -> is_non_nullable_nothing env (lower_bound st) = false) ->
     (forall p S st, In (p, S) ovars -> no_vars S = false -> lookup_state U p = Some st ->
-        is_non_nullable_nothing env (lower_bound st) = false) ->
-    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
+        is_non_nullable_nothing env (lower_bound st) = true ->
+        vars_in (fun q => existsb (param_eqb q) (map fst ovars)) S = true /\ unbounded_shape env p S) ->
+    (forall p S st, In (p, S) ovars -> lookup_state U p = Some st ->
+        fv p = Constraints.final_value_with env
+            (bindings_of env c (if class_eqb ca c then ys else parameterized_supertype_arguments env ca ys c)
+                ++ map (fun v => (fst v, TypeArgument Model.invariant ref (fv (fst v)))) ovars) p st) ->
+    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (fv (fst v)))) ovars ->
     (* the type arguments of the object within the bounds of the type parameters of c, instantiated *)
     (forall i p S z, nth_error cvars i = Some (p, S) -> nth_error zs i = Some z ->
         exists o x, z = TypeArgument Model.invariant o x
             /\ if no_vars S then below env x S else forall C, In C (bound_components S) -> below env x (instantiate_free env b C)) ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
-        exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p))
+        exists f, is_assignable_to env f (instantiate env sigma (fv p))
             (instantiate env sigma (instantiate_free env b C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
-    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcst Hst
-        Hsort Hfn Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hzb.
+    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U fv Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcst Hst
+        Hsort Hfn Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow Hshape Hfv b Hbdef Hzb.
     (* none of the type parameters of the caller is bound in b, nor so their ownerships *)
     assert (Hnone: forall q, In q ps -> lookup_binding b q = None).
     { intros q Hq. pose proof (Hdis q Hq) as Hn. rewrite map_app in Hn. rewrite Hbdef, lookup_app.
@@ -1171,8 +1179,10 @@ Proof.
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_nullable_component env declared ps)
         (caller_supertype_arguments env wf declared ps) supertype_bottom_only
-        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcst Hst Hsort Hfn Hfy Hrec Hfo Hobj Hzs Hxx HPs HPn Hfold Hlow
-        b Hbdef Hzb HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hvx [Hfinal Hargs]]]]].
+        (fun b0 p0 S0 Hpb0 Hv0 Hsh Hb0 => pfree_caller env wf declared ps b0 Hpb0 Hv0 S0
+            (proj1 (unbounded_pfrag env p0 S0 Hsh)) (proj2 (unbounded_pfrag env p0 S0 Hsh)) Hb0)
+        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U fv Hc Hca He Hids Hnd Hcst Hst Hsort Hfn Hfy Hrec Hfo Hobj Hzs Hxx HPs HPn Hfold
+        Hlow Hshape Hfv b Hbdef Hzb HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hvx [Hfinal Hargs]]]]].
     (* the type arguments of the object, as those of c *)
     assert (Hzs': forall z, In z zs -> argument_in_fragment env z = true /\ nothing_is_bottom z = true /\ closed z = true).
     { pose proof (object_below env wf n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) as Hbe.
