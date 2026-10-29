@@ -1081,6 +1081,15 @@ Definition plus_exact_binding (unify: UnifyFn) (states: VariableStates) (paramet
         end
     end.
 
+(* TypeUnification.fromExplicit: the type parameters declared, bound exactly to the explicit type
+   arguments in turn *)
+Fixpoint bind_explicit (unify: UnifyFn) (parameters: list TypeParameterId) (arguments: list EType) (carry: Unification) : option Unification :=
+    match parameters, arguments, carry with
+    | p :: ps, a :: args, Ongoing states =>
+        let* next := plus_exact_binding unify states p a in bind_explicit unify ps args next
+    | _, _, _ => Some carry
+    end.
+
 (* TypeUnification.plusCapture: a type variable that may be captured (one of the type parameters of the
    class of a receiver), and isn't bound exactly yet, in place of the type of an invariant type
    argument. It is bound exactly to the type argument assigned (plus_exact_binding); one of a
