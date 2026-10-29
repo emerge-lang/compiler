@@ -72,9 +72,10 @@ Proof.
     destruct (g a), (h (k a)), (existsb g l), (existsb h (map k l)); reflexivity.
 Qed.
 
-(* Nothing is `exclusive Nothing`, nowhere else *)
+(* Nothing takes no type arguments; of any mutability, as it is const (wf_nothing_is_const): every
+   `m Nothing` is assigned as `exclusive Nothing` *)
 Definition is_bottom (m: option Mutability) (arguments: list EType): bool :=
-    match m, arguments with Some exclusive, [] => true | _, _ => false end.
+    match arguments with [] => true | _ => false end.
 
 Fixpoint nothing_is_bottom (t: EType): bool :=
     match t with
@@ -216,7 +217,8 @@ Record wellformed: Prop := {
     wf_parameter_ids_are_distinct: forall c, NoDup (parameter_ids c);
     wf_nothing_has_no_type_parameters: parameter_ids nothing = [];
     wf_any_has_no_type_parameters: parameter_ids any = [];
-    wf_nothing_is_not_const: is_const (declaration_of env nothing) = false;
+    (* `class Nothing : const Any`: it has no values, so its mutability promises nothing *)
+    wf_nothing_is_const: is_const (declaration_of env nothing) = true;
     wf_any_is_not_const: is_const (declaration_of env any) = false;
     wf_supertypes_are_templates: forall sub super,
         sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
@@ -226,7 +228,7 @@ Record wellformed: Prop := {
         a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
         base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
         supertype_arguments a c = map (instantiate env (bindings_of env b (supertype_arguments a b))) (supertype_arguments b c);
-    (* the type arguments of supertypes mention no type variables, and Nothing only as `exclusive Nothing` *)
+    (* the type arguments of supertypes mention no type variables, and Nothing without type arguments *)
     wf_supertypes_mention_no_variables: forall sub super t, In t (supertype_arguments sub super) -> no_vars t = true;
     wf_supertypes_mention_nothing_as_bottom: forall sub super t,
         In t (supertype_arguments sub super) -> nothing_is_bottom t = true;
@@ -251,7 +253,7 @@ Let acyclic := wf_acyclic wf.
 Let parameter_ids_are_distinct := wf_parameter_ids_are_distinct wf.
 Let nothing_has_no_type_parameters := wf_nothing_has_no_type_parameters wf.
 Let any_has_no_type_parameters := wf_any_has_no_type_parameters wf.
-Let nothing_is_not_const := wf_nothing_is_not_const wf.
+Let nothing_is_const := wf_nothing_is_const wf.
 Let any_is_not_const := wf_any_is_not_const wf.
 Let supertypes_are_templates := wf_supertypes_are_templates wf.
 Let supertypes_compose := wf_supertypes_compose wf.
@@ -386,11 +388,14 @@ Proof.
     rewrite Forall_forall in H. specialize (H (argument_depth a) (in_map _ _ _ Ha)). lia.
 Qed.
 
-Lemma bottom_in_fragment: in_fragment bottom_type = true.
+Lemma nothing_in_fragment: forall m, in_fragment (RootResolved m nothing []) = true.
 Proof.
-    change (Nat.eqb (length (@nil EType)) (length (parameter_ids nothing)) && forallb argument_in_fragment [] = true).
+    intros m. change (Nat.eqb (length (@nil EType)) (length (parameter_ids nothing)) && forallb argument_in_fragment [] = true).
     rewrite nothing_has_no_type_parameters. reflexivity.
 Qed.
+
+Lemma bottom_in_fragment: in_fragment bottom_type = true.
+Proof. exact (nothing_in_fragment (Some exclusive)). Qed.
 
 Lemma top_in_fragment: in_fragment top_type = true.
 Proof.
@@ -1006,7 +1011,7 @@ Proof.
     apply both_ways in H; [|exact Hf|exact Hk]. destruct H as [H1 H2]. rewrite (Hfw H1). exact (Hbw H2).
 Qed.
 
-(* Below `exclusive Nothing` is nothing but itself, which is below everything *)
+(* Below `exclusive Nothing` is nothing but Nothing, which is below everything *)
 Lemma below_bottom: forall n z s, in_fragment z = true ->
     unify env n bottom_type z (Ongoing s) = Some (Ongoing s) ->
     forall t f, in_fragment t = true -> 2 <= f -> unify env f t z (Ongoing s) = Some (Ongoing s).
@@ -1020,11 +1025,25 @@ Proof.
     assert (Hmz: assignment_mutability env (RootResolved mz nothing zargs) = exclusive).
     { destruct (Model.is_subtype_of (assignment_mutability env (RootResolved mz nothing zargs))
           (assignment_mutability env (RootResolved (Some exclusive) nothing []))) eqn:Hm; [|discriminate H].
-      cbn [assignment_mutability] in Hm |- *. rewrite nothing_is_not_const in Hm |- *.
-      destruct mz as [[]|]; simpl in Hm |- *; congruence. }
+      cbn [assignment_mutability]. rewrite nothing_is_const. reflexivity. }
     assert (Hclass: forall f' mt ct targs, 1 <= f' ->
         unify env f' (RootResolved mt ct targs) (RootResolved mz nothing zargs) (Ongoing s) = Some (Ongoing s)).
     { intros [|f'] mt ct targs Hf'; [lia|]. rewrite unify_classes, nothing_is_below_all, Hmz, class_eqb_refl. reflexivity. }
+    destruct (fragment_cases t Ht) as [[mt [ct [targs ->]]]|[mt [ct [targs [-> _]]]]].
+    - apply Hclass. lia.
+    - destruct f as [|f]; [lia|]. rewrite unify_nullable_class. apply Hclass. lia.
+Qed.
+
+(* Nothing, of any mutability, is below every type of the fragment: it is const *)
+Lemma nothing_below: forall m t f s, in_fragment t = true -> 2 <= f ->
+    unify env f t (RootResolved m nothing []) (Ongoing s) = Some (Ongoing s).
+Proof.
+    intros m t f s Ht Hf.
+    assert (Hm: assignment_mutability env (RootResolved m nothing []) = exclusive)
+        by (cbn [assignment_mutability]; rewrite nothing_is_const; reflexivity).
+    assert (Hclass: forall f' mt ct targs, 1 <= f' ->
+        unify env f' (RootResolved mt ct targs) (RootResolved m nothing []) (Ongoing s) = Some (Ongoing s)).
+    { intros [|f'] mt ct targs Hf'; [lia|]. rewrite unify_classes, nothing_is_below_all, Hm, class_eqb_refl. reflexivity. }
     destruct (fragment_cases t Ht) as [[mt [ct [targs ->]]]|[mt [ct [targs [-> _]]]]].
     - apply Hclass. lia.
     - destruct f as [|f]; [lia|]. rewrite unify_nullable_class. apply Hclass. lia.

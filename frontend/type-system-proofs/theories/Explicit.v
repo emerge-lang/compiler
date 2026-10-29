@@ -115,7 +115,7 @@ Proof.
     subst j. rewrite Hv in Hj. injection Hj as <-. rewrite Ht in Htj. injection Htj as <-.
     destruct Est as [-> | ->].
     - unfold fits, initial_state. cbn [is_exact lower_bound upper_bound].
-      split; [exists 2; exact (below_all env wf [] x 2 HxF (le_n _))|exact (Hup i q S o x Hv Ht)].
+      split; [exists 2; exact (below_all env wf [] x 2 HxF (le_n _) _)|exact (Hup i q S o x Hv Ht)].
     - unfold fits, exact_state. cbn [is_exact lower_bound upper_bound].
       exists invariant, o, x, (argument_depth (TypeArgument invariant o x)).
       split; [reflexivity|]. split; [reflexivity|]. split; [exact HxF|]. split; [exact HxF|].

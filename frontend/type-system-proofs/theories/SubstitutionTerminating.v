@@ -156,7 +156,7 @@ Lemma component_taken: forall n t cs s u, sfrag env t = true -> components_sfrag
     exists c, In c cs /\ unify env n t c (Ongoing s) = Some (Ongoing u).
 Proof.
     intros n t cs s u Ht Hcs H. destruct (components_sfrag_facts env cs Hcs) as [_ Hc]. destruct n as [|n]; [discriminate H|].
-    destruct (sfrag_cases env wf t Ht) as [[m [ct [args [-> _]]]]|[->|[[m [ct [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]].
+    destruct (sfrag_cases env wf t Ht) as [[m [ct [args [-> _]]]]|[[m_bot ->]|[[m [ct [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]].
     1,2,4: destruct (unify_into_components env n _ cs s u H eq_refl) as [c [Hin Hi]];
            exists c; split; [exact Hin|apply (unify_fuel_monotone env n); [lia|exact Hi]].
     - change (unify env (S n) (Nullable (RootResolved m ct args)) (Intersection cs) (Ongoing s))
@@ -304,7 +304,7 @@ Proof.
       change (inst_nested env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection cs))).
       destruct n as [|n]; [discriminate H|].
       destruct (tfrag_cases env t Ht) as [Hst|[[ts [-> Hts]]|[ts [-> Hts]]]].
-      + destruct (sfrag_cases env wf t Hst) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht0]]]]|[[g [-> _]]|[g [-> Hg]]]]]];
+      + destruct (sfrag_cases env wf t Hst) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> Ht0]]]]|[[g [-> _]]|[g [-> Hg]]]]]];
             unfold bottom_type in *; try (rewrite unify_class_nullable in H; discriminate H);
             try (rewrite (unify_generic_nullable env) in H; discriminate H);
             rewrite unify_nullable_nullable in H.

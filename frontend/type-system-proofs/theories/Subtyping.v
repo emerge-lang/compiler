@@ -1598,12 +1598,12 @@ Proof.
     destruct (class_eqb c nothing); reflexivity.
 Qed.
 
-(* exclusive Nothing is a subtype of every non-nullable class type. *)
-Theorem bottom_type_is_assignable_to_root_resolved: forall fuel m c arguments,
-    is_const (declaration_of env nothing) = false ->
-    is_assignable_to (S fuel) bottom_type (RootResolved m c arguments) = Some true.
+(* Nothing, of any mutability, is a subtype of every non-nullable class type: it is const *)
+Theorem nothing_is_assignable_to_root_resolved: forall fuel mn m c arguments,
+    is_const (declaration_of env nothing) = true ->
+    is_assignable_to (S fuel) (RootResolved mn nothing []) (RootResolved m c arguments) = Some true.
 Proof.
-    intros fuel m c arguments Hnothing. unfold is_assignable_to, bottom_type. simpl.
+    intros fuel mn m c arguments Hnothing. unfold is_assignable_to. simpl.
     unfold unify_root_resolved, base_type_is_subtype_of.
     rewrite (class_eqb_refl nothing). simpl. rewrite Hnothing. simpl.
     destruct (class_eqb c nothing), (class_eqb c any); reflexivity.

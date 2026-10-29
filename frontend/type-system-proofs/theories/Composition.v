@@ -407,8 +407,8 @@ Proof.
         destruct (proj2 (IH a Ha)) as [w [o [X [E [HX _]]]]]. exists w, o, X. split; [exact E|exact HX]. }
       destruct (good_root m d _ Hg) as [G1 G2]. split; [exact G1|]. split; [exact G2|].
       destruct (class_eqb d nothing) eqn:En.
-      - destruct m as [[]|], args; try discriminate Hnd. unfold class_eqb in En.
-        destruct (Class_eq_dec d nothing) as [->|]; [|discriminate En]. exact (caller_bottom env declared ps).
+      - destruct args; [|try rewrite En in Hnd; discriminate Hnd]. unfold class_eqb in En.
+        destruct (Class_eq_dec d nothing) as [->|]; [|discriminate En]. exact (caller_nothing env declared ps m).
       - apply caller_root_of; [exact En|rewrite length_map; exact Hl|].
         intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
         destruct (proj2 (IH a Ha)) as [w [o [X [E [_ [HcX Ho]]]]]]. exists w, o, X. auto. }

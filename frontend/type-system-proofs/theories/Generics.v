@@ -105,8 +105,11 @@ Qed.
 Lemma argument_gfrag_no_vars: forall a, argument_gfrag a = true -> no_vars a = true.
 Proof. intros [| | | |v o n| |] H; simpl in H |- *; try discriminate H. apply gfrag_no_vars, H. Qed.
 
+Lemma nothing_gfrag: forall m, gfrag (RootResolved m nothing []) = true.
+Proof. intros m. apply (proj1 (in_fragment_gfrag 1)); [simpl; lia|exact (nothing_in_fragment env wf m)]. Qed.
+
 Lemma bottom_gfrag: gfrag bottom_type = true.
-Proof. apply (proj1 (in_fragment_gfrag 1)); [simpl; lia|exact (bottom_in_fragment env wf)]. Qed.
+Proof. exact (nothing_gfrag (Some exclusive)). Qed.
 
 Lemma top_gfrag: gfrag top_type = true.
 Proof. apply (proj1 (in_fragment_gfrag 2)); [simpl; lia|exact (top_in_fragment env wf)]. Qed.
@@ -1688,7 +1691,7 @@ Proof.
     induction n as [|n IHn]; intros z s Hz H; [discriminate H|].
     assert (Hmz: assignment_mutability env z = exclusive).
     { pose proof (accepted_mutability (S n) bottom_type z s bottom_gfrag Hz H) as Hm.
-      unfold bottom_type in Hm. cbn [assignment_mutability or_readonly] in Hm. rewrite (wf_nothing_is_not_const env wf) in Hm.
+      unfold bottom_type in Hm. cbn [assignment_mutability or_readonly] in Hm. rewrite (wf_nothing_is_const env wf) in Hm.
       apply mutability_subtype_of_exclusive, Hm. }
     assert (Hnz: is_nullable env z = false) by exact (accepted_not_nullable (S n) bottom_type z s bottom_gfrag Hz eq_refl H).
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IHk] using lt_wf_ind. intros t -> Ht.

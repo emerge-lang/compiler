@@ -300,7 +300,7 @@ Qed.
 Lemma wfrag_cases: forall t, wfrag t = true ->
     (exists m c args, t = RootResolved m c args /\ class_eqb c nothing = false
         /\ length args = length (parameter_ids env c) /\ forall a, In a args -> argument_wfrag a = true)
-    \/ t = bottom_type
+    \/ (exists m, t = RootResolved m nothing [])
     \/ (exists m c args, t = Nullable (RootResolved m c args) /\ wfrag (RootResolved m c args) = true)
     \/ (exists g, t = Generic g /\ generic_sfrag env g)
     \/ (exists g, t = Nullable (Generic g) /\ generic_sfrag env g).
@@ -310,7 +310,7 @@ Proof.
     intros [m c args|[m c args| |g| | | |]| g | | | |] H; try discriminate H.
     - cbn [wfrag] in H. destruct (class_eqb c nothing) eqn:Hc.
       + right. left. apply class_eqb_true in Hc. subst c.
-        destruct m as [[]|], args; simpl in H; try discriminate H. reflexivity.
+        exists m. destruct args; simpl in H; try discriminate H. reflexivity.
       + left. apply andb_true_iff in H. destruct H as [Hl Ha]. exists m, c, args.
         split; [reflexivity|]. split; [exact Hc|]. split; [apply Nat.eqb_eq, Hl|].
         intros a Hin. rewrite forallb_forall in Ha. pose proof (Ha a Hin) as Ha'.
@@ -344,12 +344,12 @@ Proof. intros [| [] | | | | |] H; try exact H; discriminate H. Qed.
 Lemma sfrag_wfrag: forall t, sfrag env t = true -> wfrag t = true.
 Proof.
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct (sfrag_cases env wf t H) as [[m [c [args [-> [Hc [Hl Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> _]]|[g [-> _]]]]]].
+    destruct (sfrag_cases env wf t H) as [[m [c [args [-> [Hc [Hl Hargs]]]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[[g [-> _]]|[g [-> _]]]]]].
     - simpl. rewrite Hc, Hl, Nat.eqb_refl. apply forallb_forall. intros a Hin. pose proof (Hargs a Hin) as Ha.
       destruct a as [| | | |v o n| |]; try discriminate Ha. simpl in Ha.
       pose proof (esize_in args _ Hin) as Hs. simpl in Hs.
       assert (Hn: wfrag n = true) by (apply (IH (esize n)); [simpl; lia|reflexivity|exact Ha]).
-      destruct (sfrag_cases env wf n Ha) as [[? [? [? [-> _]]]]|[->|[[? [? [? [-> _]]]]|[[? [-> _]]|[? [-> _]]]]]]; exact Hn.
+      destruct (sfrag_cases env wf n Ha) as [[? [? [? [-> _]]]]|[[m_bot ->]|[[? [? [? [-> _]]]]|[[? [-> _]]|[? [-> _]]]]]]; exact Hn.
     - reflexivity.
     - change ((is_class (RootResolved m c args) || is_generic (RootResolved m c args)) && wfrag (RootResolved m c args) = true).
       simpl (is_class _ || is_generic _). apply (IH (esize (RootResolved m c args))); [simpl; lia|reflexivity|exact Ht'].
@@ -415,7 +415,7 @@ Proof.
         ground env (RootResolved m c (map (instantiate env b) args)) = true /\ existsb (mentions_loosely_bound b) args = false).
     { intros m c args Hd Hf Hb'.
       destruct (wfrag_cases env wf (RootResolved m c args) Hf)
-          as [[m' [c' [args' [Heq [_ [Hl Hargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
+          as [[m' [c' [args' [Heq [_ [Hl Hargs]]]]]]|[[m_bot Heq]|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
           try discriminate Heq.
       - injection Heq as <- <- <-.
         assert (Hall: forall a, In a args -> argument_gfrag env (instantiate env b a) = true
@@ -438,7 +438,7 @@ Proof.
             apply in_map_iff in Ha'. destruct Ha' as [a [<- Hin]]. apply (Hall a Hin).
         + apply not_true_iff_false. intros E. apply existsb_exists in E. destruct E as [a [Hin E]].
           rewrite (proj2 (proj2 (Hall a Hin))) in E. discriminate E.
-      - unfold bottom_type in Heq. injection Heq as -> -> ->. split; [|reflexivity].
+      - injection Heq as _ -> ->. split; [|reflexivity].
         unfold ground. simpl. rewrite (wf_nothing_has_no_type_parameters env wf). reflexivity. }
     (* a reference to a type parameter *)
     assert (Hgen: forall g, generic_sfrag env g -> bound_in env b K [] (Generic g) = true ->
@@ -453,7 +453,7 @@ Proof.
       rewrite Hi in Hn |- *. split; [exact (inst_ref_in_fragment env g x (Hbf _ o x E))|].
       split; [exact Hm|split; [exact Hn|exact (gfrag_inst_ref_flat env g x Hx)]]. }
     destruct (wtfrag_cases env t Ht) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
-    - destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
+    - destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + rewrite instantiate_class. destruct (Hroot m c args (le_n _) Hw Hb) as [Hg Hm].
         split; [exact Hg|]. change (mentions_loosely_bound b (RootResolved m c args)) with (existsb (mentions_loosely_bound b) args).
         change (mentions_loosely_bound_in_arguments b (RootResolved m c args)) with (existsb (mentions_loosely_bound b) args).
@@ -600,7 +600,7 @@ Proof.
       { intros a Ha. pose proof (argument_depth_below m c targs a Ha). apply IHa; [lia|apply Htargs, Ha|apply Hnargs, Ha]. }
       split.
       - cbn [wfrag]. destruct (class_eqb c nothing) eqn:Ec.
-        + specialize (Hc eq_refl). destruct m as [[]|], targs; simpl in Hc; try discriminate Hc. reflexivity.
+        + specialize (Hc eq_refl). destruct targs; simpl in Hc; try discriminate Hc. reflexivity.
         + rewrite length_map, Hl, Nat.eqb_refl. apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'.
           destruct Ha' as [a [<- Ha]]. pose proof (proj1 (Hall a Ha)) as Hw.
           destruct (instantiate env bS a) as [| | | |v o n| |]; try discriminate Hw. exact Hw.
@@ -842,7 +842,7 @@ Lemma wide_no_vars: forall t, wtfrag env t = true -> no_vars t = true.
 Proof.
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
     destruct (wtfrag_cases env t H) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
-    - destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
+    - destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + simpl. apply forallb_forall. intros a Hin. pose proof (Hargs a Hin) as Ha. pose proof (esize_in args a Hin) as Hs.
         destruct a as [| | | |v o n| |]; try discriminate Ha. simpl in Ha, Hs |- *.
         apply (IH (esize n)); [simpl; lia|reflexivity|exact Ha].
@@ -975,7 +975,7 @@ Proof. intros x H. destruct x; first [reflexivity|discriminate H]. Qed.
 Lemma inst_class_shaped: forall t, wfrag env t = true -> bound_in env b K [] t = true -> class_shaped_target (instantiate env b t).
 Proof.
     intros t Ht Hb.
-    destruct (wfrag_cases env wf t Ht) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
+    destruct (wfrag_cases env wf t Ht) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
         try exact I.
     - destruct (binds_ref_some env wf b K [] g Hb) as [o [x [Ex [Ho [Hx _]]]]].
       rewrite (proj1 (instantiate_exact_generic env b g o x Ex Ho Hx)).
@@ -1166,7 +1166,7 @@ Proof.
     - (* a nullable bound, which a class type or a reference takes nothing of *)
       rewrite Eb in Hu. destruct n as [|n]; [discriminate Hu|].
       destruct (wtfrag_cases env t Ht) as [Hw|[[cs' [-> _]]|[cs' [-> _]]]]; [|discriminate Hshape|discriminate Hshape].
-      destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
+      destruct (wfrag_cases env wf t Hw) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> _]]]]|[[g [-> _]]|[g [-> _]]]]]];
           unfold bottom_type in *; try discriminate Hshape.
       + rewrite unify_class_nullable in Hu. discriminate Hu.
       + rewrite unify_class_nullable in Hu. discriminate Hu.
@@ -1229,9 +1229,9 @@ Proof.
     assert (Hct: class_eqb ct nothing = false).
     { destruct (class_eqb ct nothing) eqn:E; [|reflexivity]. apply class_eqb_true in E. subst ct.
       rewrite (only_nothing_is_below_nothing env ca Hbase), class_eqb_refl in Hcn. discriminate Hcn. }
-    destruct (wfrag_cases env wf _ Ht) as [[mt' [ct' [targs' [Heq [_ [Hlt Htargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
+    destruct (wfrag_cases env wf _ Ht) as [[mt' [ct' [targs' [Heq [_ [Hlt Htargs]]]]]]|[[m_bot Heq]|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
         try discriminate Heq; [injection Heq as <- <- <-|unfold bottom_type in Heq; injection Heq as _ -> _; rewrite class_eqb_refl in Hct; discriminate Hct].
-    destruct (wfrag_cases env wf _ Ha) as [[ma' [ca' [aargs' [Heq [_ [Hla Haargs]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
+    destruct (wfrag_cases env wf _ Ha) as [[ma' [ca' [aargs' [Heq [_ [Hla Haargs]]]]]]|[[m_bot Heq]|[[? [? [? [Heq _]]]]|[[? [Heq _]]|[? [Heq _]]]]]];
         try discriminate Heq; [injection Heq as <- <- <-|unfold bottom_type in Heq; injection Heq as _ -> _; rewrite class_eqb_refl in Hcn; discriminate Hcn].
     (* the type arguments of the assignee, normalized to the target's class, and instantiated *)
     assert (Hnorm: exists nargs,
@@ -1333,16 +1333,16 @@ Proof.
     destruct (wtfrag_cases env t Ht) as [Hw|[[ts [-> Hts]]|[ts [-> Hts]]]].
     2: exact (wide_intersection_target n ts a IHt Hts Ha Hbt Hba u H).
     2: exact (wide_nullable_target n (Intersection ts) a IHt Ht Ha Hbt Hba u H).
-    destruct (wfrag_cases env wf t Hw) as [[mt [ct [targs [-> _]]]]|[->|[[mt [ct [targs [-> _]]]]|[[gt [-> Hgt]]|[gt [-> Hgt]]]]]].
+    destruct (wfrag_cases env wf t Hw) as [[mt [ct [targs [-> _]]]]|[[m_bot ->]|[[mt [ct [targs [-> _]]]]|[[gt [-> Hgt]]|[gt [-> Hgt]]]]]].
     4: (* a reference to a type parameter *)
       { destruct (wtfrag_cases env a Ha) as [Hwa|[[cs [-> Hcs]]|[cs [-> _]]]].
-        - destruct (wfrag_cases env wf a Hwa) as [[ma [ca [aargs [-> [Hca _]]]]]|[->|[[ma [ca [aargs [-> _]]]]|[[ga [-> Hga]]|[ga [-> _]]]]]].
+        - destruct (wfrag_cases env wf a Hwa) as [[ma [ca [aargs [-> [Hca _]]]]]|[[m_bot ->]|[[ma [ca [aargs [-> _]]]]|[[ga [-> Hga]]|[ga [-> _]]]]]].
           + rewrite (unify_generic_root env wf), Hca in H. cbn [andb] in H. discriminate H.
           + unfold bottom_type in H. rewrite (unify_generic_root env wf) in H. rewrite class_eqb_refl in H. cbn [andb] in H.
             destruct (Model.is_subtype_of _ _); [|discriminate H].
             destruct (binds_ref_some env wf b K [] gt Hbt) as [o [x [Ex [Ho [Hx _]]]]].
             rewrite (proj1 (instantiate_exact_generic env b gt o x Ex Ho Hx)). exists 2.
-            exact (below_all env wf [] _ 2 (inst_ref_in_fragment env gt x (Hbf _ o x Ex)) (le_n _)).
+            exact (below_all env wf [] _ 2 (inst_ref_in_fragment env gt x (Hbf _ o x Ex)) (le_n _) _).
           + rewrite (unify_generic_nullable env) in H. discriminate H.
           + rewrite (unify_generic_generic_step env wf) in H. destruct (param_eqb (param_of ga) (param_of gt)) eqn:Ep.
             * apply param_eqb_eq in Ep. destruct (_ && _) eqn:Ec in H; [|discriminate H].
@@ -1358,7 +1358,7 @@ Proof.
     all: destruct (wtfrag_cases env a Ha) as [Hwa|[[cs [-> Hcs]]|[cs [-> _]]]];
         [|exact (wide_into_intersection n _ cs IHt Ht eq_refl Hcs Hbt Hba u H)
          |rewrite unify_class_nullable in H; discriminate H].
-    all: destruct (wfrag_cases env wf a Hwa) as [[ma [ca [aargs [-> _]]]]|[->|[[ma [ca [aargs [-> _]]]]|[[ga [-> Hga]]|[ga [-> _]]]]]];
+    all: destruct (wfrag_cases env wf a Hwa) as [[ma [ca [aargs [-> _]]]]|[[? ->]|[[ma [ca [aargs [-> _]]]]|[[ga [-> Hga]]|[ga [-> _]]]]]];
         unfold bottom_type in *;
         first [ rewrite unify_class_nullable in H; discriminate H
               | exact (wide_classes n _ _ _ _ _ _ IHa Hw Hwa Hbt Hba u H)

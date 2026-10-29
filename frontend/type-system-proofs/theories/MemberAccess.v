@@ -381,10 +381,7 @@ Qed.
 
 (* `exclusive Nothing` is assignable to every type of the fragment *)
 Lemma bottom_below: forall t f s, in_fragment env t = true -> 2 <= f -> unify env f t bottom_type (Ongoing s) = Some (Ongoing s).
-Proof.
-    intros t f s Ht Hf. apply (below_bottom env wf 1 bottom_type s (bottom_in_fragment env wf)); [|exact Ht|exact Hf].
-    apply (proj1 (reflexivity_with_arguments env 1)); [exact (bottom_in_fragment env wf)|simpl; lia].
-Qed.
+Proof. intros t f s Ht Hf. exact (nothing_below env wf _ t f s Ht Hf). Qed.
 
 (* Every type of the fragment is assignable to `read Any?` *)
 Lemma top_above: forall t f s, in_fragment env t = true -> 2 <= f -> unify env f top_type t (Ongoing s) = Some (Ongoing s).

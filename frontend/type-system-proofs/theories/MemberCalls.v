@@ -235,7 +235,7 @@ Lemma bound_in_from_refs: forall vars b K t, (ifrag env t = true \/ argument_ifr
 Proof.
     intros vars b K t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> Hf H Hp Hr Ho.
     destruct Hf as [Hf|Hf].
-    - destruct (ifrag_cases env wf t Hf) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[->|[[m [c [args [-> Ht']]]]|[p [-> Hfb]]]]].
+    - destruct (ifrag_cases env wf t Hf) as [[m [c [args [-> [_ [_ Hargs]]]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[p [-> Hfb]]]]].
       + change (forallb (bound_in env b K []) (map to_generic args) = true). apply forallb_forall. intros a' Ha'.
         apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
         apply (IH (esize a)); [pose proof (esize_in args a Ha); simpl; lia|reflexivity|right; exact (Hargs a Ha)| |exact Hp|exact Hr|exact Ho].
@@ -324,7 +324,7 @@ Proof.
       assert (Heff: effective_bound env (mkGenericRef gm nn p []) = bound_apply env gm nn (parameter_bound env p))
           by (rewrite (effective_bound_eq env ranked); destruct gm, nn; reflexivity).
       assert (Hsa: sfrag env (bound_apply env gm nn (parameter_bound env p)) = true /\ closed (bound_apply env gm nn (parameter_bound env p)) = true).
-      { destruct (sfrag_cases env wf _ Hs) as [[? [? [? [E _]]]]|[E|[[? [? [? [E _]]]]|[[g [E Hg]]|[? [E _]]]]]]; try discriminate E.
+      { destruct (sfrag_cases env wf _ Hs) as [[? [? [? [E _]]]]|[[m_bot E]|[[? [? [? [E _]]]]|[[g [E Hg]]|[? [E _]]]]]]; try discriminate E.
         injection E as <-. destruct Hg as [Htf _]. rewrite Heff in Htf.
         destruct (proj1 (closed_facts env wf b K [] (sdepth _)) _ (le_n _) Hfb Hcb) as [HB _].
         destruct (fragment_cases env _ HB) as [[m [c [args E]]]|[m [c [args [E _]]]]]; rewrite E in Hcb, Htf |- *;

@@ -338,7 +338,7 @@ Proof.
       apply intersect_mutability_greatest; [exact HmW|].
       exact (mutability_subtype_trans _ _ _ HWc (fold_intersect_below_element _ _ _ (in_map _ _ _ Hin))). }
     destruct (tfrag_cases env D HD) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
-    - destruct (sfrag_cases env wf D Hs) as [[md [c [args [-> _]]]]|[->|[[md [c [args [-> Hs']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
+    - destruct (sfrag_cases env wf D Hs) as [[md [c [args [-> _]]]]|[[m_bot ->]|[[md [c [args [-> Hs']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + (* a class type *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.
         replace (inst_nested env b (adjust env m nn (RootResolved md c args)))
@@ -347,9 +347,9 @@ Proof.
         exact (lift_class f _ Z m nn HY HZ Hm H).
       + (* Nothing *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.
-        replace (inst_nested env b (adjust env m nn bottom_type))
-            with (if nn then without_null env (with_mutability env m (inst_nested env b bottom_type))
-                  else with_mutability env m (inst_nested env b bottom_type)) by (destruct nn; reflexivity).
+        replace (inst_nested env b (adjust env m nn (RootResolved m_bot nothing [])))
+            with (if nn then without_null env (with_mutability env m (inst_nested env b (RootResolved m_bot nothing [])))
+                  else with_mutability env m (inst_nested env b (RootResolved m_bot nothing []))) by (destruct nn; reflexivity).
         exact (lift_class f _ Z m nn HY HZ Hm H).
       + (* a nullable class type *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.

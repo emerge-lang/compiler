@@ -60,7 +60,7 @@ Lemma wtfrag_root_arguments: forall m c args a, wtfrag env (RootResolved m c arg
 Proof.
     intros m c args a H Ha. change (wfrag env (RootResolved m c args) = true) in H. cbn [wfrag] in H.
     destruct (class_eqb c nothing).
-    - destruct m as [[]|], args; simpl in H; try discriminate H. destruct Ha.
+    - destruct args; simpl in H; try discriminate H. destruct Ha.
     - apply andb_true_iff in H. destruct H as [_ H]. rewrite forallb_forall in H. specialize (H a Ha).
       destruct a as [| | | |v o n| |]; try discriminate H. exact H.
 Qed.
@@ -77,11 +77,14 @@ Proof.
     simpl. rewrite (wf_any_has_no_type_parameters env wf). reflexivity.
 Qed.
 
-Lemma caller_bottom: caller_type bottom_type.
+Lemma caller_nothing: forall m, caller_type (RootResolved m nothing []).
 Proof.
-    split; [|split; exact I]. change (wfrag env (RootResolved (Some exclusive) nothing []) = true). cbn [wfrag].
+    intros m. split; [|split; exact I]. change (wfrag env (RootResolved m nothing []) = true). cbn [wfrag].
     simpl. reflexivity.
 Qed.
+
+Lemma caller_bottom: caller_type bottom_type.
+Proof. exact (caller_nothing (Some exclusive)). Qed.
 
 (* A type argument of generic code: of a type of it, of an ownership of the caller *)
 Definition caller_argument (a: EType): Prop :=
@@ -178,8 +181,8 @@ Qed.
 (* A mutability given to a type of generic code                                                    *)
 (*                                                                                                *)
 (* Instantiating `m T` with T bound to x gives x the meet of its own mutability and m (ref_apply).  *)
-(* A mutability no more than its own keeps a type of the fragment one: for `exclusive Nothing`, as  *)
-(* that leaves it exclusive; for a reference to a type parameter, as its effective bound takes the  *)
+(* A mutability no more than its own keeps a type of the fragment one: for Nothing, as Nothing it   *)
+(* stays; for a reference to a type parameter, as its effective bound takes the                     *)
 (* mutability given (effective_bound_given); for an intersection, as its components take the one   *)
 (* they are assigned as in common, exclusive where one of them is const.                           *)
 (* ---------------------------------------------------------------------------------------------- *)
@@ -264,7 +267,7 @@ Proof.
     assert (Hs: forall t k, tdepth env t < S n -> sfrag env t = true ->
         assignment_mutability env (with_mutability env k t) = if top_const env t then exclusive else k).
     { intros t k Hd Ht.
-      destruct (sfrag_cases env wf t Ht) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[[[gm nn p vs] [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
+      destruct (sfrag_cases env wf t Ht) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> _]]]]|[[[gm nn p vs] [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
       - cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
       - unfold bottom_type. cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
       - cbn [with_mutability rewrap_nullable assignment_mutability top_const]. destruct (is_const _); reflexivity.
@@ -290,9 +293,7 @@ Proof.
     assert (Hroot: forall m c args k, sfrag env (RootResolved m c args) = true ->
         Model.is_subtype_of k (mutability_of env (RootResolved m c args)) = true -> sfrag env (with_mutability env k (RootResolved m c args)) = true).
     { intros m c args k H Hk. cbn [with_mutability sfrag] in H |- *. destruct (class_eqb c nothing) eqn:Ec; [|exact H].
-      apply class_eqb_true in Ec. subst c. cbn [mutability_of] in Hk. rewrite (wf_nothing_is_not_const env wf) in Hk |- *.
-      destruct m as [[]|], args; simpl in H; try discriminate H. cbn [or_readonly] in Hk.
-      rewrite (mutability_subtype_of_exclusive k Hk). reflexivity. }
+      destruct args; simpl in H; try discriminate H. reflexivity. }
     assert (Hgen: forall gm nn p k, tdepth env (Generic (mkGenericRef gm nn p [])) < S n -> generic_sfrag env (mkGenericRef gm nn p []) ->
         Model.is_subtype_of k (mutability_of env (Generic (mkGenericRef gm nn p []))) = true ->
         sfrag env (Generic (mkGenericRef (Some k) nn p [])) = true).
@@ -317,7 +318,7 @@ Proof.
       - unfold components_sfrag. rewrite length_map. apply andb_true_iff. split; [apply Nat.leb_le; lia|].
         apply forallb_forall. intros c' Hc'. apply in_map_iff in Hc'. destruct Hc' as [c [<- Hin]].
         pose proof (common_below k cs Hk c Hin) as HC. fold C in HC. pose proof (Hdc c Hin) as Hdc'. destruct (Hc c Hin) as [Hsh Hsc].
-        destruct (sfrag_cases env wf c Hsc) as [[m [cl [args [Ec _]]]]|[Ec|[[m [cl [args [Ec _]]]]|[[[gm nn p vs] [Ec Hg]]|[[gm nn p vs] [Ec Hg]]]]]];
+        destruct (sfrag_cases env wf c Hsc) as [[m [cl [args [Ec _]]]]|[[m_bot Ec]|[[m [cl [args [Ec _]]]]|[[[gm nn p vs] [Ec Hg]]|[[gm nn p vs] [Ec Hg]]]]]];
             subst c; try discriminate Hsh.
         + apply andb_true_iff. split; [reflexivity|exact (Hroot m cl args C Hsc HC)].
         + apply andb_true_iff. split; [reflexivity|exact (Hroot _ _ _ C Hsc HC)].
@@ -325,7 +326,7 @@ Proof.
           * unfold is_component_shape in Hsh |- *. rewrite (proj1 (proj2 (with_mutability_keeps env ranked C _))). exact Hsh.
           * exact (Hgen gm nn p C ltac:(lia) Hg HC). }
     intros t k Hd Ht Hk. destruct (tfrag_cases env t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
-    - destruct (sfrag_cases env wf t Hs) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> Ht']]]]|[[[gm nn p vs] [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
+    - destruct (sfrag_cases env wf t Hs) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[[[gm nn p vs] [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
       + exact (Hroot m c args k Hs Hk).
       + exact (Hroot _ _ _ k Hs Hk).
       + change ((is_class (with_mutability env k (RootResolved m c args)) || is_generic (with_mutability env k (RootResolved m c args)))
@@ -350,9 +351,7 @@ Proof.
     assert (Hroot: forall m c args k, wfrag env (RootResolved m c args) = true ->
         Model.is_subtype_of k (mutability_of env (RootResolved m c args)) = true -> wfrag env (with_mutability env k (RootResolved m c args)) = true).
     { intros m c args k H Hk. cbn [with_mutability wfrag] in H |- *. destruct (class_eqb c nothing) eqn:Ec; [|exact H].
-      apply class_eqb_true in Ec. subst c. cbn [mutability_of] in Hk. rewrite (wf_nothing_is_not_const env wf) in Hk |- *.
-      destruct m as [[]|], args; simpl in H; try discriminate H. cbn [or_readonly] in Hk.
-      rewrite (mutability_subtype_of_exclusive k Hk). reflexivity. }
+      destruct args; simpl in H; try discriminate H. reflexivity. }
     assert (Hgen: forall g k, wfrag env (Generic g) = true -> Model.is_subtype_of k (mutability_of env (Generic g)) = true ->
         wfrag env (with_mutability env k (Generic g)) = true).
     { intros [gm nn p vs] k H Hk. change (sfrag env (Generic (mkGenericRef gm nn p vs)) = true) in H.
@@ -360,7 +359,7 @@ Proof.
     assert (Hassign: forall c j, wfrag env c = true -> is_component_shape env c = true ->
         assignment_mutability env (with_mutability env j c) = if top_const env c then exclusive else j).
     { intros c j Hw Hsh.
-      destruct (wfrag_cases env wf c Hw) as [[m [cl [args [-> _]]]]|[->|[[m [cl [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
+      destruct (wfrag_cases env wf c Hw) as [[m [cl [args [-> _]]]]|[[m_bot ->]|[[m [cl [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
           try discriminate Hsh.
       - cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
       - unfold bottom_type. cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
@@ -376,7 +375,7 @@ Proof.
       - unfold wcomponents. rewrite length_map. apply andb_true_iff. split; [apply Nat.leb_le; lia|].
         apply forallb_forall. intros c' Hc'. apply in_map_iff in Hc'. destruct Hc' as [c [<- Hin]].
         pose proof (common_below k cs Hk c Hin) as HC. fold C in HC. destruct (Hc c Hin) as [Hsh Hwc].
-        destruct (wfrag_cases env wf c Hwc) as [[m [cl [args [Ec _]]]]|[Ec|[[m [cl [args [Ec _]]]]|[[[gm nn p vs] [Ec Hg]]|[[gm nn p vs] [Ec Hg]]]]]];
+        destruct (wfrag_cases env wf c Hwc) as [[m [cl [args [Ec _]]]]|[[m_bot Ec]|[[m [cl [args [Ec _]]]]|[[[gm nn p vs] [Ec Hg]]|[[gm nn p vs] [Ec Hg]]]]]];
             subst c; try discriminate Hsh.
         + apply andb_true_iff. split; [reflexivity|exact (Hroot m cl args C Hwc HC)].
         + apply andb_true_iff. split; [reflexivity|exact (Hroot _ _ _ C Hwc HC)].
@@ -384,7 +383,7 @@ Proof.
           * unfold is_component_shape in Hsh |- *. rewrite (proj1 (proj2 (with_mutability_keeps env ranked C _))). exact Hsh.
           * exact (Hgen _ C Hwc HC). }
     assert (Hw: forall t k, wfrag env t = true -> Model.is_subtype_of k (mutability_of env t) = true -> wfrag env (with_mutability env k t) = true).
-    { intros t k H Hk. destruct (wfrag_cases env wf t H) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> H']]]]|[[g [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
+    { intros t k H Hk. destruct (wfrag_cases env wf t H) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> H']]]]|[[g [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
       - exact (Hroot _ _ _ k H Hk).
       - exact (Hroot _ _ _ k H Hk).
       - change ((is_class (with_mutability env k (RootResolved m c args)) || is_generic (with_mutability env k (RootResolved m c args)))
@@ -422,7 +421,7 @@ Lemma caller_component_without_null: forall c, caller_type c -> wfrag env c = tr
     caller_type (without_null env c) /\ is_component_shape env (without_null env c) = true /\ wfrag env (without_null env c) = true.
 Proof.
     intros c Hc Hw. pose proof (caller_without_null c Hc) as Hc'. split; [exact Hc'|].
-    destruct (wfrag_cases env wf c Hw) as [[m [d [args [-> _]]]]|[->|[[m [d [args [-> Hd]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
+    destruct (wfrag_cases env wf c Hw) as [[m [d [args [-> _]]]]|[[m_bot ->]|[[m [d [args [-> Hd]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
     - split; [reflexivity|exact Hw].
     - split; [reflexivity|exact Hw].
     - split; [reflexivity|exact Hd].
@@ -578,7 +577,7 @@ Proof.
       rewrite instantiate_class. split; [|split].
       - change (wfrag env (RootResolved m c (map (instantiate env bS) targs)) = true). cbn [wfrag].
         destruct (class_eqb c nothing) eqn:Ec.
-        + specialize (Hc eq_refl). destruct m as [[]|], targs; simpl in Hc; try discriminate Hc. reflexivity.
+        + specialize (Hc eq_refl). destruct targs; simpl in Hc; try discriminate Hc. reflexivity.
         + apply andb_true_iff. split; [rewrite length_map, Hl; apply Nat.eqb_refl|].
           apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
           destruct (Hall a Ha) as [Hq _]. destruct (instantiate env bS a) as [| | | |v o n| |]; try contradiction Hq.
@@ -670,7 +669,7 @@ Lemma instances_caller: forall k,
 Proof.
     induction k as [|k [IHt IHa]].
     - split.
-      + intros P Hd HP HbP. destruct (ifrag_cases env wf P HP) as [[m [c [args [-> _]]]]|[->|[[m [c [args [-> _]]]]|[p [-> _]]]]];
+      + intros P Hd HP HbP. destruct (ifrag_cases env wf P HP) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> _]]]]|[p [-> _]]]]];
             try (simpl in Hd; lia).
         destruct (binds_ref_some env wf b K [] (mkGenericRef None false p []) HbP) as [o [x [Ex _]]]. cbn [param_of] in Ex.
         rewrite (inst_variable env b p [] _ _ _ Ex). exact (proj2 (Hvals p o x Ex)).
@@ -684,7 +683,7 @@ Proof.
           pose proof (vsize_below m c args a Ha). apply IHa; [lia|exact Hfa|exact Hba]. }
         split; [|split].
         - change (wfrag env (RootResolved m c (map (instantiate env b) args)) = true). cbn [wfrag].
-          destruct (ifrag_cases env wf _ HP) as [[m' [c' [args' [Heq [Hcn [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
+          destruct (ifrag_cases env wf _ HP) as [[m' [c' [args' [Heq [Hcn [Hl _]]]]]]|[[m_bot Heq]|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
               try discriminate Heq.
           + injection Heq as <- <- <-. rewrite Hcn. apply andb_true_iff. split; [rewrite length_map, Hl; apply Nat.eqb_refl|].
             apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
@@ -822,7 +821,7 @@ Proof.
         caller_type (instantiate_free env b (RootResolved m c args))).
     { intros m c args HP Hargs. cbn [instantiate_free]. split; [|split].
       - change (wfrag env (RootResolved m c (map (instantiate_free env b) args)) = true). cbn [wfrag].
-        destruct (ifrag_cases env wf _ HP) as [[m' [c' [args' [Heq [Hcn [Hl _]]]]]]|[Heq|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
+        destruct (ifrag_cases env wf _ HP) as [[m' [c' [args' [Heq [Hcn [Hl _]]]]]]|[[m_bot Heq]|[[? [? [? [Heq _]]]]|[? [Heq _]]]]];
             try discriminate Heq.
         + injection Heq as <- <- <-. rewrite Hcn. apply andb_true_iff. split; [rewrite length_map, Hl; apply Nat.eqb_refl|].
           apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
@@ -854,7 +853,7 @@ Proof.
       + exact (IHa Hoas Hvas (fun a'' Ha'' => Hargs a'' (or_intror Ha'')) a' Ha').
     - (* nullable: of a class type *)
       assert (Hn: ifrag env n = true /\ exists m c args, n = RootResolved m c args).
-      { destruct (ifrag_cases env wf _ HP) as [[? [? [? [Heq _]]]]|[Heq|[[m [c [args [Heq H']]]]|[? [Heq _]]]]];
+      { destruct (ifrag_cases env wf _ HP) as [[? [? [? [Heq _]]]]|[[m_bot Heq]|[[m [c [args [Heq H']]]]|[? [Heq _]]]]];
             try discriminate Heq.
         injection Heq as ->. split; [exact H'|eauto]. }
       destruct Hn as [Hn Hroot']. cbn [plain_owners] in Ho. cbn [vars_in] in Hv. pose proof (IH n Hn Ho Hv) as Hc.
@@ -1097,7 +1096,7 @@ Proof.
         HwP HwA (bound_in_mono env wf sigma K1 (max K1 K2) _ (Nat.le_max_l K1 K2) HK1) (bound_in_mono env wf sigma K2 (max K1 K2) _ (Nat.le_max_r K1 K2) HK2) Hf0).
 Qed.
 
-(* closestCommonSupertypeWith keeps Nothing only as `exclusive Nothing` (GenericArguments.v) *)
+(* closestCommonSupertypeWith keeps Nothing only as `Nothing` itself (GenericArguments.v) *)
 Hypothesis supertype_bottom_only: closest_common_supertype_keeps_bottom_only env declared.
 
 (*
