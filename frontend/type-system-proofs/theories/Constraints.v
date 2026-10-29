@@ -1828,6 +1828,36 @@ Qed.
 Definition final_value (st: VariableState): EType :=
     if is_non_nullable_nothing env (lower_bound st) then upper_bound st else lower_bound st.
 
+(* The type a value of t reads as, where it is a type argument, made nullable or not
+   (BoundTypeReference.asReadType) *)
+Definition read_value (t: EType): EType :=
+    match t with
+    | TypeArgument v _ x => read_type v x
+    | Nullable (TypeArgument v _ x) => rewrap_nullable (read_type v x)
+    | _ => t
+    end.
+
+(* TypeUnification.getFinalValueFor in full: of the variable p without a lower bound whose static upper
+   bound mentions other type variables, but not p itself, the upper bound intersected with the static
+   upper bound, its type variables replaced by their final values b, as a value of it reads: that is a
+   type argument where the bound is a type parameter of a class captured from a variant receiver. Otherwise
+   final_value; the theorems take the variables whose bounds mention type variables to get a lower
+   bound, where the two agree (final_value_with_lower) *)
+Definition final_value_with (b: Bindings) (p: TypeParameterId) (st: VariableState): EType :=
+    if is_non_nullable_nothing env (lower_bound st) && negb (no_vars (static_upper_bound st))
+        && vars_in (fun q => negb (param_eqb q p)) (static_upper_bound st)
+    then intersect env (upper_bound st) (read_value (instantiate_free env b (static_upper_bound st)))
+    else final_value st.
+
+Lemma final_value_with_lower: forall b p st,
+    (no_vars (static_upper_bound st) = false -> is_non_nullable_nothing env (lower_bound st) = false) ->
+    final_value_with b p st = final_value st.
+Proof.
+    intros b p st H. unfold final_value_with. destruct (no_vars (static_upper_bound st)) eqn:E.
+    - rewrite andb_false_r. reflexivity.
+    - rewrite (H eq_refl). reflexivity.
+Qed.
+
 (* The final value of a variable that isn't bound exactly is within its bounds, if it is one of the
    types variables are replaced with *)
 Lemma final_value_fits: forall s p st o, wf_states s -> lookup_state s p = Some st -> is_exact st = false ->
