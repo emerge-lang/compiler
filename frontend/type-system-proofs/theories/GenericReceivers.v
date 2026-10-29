@@ -17,7 +17,7 @@ From EmergeTypeSystem Require Import WithinBounds.
 From EmergeTypeSystem Require Import FreeInstances.
 From EmergeTypeSystem Require Import GenericArguments.
 From EmergeTypeSystem Require Import GenericCode.
-From Stdlib Require Import Bool List Arith Lia.
+From Stdlib Require Import Bool List Arith Lia Sorting.
 Import ListNotations.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -1837,6 +1837,14 @@ Proof.
         try (injection E2 as <-; reflexivity).
     - exact (gkeeps env wf n Y bottom_type s w' Hy (bottom_gfrag env wf) E2).
     - exact (gkeeps env wf n Y bottom_type s w' Hy (bottom_gfrag env wf) E2).
+Qed.
+
+(* The type arguments of generic code are captured as those of class types *)
+Lemma argument_gfrag_shape: forall y, argument_gfrag env y = true -> is_type_argument y = true /\ no_vars y = true
+    /\ forall vy oy Y k s w, y = TypeArgument vy oy Y -> unify env k Y bottom_type (Ongoing s) = Some (Ongoing w) -> w = s.
+Proof.
+    intros y Hy. split; [exact (argument_gfrag_type_argument env y Hy)|]. split; [exact (argument_gfrag_no_vars env y Hy)|].
+    intros vy oy Y k s w -> E. simpl in Hy. exact (gkeeps env wf k Y bottom_type s w Hy (bottom_gfrag env wf) E).
 Qed.
 
 Lemma gcapture_arguments: forall n vars ys s u,
@@ -3893,15 +3901,18 @@ Qed.
  * for the type arguments of the object as that class, those of the function for their final values,
  * instantiated (rinst): the final values are within their static upper bounds so bound, and each
  * argument fits its parameter so bound, at run time. The type parameters of the caller are none of
- * those of the callee.
+ * those of the callee. The type parameters of the class may be bounded by types mentioning them, as in
+ * generic_member_call_with_bounded_variables_sound.
  *)
 Theorem generic_receiver_with_bounded_variables_sound: forall n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U,
     c <> nothing -> ca <> nothing -> e <> nothing ->
     map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
-    (forall p S, In (p, S) cvars -> in_fragment env S = true) ->
-    (* the bounds of the type parameters of c: the declared ones *)
-    (forall p S, In (p, S) cvars -> to_generic S = parameter_bound env p) ->
+    (* the bounds of the type parameters of c: the declared ones, mentioning those of c *)
+    (forall p S, In (p, S) cvars -> gstatic_bound env declared caller cvars p S) ->
     (forall p S, In (p, S) ovars -> gstatic_bound env declared caller (cvars ++ ovars) p S) ->
+    (* the type parameters of c declared in order, before those of the function *)
+    StronglySorted (fun p q => parameter_rank env p < parameter_rank env q) (map fst cvars) ->
+    (forall p S q S', In (p, S) cvars -> In (q, S') ovars -> parameter_rank env p < parameter_rank env q) ->
     (forall q, In q ps -> ~ In q (map fst (cvars ++ ovars))) ->
     (* the receiver, of generic code, unified with the receiver parameter *)
     of_fragment env declared (RootResolved ma ca ys) -> caller (RootResolved ma ca ys) ->
@@ -3913,9 +3924,6 @@ Theorem generic_receiver_with_bounded_variables_sound: forall n mr c cvars ovars
     is_assignable_to env n0 (RootResolved mo e xs) (instantiate env sigma (RootResolved ma ca ys)) = Some true ->
     zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
     (forall x, In x xs -> exact_argument env x = true) ->
-    (* ... within the bounds of the type parameters of c *)
-    (forall i p S z, nth_error cvars i = Some (p, S) -> nth_error zs i = Some z ->
-        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f S x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, and the arguments of generic code, accepted in turn *)
     (forall P, In P Ps -> qfrag env P = true /\ (forall C, In C (intersected_components P) -> plain_owners C = true)
         /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true) ->
@@ -3926,14 +3934,22 @@ Theorem generic_receiver_with_bounded_variables_sound: forall n mr c cvars ovars
     (forall p S st, In (p, S) ovars -> no_vars S = false -> lookup_state U p = Some st ->
         is_non_nullable_nothing env (lower_bound st) = false) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
+    (* the type arguments of the object within the bounds of the type parameters of c, instantiated *)
+    (forall i p S z, nth_error cvars i = Some (p, S) -> nth_error zs i = Some z ->
+        exists o x, z = TypeArgument Model.invariant o x
+            /\ if no_vars S then below env x S else forall C, In C (bound_components S) -> below env x (instantiate_free env b C)) ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
         exists f, unify env f (rinst b C) (instantiate env sigma (gfinal_of env U p)) (Ongoing []) = Some (Ongoing []))
     /\ forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
-    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcb Hcdecl Hst Hdis HfR HcR Hrec
-        Hfo Hno Hcl Hobj Hzs Hxx Hzb HPs HPn HAs Hfold Hlow b Hbdef.
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcst Hst Hsort Hfn Hdis HfR HcR Hrec
+        Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hzb.
     pose proof Hnd as Hnd'. rewrite map_app in Hnd.
+    assert (Hvs: forall p S, In (p, S) (cvars ++ ovars) -> vars_in (static_vars env p) S = true).
+    { intros p S Hin. apply in_app_or in Hin.
+      destruct Hin as [Hin|Hin]; [destruct (Hcst p S Hin) as [_ [Hsv _]]|destruct (Hst p S Hin) as [_ [Hsv _]]];
+          exact (vars_in_mono _ _ (fun q E => proj1 (proj1 (andb_true_iff _ _) E)) _ Hsv). }
     set (vars := cvars ++ ovars) in *.
     set (s0 := map (fun '(q, bnd) => (q, mkVariableState bnd (initial_upper_bound bnd) bottom_type false (existsb (param_eqb q) (map fst cvars)))) vars).
     assert (Hs0: for_inference_of vars (map fst cvars) = Ongoing s0) by reflexivity.
@@ -3981,8 +3997,22 @@ Proof.
     assert (Hfresh: forall p bound, In (p, bound) cvars -> lookup_state s0 p = Some (mkVariableState bound (initial_upper_bound bound) bottom_type false true)).
     { intros p bound Hin. unfold s0. rewrite (lookup_for_inference _ _ p bound Hnd' (in_or_app _ _ _ (or_introl Hin))), (Hcls p bound Hin).
       reflexivity. }
-    destruct (gcapture_arguments n cvars ys' s0 u Hndc Hl (fun y Hy => proj1 (Hys y Hy))
-        (fun p bound Hin => in_fragment_no_vars env bound (Hcb p bound Hin)) Hfresh Hrec) as [Hcap Hoth].
+    assert (Hfresh': forall p bound, In (p, bound) cvars ->
+        lookup_state s0 p = Some (mkVariableState bound (initial_upper_bound bound) bottom_type false true)
+        /\ vars_in (static_vars env p) bound = true)
+        by (intros p bound Hin; split; [exact (Hfresh p bound Hin)|exact (Hvs p bound (in_or_app _ _ _ (or_introl Hin)))]).
+    assert (Hrk0: ranked_states env s0).
+    { intros q st Hq. unfold s0 in Hq. destruct (lookup_for_inference_in _ _ q st Hq) as [bound Hin].
+      rewrite (lookup_for_inference _ _ q bound Hnd' Hin) in Hq. injection Hq as <-.
+      cbn [upper_bound lower_bound static_upper_bound]. unfold initial_upper_bound.
+      split; [destruct (no_vars bound) eqn:E; [exact E|reflexivity]|]. split; [reflexivity|exact (Hvs q bound Hin)]. }
+    assert (Hlow0: forall q st, lookup_state s0 q = Some st -> is_exact st = false -> forall p bound, In (p, bound) cvars ->
+        parameter_rank env q < parameter_rank env p -> In q (map fst cvars)).
+    { intros q st Hq _ p bound Hin Hr. unfold s0 in Hq. destruct (lookup_for_inference_in _ _ q st Hq) as [bq Hinq].
+      apply in_app_or in Hinq. destruct Hinq as [Hinq|Hinq]; [exact (in_map fst _ _ Hinq)|].
+      pose proof (Hfn p bound q bq Hin Hinq). lia. }
+    destruct (capture_arguments_checked env wf intersect_no_vars supertype_no_vars (argument_gfrag env) argument_gfrag_shape
+        n cvars ys' s0 u Hndc Hl Hsort (fun y Hy => proj1 (Hys y Hy)) Hfresh' Hrk0 Hlow0 Hrec) as [Hcap Hoth].
     assert (Hownu: forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound (initial_upper_bound bound) bottom_type false false)).
     { intros p bound Hin.
       assert (Hnin: ~ In p (map fst cvars)) by (intros Hc2; exact (nodup_app_disjoint _ _ p Hnd Hc2 (in_map fst _ _ Hin))).
@@ -4006,7 +4036,7 @@ Proof.
         + unfold gstate_ok. cbn [upper_bound lower_bound is_exact static_upper_bound].
           pose proof (argument_gfrag_no_vars env y (proj1 (Hys y (nth_error_In _ _ Hy)))) as Hny.
           split; [exact Hny|]. split; [exact Hny|]. split; [intros E; discriminate E|].
-          exact (no_vars_in _ _ (in_fragment_no_vars env bound (Hcb p bound (nth_error_In _ _ Hi)))).
+          exact (Hvs p bound (in_or_app _ _ _ (or_introl (nth_error_In _ _ Hi)))).
         + exact (ginitial_ok env wf declared declared_wf terminates finite tame caller caller_top' caller_bottom'
               vars p bound u (Hst p bound Hin)).
       - intros p st Hp He'. destruct (Hu p st Hp) as [[i [bound [y [Hi [Hy ->]]]]]|[bound [Hin ->]]]; [discriminate He'|].
@@ -4159,13 +4189,30 @@ Proof.
       - destruct (nth_error_same_length cvars ys' i _ ltac:(lia) Hi) as [y Hy]. eexists. exact (Hcap i q S y Hi Hy).
       - eexists. exact (Hownu q S Hin). }
     assert (HdU: dom b U) by exact (dom_forward2 b u U (proj1 Hwfu) (fold_keeps_exact_unify env nf _ u U Hfold) Hdu).
-    (* the values of non-null bounds aren't null: the type arguments of the object and the final values,
-       within the bounds *)
+    (* the values of non-null bounds aren't null: the type arguments of the object, within the bounds,
+       by the ranks of the type parameters of c, whose bounds mention only those *)
+    assert (Hnvc: forall q o x, existsb (param_eqb q) (map fst cvars) = true -> lookup_binding b q = Some (TypeArgument Model.invariant o x) ->
+        is_nullable env (Generic (mkGenericRef None false q [])) = false -> is_nullable env x = false).
+    { apply (values_not_nullable_among env wf declared declared_wf (fun q => existsb (param_eqb q) (map fst cvars)) b Hpb
+          (fun q o x Eq => proj1 (Hbv q o x Eq))).
+      intros q o x HQ Eq. destruct (Hlb_in q _ Eq) as [[i [S [z [Hi [Hz Ez]]]]]|[S [Hin _]]].
+      2:{ exfalso. apply existsb_exists in HQ. destruct HQ as [q' [Hq' Eq']]. apply param_eqb_eq in Eq'. subst q'.
+          exact (nodup_app_disjoint _ _ q Hnd Hq' (in_map fst _ _ Hin)). }
+      destruct (Hzb i q S z Hi Hz) as [o' [x' [Ez' Hw]]]. rewrite Ez' in Ez. injection Ez as <- <-.
+      destruct (Hcst q S (nth_error_In _ _ Hi)) as [ES [Hsv [Hcl' Hvar]]]. exists S. split; [exact ES|].
+      destruct (no_vars S) eqn:Ens.
+      - left. split; [exact (proj1 (proj1 (Hcl' eq_refl)))|exact Hw].
+      - right; right. intros C HC. destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCp _].
+        split; [exact HCp|]. split; [|exact (Hw C HC)].
+        refine (vars_in_mono _ _ _ C (vars_in_bound_component _ S C Hsv HC)).
+        intros q' E. apply andb_true_iff in E. destruct E as [_ E]. rewrite E, andb_true_r.
+        apply Hdomb. unfold vars. rewrite map_app. apply in_or_app. left. apply existsb_exists in E. destruct E as [q'' [Hq'' E]].
+        apply param_eqb_eq in E. subst q''. exact Hq''. }
+    (* and the final values *)
     assert (Hnv: nonnull_values env b).
     { intros q o x Eq Hnq. destruct (Hlb_in q _ Eq) as [[i [S [z [Hi [Hz Ez]]]]]|[S [Hin Ea]]].
-      - destruct (Hzb i q S z Hi Hz) as [o' [x' [f [Ez' Ef]]]]. rewrite Ez' in Ez. injection Ez as <- <-.
-        exact (within_bound_not_nullable env wf declared declared_wf q S x (Hcdecl q S (nth_error_In _ _ Hi))
-            (in_fragment_is_gfrag env _ (Hcb q S (nth_error_In _ _ Hi))) (proj1 (proj1 (Hbv q o x Eq))) (ex_intro _ f Ef) Hnq).
+      - refine (Hnvc q o x _ Eq Hnq). apply existsb_exists. exists q.
+        split; [exact (in_map fst _ _ (nth_error_In _ _ Hi))|apply param_eqb_refl].
       - injection Ea as _ ->.
         destruct (Hfin q S Hin) as [st [HlU [He' [Hs [Ef _]]]]]. destruct (Hst q S Hin) as [ES [_ [Hcl' _]]]. subst S.
         rewrite Ef. exact (gfinal_not_nullable env wf declared declared_wf terminates finite tame caller U q st HgU HlU He' ES

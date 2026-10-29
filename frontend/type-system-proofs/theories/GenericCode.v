@@ -16,7 +16,7 @@ From EmergeTypeSystem Require Import SubstitutionWide.
 From EmergeTypeSystem Require Import WithinBounds.
 From EmergeTypeSystem Require Import FreeInstances.
 From EmergeTypeSystem Require Import GenericArguments.
-From Stdlib Require Import Bool List Arith Lia.
+From Stdlib Require Import Bool List Arith Lia Sorting.
 Import ListNotations.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -1120,8 +1120,10 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (* the call, as in generic_member_call_with_bounded_variables_sound; the object of a type without type parameters *)
     c <> nothing -> ca <> nothing -> e <> nothing ->
     map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
-    (forall p S, In (p, S) cvars -> in_fragment env S = true) ->
+    (forall p S, In (p, S) cvars -> gstatic_bound env declared (caller_type env declared ps) cvars p S) ->
     (forall p S, In (p, S) ovars -> gstatic_bound env declared (caller_type env declared ps) (cvars ++ ovars) p S) ->
+    StronglySorted (fun p q => parameter_rank env p < parameter_rank env q) (map fst cvars) ->
+    (forall p S q S', In (p, S) cvars -> In (q, S') ovars -> parameter_rank env p < parameter_rank env q) ->
     in_fragment env (RootResolved ma ca ys) = true ->
     unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
         (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
@@ -1140,18 +1142,18 @@ Theorem generic_member_call_with_bounded_variables_instantiated: forall ps sigma
     (forall p S st, In (p, S) ovars -> no_vars S = false -> lookup_state U p = Some st ->
         is_non_nullable_nothing env (lower_bound st) = false) ->
     forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument Model.invariant ref (gfinal_of env U (fst v)))) ovars ->
-    (* the bounds of the type parameters of c: the declared ones, and the type arguments of the object within them *)
-    (forall p S, In (p, S) cvars -> to_generic S = parameter_bound env p) ->
+    (* the type arguments of the object within the bounds of the type parameters of c, instantiated *)
     (forall i p S z, nth_error cvars i = Some (p, S) -> nth_error zs i = Some z ->
-        exists o x f, z = TypeArgument Model.invariant o x /\ unify env f S x (Ongoing []) = Some (Ongoing [])) ->
+        exists o x, z = TypeArgument Model.invariant o x
+            /\ if no_vars S then below env x S else forall C, In C (bound_components S) -> below env x (instantiate_free env b C)) ->
     (forall p S, In (p, S) ovars -> forall C, In C (bound_components S) ->
         exists f, is_assignable_to env f (instantiate env sigma (gfinal_of env U p))
             (instantiate env sigma (instantiate_free env b C)) = Some true)
     /\ forall P A, In (P, A) (combine Ps As) ->
         exists f, is_assignable_to env f (instantiate env sigma A) (instantiate env sigma (instantiate_free env b P)) = Some true.
 Proof.
-    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcb Hst
-        Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hcdecl Hzb.
+    intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hdis Hc Hca He Hids Hnd Hcst Hst
+        Hsort Hfn Hfy Hrec Hfo Hno Hcl Hobj Hzs Hxx HPs HPn HAs Hfold Hlow b Hbdef Hzb.
     (* none of the type parameters of the caller is bound in b, nor so their ownerships *)
     assert (Hnone: forall q, In q ps -> lookup_binding b q = None).
     { intros q Hq. pose proof (Hdis q Hq) as Hn. rewrite map_app in Hn. rewrite Hbdef, lookup_app.
@@ -1169,8 +1171,8 @@ Proof.
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_nullable_component env declared ps)
         (caller_supertype_arguments env wf declared ps) supertype_bottom_only
-        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcb Hcdecl Hst Hfy Hrec Hfo Hobj Hzs Hxx Hzb HPs HPn Hfold Hlow
-        b Hbdef HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hvx [Hfinal Hargs]]]]].
+        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hcst Hst Hsort Hfn Hfy Hrec Hfo Hobj Hzs Hxx HPs HPn Hfold Hlow
+        b Hbdef Hzb HAs' Hown) as [Hpb [Hdomb [Hvals0 [Hvx [Hfinal Hargs]]]]].
     (* the type arguments of the object, as those of c *)
     assert (Hzs': forall z, In z zs -> argument_in_fragment env z = true /\ nothing_is_bottom z = true /\ closed z = true).
     { pose proof (object_below env wf n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) as Hbe.
@@ -1198,9 +1200,15 @@ Proof.
     { apply (values_respected env wf declared declared_wf b Hpb).
       - intros q o x Eq. exact (proj1 (Hvx q o x Eq)).
       - intros q o x Eq. destruct (Hvx q o x Eq) as [_ [[i [S [Hi Hz]]]|[S [Hin ->]]]].
-        + exists S. split; [exact (Hcdecl q S (nth_error_In _ _ Hi))|]. left.
-          destruct (Hzb i q S _ Hi Hz) as [o' [x' [f [Ez Ef]]]]. injection Ez as <- <-.
-          split; [exact (in_fragment_is_gfrag env _ (Hcb q S (nth_error_In _ _ Hi)))|exists f; exact Ef].
+        + destruct (Hcst q S (nth_error_In _ _ Hi)) as [ES [Hsv [Hcl' Hvar]]]. exists S. split; [exact ES|].
+          destruct (Hzb i q S _ Hi Hz) as [o' [x' [Ez Hw]]]. injection Ez as <- <-.
+          destruct (no_vars S) eqn:Ens.
+          * left. split; [exact (proj1 (proj1 (Hcl' eq_refl)))|exact Hw].
+          * right; right. intros C HC. destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCp _].
+            split; [exact HCp|]. split; [|exact (Hw C HC)].
+            apply (vars_in_mono _ _ Hdomb').
+            refine (vars_in_mono _ _ _ C (vars_in_bound_component _ S C Hsv HC)).
+            intros q' E. apply andb_true_iff in E. destruct E as [_ E]. rewrite map_app, existsb_app, E. reflexivity.
         + destruct (Hst q S Hin) as [ES [Hsv [Hcl' Hvar]]]. exists S. split; [exact ES|]. right.
           destruct (Hfinal q S Hin) as [_ HbF]. destruct (no_vars S) eqn:Ens.
           * left. intros C HC. destruct (Hcl' eq_refl) as [HfS HqS].

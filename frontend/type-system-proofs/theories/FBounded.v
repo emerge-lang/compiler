@@ -11,7 +11,7 @@ From EmergeTypeSystem Require Import Constraints.
 From EmergeTypeSystem Require Import Generics.
 From EmergeTypeSystem Require Import WithinBounds.
 From EmergeTypeSystem Require Import MemberCalls.
-From Stdlib Require Import Bool List Arith Lia.
+From Stdlib Require Import Bool List Arith Lia Sorting.
 Import ListNotations.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -664,13 +664,13 @@ Qed.
 
 (* How the type parameter p, with the static upper bound S, is bound in b, at the variable states U
    inference ends with: to a type argument of an exact ownership, of the types variables are replaced
-   with, that fits the state p ends with. Bound exactly, p has a class type as its bound, and the type
-   argument is within it; otherwise its state keeps S, and where S has type variables, the type
+   with, that fits the state p ends with. Bound exactly, the type argument is within the declared bound
+   of p, instantiated with b; otherwise its state keeps S, and where S has type variables, the type
    argument is the lower bound, checked against S *)
 Definition binds_var (U: VariableStates) (b: Bindings) (p: TypeParameterId) (S: EType): Prop :=
     exists o x st, lookup_binding b p = Some (TypeArgument invariant o x) /\ is_exact_ownership o = true /\ xfrag x
         /\ lookup_state U p = Some st /\ fits env st o x
-        /\ if is_exact st then no_vars S = true /\ exists f, unify env f S x (Ongoing []) = Some (Ongoing [])
+        /\ if is_exact st then exists f, unify env f (inst_nested env b (parameter_bound env p)) x (Ongoing []) = Some (Ongoing [])
            else static_upper_bound st = S
                /\ (no_vars S = false -> x = lower_bound st /\ is_non_nullable_nothing env (lower_bound st) = false).
 
@@ -942,8 +942,8 @@ Proof.
             exists (Nat.succ f'). change (inst_nested env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection cs))).
             exact (unify_rewrap_target env _ _ _ [] _ HxF Hf'). }
         case_eq (is_exact st); intros He; rewrite He in Hcase.
-        { (* bound exactly: within the declared bound, without type variables *)
-          destruct Hcase as [Ens [f Ef']]. exact (Hclosed Ens f Ef'). }
+        { (* bound exactly: within the declared bound, instantiated *)
+          exact Hcase. }
         destruct Hcase as [Hs Hlow].
         destruct (HwfU p st HlU) as [_ [_ [Hw _]]]. destruct (Hw He) as [_ [_ [_ [_ Hok]]]].
         unfold static_ok in Hok. rewrite Hs in Hok. case_eq (no_vars S); intros Ens; rewrite Ens in Hok.
@@ -1277,9 +1277,12 @@ Qed.
 (*
  * Calling a member function whose type parameters are bounded by types mentioning them is sound, too,
  * the type parameters of the class among those (`class Box<E> { fn m<T : Comparable<in E>>(...) }`).
- * The receiver captures the type arguments of the class, whose type parameters are bounded by class
- * types; the object called on is of a class e below that of the receiver, its type arguments exact,
- * and as those of c within the bounds. Where unify accepts each argument for its parameter, in turn,
+ * The receiver captures the type arguments of the class, whose type parameters may be bounded by
+ * types mentioning them, too (`class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>`): declared in
+ * order, and before those of the function, the receiver binds the variables a bound mentions before it
+ * checks a type argument against it. The object called on is of a class e below that of the receiver,
+ * its type arguments exact, and as those of c within the bounds, instantiated with them. Where unify
+ * accepts each argument for its parameter, in turn,
  * and inference picks a lower bound for each variable of the function whose bound has type variables,
  * the final values are within the declared bounds, instantiated with them and with the type arguments
  * of the object, and each argument fits its parameter with the type parameters replaced by those.
@@ -1290,7 +1293,9 @@ Theorem member_call_with_bounded_variables_sound: forall n mr c cvars ovars ma c
     c <> nothing -> ca <> nothing -> e <> nothing ->
     map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
     (forall p S, In (p, S) (cvars ++ ovars) -> static_bound (cvars ++ ovars) p S) ->
-    (forall p S, In (p, S) cvars -> in_fragment env S = true) ->
+    (* the type parameters of c declared in order, before those of the function *)
+    StronglySorted (fun p q => parameter_rank env p < parameter_rank env q) (map fst cvars) ->
+    (forall p S q S', In (p, S) cvars -> In (q, S') ovars -> parameter_rank env p < parameter_rank env q) ->
     (* the receiver, unified with the receiver parameter *)
     in_fragment env (RootResolved ma ca ys) = true ->
     unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
@@ -1300,8 +1305,11 @@ Theorem member_call_with_bounded_variables_sound: forall n mr c cvars ovars ma c
     is_assignable_to env n0 (RootResolved mo e xs) (RootResolved ma ca ys) = Some true ->
     zs = (if class_eqb e c then xs else parameterized_supertype_arguments env e xs c) ->
     (forall x, In x xs -> exact_argument env x = true) ->
+    (* the bindings: the type arguments of the object as c, and the final values of the function's *)
+    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument invariant ref (final_of U (fst v)))) ovars ->
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
-        exists o x f, z = TypeArgument invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
+        exists o x f, z = TypeArgument invariant o x
+            /\ unify env f (inst_nested env b (parameter_bound env p)) x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
     (forall P, In P Ps -> qfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true
         /\ forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) C = true) ->
@@ -1311,20 +1319,33 @@ Theorem member_call_with_bounded_variables_sound: forall n mr c cvars ovars ma c
         is_non_nullable_nothing env (lower_bound st) = false) ->
     (forall p S, In (p, S) ovars -> bfrag (final_of U p) -> xfrag (final_of U p)) ->
     ((exists P, In P Ps /\ (args_plain P = false \/ exists cs, inter_of P = Some cs))
-        \/ (exists p S, In (p, S) ovars /\ in_fragment env S = false /\ (ifrag env S = false \/ args_plain S = false)) ->
+        \/ (exists p S, In (p, S) (cvars ++ ovars) /\ in_fragment env S = false /\ (ifrag env S = false \/ args_plain S = false)) ->
         forall p S, In (p, S) ovars -> in_fragment env (final_of U p) = true) ->
-    forall b, b = bindings_of env c zs ++ map (fun v => (fst v, TypeArgument invariant ref (final_of U (fst v)))) ovars ->
     (exists K, forall p S, In (p, S) ovars ->
         unify env K (inst_nested env b (parameter_bound env p)) (final_of U p) (Ongoing []) = Some (Ongoing []))
     /\ forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
-    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hst Hcb Hfy Hrec Hfo Hobj Hzs Hxx Hzb
-        HPs HAs Hfold Hlow Hfinal Hclass b Hbdef.
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hst Hsort Hfn Hfy Hrec Hfo Hobj Hzs Hxx
+        b Hbdef Hzb HPs HAs Hfold Hlow Hfinal Hclass.
     pose proof (object_arguments_exact env wf c mo e xs zs He (object_below env wf n mr c _ ma ca ys _ u mo e xs n0 Hrec Hobj) Hfo Hxx Hzs)
         as Hzx.
-    destruct (receiver_and_object_with env wf xfrag bfrag n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hcb
-        (fun p S Hin => static_initial_ok (cvars ++ ovars) p S (Hst p S (in_or_app _ _ _ (or_intror Hin)))) Hfy Hrec Hfo Hobj Hzs Hzx)
-        as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu [Hp _]]]]]]]]].
+    assert (Hvb: forall p S, In (p, S) (cvars ++ ovars) -> vars_in (static_vars env p) S = true).
+    { intros p S Hin. destruct (Hst p S Hin) as [_ [_ [Hsv _]]].
+      exact (vars_in_mono _ _ (fun q E => proj1 (proj1 (andb_true_iff _ _) E)) _ Hsv). }
+    destruct (receiver_captures_ranked env wf (it_intersect_no_vars env xfrag bfrag types) (it_supertype_no_vars env xfrag bfrag types) n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd
+        Hsort Hfn Hvb Hfy Hrec Hfo Hobj Hzs Hzx)
+        as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hdomu [Hp _]]]]]]]]].
+    (* the states after the receiver: the type parameters of c captured, those of the function as they start *)
+    assert (Hwfu: Constraints.wf_states env xfrag bfrag u).
+    { intros p st Hp'. destruct (Hdomu p st Hp') as [Hin|[S Hin]].
+      - apply in_map_iff in Hin. destruct Hin as [[p1 S] [Hfst Hin]]. simpl in Hfst. subst p1.
+        destruct (In_nth_error _ _ Hin) as [i Hi]. destruct (nth_error_same_length cvars ys' i _ ltac:(lia) Hi) as [y Hy].
+        rewrite (Hcap i p S y Hi Hy) in Hp'. injection Hp' as <-. cbn [upper_bound lower_bound is_exact static_upper_bound].
+        pose proof (argument_in_fragment_no_vars env y (Hys y (nth_error_In _ _ Hy))) as Hny.
+        split; [exact Hny|]. split; [exact Hny|]. split; [intros E; discriminate E|].
+        exact (Hvb p S (in_or_app _ _ _ (or_introl Hin))).
+      - rewrite (Hownu p S Hin) in Hp'. injection Hp' as <-.
+        exact (static_initial_ok (cvars ++ ovars) p S (Hst p S (in_or_app _ _ _ (or_intror Hin))) u). }
     pose proof Hnd as Hnd'. rewrite map_app in Hnd.
     set (vars := cvars ++ ovars) in *.
     destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold)
@@ -1369,7 +1390,7 @@ Proof.
           unfold fits. cbn [is_exact upper_bound lower_bound]. exists vb, ob, X, n1. split; [reflexivity|]. split; [reflexivity|].
           split; [exact Hfy2|]. split; [exact Hfx|]. apply (unify_fuel_monotone env n1); [lia|].
           pose proof (Forall2_nth_error _ zs ys' i _ _ Hp Hz Hy) as E. rewrite Ez in E. exact E.
-        + cbn [is_exact]. split; [exact (in_fragment_no_vars env _ (Hcb p S Hin))|]. exists f. exact Ef.
+        + cbn [is_exact]. exists f. exact Ef.
       - (* of the function: its final value *)
         destruct (Hkeep2 p _ (Hownu p S Hin) eq_refl eq_refl) as [st [HlU [He' [_ Hs]]]].
         assert (Ef: final_of U p = final_value env st) by (unfold final_of; rewrite HlU; reflexivity).
@@ -1399,10 +1420,7 @@ Proof.
         rewrite (HlbC i q S z Hi Hz) in Eq. injection Eq as ->.
         pose proof (Hzx _ (nth_error_In _ _ Hz)) as Hex. simpl in Hex. apply andb_true_iff in Hex. exact (proj2 Hex).
       - rewrite (HlbO q S Hin) in Eq. injection Eq as _ <-. refine (Hclass _ q S Hin).
-        destruct Hpre as [E|[p0 [S0 [Hin0 [Ens0 Ei0]]]]]; [left; exact (Hextra E)|right].
-        unfold vars in Hin0. apply in_app_or in Hin0. destruct Hin0 as [Hin0|Hin0].
-        { rewrite (Hcb p0 _ Hin0) in Ens0. discriminate Ens0. }
-        exists p0, S0. exact (conj Hin0 (conj Ens0 Ei0)). }
+        destruct Hpre as [E|E]; [left; exact (Hextra E)|right; exact E]. }
     destruct (bindings_within vars U b extra Hst HwfU Hdom Hvar Hbf) as [Hsat [K [HK Hb]]].
     split.
     - exists K. intros p S Hin. pose proof (HK p S (in_or_app _ _ _ (or_intror Hin))) as E.

@@ -13,7 +13,6 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 3 | The bounded parameter itself, made nullable, of a mutability given to it or narrowed, inside its bound, in generic code | `T : Ord<in T?>` called from generic code | The bounds of the theorems of generic code have the bounded variable itself in type arguments only plainly (`bplain`: `args_avoid`): with a candidate c in its place, `Ord<in c?>` or `Box<mut c>` isn't shown to be a mixed type (`mfrag`). The other type variables made nullable in type arguments of bounds are covered, also of non-null bounds (`B : List<A?>` with `A : Any`): their values aren't nullable, as those of the lower bounds checked against non-null bounds aren't (`GenericArguments.gstatic_checked`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound | `fn f<A, B : List<A>>(a: A) -> B` | FBounded assumes such variables get a lower bound. Kotlin only reports an error when the variable is F-bounded; here it silently uses upper bound ∩ instantiated bound |
 | 5 | Explicit type arguments for a function whose bounds mention type variables | `make::<Num>()` with `T : Ord<in T>` | FBounded only covers inference from arguments |
-| 9 | Receivers of a class whose type parameters' bounds aren't class types | `node.m()` with `class Node<T : Ord<in T>>`, `class Wrap<A, B : Holder<A>>` | The member-call theorems take class-type bounds for the type parameters of the class |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
 | 11 | Member access in generic code where the instances aren't class types, or of members typed as intersections; overrides of intersection types | `box.value` with `box: Box<A & T>`; `b.v` with `b: H<T>` and `v: A & X`; an override taking `A & T` | `Composition.v` covers reads and writes through a reference mentioning type parameters, and through a value of a type parameter, which the frontend reads as its bound (roadmap 32): instantiated for the run-time bindings, they are those through the reference at run time (`compose_member`, for member types as MemberAccess has them, mentioning Nothing only as `exclusive Nothing`). At run time, MemberAccess takes over, which needs the instances of the type arguments of the reference, and of a value written, to be class types. Intersections as member types are left out: `A? & T` instantiated with a type parameter of nullable bound is outside the fragment until step 12. The frontend agrees over the grid (`MemberAccessPropertiesTests`) |
 | 13 | `Nothing` of any mutability but `exclusive`, in parameter types, bounds and the types of arguments, also in type arguments | `read Nothing`, `List<read Nothing>`, `mut A & read Nothing` | The fragments admit Nothing only as `exclusive Nothing`, as `read Nothing` isn't below every type in the frontend (`wf_nothing_is_not_const`); roadmap 35 would make every `m Nothing` behave like `exclusive Nothing` |
@@ -56,8 +55,11 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 Columns:
 
 - **free fn**: a function without a receiver, called with class-type arguments.
-- **member fn**: called on a receiver of class type, including subclasses, with class-type arguments; the type
-  parameters of the class bounded by class types (#9).
+- **member fn**: called on a receiver of class type, including subclasses, with class-type arguments. The type
+  parameters of the class may be bounded as those of the function (`class Node<T : Ord<in T>>`,
+  `class Wrap<A, B : Holder<A>>`), in the cells with \*, declared in order and before those of the function, as
+  Kotlin has them, with the type arguments of the object within the bounds, instantiated; where such a bound is
+  neither a class type nor a type of the parameters, † applies.
 - **from generic code**: arguments mention the caller's type parameters, or are intersections; ‡ with parameter types
   without ownerships of type parameters (which Kotlin doesn't have).
 - **instantiated**: generic code with its type parameters bound at run time.
@@ -95,7 +97,10 @@ intersection, as ofComponents makes it.
 
 Within the covered cells, these are proven: explicit type arguments and receiver capture (`Inference.v`),
 lower and upper bounds and the final values chosen (`Constraints.v`), receivers of subclasses with exact
-supertype arguments (`MemberCalls.v`), final values that are type parameters or intersections
+supertype arguments (`MemberCalls.v`), receivers of classes whose type parameters are bounded by types mentioning
+them, captured in the order they are declared, each bound checked with the type parameters it mentions bound
+already (`MemberCalls.receiver_captures_ranked`), and their values not nullable where their bounds aren't
+(`GenericArguments.values_not_nullable_among`), final values that are type parameters or intersections
 (`FinalValues.v`), bounds with type variables, for free and member functions (`FBounded.v`:
 `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound`), and in generic code
 (`GenericArguments.v`: `generic_invocation_with_bounded_variables_sound`,
@@ -222,8 +227,12 @@ Proofs:
    nullable only as its components are took null, `Box<P>? & Q` with `Q` bound to `out B?`, where the object
    may hold a `Box<A> & B`; `instantiateAllParametersForWriting` now leaves null to members declared `X?`, as
    the model has it)
-9. Inference variants and receivers, then the bounded variable itself: #9 receivers of classes with such
-   bounds, #4 no lower bound, #5 explicit type arguments, #3.
+9. Inference variants and receivers, then the bounded variable itself: ~~#9 receivers of classes with such
+   bounds~~ (done: the receiver captures the type arguments in the order the type parameters are declared, so that
+   the variables a bound mentions are bound exactly when a type argument is checked against it, which leaves the
+   variable states as they are, `MemberCalls.check_same`, `receiver_captures_ranked`; the theorems with bounds
+   mentioning type variables take the class's bounds as the function's, in every column), #4 no lower bound, #5
+   explicit type arguments, #3.
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
 11. `unify_terminates`, which turns every ◐ into ✓, and with it #16: the model failing goals that come up again
     while they are decided, as the frontend does, so that it terminates on all inheritance that isn't expansive.
