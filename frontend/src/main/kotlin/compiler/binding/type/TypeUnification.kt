@@ -229,7 +229,7 @@ class TypeUnification private constructor(
                 !state.staticUpperBound.mentionsTypeVariables() -> state.upperBound
                 // not inferable, see plusFinalValueChecks
                 state.staticUpperBound.mentionsTypeVariable(parameter) -> state.upperBound
-                else -> state.upperBound.intersect(state.staticUpperBound.instantiateFreeVariables(this))
+                else -> state.upperBound.intersect(state.staticUpperBound.instantiateFreeVariables(this).asReadType())
             }
 
         return raw.instantiateFreeVariables(this)

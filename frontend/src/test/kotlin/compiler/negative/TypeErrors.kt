@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
@@ -1473,6 +1474,44 @@ class TypeErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a variable without a lower bound, bounded by a type parameter of a variantly captured receiver, is the type the type argument reads as" - {
+            "on its own" {
+                validateModule("""
+                    interface A {}
+                    interface D {}
+                    interface Mk<E> {
+                        fn m<T : E>(self) -> T
+                    }
+                    fn test(k: Mk<out A>) {
+                        r: D = k.m()
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>()
+                    }
+            }
+
+            "intersected with its upper bound" {
+                validateModule("""
+                    interface A {}
+                    interface D {}
+                    class AI : A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    interface Mk<E> {
+                        fn m<T : E>(self, sink: Box<in T>) -> T
+                    }
+                    fn test(k: Mk<out A>, sink: Box<AI>) {
+                        r: D = k.m(sink)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>()
+                    }
             }
         }
     }

@@ -270,7 +270,7 @@ class BoundTypeArgument(
         )
     }
 
-    private val readType: BoundTypeReference get() = when (variance) {
+    internal val readType: BoundTypeReference get() = when (variance) {
         TypeVariance.IN -> context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
         TypeVariance.OUT,
         TypeVariance.UNSPECIFIED -> type
@@ -356,6 +356,15 @@ fun BoundTypeReference.instantiateAllParametersForWriting(context: TypeUnificati
     // null only where the member is nullable whatever the object: `Box<P>? & Q` with Q bound to `out B?` might be a `Box<A> & B`
     val bottomType = this.context.swCtx.getBottomType(span ?: Span.UNKNOWN)
     return if (this is NullableTypeReference) NullableTypeReference(bottomType) else bottomType
+}
+
+/**
+ * The type a value of this type reads as, where it is a type argument: `out A` as `A`, `in A` as the top type
+ */
+fun BoundTypeReference.asReadType(): BoundTypeReference = when {
+    this is BoundTypeArgument -> readType
+    this is NullableTypeReference && nested is BoundTypeArgument -> NullableTypeReference((nested as BoundTypeArgument).readType)
+    else -> this
 }
 
 /**
