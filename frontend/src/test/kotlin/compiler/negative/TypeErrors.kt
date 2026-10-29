@@ -1316,6 +1316,97 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "a type parameter of a mutability given to it in its own bound" - {
+            val mutableSelf = """
+                interface Mk<E> {}
+                class K : Mk<mut K> {}
+                intrinsic fn make<T : Mk<mut T>>(t: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(mutableSelf + "\n" + """
+                    fn test(k: mut K, r: read K) {
+                        x: mut K = make(k)
+                        y: read K = make(r)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : Mk<mut U>>(u: U) {
+                            x: U = make(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a type parameter whose bound has it of no mutability given" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : Mk<U>>(u: U) {
+                            make(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "doesn't take a subtype of a class that fixes the type argument" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : K>(u: U) {
+                            make(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
+        "a type parameter narrowed in its own bound" - {
+            val narrowedOrd = ord + "\n" + """
+                intrinsic fn pick<T : Ord<in T!>>(a: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(narrowedOrd + "\n" + """
+                    fn test() {
+                        x: Num = pick(Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Ord<in U!>>(u: U) {
+                            x: U = pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "takes a subtype of a class comparable to itself" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Num>(u: U) {
+                            x: U = pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a possibly null type parameter" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Ord<in U!>>(u: U?) {
+                            pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
         "a type parameter cannot bound itself" - {
             "directly" {
                 validateModule("fn f<T : T>() {}")

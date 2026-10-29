@@ -10,7 +10,6 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 | # | what isn't covered | example | why |
 |---|---|---|---|
-| 3 | The bounded parameter itself, made nullable, of a mutability given to it or narrowed, inside its bound, in generic code | `T : Ord<in T?>` called from generic code | The bounds of the theorems of generic code have the bounded variable itself in type arguments only plainly (`bplain`: `args_avoid`): with a candidate c in its place, `Ord<in c?>` or `Box<mut c>` isn't shown to be a mixed type (`mfrag`). The other type variables made nullable in type arguments of bounds are covered, also of non-null bounds (`B : List<A?>` with `A : Any`): their values aren't nullable, as those of the lower bounds checked against non-null bounds aren't (`GenericArguments.gstatic_checked`) |
 | 4 | A bound mentioning another variable, with no argument giving that variable a lower bound, but in calls from generic code and instantiated, where the bound mentions only type parameters of the function and is a class type or a type variable | `fn f<A, B : List<A>>(a: A) -> B` from a free or member function's caller; `T : A & U`, `T : U?`, `fn m<T : List<E>>` with `E` of the class; on generic receivers | Kotlin's final value of such a variable is its upper bound intersected with the bound, its type variables replaced by their final values, as a value of it reads (`Constraints.final_value_with`; an F-bounded one without a lower bound is an error). `GenericArguments.generic_member_call_with_bounded_variables_sound` and `GenericCode.generic_member_call_with_bounded_variables_instantiated` take the final values so (`unbounded_shape`), which covers non-generic code too (no type parameters of the caller). Not covered: the free and member function columns, whose theorems (`FBounded`) don't take intersections as final values; generic receivers (`GenericReceivers`); intersections as the bound, whose instances may keep their nullability (#15, step 12); `U?`; and bounds mentioning a type parameter of the class. Of one captured from a variant receiver, the value isn't within the bound for the object (`T : E` on a `Mk<out A>` holding a `Mk<C>` is `A`), and of an `in` capture it may be nullable where the bound isn't: no value of such a variable reaches the function, but the invariants the proofs keep (`nonnull_values`, the final values within their bounds) don't hold of it |
 | 5 | Explicit type arguments for a function whose bounds mention type variables, but those of a free function, of class types | `box.m::<Num>()` with `fn m<T : Ord<in E>>` in `class Box<E>`; `make::<T>()` in generic code | `Explicit.explicit_invocation_with_bounded_variables_sound` covers free functions, binding the type parameters in the order they are declared, each type argument checked against its bound with those declared before bound already (`Subtyping.bind_explicit`, Kotlin's `fromExplicit`). Kotlin binds the explicit type arguments of a member function before it captures the type arguments of the receiver, so a bound mentioning a type parameter of the class is checked while that may still be captured, by the check; probes of that found nothing unsound. Neither that order nor explicit type arguments mentioning type parameters of the caller are modelled |
 | 10 | Bounds that are neither class types nor types of the parameters, or with type variables in type arguments of a mutability given to them or narrowed, and parameter types with such type arguments or that are intersections, where the final values aren't class types, outside of generic code (◐‡) | `T : A & B` or `T : A & Ord<in T>` inferred to an intersection, `T : U?` or `T : U!` to a type parameter, `B : List<mut A>`, `x: Box<A!>` or `x: A & B` with `A` inferred to an intersection, in non-generic code | Premise of FBounded and MemberCalls (of type arguments, where they aren't plain, `args_plain`; of intersections as parameter types, `inter_of`): with it, every reference to a type parameter, of any mutability and `!`, is within its bound as those of a caller are (`WithinBounds.param_refs`), and an intersection of class types is below the instance of its components (`below_intersection_instance`), which take class-type bindings; non-generic code is covered only as generic code without type parameters of the caller, under its conjectures |
@@ -154,7 +153,7 @@ Done:
    `rstatic_whole`, `rleaf_all`, `generic_receiver_with_bounded_variables_sound`. With them arguments that aren't
    class types, formerly #8, and calls on receivers of generic code, formerly #7. Intersections of the fragment are
    uniform, their components assigned as one mutability, as `ofComponents` builds them)
-3. ~~The remaining type shapes, in that setting~~, all but #3 and #15 (steps 9 and 7 below): of bounds, #1 closed intersections (done, of the bounds of the
+3. ~~The remaining type shapes, in that setting~~, all but #15 (step 7 below; #3 in step 9): of bounds, #1 closed intersections (done, of the bounds of the
    inference interface, as FinalValues has them: `static_bound`, `bindings_within` through `inter_accepts`), #2 nullable intersections (done:
    `inter_of`, `static_components`, `gstatic_components`, `rstatic_components`; of type variables among the components,
    `components_of`, `rewrap_takes`), #3 `T : U?`, #6 `m T` / `T!` (type variables among the components of an
@@ -172,8 +171,9 @@ Done:
    `Generics.instance_within_never_fails`, `MemberCalls.refs_fuel`, `FBounded.args_plain_candidate`,
    `GenericArguments.gnested_target`, `mnested_target`, `GenericReceivers.rnested_target`, `rmnested_target`; with
    them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`; in bounds in generic
-   code done, but the bounded variable itself (#3): `GenericArguments.bplain`,
-   `mfrag_candidate`, `FreeInstances.plain_variables`, `other_ref_bound`, `GenericReceivers.nib_candidate`; `m T`
+   code done, the bounded variable itself among them (#3, step 9): `GenericArguments.bplain`,
+   `mfrag_candidate`, `FreeInstances.plain_variables`, `other_ref_bound`, `self_ref_value`,
+   `GenericReceivers.nib_candidate`; `m T`
    instantiated and on generic receivers done, as the whole type and in type arguments, of parameters and bounds:
    `GenericCode.tfrag_given`, `wtfrag_given`, `caller_ref_apply`; `GenericReceivers.ground_given_target`,
    `runtime_mutability`, `instance_given`, `instance_ref_apply`; intersections as parameter types done: `Inference.qfrag`, `below_intersection_instance`, `Constraints.param_components`, `parameter_step`,
@@ -242,7 +242,16 @@ Proofs:
    rest of #4 as its row says), #5 explicit type arguments (done for free functions, with type arguments of
    class types: `Explicit.v`, the type arguments within their bounds from the checks Kotlin makes as it binds
    them, `explicit_arguments`, the checked values as `FBounded.bindings_within` takes lower bounds,
-   `checked_value`; the rest as its row says), #3.
+   `checked_value`; the rest as its row says), ~~#3 the bounded variable itself~~ (done: of a mutability given
+   to it, narrowed or made nullable in type arguments of its own bound, `T : Ord<in T?>`, `T : Mk<mut T>`,
+   `T : Ord<in T!>`, in generic code, instantiated and on generic receivers. With the candidate in its place, it
+   is what a reference to the variable makes of the candidate, a type of the arguments:
+   `GenericArguments.candidate_self`, `yfrag_ref_apply`, `FreeInstances.self_ref_value`; given a mutability, Nothing
+   stays `exclusive Nothing`, as Nothing isn't const (`bottom_only_ref_apply`, `Generics.top_kept`;
+   `wf_nothing_is_not_const`, which roadmap 35 would change); made nullable in a bound that isn't nullable, the
+   candidates aren't either (`gstatic_form`, `ifrag_candidate_not_nullable`). Made nullable in type arguments
+   of a nullable bound, it is narrowed, as the other type variables are (`args_narrowed`): `T : Ord<in T?>?`
+   stays out; tests in `TypeErrors`).
 10. #13, together with roadmap 35 (`Nothing` declared const), which changes what there is to prove.
 11. `unify_terminates`, which turns every ◐ into ✓, and with it #16: the model failing goals that come up again
     while they are decided, as the frontend does, so that it terminates on all inheritance that isn't expansive.

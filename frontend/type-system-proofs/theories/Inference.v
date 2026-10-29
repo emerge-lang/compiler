@@ -128,30 +128,6 @@ Proof.
       rewrite (IH c (proj1 H)), (IHc (proj2 H)). reflexivity.
 Qed.
 
-(* The type variables in type arguments but plain ones aren't p (`B : List<A?>` of the bound of B) *)
-Fixpoint args_avoid (p: TypeParameterId) (t: EType): bool :=
-    match t with
-    | RootResolved _ _ arguments => forallb (args_avoid p) arguments
-    | Nullable n => args_avoid p n
-    | TypeArgument _ _ n =>
-        match n with
-        | TypeVariable (mkGenericRef None false _ _) => true
-        | TypeVariable g | Nullable (TypeVariable g) => negb (param_eqb (param_of g) p)
-        | _ => args_avoid p n
-        end
-    | Intersection components => forallb (args_avoid p) components
-    | _ => true
-    end.
-
-Lemma args_avoid_argument: forall p v o n, args_avoid p (TypeArgument v o n) = true -> args_avoid p n = true.
-Proof.
-    intros p v o [m c args|[| | | | |g|]|g|me msg|v' o' n'|[gm nn q vs]|cs] H; cbn [args_avoid] in H |- *;
-        first [exact H|reflexivity|discriminate H].
-Qed.
-
-Lemma args_avoid_root: forall p m c args, args_avoid p (RootResolved m c args) = true -> forall a, In a args -> args_avoid p a = true.
-Proof. intros p m c args H. change (forallb (args_avoid p) args = true) in H. apply forallb_forall, H. Qed.
-
 Lemma args_plain_argument: forall v o n, args_plain (TypeArgument v o n) = true -> args_plain n = true.
 Proof. intros v o [m c args|[| | | | |g|]|g|me msg|v' o' n'|g|cs] H; cbn [args_plain] in H |- *; first [exact H|reflexivity]. Qed.
 
@@ -614,18 +590,6 @@ Proof.
     destruct t as [|[| | | | |[gm nn p []]|]| | | |[gm nn p []]|]; try discriminate Hn; exists gm, nn, p.
     - split; [right; reflexivity|]. cbn [to_generic sfrag] in Hs. apply andb_true_iff in Hs. exact (proj2 Hs).
     - split; [left; reflexivity|exact Hs].
-Qed.
-
-(* A type of a type argument, other than a type variable p: a type of the parameters, or a type
-   variable other than p, of a mutability given to it, narrowed, or made nullable *)
-Lemma avoid_nfrag: forall p v o n, nfrag n = true -> args_avoid p (TypeArgument v o n) = true -> ifrag n = true
-    \/ (exists gm nn q, q <> p /\ (n = TypeVariable (mkGenericRef gm nn q []) \/ n = Nullable (TypeVariable (mkGenericRef gm nn q [])))
-        /\ sfrag env (Generic (mkGenericRef gm nn q [])) = true).
-Proof.
-    intros p v o n Hn Ha. destruct (nfrag_cases n Hn) as [H|[gm [nn [q [Eq Hs]]]]]; [left; exact H|].
-    destruct (Nat.eq_dec q p) as [->|Hq]; [|right; exists gm, nn, q; split; [exact Hq|split; [exact Eq|exact Hs]]].
-    destruct Eq as [-> | ->]; [destruct gm, nn|]; cbn [args_avoid param_of] in Ha; rewrite ?param_eqb_refl in Ha; try discriminate Ha.
-    left. unfold ifrag. cbn [to_generic no_generics]. rewrite Hs. reflexivity.
 Qed.
 
 Lemma ifrag_cases: forall t, ifrag t = true ->

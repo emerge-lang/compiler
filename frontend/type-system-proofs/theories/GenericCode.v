@@ -1178,7 +1178,8 @@ Proof.
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env declared ps)
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_nullable_component env declared ps)
-        (caller_supertype_arguments env wf declared ps) supertype_bottom_only
+        (caller_supertype_arguments env wf declared ps)
+        (fun gm nn x _ Hx => caller_ref_apply env wf declared ps gm nn x Hx) (caller_rewrap env declared ps) supertype_bottom_only
         (fun b0 p0 S0 Hpb0 Hv0 Hsh Hb0 => pfree_caller env wf declared ps b0 Hpb0 Hv0 S0
             (proj1 (unbounded_pfrag env p0 S0 Hsh)) (proj2 (unbounded_pfrag env p0 S0 Hsh)) Hb0)
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U fv Hc Hca He Hids Hnd Hcst Hst Hsort Hfn Hfy Hrec Hfo Hobj Hzs Hxx HPs HPn Hfold

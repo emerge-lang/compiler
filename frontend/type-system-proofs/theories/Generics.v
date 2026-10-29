@@ -482,6 +482,125 @@ Proof.
     destruct gm; destruct nn; try apply gfrag_without_null; try apply gfrag_with_mutability; exact Hd.
 Qed.
 
+(* Applying a mutability keeps the base types that types are compared by *)
+Lemma base_of_with_mutability: forall m t,
+    (forall c, has_base_type c (with_mutability env m t) = has_base_type c t)
+    /\ (forall p, is_generic_of p (with_mutability env m t) = is_generic_of p t).
+Proof.
+    assert (Hr: forall y, (forall c, has_base_type c (rewrap_nullable y) = has_base_type c y)
+        /\ (forall p, is_generic_of p (rewrap_nullable y) = is_generic_of p y)) by (intros [| | | | | |]; split; reflexivity).
+    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; split; intros; try reflexivity.
+    - cbn [with_mutability]. rewrite (proj1 (Hr _)). exact (proj1 (IH m n) c).
+    - cbn [with_mutability]. rewrite (proj2 (Hr _)). exact (proj2 (IH m n) p).
+    - exact (proj1 (IH m n) c).
+Qed.
+
+Lemma same_base_with_mutability: forall m1 m2 a b,
+    has_same_base_type_as (with_mutability env m1 a) (with_mutability env m2 b) = has_same_base_type_as a b.
+Proof.
+    assert (Hr: forall y o, has_same_base_type_as (rewrap_nullable y) o = has_same_base_type_as y o) by (intros [| | | | | |] o; reflexivity).
+    fix IH 3. intros m1 m2 [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] b.
+    - cbn [with_mutability has_same_base_type_as]. exact (proj1 (base_of_with_mutability m2 b) c).
+    - cbn [with_mutability]. rewrite Hr. exact (IH m1 m2 n b).
+    - cbn [with_mutability has_same_base_type_as]. exact (proj2 (base_of_with_mutability m2 b) p).
+    - reflexivity.
+    - exact (IH m1 m2 n b).
+    - destruct b as [? ? ?|n'|[? ? ? ?]|? ?|? ? ?|[? ? ? ?]|?]; try reflexivity. cbn [with_mutability]. destruct (with_mutability env m2 n'); reflexivity.
+    - cbn [with_mutability has_same_base_type_as].
+      generalize (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m1 c)) cs) readonly).
+      intros k. clear m1. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map existsb]. rewrite (IH k m2 c b), IHc. reflexivity.
+Qed.
+
+Lemma filter_map_kept: forall (f: EType -> bool) (g: EType -> EType) l, (forall x, In x l -> f (g x) = f x) ->
+    filter f (map g l) = map g (filter f l).
+Proof.
+    intros f g l H. induction l as [|x l IH]; [reflexivity|]. cbn [map filter]. rewrite (H x (or_introl eq_refl)).
+    rewrite IH by (intros y Hy; apply H; right; exact Hy). destruct (f x); reflexivity.
+Qed.
+
+Lemma pairs_map_kept: forall (h: EType -> EType -> bool) (g: EType -> EType) l, (forall x y, h (g x) (g y) = h x y) ->
+    exists_unordered_pair h (map g l) = exists_unordered_pair h l.
+Proof.
+    intros h g l H. induction l as [|x l IH]; [reflexivity|]. cbn [map exists_unordered_pair]. rewrite IH. f_equal.
+    clear IH. induction l as [|y l IHl]; [reflexivity|]. cbn [map existsb]. rewrite H, IHl. reflexivity.
+Qed.
+
+(* Of a type of the fragment, a mutability applied or `!` keep its base type, and whether it is Nothing *)
+Lemma top_kept: forall t, gfrag t = true ->
+    base_type_of_lower_bound env (without_null env t) = base_type_of_lower_bound env t
+    /\ forall m, base_type_of_lower_bound env (with_mutability env m t) = base_type_of_lower_bound env t
+        /\ is_non_nullable_nothing env (without_null env (with_mutability env m t)) = is_non_nullable_nothing env (without_null env t).
+Proof.
+    intros t. destruct (ranked_exists env t) as [r Hr]. revert t Hr. induction r as [r IHr] using lt_wf_ind.
+    intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> Hr H.
+    assert (Hrw: forall y, base_type_of_lower_bound env (rewrap_nullable y) = base_type_of_lower_bound env y
+        /\ without_null env (rewrap_nullable y) = without_null env y) by (intros [| | | | | |]; split; reflexivity).
+    destruct t as [mt c args|n|[gm nn p vs]|me msg|v o n|g|cs]; simpl in H; try discriminate H.
+    - split; [reflexivity|]. intros m. split; reflexivity.
+    - apply andb_true_iff in H. destruct H as [_ Hn].
+      destruct (IH (esize n) ltac:(cbn [esize]; lia) n eq_refl Hr Hn) as [H1 H2].
+      split; [exact H1|]. intros m. destruct (H2 m) as [H3 H4]. cbn [with_mutability without_null base_type_of_lower_bound].
+      destruct (Hrw (with_mutability env m n)) as [E1 E2]. rewrite E1, E2. split; assumption.
+    - destruct vs; [|discriminate H]. pose proof (ref_ranked env r _ Hr) as Hg.
+      assert (Hd: ranked_below env (rank_of env (mkGenericRef gm nn p [])) (parameter_bound env p) = true) by exact (ranked p).
+      pose proof (parameter_bound_gfrag p) as HfB.
+      set (B := parameter_bound env p) in *.
+      assert (HdB: forall m0, ranked_below env (rank_of env (mkGenericRef gm nn p [])) (with_mutability env m0 B) = true)
+          by (intros m0; exact (with_mutability_h_ranked env (rank_of env (mkGenericRef gm nn p [])) (top_handlers env) m0 _ Hd)).
+      destruct (IHr _ Hg B Hd HfB) as [HB1 HB2].
+      (* what the reference is for whatever mutability given to it, narrowed or not *)
+      assert (Hy: forall gm', base_type_of_lower_bound env (without_null env (match gm' with Some m0 => with_mutability env m0 B | None => B end))
+              = base_type_of_lower_bound env B
+          /\ base_type_of_lower_bound env (match gm' with Some m0 => with_mutability env m0 B | None => B end) = base_type_of_lower_bound env B
+          /\ is_non_nullable_nothing env (without_null env (match gm' with Some m0 => with_mutability env m0 B | None => B end))
+              = is_non_nullable_nothing env (without_null env B)).
+      { intros [m0|]; [|split; [exact HB1|split; reflexivity]].
+        destruct (HB2 m0) as [E1 E2]. destruct (IHr _ Hg _ (HdB m0) (gfrag_with_mutability m0 B HfB)) as [E3 _].
+        split; [rewrite E3; exact E1|]. split; [exact E1|exact E2]. }
+      assert (Hbase: forall gm' nn', base_type_of_lower_bound env (Generic (mkGenericRef gm' nn' p [])) = base_type_of_lower_bound env B).
+      { intros gm' nn'. rewrite (base_type_generic env ranked), (effective_bound_eq env ranked).
+        cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+        destruct (Hy gm') as [E1 [E2 _]]. destruct nn'; [exact E1|exact E2]. }
+      assert (Hnn: forall gm', is_non_nullable_nothing env (without_null env (Generic (mkGenericRef gm' nn p []))) = is_non_nullable_nothing env (without_null env B)).
+      { intros gm'. cbn [without_null].
+        change (ref_nullable env (mkGenericRef gm' nn p [])) with (is_nullable env (Generic (mkGenericRef gm' nn p []))).
+        rewrite (non_nullable_nothing_generic env ranked), (effective_bound_narrowed env ranked), (effective_bound_eq env ranked).
+        cbn [with_type_variables variables_of given_mutability is_narrowed param_of].
+        destruct (Hy gm') as [_ [_ E3]]. destruct nn; [rewrite (without_null_twice_any env)|]; exact E3. }
+      split; [cbn [without_null]; rewrite !Hbase; reflexivity|].
+      intros m. cbn [with_mutability]. rewrite !Hbase, !Hnn. split; reflexivity.
+    - destruct (intersection_gfrag cs H) as [Hne Hcs]. simpl in Hr.
+      assert (Hw: without_null env (Intersection cs) = Intersection cs)
+          by exact (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable cs H)).
+      rewrite Hw. split; [reflexivity|]. intros m.
+      assert (Hall: forall c, In c cs -> forall m', base_type_of_lower_bound env (with_mutability env m' c) = base_type_of_lower_bound env c
+          /\ is_non_nullable_nothing env (with_mutability env m' c) = is_non_nullable_nothing env c
+          /\ is_nullable env (with_mutability env m' c) = is_nullable env c).
+      { intros c Hc m'. pose proof (esize_in cs c Hc). rewrite forallb_forall in Hr. destruct (Hcs c Hc) as [Hcc Hcf].
+        destruct (IH (esize c) ltac:(cbn [esize]; lia) c eq_refl (Hr c Hc) Hcf) as [_ E]. destruct (E m') as [E1 E2].
+        assert (Hcn: is_nullable env c = false)
+            by (destruct c as [| |[gm0 nn0 p0 b0]| | | |]; simpl in Hcc |- *; try discriminate Hcc; try reflexivity; apply negb_true_iff, Hcc).
+        assert (Ewn: is_nullable env (with_mutability env m' c) = is_nullable env c) by exact (proj1 (proj2 (with_mutability_keeps env ranked m' c))).
+        rewrite (without_null_unchanged env (with_mutability env m' c)) in E2 by (rewrite Ewn; exact Hcn).
+        rewrite (without_null_unchanged env c Hcn) in E2. split; [exact E1|]. split; [exact E2|exact Ewn]. }
+      pose proof (gfrag_with_mutability m (Intersection cs) H) as Hf'. cbn [with_mutability] in Hf' |- *.
+      set (k := fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) in *.
+      rewrite (without_null_not_nullable_intersection env _ (gfrag_intersection_not_nullable _ Hf')).
+      cbn [base_type_of_lower_bound is_non_nullable_nothing]. rewrite map_map.
+      assert (Eb: map (fun c => base_type_of_lower_bound env (with_mutability env k c)) cs = map (base_type_of_lower_bound env) cs)
+          by (apply map_ext_in; intros c Hc; exact (proj1 (Hall c Hc k))).
+      rewrite Eb. split; [reflexivity|].
+      assert (Ee: existsb (is_non_nullable_nothing env) (map (with_mutability env k) cs) = existsb (is_non_nullable_nothing env) cs).
+      { clearbody k. clear -Hall. induction cs as [|c cs IHc]; [reflexivity|].
+        change (is_non_nullable_nothing env (with_mutability env k c) || existsb (is_non_nullable_nothing env) (map (with_mutability env k) cs)
+            = is_non_nullable_nothing env c || existsb (is_non_nullable_nothing env) cs).
+        rewrite (proj1 (proj2 (Hall c (or_introl eq_refl) k))), IHc; [reflexivity|]. intros c' Hc'. apply Hall. right. exact Hc'. }
+      rewrite Ee. f_equal. unfold is_effectively_bottom_type.
+      rewrite (filter_map_kept _ (with_mutability env k)).
+      + apply pairs_map_kept. intros a b. rewrite same_base_with_mutability. reflexivity.
+      + intros c Hc. destruct (Hall c Hc k) as [E1 [_ E3]]. rewrite E1, E3. reflexivity.
+Qed.
+
 (* Every reference is what GenericTypeReference makes it: its bound is the declared one, with its
    mutability and `!` applied (effective_bound); refs_wf, which said so, holds of every type.
    TODO: remove *)
