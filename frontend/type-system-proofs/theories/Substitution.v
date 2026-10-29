@@ -70,7 +70,6 @@ Let ranked := wf_bounds_ranked env wf.
 Definition is_exact_ownership (o: Ownership): bool :=
     match o with owned | ref => true | _ => false end.
 
-Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 
 (* Without type parameters *)
 Fixpoint closed (t: EType): bool :=
@@ -109,7 +108,7 @@ Definition no_type_variables (g: GenericRef): bool := match variables_of g with 
 Fixpoint sfrag_top_h (top_bound: GenericRef -> bool) (t: EType): bool :=
     match t with
     | RootResolved m c arguments =>
-        if class_eqb c nothing then is_bottom m arguments else Nat.eqb (length arguments) (length (parameter_ids env c))
+        Nat.eqb (length arguments) (length (parameter_ids env c))
     | Nullable n => (is_class n || is_generic n) && sfrag_top_h top_bound n
     | Generic g => as_written (given_mutability g) (is_narrowed g) (effective_bound env g) && no_type_variables g && top_bound g
     | _ => false
@@ -129,7 +128,6 @@ Definition top_tfrag (g: GenericRef): bool := through env tfrag_top_h false g.
 Fixpoint sfrag_h (bound_tfrag: TypeParameterId -> bool) (t: EType): bool :=
     match t with
     | RootResolved m c arguments =>
-        if class_eqb c nothing then is_bottom m arguments else
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => sfrag_h bound_tfrag n | _ => false end) arguments
     | Nullable n => (is_class n || is_generic n) && sfrag_h bound_tfrag n
@@ -151,7 +149,6 @@ Definition param_tfrag (p: TypeParameterId): bool := through_param env tfrag_h t
 Fixpoint sfrag (t: EType): bool :=
     match t with
     | RootResolved m c arguments =>
-        if class_eqb c nothing then is_bottom m arguments else
         Nat.eqb (length arguments) (length (parameter_ids env c))
         && forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
     | Nullable n => (is_class n || is_generic n) && sfrag n
@@ -183,7 +180,7 @@ Definition generic_sfrag (g: GenericRef): Prop :=
 Fixpoint srest (t: EType): bool :=
     match t with
     | RootResolved _ c arguments =>
-        if class_eqb c nothing then true else forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
+        forallb (fun a => match a with TypeArgument _ _ n => sfrag n | _ => false end) arguments
     | Nullable n => srest n
     | Generic g => param_tfrag (param_of g)
     | _ => true
@@ -296,7 +293,7 @@ Lemma sfrag_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q 
     forall t, deep_ranked env p k t = true -> sfrag_h U1 t = sfrag_h U2 t.
 Proof.
     intros p k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
-    - destruct (class_eqb c nothing); [reflexivity|]. f_equal. induction args as [|a args IHa]; [reflexivity|].
+    - f_equal. induction args as [|a args IHa]; [reflexivity|].
       simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has]. rewrite (IHa Has).
       destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n Ha). reflexivity.
     - rewrite (IH n Ht). reflexivity.
@@ -316,7 +313,7 @@ Lemma sfrag_h_mono: forall U1 U2, (forall q, U1 q = true -> U2 q = true) ->
     forall t, sfrag_h U1 t = true -> sfrag_h U2 t = true.
 Proof.
     intros U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht.
-    - destruct (class_eqb c nothing); [exact Ht|]. apply andb_true_iff in Ht. destruct Ht as [Hl Ha]. rewrite Hl. cbn [andb].
+    - apply andb_true_iff in Ht. destruct Ht as [Hl Ha]. rewrite Hl. cbn [andb].
       clear Hl. induction args as [|a args IHa]; [reflexivity|]. simpl in Ha |- *. apply andb_true_iff in Ha. destruct Ha as [Ha Has].
       rewrite (IHa Has), andb_true_r. destruct a as [| | | | v o n| |]; try discriminate Ha. exact (IH n Ha).
     - apply andb_true_iff in Ht. destruct Ht as [Hs Hn]. rewrite Hs, (IH n Hn). reflexivity.
@@ -336,7 +333,7 @@ Qed.
 Lemma sfrag_top: forall t, sfrag t = sfrag_h param_tfrag t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
-    - destruct (class_eqb c nothing); [reflexivity|]. f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl.
+    - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl.
       rewrite IHa. destruct a as [| | | | v o n| |]; try reflexivity. rewrite (IH n). reflexivity.
     - rewrite (IH n). reflexivity.
 Qed.
@@ -381,7 +378,6 @@ Proof. intros g. unfold top_tfrag at 1. rewrite (through_eq env ranked); [reflex
 Lemma sfrag_split: forall t, sfrag t = sfrag_top_h top_tfrag t && srest t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity.
-    - destruct (class_eqb c nothing); [rewrite andb_true_r; reflexivity|reflexivity].
     - rewrite (IH n), andb_assoc. reflexivity.
 Qed.
 
@@ -1432,7 +1428,8 @@ Proof.
     intros [m c args|[m c args| |g| | | |]| g | | | |] H; simpl in H; try discriminate H.
     - destruct (class_eqb c nothing) eqn:Hc.
       + right. left. apply class_eqb_true in Hc. subst c.
-        exists m. destruct args; simpl in H; try discriminate H. reflexivity.
+        exists m. apply andb_true_iff in H. destruct H as [Hl _]. apply Nat.eqb_eq in Hl.
+        rewrite (nothing_arguments env wf args Hl). reflexivity.
       + left. apply andb_true_iff in H. destruct H as [Hl Ha]. exists m, c, args.
         split; [reflexivity|]. split; [exact Hc|]. split; [apply Nat.eqb_eq, Hl|]. apply forallb_forall, Ha.
     - right. right. left. exists m, c, args. split; [reflexivity|exact H].
@@ -1499,7 +1496,7 @@ Proof.
 Qed.
 
 Lemma bottom_in_sfrag: sfrag bottom_type = true.
-Proof. reflexivity. Qed.
+Proof. simpl. rewrite (wf_nothing_has_no_type_parameters env wf). reflexivity. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Types without type parameters                                                                  *)
@@ -1845,14 +1842,6 @@ Qed.
 (* Supertypes: instantiating commutes with instantiating the templates                            *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma nothing_is_bottom_root: forall m c args, nothing_is_bottom (RootResolved m c args) = true ->
-    (class_eqb c nothing = true -> is_bottom m args = true) /\ forall a, In a args -> nothing_is_bottom a = true.
-Proof.
-    intros m c args H. simpl in H. apply andb_true_iff in H. destruct H as [Hc Ha]. split.
-    - intros E. rewrite E in Hc. exact Hc.
-    - apply forallb_forall, Ha.
-Qed.
-
 Lemma instance_is_type_argument: forall a, argument_sfrag a = true -> bound_in a = true ->
     is_type_argument (instantiate env b a) = true.
 Proof.
@@ -1880,43 +1869,40 @@ Qed.
 
 (* A template, instantiated with ys, is of the fragment *)
 Lemma template_instances: forall k,
-    (forall t, depth t <= k -> template_type env sub t = true -> nothing_is_bottom t = true ->
+    (forall t, depth t <= k -> template_type env sub t = true ->
         sfrag (instantiate env bS t) = true /\ bound_in (instantiate env bS t) = true)
-    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true -> nothing_is_bottom r = true ->
+    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true ->
         argument_sfrag (instantiate env bS r) = true /\ bound_in (instantiate env bS r) = true).
 Proof.
     induction k as [|k [IHt IHa]].
-    { split; intros t Hd Ht _; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
+    { split; intros t Hd Ht; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
     assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k ->
-        template_type env sub (RootResolved m c targs) = true -> nothing_is_bottom (RootResolved m c targs) = true ->
+        template_type env sub (RootResolved m c targs) = true ->
         sfrag (RootResolved m c (map (instantiate env bS) targs)) = true
         /\ bound_in (RootResolved m c (map (instantiate env bS) targs)) = true).
-    { intros m c targs Hd Ht Hn. destruct (root_template env sub m c targs Ht) as [Hl Htargs].
-      destruct (nothing_is_bottom_root m c targs Hn) as [Hc Hnargs].
+    { intros m c targs Hd Ht. destruct (root_template env sub m c targs Ht) as [Hl Htargs].
       assert (Hall: forall a, In a targs -> argument_sfrag (instantiate env bS a) = true /\ bound_in (instantiate env bS a) = true).
-      { intros a Ha. pose proof (argument_depth_below m c targs a Ha). apply IHa; [lia|apply Htargs, Ha|apply Hnargs, Ha]. }
+      { intros a Ha. pose proof (argument_depth_below m c targs a Ha). apply IHa; [lia|apply Htargs, Ha]. }
       split.
-      - simpl. destruct (class_eqb c nothing) eqn:Ec.
-        + specialize (Hc eq_refl). destruct targs; simpl in Hc; try discriminate Hc. reflexivity.
-        + rewrite length_map, Hl, Nat.eqb_refl. apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'.
-          destruct Ha' as [a [<- Ha]]. apply Hall, Ha.
+      - simpl. rewrite length_map, Hl, Nat.eqb_refl. apply forallb_forall. intros a' Ha'. apply in_map_iff in Ha'.
+        destruct Ha' as [a [<- Ha]]. apply Hall, Ha.
       - change (forallb bound_in (map (instantiate env bS) targs) = true). apply forallb_forall.
         intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]]. apply Hall, Ha. }
     split.
-    - intros t Hd Ht Hn. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
-      + rewrite instantiate_class. exact (Hroot m c targs Hd Ht Hn).
+    - intros t Hd Ht. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
+      + rewrite instantiate_class. exact (Hroot m c targs Hd Ht).
       + rewrite depth_nullable in Hd. rewrite instantiate_nullable_class.
-        destruct (Hroot m c targs ltac:(lia) Ht' Hn) as [Hf Hb]. split; [|exact Hb].
+        destruct (Hroot m c targs ltac:(lia) Ht') as [Hf Hb]. split; [|exact Hb].
         change ((is_class (RootResolved m c (map (instantiate env bS) targs)) || is_generic (RootResolved m c (map (instantiate env bS) targs)))
             && sfrag (RootResolved m c (map (instantiate env bS) targs)) = true). rewrite Hf. reflexivity.
-    - intros r Hd Hr Hn. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
+    - intros r Hd Hr. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
       + destruct (nth_error_same_length _ ys i p (eq_sym Hlength) Hi) as [y Hy].
         unfold bS. rewrite (selects env wf sub ys p bp i y Hi Hy (Hys_type_argument y (nth_error_In _ _ Hy))).
         apply Hys. eapply nth_error_In. exact Hy.
-      + simpl in Hd, Hn. destruct (IHt n ltac:(lia) Hn' Hn) as [Hf Hb].
+      + simpl in Hd. destruct (IHt n ltac:(lia) Hn') as [Hf Hb].
         rewrite (instantiate_template_argument env bS v o n Ho (template_shape env sub n Hn')).
         assert (Hob: ownership_bound o = true) by (destruct o; first [reflexivity|discriminate Ho]).
-        destruct (mentions_loosely_bound bS n); [destruct v|]; simpl; rewrite ?Hob, ?Hf, ?Hb; split; reflexivity.
+        destruct (mentions_loosely_bound bS n); [destruct v|]; simpl; rewrite ?Hob, ?Hf, ?Hb, ?(wf_nothing_has_no_type_parameters env wf); split; reflexivity.
 Qed.
 
 (* Templates are loose where they are instantiated with ys exactly where with ys instantiated *)
@@ -1949,42 +1935,41 @@ Qed.
 
 (* Instantiating a template with ys, then with b, is instantiating it with ys instantiated *)
 Lemma template_commutes: forall k,
-    (forall t, depth t <= k -> template_type env sub t = true -> nothing_is_bottom t = true ->
+    (forall t, depth t <= k -> template_type env sub t = true ->
         instantiate env b (instantiate env bS t) = instantiate env bL t)
-    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true -> nothing_is_bottom r = true ->
+    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true ->
         instantiate env b (instantiate env bS r) = instantiate env bL r).
 Proof.
     induction k as [|k [IHt IHa]].
-    { split; intros t Hd Ht _; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
+    { split; intros t Hd Ht; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
     assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k ->
-        template_type env sub (RootResolved m c targs) = true -> nothing_is_bottom (RootResolved m c targs) = true ->
+        template_type env sub (RootResolved m c targs) = true ->
         map (instantiate env b) (map (instantiate env bS) targs) = map (instantiate env bL) targs).
-    { intros m c targs Hd Ht Hn. destruct (root_template env sub m c targs Ht) as [_ Htargs].
-      destruct (nothing_is_bottom_root m c targs Hn) as [_ Hnargs].
+    { intros m c targs Hd Ht. destruct (root_template env sub m c targs Ht) as [_ Htargs].
       rewrite map_map. apply map_ext_in. intros a Ha. pose proof (argument_depth_below m c targs a Ha).
-      apply IHa; [lia|apply Htargs, Ha|apply Hnargs, Ha]. }
+      apply IHa; [lia|apply Htargs, Ha]. }
     split.
-    - intros t Hd Ht Hn. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
-      + rewrite !instantiate_class, (Hroot m c targs Hd Ht Hn). reflexivity.
-      + rewrite depth_nullable in Hd. rewrite !instantiate_nullable_class, (Hroot m c targs ltac:(lia) Ht' Hn). reflexivity.
-    - intros r Hd Hr Hn. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
+    - intros t Hd Ht. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
+      + rewrite !instantiate_class, (Hroot m c targs Hd Ht). reflexivity.
+      + rewrite depth_nullable in Hd. rewrite !instantiate_nullable_class, (Hroot m c targs ltac:(lia) Ht'). reflexivity.
+    - intros r Hd Hr. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
       + destruct (nth_error_same_length _ ys i p (eq_sym Hlength) Hi) as [y Hy].
         assert (Hy': nth_error (map (instantiate env b) ys) i = Some (instantiate env b y))
             by (rewrite nth_error_map, Hy; reflexivity).
         destruct (Hys y (nth_error_In _ _ Hy)) as [Ha Hb].
         unfold bS, bL. rewrite (selects env wf sub ys p bp i y Hi Hy (Hys_type_argument y (nth_error_In _ _ Hy))).
         rewrite (selects env wf sub _ p bp i _ Hi Hy' (instance_is_type_argument y Ha Hb)). reflexivity.
-      + simpl in Hd, Hn.
+      + simpl in Hd.
         rewrite (instantiate_template_argument env bS v o n Ho (template_shape env sub n Hn')).
         rewrite (instantiate_template_argument env bL v o n Ho (template_shape env sub n Hn')).
         rewrite (proj1 (template_looseness (depth n)) n (le_n _) Hn').
-        destruct (proj1 (template_instances (depth n)) n (le_n _) Hn' Hn) as [Hf Hb].
+        destruct (proj1 (template_instances (depth n)) n (le_n _) Hn') as [Hf Hb].
         assert (Hio: instantiate_ownership b o = o) by (destruct o; first [reflexivity|discriminate Ho]).
         pose proof (template_instance_shape env sub bS n Hn') as Hshape.
         destruct (mentions_loosely_bound bS n); [destruct v; cbn beta iota|];
             first [ rewrite (instantiate_bound_argument _ o bottom_type bottom_in_sfrag eq_refl), Hio; reflexivity
                   | rewrite (instantiate_bound_argument _ o _ Hf Hb), Hio, (inst_nested_class_shaped _ Hshape),
-                        (IHt n ltac:(lia) Hn' Hn); reflexivity ].
+                        (IHt n ltac:(lia) Hn'); reflexivity ].
 Qed.
 
 End Templates.
@@ -2002,11 +1987,9 @@ Proof.
     destruct (wf_supertypes_are_templates env wf sub super Hne Hn Hbase) as [_ Ht].
     rewrite !parameterized_supertype_arguments_eq. split.
     - rewrite map_map. apply map_ext_in. intros r Hr. symmetry.
-      apply (proj2 (template_commutes sub ys Hl Hys (argument_depth r))); [lia|apply Ht, Hr|].
-      exact (supertypes_mention_nothing_as_bottom sub super r Hr).
+      apply (proj2 (template_commutes sub ys Hl Hys (argument_depth r))); [lia|apply Ht, Hr].
     - intros a Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
-      apply (proj2 (template_instances sub ys Hl Hys (argument_depth r))); [lia|apply Ht, Hr|].
-      exact (supertypes_mention_nothing_as_bottom sub super r Hr).
+      apply (proj2 (template_instances sub ys Hl Hys (argument_depth r))); [lia|apply Ht, Hr].
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -2103,7 +2086,7 @@ Proof.
     intros t Hd Ht. destruct (tfrag_cases t Ht) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
     - destruct (sfrag_cases t Hs) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> Ht']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + split; [exact Ht|split; reflexivity].
-      + split; [reflexivity|split; reflexivity].
+      + split; [exact Ht|split; reflexivity].
       + split; [exact Ht'|split; reflexivity].
       + rewrite without_null_generic. exact (Hgen g Hd Hg).
       + change (without_null env (Nullable (Generic g))) with (without_null env (Generic g)). rewrite without_null_generic.
@@ -2592,7 +2575,8 @@ Proof.
       + rewrite unify_nullable_nullable in H. destruct n as [|n']; [discriminate H|].
         rewrite unify_generic_root in H. destruct (class_eqb ca nothing) eqn:Hcn; [|discriminate H]. cbn [andb] in H.
         destruct (Model.is_subtype_of _ _); [|discriminate H]. injection H as <-. split; [reflexivity|].
-        apply class_eqb_true in Hcn. subst ca. simpl in Ha'. destruct aargs; simpl in Ha'; try discriminate Ha'.
+        apply class_eqb_true in Hcn. subst ca. simpl in Ha'. apply andb_true_iff in Ha'. destruct Ha' as [Hl _]. apply Nat.eqb_eq in Hl.
+        pose proof (nothing_arguments env wf aargs Hl) as E0. subst aargs.
         destruct (binds_ref_some gt Hbt) as [o [x [Ex _]]]. rewrite (inst_nested_nullable_generic gt _ o x Ex).
         pose proof (inst_ref_in_fragment gt x (Hbf _ o x Ex)) as HI. rewrite (rewrap_without_null _ HI).
         change (inst_nested b (Nullable (RootResolved ma nothing []))) with (Nullable (RootResolved ma nothing [])).

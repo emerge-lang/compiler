@@ -172,8 +172,7 @@ Done:
    `GenericArguments.gnested_target`, `mnested_target`, `GenericReceivers.rnested_target`, `rmnested_target`; with
    them, of bounds outside of generic code, `B : List<A?>`, `B : List<m A>`, `B : List<A!>`; in bounds in generic
    code done, the bounded variable itself among them (#3, step 9): `GenericArguments.bplain`,
-   `mfrag_candidate`, `FreeInstances.plain_variables`, `other_ref_bound`, `self_ref_value`,
-   `GenericReceivers.nib_candidate`; `m T`
+   `mfrag_candidate`, `FreeInstances.plain_variables`, `other_ref_bound`, `self_ref_value`; `m T`
    instantiated and on generic receivers done, as the whole type and in type arguments, of parameters and bounds:
    `GenericCode.tfrag_given`, `wtfrag_given`, `caller_ref_apply`; `GenericReceivers.ground_given_target`,
    `runtime_mutability`, `instance_given`, `instance_ref_apply`; intersections as parameter types done: `Inference.qfrag`, `below_intersection_instance`, `Constraints.param_components`, `parameter_step`,
@@ -254,7 +253,7 @@ Proofs:
 10. ~~#13, together with roadmap 35~~ (done: `Nothing` is declared const, `class Nothing : const Any`, so every
     `m Nothing` is assigned as `exclusive Nothing`, and the fragments admit Nothing of any mutability, in parameter
     types, bounds, the types of arguments and type arguments: `read Nothing`, `List<read Nothing>`. The model
-    takes Nothing const (`wf_nothing_is_const`) and `is_bottom` asks only that Nothing has no type arguments;
+    takes Nothing const (`wf_nothing_is_const`) and has no type parameters (`wf_nothing_has_no_type_parameters`);
     `Transitivity.nothing_below`, `GenericArguments.below_nothing`: Nothing of any mutability is below every
     type. In the frontend, the closest common supertype with Nothing takes the mutability it is assigned with;
     tests in `ResolvedTypeReferenceTest`, `TypeErrors`, `TypeInferenceErrors`, `VarianceErrors`, the grid of

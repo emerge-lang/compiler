@@ -72,20 +72,6 @@ Proof.
     destruct (g a), (h (k a)), (existsb g l), (existsb h (map k l)); reflexivity.
 Qed.
 
-(* Nothing takes no type arguments; of any mutability, as it is const (wf_nothing_is_const): every
-   `m Nothing` is assigned as `exclusive Nothing` *)
-Definition is_bottom (m: option Mutability) (arguments: list EType): bool :=
-    match arguments with [] => true | _ => false end.
-
-Fixpoint nothing_is_bottom (t: EType): bool :=
-    match t with
-    | RootResolved m c arguments =>
-        (if class_eqb c nothing then is_bottom m arguments else true) && forallb nothing_is_bottom arguments
-    | Nullable n => nothing_is_bottom n
-    | TypeArgument _ _ n => nothing_is_bottom n
-    | _ => true
-    end.
-
 Fixpoint esize (t: EType): nat :=
     match t with
     | RootResolved _ _ arguments => S (list_sum (map esize arguments))
@@ -228,10 +214,8 @@ Record wellformed: Prop := {
         a <> b -> b <> c -> a <> c -> a <> nothing -> b <> nothing ->
         base_type_is_subtype_of env a b = true -> base_type_is_subtype_of env b c = true ->
         supertype_arguments a c = map (instantiate env (bindings_of env b (supertype_arguments a b))) (supertype_arguments b c);
-    (* the type arguments of supertypes mention no type variables, and Nothing without type arguments *)
+    (* the type arguments of supertypes mention no type variables *)
     wf_supertypes_mention_no_variables: forall sub super t, In t (supertype_arguments sub super) -> no_vars t = true;
-    wf_supertypes_mention_nothing_as_bottom: forall sub super t,
-        In t (supertype_arguments sub super) -> nothing_is_bottom t = true;
     (* the type arguments of supertypes are exact: the frontend rejects variance on those of the
        supertypes a class declares (ImmediateVariantTypeArgumentOnSupertypeDiagnostic), and those of
        the supertypes of supertypes are made from them *)
@@ -360,6 +344,15 @@ Proof.
     change (Nat.eqb (length arguments) (length (parameter_ids c)) && forallb argument_in_fragment arguments = true) in H.
     apply andb_true_iff in H. destruct H as [Hl Ha]. split; [apply Nat.eqb_eq, Hl|apply forallb_forall, Ha].
 Qed.
+
+(* Nothing has no type parameters, so a type of the fragment takes it no type arguments *)
+Lemma nothing_arguments: forall (args: list EType), length args = length (parameter_ids nothing) -> args = [].
+Proof.
+    intros args H. rewrite nothing_has_no_type_parameters in H. destruct args; [reflexivity|discriminate H].
+Qed.
+
+Lemma nothing_fragment_arguments: forall m args, in_fragment (RootResolved m nothing args) = true -> args = [].
+Proof. intros m args H. exact (nothing_arguments args (proj1 (root_in_fragment m nothing args H))). Qed.
 
 Lemma fragment_cases: forall t, in_fragment t = true ->
     (exists m c arguments, t = RootResolved m c arguments) \/

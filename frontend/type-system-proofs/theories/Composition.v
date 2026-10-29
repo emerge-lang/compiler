@@ -220,15 +220,15 @@ Proof.
 Qed.
 
 (* A class type of type arguments of types of generic code is one *)
-Lemma caller_root_of: forall m d args, class_eqb d nothing = false -> length args = length (parameter_ids env d) ->
+Lemma caller_root_of: forall m d args, length args = length (parameter_ids env d) ->
     (forall a, In a args -> exists w o X, a = TypeArgument w o X /\ caller X /\ is_parameter_ownership o = false) ->
     caller (RootResolved m d args).
 Proof.
-    intros m d args Hd Hl H. split; [|split; [exact I|]].
-    - change (wfrag env (RootResolved m d args) = true). cbn [wfrag]. rewrite Hd, Hl, Nat.eqb_refl. cbn [andb].
+    intros m d args Hl H. split; [|split; [exact I|]].
+    - change (wfrag env (RootResolved m d args) = true). cbn [wfrag]. rewrite Hl, Nat.eqb_refl. cbn [andb].
       apply forallb_forall. intros a Ha. destruct (H a Ha) as [w [o [X [-> [[Hw _] _]]]]].
       destruct X as [| [] | | | | |]; unfold wtfrag in Hw; exact Hw.
-    - cbn [mentions_only]. clear Hl Hd. induction args as [|a args IH]; [exact I|]. split.
+    - cbn [mentions_only]. clear Hl. induction args as [|a args IH]; [exact I|]. split.
       + destruct (H a (or_introl eq_refl)) as [w [o [X [-> [[_ [_ HmX]] Ho]]]]]. cbn [mentions_only].
         split; [intros q ->; discriminate Ho|exact HmX].
       + apply IH. intros a' Ha'. apply H. right. exact Ha'.
@@ -312,7 +312,7 @@ Qed.
 
 Let Pr_rewrap := caller_rewrap env declared ps.
 Let Pr_top := caller_top env wf declared ps.
-Let Pr_bottom := caller_bottom env declared ps.
+Let Pr_bottom := caller_bottom env wf declared ps.
 
 (* A type parameter of the class, of any mutability given to it or narrowed *)
 Lemma leaf_compose: forall g, existsb (param_eqb (param_of g)) (parameter_ids env c) = true ->
@@ -377,10 +377,10 @@ Qed.
 
 (* The instances of member types, through C<ys> and then sigma, and through C<sigma ys> *)
 Lemma compose_instances: forall k,
-    (forall t, depth t <= k -> member_template env c t = true -> nothing_is_bottom t = true ->
+    (forall t, depth t <= k -> member_template env c t = true ->
         instantiate env sigma (instantiate env bY t) = instantiate env bS t
         /\ good (instantiate env bY t) /\ caller (instantiate env bY t))
-    /\ (forall a, argument_depth a <= k -> member_argument env c a = true -> nothing_is_bottom a = true ->
+    /\ (forall a, argument_depth a <= k -> member_argument env c a = true ->
         instantiate env sigma (instantiate env bY a) = instantiate env bS a
         /\ exists w o X, instantiate env bY a = TypeArgument w o X /\ good X /\ caller X /\ is_parameter_ownership o = false).
 Proof.
@@ -389,40 +389,33 @@ Proof.
       - intros t Hd Ht. destruct (member_cases env c t Ht) as [[m [d [args ->]]]|[m [d [args [-> _]]]]]; simpl in Hd; lia.
       - intros a Hd Ha. destruct (member_argument_kind env c a Ha) as [w [o [n [-> _]]]]. simpl in Hd. lia. }
     assert (Hroot: forall m d args, depth (RootResolved m d args) <= S k -> member_template env c (RootResolved m d args) = true ->
-        nothing_is_bottom (RootResolved m d args) = true ->
         instantiate env sigma (RootResolved m d (map (instantiate env bY) args)) = RootResolved m d (map (instantiate env bS) args)
         /\ good (RootResolved m d (map (instantiate env bY) args)) /\ good (Nullable (RootResolved m d (map (instantiate env bY) args)))
         /\ caller (RootResolved m d (map (instantiate env bY) args))).
-    { intros m d args Hd Ht Hnb. destruct (member_root env c m d args Ht) as [Hl Hargs].
-      cbn [nothing_is_bottom] in Hnb. apply andb_true_iff in Hnb. destruct Hnb as [Hnd Hnargs].
+    { intros m d args Hd Ht. destruct (member_root env c m d args Ht) as [Hl Hargs].
       assert (IH: forall a, In a args ->
           instantiate env sigma (instantiate env bY a) = instantiate env bS a
           /\ exists w o X, instantiate env bY a = TypeArgument w o X /\ good X /\ caller X /\ is_parameter_ownership o = false).
-      { intros a Ha. apply IHa; [pose proof (argument_depth_below m d args a Ha); lia|exact (Hargs a Ha)|].
-        exact (proj1 (forallb_forall _ args) Hnargs a Ha). }
+      { intros a Ha. apply IHa; [pose proof (argument_depth_below m d args a Ha); lia|exact (Hargs a Ha)]. }
       split.
       { cbn [instantiate]. f_equal. rewrite map_map. apply map_ext_in. intros a Ha. exact (proj1 (IH a Ha)). }
       assert (Hg: forall a', In a' (map (instantiate env bY) args) -> exists w o X, a' = TypeArgument w o X /\ good X).
       { intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
         destruct (proj2 (IH a Ha)) as [w [o [X [E [HX _]]]]]. exists w, o, X. split; [exact E|exact HX]. }
       destruct (good_root m d _ Hg) as [G1 G2]. split; [exact G1|]. split; [exact G2|].
-      destruct (class_eqb d nothing) eqn:En.
-      - destruct args; [|try rewrite En in Hnd; discriminate Hnd]. unfold class_eqb in En.
-        destruct (Class_eq_dec d nothing) as [->|]; [|discriminate En]. exact (caller_nothing env declared ps m).
-      - apply caller_root_of; [exact En|rewrite length_map; exact Hl|].
-        intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
-        destruct (proj2 (IH a Ha)) as [w [o [X [E [_ [HcX Ho]]]]]]. exists w, o, X. auto. }
+      apply caller_root_of; [rewrite length_map; exact Hl|].
+      intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]].
+      destruct (proj2 (IH a Ha)) as [w [o [X [E [_ [HcX Ho]]]]]]. exists w, o, X. auto. }
     split.
-    - intros t Hd Ht Hnb. destruct (member_cases env c t Ht) as [[m [d [args ->]]]|[m [d [args [-> Ht']]]]].
-      + destruct (Hroot m d args Hd Ht Hnb) as [E [G _]]. split; [exact E|]. split; [exact G|]. apply Hroot; assumption.
-      + rewrite depth_nullable in Hd. cbn [nothing_is_bottom] in Hnb.
-        destruct (Hroot m d args ltac:(lia) Ht' Hnb) as [E [_ [G Hc]]].
+    - intros t Hd Ht. destruct (member_cases env c t Ht) as [[m [d [args ->]]]|[m [d [args [-> Ht']]]]].
+      + destruct (Hroot m d args Hd Ht) as [E [G _]]. split; [exact E|]. split; [exact G|]. apply Hroot; assumption.
+      + rewrite depth_nullable in Hd.         destruct (Hroot m d args ltac:(lia) Ht') as [E [_ [G Hc]]].
         change (instantiate env bY (Nullable (RootResolved m d args))) with (Nullable (RootResolved m d (map (instantiate env bY) args))).
         change (instantiate env bS (Nullable (RootResolved m d args))) with (Nullable (RootResolved m d (map (instantiate env bS) args))).
         split; [change (rewrap_nullable (instantiate env sigma (RootResolved m d (map (instantiate env bY) args)))
                     = Nullable (RootResolved m d (map (instantiate env bS) args))); rewrite E; reflexivity|].
         split; [exact G|exact (Pr_rewrap _ Hc)].
-    - intros a Hd Ha Hnb. destruct (member_argument_kind env c a Ha) as [w [o [n [-> [[p [Hn [Hp Ho]]]|[Hn [Ho Hnt]]]]]]].
+    - intros a Hd Ha. destruct (member_argument_kind env c a Ha) as [w [o [n [-> [[p [Hn [Hp Ho]]]|[Hn [Ho Hnt]]]]]]].
       + (* a type parameter of the class, as it is or nullable, of any mutability given to it or narrowed *)
         destruct (leaf_cases n p Hn) as [g [nl [-> <-]]].
         assert (HN: instantiate env sigma (instantiate env bY (wrap_leaf nl (Generic g))) = instantiate env bS (wrap_leaf nl (Generic g))
@@ -435,8 +428,8 @@ Proof.
             as [E1 [w' [X [E2 [HX HcX]]]]].
         split; [exact E1|]. exists w', (instantiate_ownership bY o), X. auto.
       + (* a class type *)
-        cbn [nothing_is_bottom] in Hnb. simpl in Hd.
-        destruct (IHt n ltac:(lia) Hnt Hnb) as [EN [GN HcN]].
+        simpl in Hd.
+        destruct (IHt n ltac:(lia) Hnt) as [EN [GN HcN]].
         rewrite !instantiate_argument_of, own_same, in_args_same, <- EN.
         assert (Eo: instantiate_ownership bY o = o) by (destruct o; first [reflexivity|discriminate Ho]). rewrite Eo.
         destruct (sig_arg_of caller Pr_rewrap Pr_top Pr_bottom w o _ (mentions_loosely_bound_in_arguments bY n) Ho (or_introl (conj GN HcN)))
@@ -445,12 +438,12 @@ Proof.
 Qed.
 
 (* A member type, instantiated with ys and then with sigma, is instantiated with sigma ys *)
-Lemma compose_member: forall f, member_type env c f = true -> nothing_is_bottom f = true ->
+Lemma compose_member: forall f, member_type env c f = true ->
     instantiate env sigma (instantiate env bY f) = instantiate env bS f /\ good_arg caller (instantiate env bY f).
 Proof.
-    intros f Hf Hnb. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
+    intros f Hf. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
     - destruct (leaf_cases f p Hleaf) as [g [[|] [-> <-]]]; [exact (nullable_leaf_compose g Hf)|exact (leaf_compose g Hf)].
-    - destruct (proj1 (compose_instances (depth f)) f (le_n _) Hf Hnb) as [E [G Hc]].
+    - destruct (proj1 (compose_instances (depth f)) f (le_n _) Hf) as [E [G Hc]].
       split; [exact E|left; exact (conj G Hc)].
 Qed.
 
@@ -469,10 +462,10 @@ Lemma read_inst_plain: forall t, nests_argument t = false -> read_inst t = t.
 Proof. intros [| [] | | | | |] H; first [reflexivity|discriminate H]. Qed.
 
 (* What is read through C<ys>, instantiated, is what is read through C<sigma ys> *)
-Lemma compose_read: forall f, member_type env c f = true -> nothing_is_bottom f = true ->
+Lemma compose_read: forall f, member_type env c f = true ->
     instantiate env sigma (read_member env bY f) = read_member env bS f.
 Proof.
-    intros f Hf Hnb. destruct (compose_member f Hf Hnb) as [E G]. rewrite !read_member_inst, <- E.
+    intros f Hf. destruct (compose_member f Hf) as [E G]. rewrite !read_member_inst, <- E.
     destruct G as [[[Hn [_ [_ Hsn]]] _]|[v [o [Z [[-> | ->] [HZ [_ Ho]]]]]]].
     - rewrite (read_inst_plain _ Hn), (read_inst_plain _ Hsn). reflexivity.
     - rewrite (sig_argument v o Z Ho HZ). cbn [read_inst]. destruct v; reflexivity.
@@ -481,23 +474,23 @@ Proof.
 Qed.
 
 (* What is written through C<ys>, instantiated, is what is written through C<sigma ys> *)
-Lemma compose_write: forall f, member_type env c f = true -> nothing_is_bottom f = true ->
+Lemma compose_write: forall f, member_type env c f = true ->
     instantiate env sigma (write_member env bY f) = write_member env bS f.
 Proof.
-    intros f Hf Hnb. unfold write_member. rewrite in_args_same.
+    intros f Hf. unfold write_member. rewrite in_args_same.
     destruct (mentions_loosely_bound_in_arguments bY f); [destruct f; reflexivity|].
-    exact (proj1 (compose_member f Hf Hnb)).
+    exact (proj1 (compose_member f Hf)).
 Qed.
 
 
 (* The instance of a member type through C<ys>: a type of generic code, or a type argument of one, made
    nullable or not *)
-Lemma member_instance_cases: forall f, member_type env c f = true -> nothing_is_bottom f = true ->
+Lemma member_instance_cases: forall f, member_type env c f = true ->
     caller (instantiate env bY f)
     \/ exists v o Z, (instantiate env bY f = TypeArgument v o Z \/ instantiate env bY f = Nullable (TypeArgument v o Z))
         /\ caller Z /\ of_fragment env declared Z /\ is_parameter_ownership o = false.
 Proof.
-    intros f Hf Hnb. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
+    intros f Hf. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
     - destruct (leaf_cases f p Hleaf) as [g [nl [-> <-]]].
       destruct (member_parameter env c (param_of g) Hf) as [i Hi].
       destruct (nth_error_same_length _ ys i _ (eq_sym Hly) Hi) as [y Ey].
@@ -517,26 +510,26 @@ Proof.
       + rewrite E. destruct (is_loose (TypeArgument v o (ref_apply env gm nn Y))).
         * right. exists v, o, (ref_apply env gm nn Y). split; [left; reflexivity|auto].
         * left. exact HcR.
-    - left. exact (proj2 (proj2 (proj1 (compose_instances (depth f)) f (le_n _) Hf Hnb))).
+    - left. exact (proj2 (proj2 (proj1 (compose_instances (depth f)) f (le_n _) Hf))).
 Qed.
 
 (* What is written through C<ys> in generic code, instantiated, is written through C<sigma ys> *)
-Lemma write_preserved: forall f V0 fuel, member_type env c f = true -> nothing_is_bottom f = true ->
+Lemma write_preserved: forall f V0 fuel, member_type env c f = true ->
     caller V0 -> of_fragment env declared V0 -> is_non_nullable_nothing env V0 = false ->
     (is_non_nullable_nothing env (nullable_assignee env V0) = false \/ V0 = Nullable bottom_type) ->
     in_fragment env (instantiate env sigma V0) = true ->
     unify env fuel (write_member env bY f) V0 (Ongoing []) = Some (Ongoing []) ->
     exists f', unify env f' (write_member env bS f) (instantiate env sigma V0) (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros f V0 fuel Hf Hnb HcV HfV HnV HnaV HinV H.
+    intros f V0 fuel Hf HcV HfV HnV HnaV HinV H.
     assert (Hsub: forall W, caller W -> unify env fuel W V0 (Ongoing []) = Some (Ongoing []) ->
         exists f', unify env f' (instantiate env sigma W) (instantiate env sigma V0) (Ongoing []) = Some (Ongoing [])).
     { intros W HcW E. exact (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared
           V0 W HcV HcW (ex_intro _ fuel E)). }
-    rewrite <- (compose_write f Hf Hnb). unfold write_member in *.
+    rewrite <- (compose_write f Hf). unfold write_member in *.
     destruct (mentions_loosely_bound_in_arguments bY f).
     { apply Hsub; [|exact H]. destruct f; first [exact Pr_bottom|exact (Pr_rewrap _ Pr_bottom)]. }
-    destruct (member_instance_cases f Hf Hnb) as [Hc|[v [o [Z [[EW|EW] [HcZ [HfZ Ho]]]]]]]; [exact (Hsub _ Hc H)| |];
+    destruct (member_instance_cases f Hf) as [Hc|[v [o [Z [[EW|EW] [HcZ [HfZ Ho]]]]]]]; [exact (Hsub _ Hc H)| |];
         rewrite EW in H |- *.
     - (* a type argument: what it takes is below its type, unless it is out-variant *)
       rewrite (sig_argument v o Z Ho (good_caller Z HcZ)). destruct fuel as [|n]; [discriminate H|].
@@ -588,13 +581,13 @@ Theorem generic_member_read_sound: forall n m xs m' f V fuel,
     (forall x, In x xs -> is_exact_argument env x = true) ->
     (forall y, In y (map (instantiate env sigma) ys) -> argument_in_fragment env y = true) ->
     unify env n (RootResolved m' c (map (instantiate env sigma) ys)) (RootResolved m c xs) (Ongoing []) = Some (Ongoing []) ->
-    member_type env c f = true -> nothing_is_bottom f = true ->
+    member_type env c f = true ->
     in_fragment env V = true ->
     unify env fuel (read_member env (bindings_of env c xs) f) V (Ongoing []) = Some (Ongoing []) ->
     exists fuel', unify env fuel' (instantiate env sigma (read_member env bY f)) V (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros n m xs m' f V fuel Hc Hlx Hxs Hys' H Hf Hnb HV HVx.
-    rewrite (compose_read f Hf Hnb).
+    intros n m xs m' f V fuel Hc Hlx Hxs Hys' H Hf HV HVx.
+    rewrite (compose_read f Hf).
     exact (member_read_sound env wf n [] m c xs m' _ f V fuel Hc Hlx ltac:(rewrite length_map; exact Hly) Hxs Hys' H Hf HV HVx).
 Qed.
 
@@ -608,7 +601,7 @@ Theorem generic_member_write_sound: forall n m xs m' f V0 fuel,
     (forall x, In x xs -> is_exact_argument env x = true) ->
     (forall y, In y (map (instantiate env sigma) ys) -> argument_in_fragment env y = true) ->
     unify env n (RootResolved m' c (map (instantiate env sigma) ys)) (RootResolved m c xs) (Ongoing []) = Some (Ongoing []) ->
-    member_type env c f = true -> nothing_is_bottom f = true ->
+    member_type env c f = true ->
     caller V0 -> of_fragment env declared V0 -> is_non_nullable_nothing env V0 = false ->
     (is_non_nullable_nothing env (nullable_assignee env V0) = false \/ V0 = Nullable bottom_type) ->
     in_fragment env (instantiate env sigma V0) = true -> is_non_nullable_nothing env (instantiate env sigma V0) = false ->
@@ -616,8 +609,8 @@ Theorem generic_member_write_sound: forall n m xs m' f V0 fuel,
     (exists fuel', unify env fuel' (read_member env (bindings_of env c xs) f) (instantiate env sigma V0) (Ongoing []) = Some (Ongoing []))
     \/ (holds_only_null env (instantiate env sigma V0) = true /\ is_nullable env (read_member env (bindings_of env c xs) f) = true).
 Proof.
-    intros n m xs m' f V0 fuel Hc Hlx Hxs Hys' H Hf Hnb HcV HfV HnV HnaV HinV HnsV HW.
-    destruct (write_preserved f V0 fuel Hf Hnb HcV HfV HnV HnaV HinV HW) as [f' HW'].
+    intros n m xs m' f V0 fuel Hc Hlx Hxs Hys' H Hf HcV HfV HnV HnaV HinV HnsV HW.
+    destruct (write_preserved f V0 fuel Hf HcV HfV HnV HnaV HinV HW) as [f' HW'].
     exact (member_write_sound env wf n [] m c xs m' _ f _ f' Hc Hlx ltac:(rewrite length_map; exact Hly) Hxs Hys' H Hf
         HinV HnsV HW').
 Qed.
@@ -626,9 +619,9 @@ Qed.
 (* Of type arguments that aren't loose, as the supertype arguments of a class are, the instance of a
    member type is a type of generic code *)
 Lemma member_instance_exact: forall f, (forall y, In y ys -> is_loose y = false) ->
-    member_type env c f = true -> nothing_is_bottom f = true -> caller (instantiate env bY f).
+    member_type env c f = true -> caller (instantiate env bY f).
 Proof.
-    intros f Hl Hf Hnb. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
+    intros f Hl Hf. unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
     - destruct (leaf_cases f p Hleaf) as [g [nl [-> <-]]].
       destruct (member_parameter env c (param_of g) Hf) as [i Hi].
       destruct (nth_error_same_length _ ys i _ (eq_sym Hly) Hi) as [y Ey].
@@ -646,7 +639,7 @@ Proof.
       + change (instantiate env bY (Nullable (Generic g))) with (rewrap_nullable (instantiate env bY (Generic g))).
         rewrite E. exact (Pr_rewrap _ HcR).
       + rewrite E. exact HcR.
-    - exact (proj2 (proj2 (proj1 (compose_instances (depth f)) f (le_n _) Hf Hnb))).
+    - exact (proj2 (proj2 (proj1 (compose_instances (depth f)) f (le_n _) Hf))).
 Qed.
 
 (*
@@ -659,9 +652,9 @@ Qed.
  * (findOverriddenFunctions); instantiated with sigma, it is that of c instantiated as the call has it
  * (compose_member). So whatever argument the call takes, the override takes.
  *)
-Theorem override_parameter_composed: forall P, member_type env c P = true -> nothing_is_bottom P = true ->
+Theorem override_parameter_composed: forall P, member_type env c P = true ->
     instantiate env sigma (instantiate env bY P) = instantiate env bS P.
-Proof. intros P Hf Hnb. exact (proj1 (compose_member P Hf Hnb)). Qed.
+Proof. intros P Hf. exact (proj1 (compose_member P Hf)). Qed.
 
 (*
  * The return type of the override, Re, is assignable to that of the function of c instantiated with ys
@@ -669,13 +662,13 @@ Proof. intros P Hf Hnb. exact (proj1 (compose_member P Hf Hnb)). Qed.
  * assignable to what the call expects.
  *)
 Theorem override_return_composed: forall R Re fuel, (forall y, In y ys -> is_loose y = false) ->
-    member_type env c R = true -> nothing_is_bottom R = true -> caller Re ->
+    member_type env c R = true -> caller Re ->
     unify env fuel (instantiate env bY R) Re (Ongoing []) = Some (Ongoing []) ->
     exists f, unify env f (instantiate env bS R) (instantiate env sigma Re) (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros R Re fuel Hl Hf Hnb HcRe H. rewrite <- (proj1 (compose_member R Hf Hnb)).
+    intros R Re fuel Hl Hf HcRe H. rewrite <- (proj1 (compose_member R Hf)).
     exact (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared Re _ HcRe
-        (member_instance_exact R Hl Hf Hnb) (ex_intro _ fuel H)).
+        (member_instance_exact R Hl Hf) (ex_intro _ fuel H)).
 Qed.
 
 End Member.

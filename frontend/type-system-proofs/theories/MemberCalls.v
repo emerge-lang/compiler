@@ -24,7 +24,6 @@ Section MemberCalls.
 Variable env: Environment.
 Hypothesis wf: wellformed env.
 Let ranked := wf_bounds_ranked env wf.
-Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 
 Variables xfrag bfrag: EType -> Prop.

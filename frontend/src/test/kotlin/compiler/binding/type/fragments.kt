@@ -21,11 +21,6 @@ private val RootResolvedTypeReference.typeArguments get() = arguments ?: emptyLi
 
 private fun RootResolvedTypeReference.hasAllTypeArguments() = typeArguments.size == (baseType.typeParameters?.size ?: 0)
 
-/** Nothing, with [RootResolvedTypeReference.baseType] Nothing: of any mutability, as it is const (`Transitivity.is_bottom`) */
-private fun RootResolvedTypeReference.isBottom() = typeArguments.isEmpty()
-
-private fun RootResolvedTypeReference.isNothing() = baseType == context.swCtx.nothing
-
 /** `Fragment.is_component` */
 private fun BoundTypeReference.isComponent() = this is RootResolvedTypeReference || (this is GenericTypeReference && !isNullable)
 
@@ -42,9 +37,9 @@ internal fun BoundTypeReference.isOfFragment(): Boolean = when (this) {
     else -> false
 }
 
-/** `Inference.afrag` and `Substitution.closed`: class types, mentioning Nothing without type arguments */
+/** `Inference.afrag` and `Substitution.closed`: class types */
 internal fun BoundTypeReference.isClassType(): Boolean = when (this) {
-    is RootResolvedTypeReference -> hasAllTypeArguments() && (!isNothing() || isBottom()) && typeArguments.all { it.type.isClassType() }
+    is RootResolvedTypeReference -> hasAllTypeArguments() && typeArguments.all { it.type.isClassType() }
     is NullableTypeReference -> nested is RootResolvedTypeReference && nested.isClassType()
     else -> false
 }
@@ -53,7 +48,7 @@ internal fun BoundTypeReference.isClassType(): Boolean = when (this) {
 internal fun BoundTypeReference.isBottomOnly(): Boolean = bottomOnly(this, emptySet())
 
 private fun bottomOnly(t: BoundTypeReference, visiting: Set<BoundTypeParameter>): Boolean = when (t) {
-    is RootResolvedTypeReference -> (!t.isNothing() || t.isBottom()) && t.typeArguments.all { bottomOnly(it.type, visiting) }
+    is RootResolvedTypeReference -> t.typeArguments.all { bottomOnly(it.type, visiting) }
     is NullableTypeReference -> bottomOnly(t.nested, visiting)
     is GenericTypeReference -> !t.effectiveBound.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
         && (t.parameter in visiting || bottomOnly(t.parameter.bound, visiting + t.parameter))
@@ -103,7 +98,7 @@ private fun isWide(t: BoundTypeReference): Boolean = t.intersectionComponents()?
 
 /** `SubstitutionWide.wfrag` */
 private fun isWideBelowTop(t: BoundTypeReference): Boolean = when (t) {
-    is RootResolvedTypeReference -> if (t.isNothing()) t.isBottom() else t.hasAllTypeArguments() && t.typeArguments.all { isWide(it.type) }
+    is RootResolvedTypeReference -> t.hasAllTypeArguments() && t.typeArguments.all { isWide(it.type) }
     is NullableTypeReference -> (t.nested is RootResolvedTypeReference || t.nested is GenericTypeReference) && isWideBelowTop(t.nested)
     is GenericTypeReference -> isInstantiable(t, emptySet())
     else -> false
@@ -115,7 +110,7 @@ private fun isWideBelowTop(t: BoundTypeReference): Boolean = when (t) {
  * at, which F-bounds mention again. Of a reference at the top of a bound, [visiting] is null: `sfrag_top_h`.
  */
 private fun isInstantiable(t: BoundTypeReference, visiting: Set<BoundTypeParameter>?): Boolean = when (t) {
-    is RootResolvedTypeReference -> if (t.isNothing()) t.isBottom() else t.hasAllTypeArguments()
+    is RootResolvedTypeReference -> t.hasAllTypeArguments()
         && (visiting == null || t.typeArguments.all { isInstantiable(it.type, visiting) })
     is NullableTypeReference -> (t.nested is RootResolvedTypeReference || t.nested is GenericTypeReference) && isInstantiable(t.nested, visiting)
     is GenericTypeReference -> t.isAsWritten() && !t.hasTypeVariables

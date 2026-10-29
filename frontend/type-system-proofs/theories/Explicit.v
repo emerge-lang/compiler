@@ -85,7 +85,7 @@ Proof.
     intros vars ts s Hst Hts [Hex _] q st Hq. destruct (Hex q st Hq) as [i [S [t [Hi [Ht [-> | ->]]]]]].
     - exact (static_initial_ok env wf xfrag bfrag types vars q S (Hst q S (nth_error_In _ _ Hi)) s).
     - destruct (Hts t (nth_error_In _ _ Ht)) as [o [x [-> [_ [Hx _]]]]].
-      pose proof (Inference.in_fragment_no_vars env x (proj1 (afrag_parts env x Hx))) as Hnx.
+      pose proof (Inference.in_fragment_no_vars env x (afrag_in_fragment env x Hx)) as Hnx.
       unfold exact_state. cbn [upper_bound lower_bound is_exact static_upper_bound].
       split; [exact Hnx|]. split; [exact Hnx|]. split; [intros E; discriminate E|].
       destruct (Hst q S (nth_error_In _ _ Hi)) as [_ [_ [Hsv _]]].
@@ -104,7 +104,7 @@ Proof.
     rewrite nth_error_map in Hi. destruct (nth_error vars i) as [[q' S]|] eqn:Hv; [|discriminate Hi].
     injection Hi as ->.
     destruct (Hts _ (nth_error_In _ _ Ht)) as [o' [x' [Et [Ho [Hx Hc]]]]]. injection Et as <- <-.
-    pose proof (proj1 (afrag_parts env x Hx)) as HxF.
+    pose proof (afrag_in_fragment env x Hx) as HxF.
     split; [exact (it_in_fragment_xfrag env xfrag bfrag types x HxF)|].
     destruct (Hdom i q S Hv) as [st Hst]. exists st. split; [exact Hst|].
     destruct (Hex q st Hst) as [j [S' [t [Hj [Htj Est]]]]].
@@ -167,7 +167,7 @@ Proof.
     - assert (Hin: In (p, S) vars) by (rewrite Ev; apply in_or_app; right; left; reflexivity).
       assert (Hint: In t ts) by (rewrite Et; apply in_or_app; right; left; reflexivity).
       destruct (Hts t Hint) as [o [x [-> [Ho [Hx Hcx]]]]].
-      pose proof (proj1 (afrag_parts env x Hx)) as HxF.
+      pose proof (afrag_in_fragment env x Hx) as HxF.
       pose proof (Inference.in_fragment_no_vars env x HxF) as Hnx.
       simpl in H. destruct (plus_exact_binding env (unify env n) s p (TypeArgument invariant o x)) as [[u1|]|] eqn:E;
           [|rewrite bind_explicit_failed in H; discriminate H|discriminate H].
@@ -305,14 +305,14 @@ Proof.
     assert (Hbfin: bindings_in_fragment env b).
     { intros q o x Eq. rewrite Hbdef in Eq. destruct (lookup_combine_nth _ ts q _ Eq) as [i [_ Ht]].
       destruct (Hts _ (nth_error_In _ _ Ht)) as [o' [x' [Et [_ [Hx _]]]]]. injection Et as _ ->.
-      exact (proj1 (afrag_parts env x' Hx)). }
+      exact (afrag_in_fragment env x' Hx). }
     (* how each type parameter is bound: exactly, to a type argument within its bound or checked against it *)
     assert (Hvar: forall p S, In (p, S) vars -> binds_var env xfrag U b p S).
     { intros p S Hin. destruct (In_nth_error _ _ Hin) as [i Hi].
       destruct (nth_error_same_length vars ts i _ (eq_sym Hl) Hi) as [t Ht].
       destruct (Hidx i p S t Hi Ht) as [Hps Hfacts].
       destruct (Hts t (nth_error_In _ _ Ht)) as [o [x [-> [Ho [Hx Hcx]]]]].
-      pose proof (proj1 (afrag_parts env x Hx)) as HxF.
+      pose proof (afrag_in_fragment env x Hx) as HxF.
       destruct (Hfacts o x eq_refl) as [[f Ef] Hchecked].
       exists o, x, (exact_state S (TypeArgument invariant o x)).
       split; [exact (Hlb i p S _ Hi Ht)|]. split; [exact Ho|].

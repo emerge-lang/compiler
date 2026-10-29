@@ -62,8 +62,8 @@ Qed.
 
 Lemma closed_instantiate: forall b x, afrag env x = true -> closed x = true -> instantiate env b x = x.
 Proof.
-    intros b x Ha Hc. destruct (afrag_parts env x Ha) as [Hf Hn].
-    pose proof (inst_nested_closed env wf b 0 [] x (class_sfrag env x Hf Hn) Hc) as E.
+    intros b x Ha Hc. pose proof (afrag_in_fragment env x Ha) as Hf.
+    pose proof (inst_nested_closed env wf b 0 [] x (class_sfrag env x Hf) Hc) as E.
     destruct (fragment_cases env x Hf) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact E.
 Qed.
 
@@ -78,7 +78,7 @@ Qed.
 
 Lemma afrag_rewrap: forall X, afrag env X = true -> afrag env (rewrap_nullable X) = true.
 Proof.
-    intros X H. destruct (afrag_parts env X H) as [Hf _].
+    intros X H. pose proof (afrag_in_fragment env X H) as Hf.
     destruct (fragment_cases env X Hf) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact H.
 Qed.
 
@@ -87,7 +87,7 @@ Proof. intros [| | | | | |]; reflexivity. Qed.
 
 Lemma afrag_shape: forall X, afrag env X = true -> is_type_argument X = false /\ forall z, X = Nullable z -> is_type_argument z = false.
 Proof.
-    intros X H. destruct (afrag_parts env X H) as [Hf _].
+    intros X H. pose proof (afrag_in_fragment env X H) as Hf.
     destruct (fragment_cases env X Hf) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
         split; try reflexivity; intros z E; try discriminate E; injection E as <-; reflexivity.
 Qed.
@@ -154,8 +154,8 @@ Proof.
               by (rewrite Hsame; destruct Eq as [-> | ->]; split; try reflexivity; intros z E; try discriminate E; injection E as <-; reflexivity).
           rewrite (instantiate_unloose_argument env _ v o n Hcb (proj1 Hsh) (proj2 Hsh)), Hsame. exact Hpa.
         * destruct (afrag_shape _ HN) as [Ht Hz]. rewrite (instantiate_unloose_argument env _ v o n Hcb Ht Hz).
-          pose proof (no_vars_args_plain _ (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HN)))) as Hp.
-          destruct (afrag_parts env _ HN) as [HfN _].
+          pose proof (no_vars_args_plain _ (in_fragment_no_vars env _ (afrag_in_fragment env _ HN))) as Hp.
+          pose proof (afrag_in_fragment env _ HN) as HfN.
           destruct (fragment_cases env _ HfN) as [[m0 [c0 [a0 E]]]|[m0 [c0 [a0 [E _]]]]]; rewrite E in Hp |- *; exact Hp.
     - reflexivity.
     - change (args_plain (rewrap_nullable (instantiate env [(p, TypeArgument invariant ref x)] (RootResolved m c' args))) = true).
@@ -163,7 +163,7 @@ Proof.
       change (args_plain (instantiate env [(p, TypeArgument invariant ref x)] (RootResolved m c' args)) = true).
       apply (IH (vsize (RootResolved m c' args))); [simpl; lia|reflexivity|exact Hr|exact Hpl].
     - cbn [instantiate lookup_binding]. destruct (param_eqb q p); [|reflexivity]. rewrite (candidate_final env x Hx).
-      exact (no_vars_args_plain _ (in_fragment_no_vars env _ (proj1 (afrag_parts env _ Hx)))).
+      exact (no_vars_args_plain _ (in_fragment_no_vars env _ (afrag_in_fragment env _ Hx))).
 Qed.
 
 (* The type variables bound in b *)
@@ -222,7 +222,7 @@ Proof.
       assert (Hbn: instantiate env b (to_generic n) = instantiate env [(p, TypeArgument invariant ref x)] n).
       { assert (Hbx: instantiate env b (Generic (mkGenericRef gm nn p [])) = ref_apply env gm nn x).
         { cbn [instantiate]. rewrite Ep. unfold final_argument. rewrite (proj1 (Hb p _ Ep)).
-          destruct (afrag_parts env x Hx) as [Hf _].
+          pose proof (afrag_in_fragment env x Hx) as Hf.
           destruct (fragment_cases env x Hf) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; unfold ref_apply; destruct gm, nn; reflexivity. }
         destruct En as [En|En]; [rewrite (E1 En), En; exact Hbx|rewrite (E2 En), En].
         change (rewrap_nullable (instantiate env b (Generic (mkGenericRef gm nn p [])))
@@ -269,7 +269,7 @@ Proof.
       cbn [to_generic].
       assert (Hvwn: bound_vars b (instantiate env [(p, TypeArgument invariant ref x)] n) = true).
       { apply (bound_vars_candidate b p x n (ifrag_no_generics env n Ea) Hvn).
-        exact (in_fragment_no_vars env x (proj1 (afrag_parts env x Hx))). }
+        exact (in_fragment_no_vars env x (afrag_in_fragment env x Hx)). }
       destruct (instantiate_ifrag_shape b _ Hb Hwn Hvwn) as [Ht2 Hz2].
       destruct (instantiate_ifrag_shape b _ Hb Ea Hvn) as [Ht3 Hz3].
       rewrite (instantiate_unloose_argument env b v o' _ (plain_not_loose b Hb) Ht2 Hz2).
@@ -286,7 +286,7 @@ Proof.
     - cbn [instantiate lookup_binding]. destruct (param_eqb q p) eqn:Eq.
       + apply Nat.eqb_eq in Eq. subst q. rewrite (candidate_final env x Hx), (to_generic_closed x Hcx), (closed_instantiate b x Hx Hcx).
         cbn [to_generic instantiate]. rewrite Ep. unfold final_argument.
-        rewrite (proj1 (Hb p _ Ep)). destruct (afrag_parts env x Hx) as [Hf _].
+        rewrite (proj1 (Hb p _ Ep)). pose proof (afrag_in_fragment env x Hx) as Hf.
         destruct (fragment_cases env x Hf) as [[m [c' [args ->]]]|[m [c' [args [-> _]]]]]; reflexivity.
       + reflexivity.
 Qed.
@@ -1016,21 +1016,21 @@ Proof.
             destruct (Bool.bool_dec Np true) as [EN|EN]; [|apply not_true_is_false in EN].
             - apply (refs_of_vars_any Pc (R r) b).
               + exact (ifrag_no_generics env _ Hwi).
-              + exact (candidate_vars env wf _ p _ C HsvC (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))).
+              + exact (candidate_vars env wf _ p _ C HsvC (in_fragment_no_vars env _ (afrag_in_fragment env _ HlA))).
               + exact (plain_owners_in _ _ (plain_owners_candidate p _ HlA HlC C Hif Hpo)).
               + intros gm nn q E. destruct (HPc q E) as [S' [Hin' Hr']].
                 exists q, S', gm, nn. split; [reflexivity|]. split; [exact Hin'|]. split; [exact Hr'|right; exact EN].
               + exact HoC.
             - apply (refs_of_vars Pc (R r) b).
               + exact (ifrag_no_generics env _ Hwi).
-              + exact (candidate_vars env wf _ p _ C HsvC (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))).
+              + exact (candidate_vars env wf _ p _ C HsvC (in_fragment_no_vars env _ (afrag_in_fragment env _ HlA))).
               + exact (plain_owners_in _ _ (plain_owners_candidate p _ HlA HlC C Hif Hpo)).
               + exact (args_plain_candidate p _ HlA HlC C Hif (args_plain_intersected S (HNpf EN p S Hin) C HC)).
               + intros q E. destruct (HPc q E) as [S' [Hin' Hr']]. exact (Rplain r q S' Hin' Hr').
               + exact HoC. }
           destruct (Hchk C HC Kr' Hbc Hsat Hbf0) as [f Ef']. exists f.
           pose proof (bound_vars_candidate b p (x) C (ifrag_no_generics env C Hif) HbvC
-              (in_fragment_no_vars env _ (proj1 (afrag_parts env _ HlA)))) as Hbvc.
+              (in_fragment_no_vars env _ (afrag_in_fragment env _ HlA))) as Hbvc.
           unfold inst in Ef'. rewrite (inst_nested_plain b _ Hpb Hwi Hbvc) in Ef'.
           rewrite (candidate_instantiate b p o (x) Hpb Hl HlA HlC C Hif Hpo HbvC) in Ef'.
           rewrite <- (inst_nested_plain b C Hpb Hif HbvC) in Ef'. exact Ef'. }
@@ -1069,14 +1069,14 @@ Proof.
                 by (apply (Rplain r q S' Hin'); unfold rank_of in Hrc; cbn [param_of] in Hrc; lia).
             destruct (HRr _ HRq) as [Hbr _]. cbn [bound_in_top_h]. rewrite Hbr. cbn [andb no_type_variables variables_of].
             exact (refs_top env wf b Kr' (R r) HRr (Hclose r) _ HRq).
-          * exact (proj1 (afrag_parts env _ HlA)).
+          * exact (afrag_in_fragment env _ HlA).
           * intros c Hc'. apply in_map_iff in Hc'. destruct Hc' as [C [<- HC]]. exact (Hc C HC).
         + (* a nullable intersection: the lower bound without null below that of the intersection *)
           pose proof (Hstatic rmax p _ Hin (Hrmax p _ Hin)) as Hrefs.
           change (refs_in b (R rmax) (Intersection (map to_generic cs))) in Hrefs.
           rewrite E in Hc, Hcomp. cbn [to_generic].
           assert (Hbf: bindings_in_fragment env b) by exact (Hbf0 (ex_intro _ cs eq_refl)).
-          destruct (afrag_parts env _ HlA) as [HlF _].
+          pose proof (afrag_in_fragment env _ HlA) as HlF.
           destruct (components_sfrag_facts env _ (proj2 (Hics cs eq_refl))) as [_ Hshape].
           assert (Hi: exists f, unify env f (inst_nested env b (Intersection (map to_generic cs))) (without_null env (x)) (Ongoing [])
               = Some (Ongoing [])).

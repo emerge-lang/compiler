@@ -355,11 +355,10 @@ Qed.
 
 (* What each of the receivers of the override and of c take, in turn, the object takes: the receiver
    of the override, its type parameters bound to the type arguments of the object *)
-Lemma sfrag_class_mutability: forall m m0 cl args, cl <> nothing ->
+Lemma sfrag_class_mutability: forall m m0 cl args,
     sfrag env (with_mutability env m (RootResolved m0 cl args)) = sfrag env (RootResolved m0 cl args).
 Proof.
-    intros m m0 cl args Hn. rewrite !(sfrag_top env). cbn [with_mutability sfrag_h].
-    rewrite (class_eqb_false cl nothing Hn). reflexivity.
+    intros m m0 cl args. rewrite !(sfrag_top env). cbn [with_mutability sfrag_h]. reflexivity.
 Qed.
 
 (*

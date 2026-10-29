@@ -91,7 +91,6 @@ Section FinalValues.
 Variable env: Environment.
 Hypothesis wf: wellformed env.
 Let ranked := wf_bounds_ranked env wf.
-Let supertypes_mention_nothing_as_bottom := wf_supertypes_mention_nothing_as_bottom env wf.
 Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
 Hypothesis intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect env a b) = true.
 Hypothesis supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true ->
