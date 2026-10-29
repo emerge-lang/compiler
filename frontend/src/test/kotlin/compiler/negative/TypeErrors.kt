@@ -222,14 +222,14 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
-            "of a mutability that doesn't fit the type parameter" {
+            "of any other mutability, as Nothing is const" {
                 validateModule("""
                     interface A {}
                     fn f<T : mut A>(n: read Nothing) -> T {
                         return n
                     }
                 """.trimIndent())
-                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+                    .shouldHaveNoDiagnostics()
             }
         }
 
@@ -244,14 +244,14 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
-            "of a mutability that doesn't fit" {
+            "of any other mutability, as Nothing is const" {
                 validateModule("""
                     interface A {}
                     fn f<N : read Nothing, T : mut A>(n: N) -> T {
                         return n
                     }
                 """.trimIndent())
-                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+                    .shouldHaveNoDiagnostics()
             }
         }
 

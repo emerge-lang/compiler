@@ -183,8 +183,7 @@ class SoftwareContext {
     val iterable by lazyBaseTypeFromSource(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
 
     /**
-     * @return the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because
-     * it has `read` mutability, so it's neither a subtype of `const Any` nor of `mut Any`
+     * @return the absolute bottom type, `Nothing`: it is const, so of any mutability it is a subtype of every type
      */
     fun getBottomType(span: Span) = nothing
         .getBoundReferenceAssertNoTypeParameters(span)

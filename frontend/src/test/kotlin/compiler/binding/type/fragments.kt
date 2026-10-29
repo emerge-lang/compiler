@@ -1,6 +1,5 @@
 package compiler.compiler.binding.type
 
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeParameter
@@ -22,8 +21,8 @@ private val RootResolvedTypeReference.typeArguments get() = arguments ?: emptyLi
 
 private fun RootResolvedTypeReference.hasAllTypeArguments() = typeArguments.size == (baseType.typeParameters?.size ?: 0)
 
-/** `exclusive Nothing`, with [RootResolvedTypeReference.baseType] Nothing (`Transitivity.is_bottom`) */
-private fun RootResolvedTypeReference.isBottom() = mutability == TypeMutability.EXCLUSIVE && typeArguments.isEmpty()
+/** Nothing, with [RootResolvedTypeReference.baseType] Nothing: of any mutability, as it is const (`Transitivity.is_bottom`) */
+private fun RootResolvedTypeReference.isBottom() = typeArguments.isEmpty()
 
 private fun RootResolvedTypeReference.isNothing() = baseType == context.swCtx.nothing
 
@@ -43,14 +42,14 @@ internal fun BoundTypeReference.isOfFragment(): Boolean = when (this) {
     else -> false
 }
 
-/** `Inference.afrag` and `Substitution.closed`: class types, mentioning Nothing only as `exclusive Nothing` */
+/** `Inference.afrag` and `Substitution.closed`: class types, mentioning Nothing without type arguments */
 internal fun BoundTypeReference.isClassType(): Boolean = when (this) {
     is RootResolvedTypeReference -> hasAllTypeArguments() && (!isNothing() || isBottom()) && typeArguments.all { it.type.isClassType() }
     is NullableTypeReference -> nested is RootResolvedTypeReference && nested.isClassType()
     else -> false
 }
 
-/** `GenericArguments.bottom_only`: mentions Nothing only as `exclusive Nothing`, also in the bounds of the parameters it refers to */
+/** `GenericArguments.bottom_only`: mentions Nothing only as Nothing, not as an intersection or a type parameter that is Nothing, also in the bounds of the parameters it refers to */
 internal fun BoundTypeReference.isBottomOnly(): Boolean = bottomOnly(this, emptySet())
 
 private fun bottomOnly(t: BoundTypeReference, visiting: Set<BoundTypeParameter>): Boolean = when (t) {

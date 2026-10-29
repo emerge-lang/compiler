@@ -186,8 +186,8 @@ class VarianceErrors : FreeSpec({
             outChild should beAssignableTo(inBottom)
         }
 
-        "out Child to in read Nothing" {
-            outChild shouldNot beAssignableTo(inReadBottom)
+        "out Child to in read Nothing, as Nothing is const" {
+            outChild should beAssignableTo(inReadBottom)
         }
     }
 

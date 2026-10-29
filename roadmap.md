@@ -292,15 +292,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The type parameters would have to be matched up by position, their bounds compared, before comparing the
     parameter types. This is a usability problem, not a soundness one
-35. declare `Nothing` const (`class Nothing : const Any`): it has no values, so its mutability promises nothing, and
-    every `m Nothing` could fit every reference, as values of const classes do (29). Today the mutability of
-    `Nothing` counts: `read Nothing` isn't assignable to `mut A`, and the closest common supertype of `mut A` and
-    `read Nothing` is `read A` (`ResolvedTypeReferenceTest` nails that down; the intersection of disjoint classes is `exclusive Nothing`). So a branch that
-    returns `-> Nothing` (`read Nothing`) likely weakens `if c { mutA } else { panic(...) }` to `read A`; unverified.
-    The type system proofs admit Nothing only as `exclusive Nothing` (`wf_nothing_is_not_const` in `Transitivity.v`),
-    so programs mentioning `read Nothing` anywhere, `List<read Nothing>` included, are outside them. With `Nothing`
-    const, the model's const machinery makes every `m Nothing` behave like `exclusive Nothing`, and the proofs can
-    admit `Nothing` of any mutability (`bottom_type`, `is_bottom` and the fragments built on them)
+35. ~~declare `Nothing` const~~ (`class Nothing : const Any`): it has no values, so its mutability promises nothing,
+    and every `m Nothing` fits every reference, as values of const classes do (29): `read Nothing` is assignable to
+    `mut A`, and `Box<read Nothing>` and `Box<exclusive Nothing>` are the same type. The closest common supertype
+    of `mut A` and `read Nothing` is `mut A` (`ResolvedTypeReferenceTest`): it takes the mutability Nothing is
+    assigned with, `exclusive`, rather than its own, `const`. References to Nothing read `const Nothing`, the
+    intersection of disjoint classes among them. The type system proofs admit Nothing of any mutability
+    (`wf_nothing_is_const` in `Transitivity.v`)
 36. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)

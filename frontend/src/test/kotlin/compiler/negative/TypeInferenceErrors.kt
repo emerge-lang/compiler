@@ -79,13 +79,13 @@ class TypeInferenceErrors : FreeSpec({
             }
         }
 
-        "the closest common supertype of a type parameter and Nothing of a mutability that doesn't fit it isn't the type parameter" {
+        "the closest common supertype of a type parameter and Nothing of any mutability is the type parameter, as Nothing is const" {
             validateModule(declarations + "\n" + """
                 fn f<T : const A>(t: T, n: mut Nothing) -> T {
                     return pick(t, n)
                 }
             """.trimIndent())
-                .shouldFind<ReturnTypeMismatchDiagnostic>()
+                .shouldHaveNoDiagnostics()
         }
 
         "an intersection as the upper bound" {

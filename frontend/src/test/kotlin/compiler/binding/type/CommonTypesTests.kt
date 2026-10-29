@@ -104,7 +104,7 @@ class CommonTypesTests : FreeSpec({
         }.shouldBeNone()
     }
 
-    "the closest common supertype of types that mention Nothing only as exclusive Nothing mentions it only so" {
+    "the closest common supertype of types that mention Nothing only as Nothing mentions it only so" {
         violationsOf({ it.isOfFragment() && it.isBottomOnly() }) { a, b ->
             a.closestCommonSupertypeWith(b).takeUnless { it.isBottomOnly() }?.toString()
         }.shouldBeNone()

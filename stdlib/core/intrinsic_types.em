@@ -14,7 +14,7 @@ export class Unit : const Any {
 
 export interface Any {}
 
-export class Nothing {
+export class Nothing : const Any {
     private constructor {
         panic("Cannot create instances of emerge.core.Nothing")
     }

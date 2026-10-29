@@ -204,10 +204,10 @@ class RootResolvedTypeReference private constructor(
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
                 if (this.baseType == this.baseType.context.swCtx.nothing) {
-                    return other.withMutability(this.mutability.union(other.mutability))
+                    return other.withMutability(this.assignmentMutability.union(other.mutability))
                 }
                 if (other.baseType == other.baseType.context.swCtx.nothing) {
-                    return this.withMutability(this.mutability.union(other.mutability))
+                    return this.withMutability(this.mutability.union(other.assignmentMutability))
                 }
                 if (this == other) {
                     return this

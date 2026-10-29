@@ -53,17 +53,17 @@ class IntersectionTypeTests : FreeSpec({
             "simple case" {
                 val type = swCtx.parseType("ConcreteA & T & ConcreteB")
                 val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-                simplified.toString() shouldBe "exclusive Nothing"
+                simplified.toString() shouldBe "const Nothing"
             }
 
             "is the bottom type, whatever the mutability of the components" {
                 val type = swCtx.parseType("mut ConcreteA & T & ConcreteB")
                 val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-                simplified.toString() shouldBe "exclusive Nothing"
+                simplified.toString() shouldBe "const Nothing"
 
                 val type2 = swCtx.parseType("mut ConcreteA & T & const ConcreteB")
                 val simplified2 = type2.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-                simplified2.toString() shouldBe "exclusive Nothing"
+                simplified2.toString() shouldBe "const Nothing"
             }
 
             "retains compound Nullability" {
@@ -72,7 +72,7 @@ class IntersectionTypeTests : FreeSpec({
                     .shouldBeInstanceOf<NullableTypeReference>()
                     .nested
                     .shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-                simplified.toString() shouldBe "exclusive Nothing"
+                simplified.toString() shouldBe "const Nothing"
             }
         }
     }
