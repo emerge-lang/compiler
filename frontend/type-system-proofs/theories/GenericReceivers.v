@@ -2101,7 +2101,7 @@ Proof.
       split; [reflexivity|]. split; [exact (of_fragment_of_class env declared _ (Hbounds p bound Hin))|]. exists (depth bound).
       exact (proj1 (reflexivity_with_arguments env (depth bound)) bound [] (Hbounds p bound Hin) (le_n _)). }
     assert (Hb0: forall P, In P Ps -> bound_in env b0 K0 [] (pgeneric P) = true).
-    { intros P' HP'. apply (pbound_in_from_refs env wf vars _ _ P' (proj1 (HPs P' HP')) (proj2 (HPs P' HP')) HK0 HK0r).
+    { intros P' HP'. apply (pbound_in_from_refs env wf vars _ _ P' (qfrag_kqfrag env P' (proj1 (HPs P' HP'))) (proj2 (HPs P' HP')) HK0 HK0r).
       intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         simpl. unfold b0. rewrite (lookup_map_vars vars _ q bound Hnd' Hin). reflexivity. }
     (* the bounds themselves, of the nullability of the declared ones *)
@@ -2210,7 +2210,7 @@ Proof.
       split; [exact Hl'|]. split; [exact Ho|]. split; [exact (ground_of_fragment env declared x Hx)|exact Hf]. }
     destruct (refs_fuel env wf (of_fragment env declared) (of_fragment env declared) gtypes vars b Hbounds Hlookup') as [K [HK HKr]].
     assert (Hb: forall P, In P Ps -> bound_in env b K [] (pgeneric P) = true).
-    { intros P' HP'. apply (pbound_in_from_refs env wf vars _ _ P' (proj1 (HPs P' HP')) (proj2 (HPs P' HP')) HK HKr).
+    { intros P' HP'. apply (pbound_in_from_refs env wf vars _ _ P' (qfrag_kqfrag env P' (proj1 (HPs P' HP'))) (proj2 (HPs P' HP')) HK HKr).
       intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         destruct (Hlookup q bound Hin) as [o [x [Hl' [Ho _]]]]. simpl. rewrite Hl'. exact Ho. }
     assert (Hbv: forall p o z, lookup_binding b p = Some (TypeArgument Model.invariant o z) -> is_exact_ownership o = true /\ ground env z = true).

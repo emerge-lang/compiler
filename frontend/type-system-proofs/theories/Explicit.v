@@ -264,7 +264,7 @@ Theorem explicit_invocation_with_bounded_variables_sound: forall n vars ts s Ps 
     length ts = length vars -> (forall t, In t ts -> explicit_argument t) ->
     bind_explicit env (unify env n) (map fst vars) ts (for_inference_of vars []) = Some (Ongoing s) ->
     (* the parameters and the arguments, accepted in turn *)
-    (forall P, In P Ps -> qfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
+    (forall P, In P Ps -> kqfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
         /\ forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst vars)) C = true) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing s) = Some (Ongoing U) ->

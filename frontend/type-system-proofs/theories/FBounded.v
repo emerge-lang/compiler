@@ -708,7 +708,7 @@ Lemma bindings_within: forall vars U b (extra: bool),
     satisfies env xfrag b U
     /\ exists K, (forall p S, In (p, S) vars ->
             unify env K (inst_nested env b (parameter_bound env p)) (value_of b p) (Ongoing []) = Some (Ongoing []))
-        /\ forall P, qfrag env P = true -> (args_plain P = true \/ extra = true) ->
+        /\ forall P, kqfrag env P = true -> (args_plain P = true \/ extra = true) ->
             ((exists cs, inter_of P = Some cs) -> extra = true) ->
             vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true ->
             (forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst vars)) C = true) ->
@@ -1166,7 +1166,7 @@ Proof.
     split; [exact Hsat|]. exists K.
     split; [intros p S Hin; exact (unify_fuel_monotone env K0 K _ _ _ _ HK0K (HK0 p S Hin (Hrmax p S Hin)))|].
     (* the types that mention only the type parameters of vars are bound in b *)
-    intros P Hqf Hpl Hix Hv HoC'. destruct (qfrag_cases env P Hqf) as [Hpf|[cs [EP [HSi _]]]].
+    intros P Hqf Hpl Hix Hv HoC'. destruct (kqfrag_components env P Hqf) as [Hpf|[cs [EP HSi]]].
     2:{ (* an intersection, nullable or not: the bindings are class types, so the references of its
            components, of any mutability and `!`, are bound *)
         assert (EN: Np = true) by (apply HNpx, Hix; exists cs; destruct EP as [-> | ->]; reflexivity).
@@ -1223,7 +1223,7 @@ Qed.
 Theorem invocation_with_bounded_variables_sound: forall n vars Ps As U,
     NoDup (map fst vars) ->
     (forall p S, In (p, S) vars -> static_bound vars p S) ->
-    (forall P, In P Ps -> qfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
+    (forall P, In P Ps -> kqfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
         /\ forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst vars)) C = true) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env n P A inner) (combine Ps As) (for_inference_of vars []) = Some (Ongoing U) ->
@@ -1328,7 +1328,7 @@ Theorem member_call_with_bounded_variables_sound: forall n mr c cvars ovars ma c
         exists o x f, z = TypeArgument invariant o x
             /\ unify env f (inst_nested env b (parameter_bound env p)) x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> qfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true
+    (forall P, In P Ps -> kqfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) P = true
         /\ forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst (cvars ++ ovars))) C = true) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->

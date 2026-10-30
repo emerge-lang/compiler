@@ -259,7 +259,7 @@ Qed.
 
 (* The same for the type of a parameter, a type variable made nullable as the plain reference; of an
    intersection, each component *)
-Lemma pbound_in_from_refs: forall vars b K t, qfrag env t = true -> refs_within vars t ->
+Lemma pbound_in_from_refs: forall vars b K t, kqfrag env t = true -> refs_within vars t ->
     (forall p bound, In (p, bound) vars -> binds_exactly env b K [] p bound = true) ->
     (forall gm nn p, In (p, parameter_bound env p) vars -> sfrag env (Generic (mkGenericRef gm nn p [])) = true ->
         sfrag env (parameter_bound env p) = true -> closed (parameter_bound env p) = true ->
@@ -267,7 +267,7 @@ Lemma pbound_in_from_refs: forall vars b K t, qfrag env t = true -> refs_within 
     (forall q, In q (map fst vars) -> ownership_bound b (parameter_ownership q) = true) ->
     bound_in env b K [] (pgeneric t) = true.
 Proof.
-    intros vars b K t Hq H Hp Hr Ho. destruct (qfrag_cases env t Hq) as [Ht|[cs [Et [HSi _]]]].
+    intros vars b K t Hq H Hp Hr Ho. destruct (kqfrag_components env t Hq) as [Ht|[cs [Et HSi]]].
     2:{ assert (Hcs: refs_within vars (Intersection cs)) by (destruct Et as [-> | ->]; exact H).
         assert (Hall: bound_in env b K [] (Intersection (map to_generic cs)) = true).
         { change (forallb (bound_in env b K []) (map to_generic cs) = true). apply forallb_forall. intros c' Hc'.
@@ -599,7 +599,7 @@ Theorem member_call_through_subtypes_sound: forall n mr c cvars ovars ma ca ys u
     (forall i p bound z, nth_error cvars i = Some (p, bound) -> nth_error zs i = Some z ->
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     (* the parameters, of the type parameters of c and of the function, and the arguments, accepted in turn *)
-    (forall P, In P Ps -> qfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> kqfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     (* the final values of the type parameters of the function, which are bounds, are among the types
@@ -739,7 +739,7 @@ Theorem member_call_with_type_parameters_sound: forall n mr c cvars ovars ma ys 
         exists o x f, z = TypeArgument Model.invariant o x /\ unify env f bound x (Ongoing []) = Some (Ongoing [])) ->
     is_assignable_to env n0 (RootResolved mo c xs) (RootResolved ma c ys) = Some true ->
     (* the parameters and the arguments, accepted in turn *)
-    (forall P, In P Ps -> qfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
+    (forall P, In P Ps -> kqfrag env P = true /\ refs_within (cvars ++ ovars) P) ->
     (forall A, In A As -> afrag env A = true /\ closed A = true) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing u) = Some (Ongoing U) ->
     (* the final values of the type parameters of the function, which are bounds, are among the types
