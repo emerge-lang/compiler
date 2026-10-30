@@ -25,13 +25,13 @@ import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
-import compiler.binding.basetype.BoundBaseType.Companion.closestCommonSupertypeOf
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -69,6 +69,7 @@ import java.util.IdentityHashMap
 class BoundBaseType(
     private val fileContext: CTContext,
     val typeRootContext: CTContext,
+    val annotations: BoundAnnotationSet,
     val kind: Kind,
     override val visibility: BoundVisibility,
     val typeParameters: List<BoundTypeParameter>?,
@@ -174,6 +175,8 @@ class BoundBaseType(
         return seanHelper.phase1(diagnosis) {
             bindTimeDiagnosis.replayOnto(diagnosis)
 
+            annotations.semanticAnalysisPhase1(diagnosis)
+
             typeParameters?.forEach {
                 it.semanticAnalysisPhase1(diagnosis)
                 if (it.astNode.variance != TypeVariance.UNSPECIFIED) {
@@ -277,6 +280,8 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
+
             entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             typeParameters?.forEach { it.semanticAnalysisPhase2(diagnosis) }
@@ -320,6 +325,8 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis, runIfErrorsPreviously = false) {
+            annotations.semanticAnalysisPhase3(diagnosis)
+
             if (!kind.memberFunctionsAbstractByDefault) {
                 val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
                     .flatten()

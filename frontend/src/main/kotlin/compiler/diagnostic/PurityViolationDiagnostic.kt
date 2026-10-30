@@ -18,6 +18,7 @@
 
 package compiler.diagnostic
 
+import compiler.binding.BoundAnnotation
 import compiler.binding.BoundFunction
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.impurity.Impurity
@@ -28,7 +29,7 @@ data class PurityViolationDiagnostic(
     val boundary: SideEffectBoundary,
 ) : Diagnostic(
     Severity.ERROR,
-    "${impurity.describe()} violates the purity of $boundary",
+    boundary.getMessage(impurity),
     impurity.span,
 ) {
     context(builder: CellBuilder)    
@@ -45,11 +46,19 @@ data class PurityViolationDiagnostic(
     }
 
     sealed class SideEffectBoundary {
+        abstract fun getMessage(impurity: Impurity): String
+
         data class Function(val function: BoundFunction) : SideEffectBoundary() {
-            override fun toString(): String {
+            override fun getMessage(impurity: Impurity): String {
                 val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
                 val kindAndName = if (function is BoundClassConstructor) "constructor of class `${function.classDef.simpleName}`" else "function `${function.name}`"
-                return "$modifier $kindAndName"
+                return "${impurity.describe()} violates the purity of $modifier $kindAndName"
+            }
+        }
+
+        data class Annotation(val annotation: BoundAnnotation) : SideEffectBoundary() {
+            override fun getMessage(impurity: Impurity): String {
+                return "Annotations must be pure expressions; ${impurity.describe()} is impure."
             }
         }
     }

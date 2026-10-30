@@ -10,6 +10,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameterList
@@ -46,6 +47,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BaseTypeDeclaration(
+    val annotations: List<AstAnnotation>,
     val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,
@@ -60,7 +62,6 @@ class BaseTypeDeclaration(
         this method is SERIOUSLY complex, because it does all the reordering of the syntactic elements in the
         base type definition, including a bunch of code generation for the constructor
          */
-
         val bindTimeDiagnosis = CollectingDiagnosis()
 
         // declare this now to allow passing forward references to all children
@@ -104,6 +105,7 @@ class BaseTypeDeclaration(
         )
 
         boundTypeDef = BoundBaseType(
+            annotations = bindAnnotations(fileContext),
             fileContext = fileContext,
             typeRootContext = typeRootContext,
             kind = kind,
@@ -160,6 +162,15 @@ class BaseTypeDeclaration(
         }
 
         return boundTypeDef
+    }
+
+    private fun bindAnnotations(fileContext: CTContext): BoundAnnotationSet {
+        if (annotations.isEmpty()) {
+            return BoundAnnotationSet(emptyList())
+        }
+
+        val annotationInitCtx = MutableExecutionScopedCTContext.functionRootIn(fileContext)
+        return BoundAnnotationSet(annotations.map { it.bindTo(annotationInitCtx) })
     }
 }
 
