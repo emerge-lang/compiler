@@ -1133,8 +1133,9 @@ Proof.
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps)
         (caller_supertype_arguments env wf declared ps) (fun gm nn x _ Hx => caller_ref_apply env wf declared ps gm nn x Hx)
-        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hdb Hfy Hrec Hfo Hobj Hzs Hxx Hzb HPs
-        HPn HAs
+        (caller_rewrap env declared ps)
+        n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hdb Hfy Hrec Hfo Hobj Hzs Hxx Hzb
+        (fun P HP => conj (qfrag_kqfrag env P (proj1 (HPs P HP))) (proj2 (HPs P HP))) HPn HAs
         HQbounds Hfold) as [HQfin Hmain].
     destruct (Hmain b Hbdef) as [[K0 HK0] [Hlook [Hpbv [Hwb Hsound]]]].
     (* the values, within their bounds, respect their nullability *)

@@ -1789,7 +1789,7 @@ Let gpc := gparam_components env wf declared declared_wf terminates finite tame 
     intersect_below supertype_above caller Qa (caller_argument_nested env declared ps) (intersect_generic ps) (supertype_generic ps)
     caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps)
     (caller_bound env wf declared ps) (caller_narrowed env wf declared ps) (caller_component env declared ps)
-    (caller_supertype_arguments env wf declared ps) caller_ref_apply' b K Hnv.
+    (caller_supertype_arguments env wf declared ps) caller_ref_apply' caller_rewrap' b K Hnv.
 
 (* A parameter of any type of qfrag, at run time; of an intersection, nullable or not, as ofComponents
    makes the instance (below_of_components) *)
@@ -1812,7 +1812,10 @@ Proof.
             = Some (Ongoing [])).
     { intros k A0 HA0 E Hr0.
       pose proof (rparam_components k cs A0 s s' HSi Hcs Hcn HA0 HbI Hs Hd E Hr0) as Hall.
-      destruct (gpc k cs A0 s s' HSi Hcs Hcn HA0 HbI Hs E) as [_ [_ [HnA _]]].
+      destruct (gpc k cs A0 s s' HSi (fun C HC => param_shape_of env wf cs C HSi Hcs HC) Hcn HA0 HbI Hs E) as [_ [_ [HnA0 _]]].
+      assert (HnA: is_nullable env A0 = false).
+      { destruct (is_nullable env A0) eqn:E0; [|reflexivity]. pose proof (HnA0 eq_refl) as Hi.
+        rewrite (sfrag_components_not_nullable env wf cs HSi Hcs) in Hi. discriminate Hi. }
       destruct (instance_ground A0 (proj2 (proj2 (proj2 HA0)))) as [KA [HbA HgA]].
       pose proof (proj1 (proj2 (kinst_facts env wf sigma KA Hsf A0 (proj1 (proj2 (proj2 (proj2 HA0)))) HbA)) HnA) as HnsA.
       assert (Hys: forall y, In y (map (inst_nested env b) (map to_generic cs)) -> ground env y = true).
@@ -1965,7 +1968,7 @@ Let ginv := generic_invocation_sound env wf declared declared_wf terminates fini
     supertype_in_fragment intersect_below supertype_above caller (caller_argument env declared ps) (caller_argument_nested env declared ps)
     (intersect_generic ps) (supertype_generic ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
     (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps) (caller_component env declared ps)
-    (caller_supertype_arguments env wf declared ps) caller_ref_apply'.
+    (caller_supertype_arguments env wf declared ps) caller_ref_apply' caller_rewrap'.
 
 (*
  * Calling a member function on a receiver of generic code is sound at run time: the receiver's type
@@ -2111,7 +2114,7 @@ Proof.
       cbn [fst snd] in Hf, Ea. subst q'. injection Ea as _ ->.
       rewrite (is_nullable_generic env ranked), (effective_bound_plain env ranked), <- (Hdecl q bound Hin), (is_nullable_to_generic env) in Hq.
       exact Hq. }
-    destruct (ginv nf Ps As u U b0 K0 Hb0nn Hwfu (fun P' HP' => conj (proj1 (HPs P' HP')) (Hb0 P' HP')) HPn
+    destruct (ginv nf Ps As u U b0 K0 Hb0nn Hwfu (fun P' HP' => conj (qfrag_kqfrag env P' (proj1 (HPs P' HP'))) (Hb0 P' HP')) HPn
         (HAs' b0 (fun q Hq => lookup_map_none vars _ q Hq)) Hfold) as [HwfU _].
     destruct (fold_keeps_exact_unify env nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     assert (Hfin: forall p bound, In (p, bound) ovars -> exists st, lookup_state U p = Some st /\ is_exact st = false
@@ -2289,8 +2292,8 @@ Proof.
           intersect_below supertype_above caller (caller_argument env declared ps) (caller_argument_nested env declared ps)
           (intersect_generic ps) (supertype_generic ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
           (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' b K Hnv nf
-          P' A' s1 s1' (proj1 (HPs P' HP')) (HPn P' HP') HyA (Hb P' HP') Hs1 E) as [Hs1' [Hm1 _]].
+          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' caller_rewrap' b K Hnv nf
+          P' A' s1 s1' (qfrag_kqfrag env P' (proj1 (HPs P' HP'))) (HPn P' HP') HyA (Hb P' HP') Hs1 E) as [Hs1' [Hm1 _]].
       split; [exact Hs1'|]. split; [exact Hm1|]. split; [exact (unify_keeps_exact env nf P' A' s1 s1' E)|].
       intros Hr. exact (runtime_qparameter b K Hbv Hnv nf P' A' s1 s1' (proj1 (HPs P' HP')) (HPn P' HP') HyA (Hb P' HP') Hs1 Hd1 E Hr).
     - exact Hwfu.
