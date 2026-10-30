@@ -18,7 +18,7 @@
 
 package compiler.parser.grammar
 
-import compiler.ast.AstAnnotation
+import compiler.ast.AstAnnotationSet
 import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
@@ -44,7 +44,6 @@ import compiler.lexer.Operator.CBRACE_CLOSE
 import compiler.lexer.Operator.CBRACE_OPEN
 import compiler.lexer.Operator.COLON
 import compiler.lexer.Operator.NEWLINE
-import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
@@ -126,10 +125,7 @@ val SupertypeSpecification = sequence {
     }
 
 val BaseTypeDefinition = sequence("base type definition") {
-    repeating {
-        ref(Annotation)
-        operator(NEWLINE)
-    }
+    ref(AnnotationSet)
     optional {
         ref(Visibility)
     }
@@ -151,14 +147,9 @@ val BaseTypeDefinition = sequence("base type definition") {
     operator(CBRACE_CLOSE)
 }
     .astTransformation { tokens ->
-        var next: Any? = tokens.next()!!
+        val annotations = tokens.next() as AstAnnotationSet
 
-        val annotations = mutableListOf<AstAnnotation>()
-        while (next is AstAnnotation) {
-            annotations.add(next)
-            tokens.next() as OperatorToken // newline
-            next = tokens.next()!!
-        }
+        var next: Any? = tokens.next()!!
 
         val visibility: AstVisibility?
         if (next is AstVisibility) {
