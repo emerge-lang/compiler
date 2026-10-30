@@ -75,13 +75,55 @@ Proof.
       destruct (is_nullable env (Generic (mkGenericRef gm nn p bound))); discriminate.
     - (* an intersection: each component takes it through itself *)
       apply (inter_target_never_fails env wf); [exact (gfrag_components_no_vars env _ H)|simpl; exact (gfrag_components_no_vars env _ H)|exact I|].
-      intros c Hc. destruct (intersection_gfrag env cs H) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp Hgc].
+      intros c Hc. pose proof (gfrag_component env cs c H Hc) as Hgc.
       pose proof (esize_in cs c Hc) as Hs.
       assert (Hcc: never_fails env c c) by (apply (IH (esize c)); [simpl; lia|reflexivity|exact Hgc]).
+      destruct (is_nullable env (Intersection cs)) eqn:En.
+      + (* components that keep their nullability: `cn?` takes it without null through cn, a reference through itself *)
+        destruct (Fragment.kept_intersection_gfrag env cs H En) as [_ [Hk _]]. destruct (Hk c Hc) as [Hkc _].
+        destruct c as [|cn|[gm ngm p bound]| | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
+        * assert (Hgcn: gfrag env cn = true) by (simpl in Hgc; apply andb_true_iff in Hgc; exact (proj2 Hgc)).
+          assert (Hcn: never_fails env cn cn) by (apply (IH (esize cn)); [simpl in Hs |- *; lia|reflexivity|exact Hgcn]).
+          apply never_fails_step. intros f s. rewrite (step_nullable_any env f cn (Intersection cs) s H).
+          assert (Ew: without_null env (Intersection cs) = Intersection (map (without_null env) cs))
+              by (cbn [is_nullable] in En; cbn [without_null]; rewrite En; reflexivity).
+          rewrite Ew. destruct f as [|f]; [discriminate|].
+          assert (Hin: In cn (map (without_null env) cs)).
+          { apply in_map_iff. exists (Nullable cn). split; [|exact Hc]. cbn [without_null].
+            exact (without_null_unchanged env cn (Fragment.is_component_not_nullable env cn Hkc)). }
+          destruct (component_cases env cn Hkc Hgcn) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]];
+              [rewrite step_root_inter|rewrite step_generic_inter]; apply (flipped_never_fails env f _ _ s _ Hin); apply Hcn.
+        * apply never_fails_step. intros f s. rewrite step_generic_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
+      + destruct (intersection_gfrag env cs H En) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp _].
+        apply never_fails_step. intros f s.
+        destruct (component_cases env c Hcomp Hgc) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]].
+        * rewrite step_root_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
+        * rewrite step_generic_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
+Qed.
+
+(* Each component of an intersection takes it: `cn?` without null through cn, others through themselves *)
+Lemma component_takes_intersection: forall cs c, gfrag env (Intersection cs) = true -> In c cs -> never_fails env c (Intersection cs).
+Proof.
+    intros cs c H Hc. pose proof (gfrag_component env cs c H Hc) as Hgc. pose proof (reflexive_never_fails c Hgc) as Hcc.
+    destruct (is_nullable env (Intersection cs)) eqn:En.
+    - destruct (Fragment.kept_intersection_gfrag env cs H En) as [_ [Hk _]]. destruct (Hk c Hc) as [Hkc _].
+      destruct c as [|cn|[gm ngm p bound]| | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
+      + assert (Hgcn: gfrag env cn = true) by (simpl in Hgc; apply andb_true_iff in Hgc; exact (proj2 Hgc)).
+        pose proof (reflexive_never_fails cn Hgcn) as Hcn.
+        apply never_fails_step. intros f s. rewrite (step_nullable_any env f cn (Intersection cs) s H).
+        assert (Ew: without_null env (Intersection cs) = Intersection (map (without_null env) cs))
+            by (cbn [is_nullable] in En; cbn [without_null]; rewrite En; reflexivity).
+        rewrite Ew. destruct f as [|f]; [discriminate|].
+        assert (Hin: In cn (map (without_null env) cs)).
+        { apply in_map_iff. exists (Nullable cn). split; [|exact Hc]. cbn [without_null].
+          exact (without_null_unchanged env cn (Fragment.is_component_not_nullable env cn Hkc)). }
+        destruct (component_cases env cn Hkc Hgcn) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]];
+            [rewrite step_root_inter|rewrite step_generic_inter]; apply (flipped_never_fails env f _ _ s _ Hin); apply Hcn.
+      + apply never_fails_step. intros f s. rewrite step_generic_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
+    - destruct (intersection_gfrag env cs H En) as [_ Hcs]. destruct (Hcs c Hc) as [Hcomp _].
       apply never_fails_step. intros f s.
-      destruct (component_cases env c Hcomp Hgc) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]].
-      + rewrite step_root_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
-      + rewrite step_generic_inter. apply (flipped_never_fails env f _ cs s _ Hc). apply Hcc.
+      destruct (component_cases env c Hcomp Hgc) as [[mc [dc [cargs ->]]]|[gm [ngm [p [bound [-> _]]]]]];
+          [rewrite step_root_inter|rewrite step_generic_inter]; apply (flipped_never_fails env f _ cs s _ Hc); apply Hcc.
 Qed.
 
 End Reflexivity.
@@ -155,7 +197,7 @@ Lemma reference_takes_of_fragment: forall gm (nn: bool) x a n, of_fragment x -> 
 Proof.
     intros gm nn x a n [Hx _] Ha Hgm Hnn H. apply (accepts a); [exact (in_fragment_of_fragment a Ha)| |].
     - split; [|exact I]. unfold ref_apply. cbn zeta.
-      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env wf declared declared_wf)|idtac];
           first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
     - exact (instance_never_fails env wf declared declared_wf n gm nn x a Hx (in_fragment_is_gfrag env a Ha) Hgm Hnn H).
 Qed.
@@ -166,7 +208,7 @@ Lemma reference_assigns_of_fragment: forall gm (nn: bool) x a n, of_fragment x -
 Proof.
     intros gm nn x a n [Hx _] Ha H. apply (accepts (ref_apply env gm nn x) a); [| exact (in_fragment_of_fragment a Ha) |].
     - split; [|exact I]. unfold ref_apply. cbn zeta.
-      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env wf declared declared_wf)|idtac];
           first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
     - exact (instance_assigned_never_fails env wf declared declared_wf n gm nn x a Hx (in_fragment_is_gfrag env a Ha) H).
 Qed.
@@ -178,7 +220,7 @@ Lemma reference_within_of_fragment: forall gm (nn: bool) x B n, of_fragment x ->
 Proof.
     intros gm nn x B n [Hx _] HB H. apply (accepts (ref_apply env gm nn x) (bound_apply env gm nn B)).
     - split; [|exact I]. unfold ref_apply. cbn zeta.
-      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env)|idtac];
+      destruct gm as [m|]; destruct nn; first [apply (gfrag_without_null env wf declared declared_wf)|idtac];
           first [apply (gfrag_with_mutability env wf declared declared_wf)|idtac]; exact Hx.
     - exact (in_fragment_of_fragment _ (bound_apply_in_fragment env gm nn B HB)).
     - exact (instance_within_never_fails env wf declared declared_wf n gm nn x B Hx HB H).

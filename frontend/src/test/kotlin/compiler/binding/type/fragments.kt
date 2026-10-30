@@ -24,6 +24,13 @@ private fun RootResolvedTypeReference.hasAllTypeArguments() = typeArguments.size
 /** `Fragment.is_component` */
 private fun BoundTypeReference.isComponent() = this is RootResolvedTypeReference || (this is GenericTypeReference && !isNullable)
 
+/** `Fragment.is_kept_component`: of an intersection that keeps the nullability of its components, `A?` or `P` with `P : Any?` */
+private fun BoundTypeReference.isKeptComponent() = when (this) {
+    is NullableTypeReference -> nested.isComponent()
+    is GenericTypeReference -> isNullable
+    else -> false
+}
+
 /** `Fragment.non_null` */
 private fun BoundTypeReference.isNonNull() = if (this is BoundIntersectionTypeReference) !isNullable else isComponent()
 
@@ -33,7 +40,9 @@ internal fun BoundTypeReference.isOfFragment(): Boolean = when (this) {
     is NullableTypeReference -> nested.isNonNull() && nested.isOfFragment()
     is GenericTypeReference -> !hasTypeVariables
     is BoundIntersectionTypeReference -> components.isNotEmpty()
-        && components.all { it.isComponent() && it.isOfFragment() && it.assignmentMutability == assignmentMutability }
+        && (components.all { it.isComponent() && it.isOfFragment() }
+            || (components.all { it.isKeptComponent() && it.isOfFragment() } && !components.all { it is NullableTypeReference }))
+        && components.all { it.assignmentMutability == assignmentMutability }
     else -> false
 }
 
@@ -82,12 +91,15 @@ private fun intersectionOf(components: List<BoundTypeReference>, ofComponent: (B
 
 /**
  * An intersection with a component that keeps its nullability, `A? & P` with `P : Any?`, as ofComponents makes it
- * where null is a value exactly where it is one of each component: outside of every fragment (coverage #15)
+ * where null is a value exactly where it is one of each component: of [isOfFragment], but of no other fragment (coverage #15)
  */
 internal fun BoundTypeReference.keepsNullableComponents(): Boolean = intersectionComponents()?.any { it.isNullable } == true
 
-/** `Conjectures.bare_nullable`: a reference to a type parameter of a nullable bound, neither narrowed nor `T?` */
-internal fun BoundTypeReference.isBareNullable(): Boolean = this is GenericTypeReference && isNullable
+/**
+ * `Conjectures.bare_nullable`: a reference to a type parameter of a nullable bound, neither narrowed nor `T?`; or an
+ * intersection that keeps the nullability of its components, nullable as such references among them
+ */
+internal fun BoundTypeReference.isBareNullable(): Boolean = (this is GenericTypeReference || this is BoundIntersectionTypeReference) && isNullable
 
 /** `Conjectures.keeps_nullability`: whether ofComponents may make an intersection of these that [keepsNullableComponents] */
 internal fun keepsNullability(a: BoundTypeReference, b: BoundTypeReference): Boolean =

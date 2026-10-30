@@ -1044,7 +1044,7 @@ Proof.
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env wf declared ps)
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
         (caller_narrowed env wf declared ps) (caller_component env declared ps)
-        (caller_supertype_arguments env wf declared ps)
+        (caller_supertype_arguments env wf declared ps) (fun gm nn x _ Hx => caller_ref_apply env wf declared ps gm nn x Hx)
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hc Hca He Hids Hnd Hbounds Hdb Hfy Hrec Hfo Hobj Hzs Hxx Hzb HPs
         HPn HAs
         HQbounds Hfold) as [HQfin Hmain].
@@ -1238,11 +1238,11 @@ Proof.
         { destruct S as [m c' args|[m'' c'' a''|n''|g''|me' msg'|v' o' x'|g''|cs']|g|me msg|v o x|g|cs]; cbn [bound_components] in HC;
               try (destruct HC as [<-|[]]; exact (conj HqS (proj1 HfS))).
           - apply in_map_iff in HC. destruct HC as [c0 [<- Hc0]].
-            pose proof (proj1 HfS) as HgS. cbn [gfrag] in HgS. apply andb_true_iff in HgS. destruct HgS as [_ HgI].
-            destruct (proj2 (intersection_gfrag env cs' HgI) c0 Hc0) as [Hcc Hgc].
+            pose proof (proj1 HfS) as HgS. cbn [gfrag] in HgS. apply andb_true_iff in HgS. destruct HgS as [Hnn HgI].
+            destruct (proj2 (intersection_gfrag env cs' HgI (proj1 (negb_true_iff _) Hnn)) c0 Hc0) as [Hcc Hgc].
             split; [exact (caller_nullable_component env declared ps cs' c0 HqS Hc0)|].
             cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c0; first [exact Hcc|discriminate Hcc].
-          - split; [exact (caller_component env declared ps cs C HqS HC)|exact (proj2 (proj2 (intersection_gfrag env cs (proj1 HfS)) C HC))]. }
+          - split; [exact (caller_component env declared ps cs C HqS HC)|exact (gfrag_component env cs C (proj1 HfS) HC)]. }
         rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').
       + destruct (Hvar eq_refl) as [Hcomp _]. destruct (Hcomp C HC) as [HCi HCo].
         apply (pfree_caller env wf declared ps b Hpb Hvals C HCi (proj1 (bplain_parts env p C HCo))).

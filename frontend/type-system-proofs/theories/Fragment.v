@@ -38,6 +38,15 @@ Definition non_null (t: EType): bool :=
     | _ => is_component t
     end.
 
+(* A component of an intersection that keeps its nullability (coverage #15): a component made
+   nullable, `A?`, or a reference to a type parameter of a nullable bound, as it is, `P` *)
+Definition is_kept_component (t: EType): bool :=
+    match t with
+    | Nullable n => is_component n
+    | Generic _ => is_nullable env t
+    | _ => false
+    end.
+
 Fixpoint gfrag (t: EType): bool :=
     match t with
     | RootResolved _ c arguments =>
@@ -47,9 +56,12 @@ Fixpoint gfrag (t: EType): bool :=
     (* the bound is the parameter's, of the fragment where the bounds are (Generics.bounds_wellformed);
        a reference whose bound has type variables in it is not *)
     | Generic (mkGenericRef _ _ _ vs) => match vs with [] => true | _ => false end
-    (* as ofComponents makes them: the components assigned as the intersection, as one mutability *)
+    (* as ofComponents makes them: the components assigned as the intersection, as one mutability;
+       non-null, or keeping their nullability where not all of them are `X?` *)
     | Intersection components =>
-        negb (Nat.eqb (length components) 0) && forallb (fun c => is_component c && gfrag c) components
+        negb (Nat.eqb (length components) 0)
+        && (forallb (fun c => is_component c && gfrag c) components
+            || forallb (fun c => is_kept_component c && gfrag c) components && negb (forallb is_nullable_type components))
         && forallb (fun c => Mutability_beq (assignment_mutability env c) (assignment_mutability env t)) components
     | _ => false
     end.
@@ -74,12 +86,69 @@ Proof.
     rewrite Hl, Nat.eqb_refl. apply forallb_forall, Ha.
 Qed.
 
-Lemma intersection_gfrag: forall cs, gfrag (Intersection cs) = true ->
+Lemma is_component_not_nullable: forall c, is_component c = true -> is_nullable env c = false.
+Proof. intros [| |[gm nn p b]| | | |] H; cbn [is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
+
+Lemma kept_component_nullable: forall c, is_kept_component c = true -> is_nullable env c = true.
+Proof. intros [|n|[gm nn p b]| | | |] H; cbn [is_kept_component] in H; try discriminate H; [reflexivity|exact H]. Qed.
+
+(* The components of an intersection of the fragment: non-null, or all keeping their nullability *)
+Lemma intersection_gfrag_cases: forall cs, gfrag (Intersection cs) = true ->
+    cs <> [] /\ (forall c, In c cs -> gfrag c = true)
+    /\ ((forall c, In c cs -> is_component c = true)
+        \/ ((forall c, In c cs -> is_kept_component c = true) /\ forallb is_nullable_type cs = false)).
+Proof.
+    intros cs H. simpl in H. apply andb_true_iff in H. destruct H as [H _]. apply andb_true_iff in H. destruct H as [Hl H].
+    split; [intros ->; discriminate Hl|].
+    apply orb_true_iff in H. destruct H as [H|H].
+    - rewrite forallb_forall in H. split.
+      + intros c Hc. exact (proj2 (proj1 (andb_true_iff _ _) (H c Hc))).
+      + left. intros c Hc. exact (proj1 (proj1 (andb_true_iff _ _) (H c Hc))).
+    - apply andb_true_iff in H. destruct H as [H Hn]. rewrite forallb_forall in H. split.
+      + intros c Hc. exact (proj2 (proj1 (andb_true_iff _ _) (H c Hc))).
+      + right. split; [intros c Hc; exact (proj1 (proj1 (andb_true_iff _ _) (H c Hc)))|apply negb_true_iff, Hn].
+Qed.
+
+Lemma intersection_gfrag: forall cs, gfrag (Intersection cs) = true -> is_nullable env (Intersection cs) = false ->
     cs <> [] /\ forall c, In c cs -> is_component c = true /\ gfrag c = true.
 Proof.
-    intros cs H. simpl in H. apply andb_true_iff in H. destruct H as [H _]. apply andb_true_iff in H. destruct H as [Hl H]. split.
-    - intros ->. discriminate Hl.
-    - intros c Hc. rewrite forallb_forall in H. apply andb_true_iff, H, Hc.
+    intros cs H Hn. destruct (intersection_gfrag_cases cs H) as [Hne [Hf [Hc|[Hk _]]]].
+    - split; [exact Hne|]. intros c Hin. exact (conj (Hc c Hin) (Hf c Hin)).
+    - exfalso. cbn [is_nullable] in Hn. assert (E: forallb (is_nullable env) cs = true).
+      { apply forallb_forall. intros c Hin. exact (kept_component_nullable c (Hk c Hin)). }
+      rewrite E in Hn. discriminate Hn.
+Qed.
+
+Lemma kept_intersection_gfrag: forall cs, gfrag (Intersection cs) = true -> is_nullable env (Intersection cs) = true ->
+    cs <> [] /\ (forall c, In c cs -> is_kept_component c = true /\ gfrag c = true) /\ forallb is_nullable_type cs = false.
+Proof.
+    intros cs H Hn. destruct (intersection_gfrag_cases cs H) as [Hne [Hf [Hc|[Hk Ht]]]].
+    - exfalso. destruct cs as [|c cs']; [contradiction (Hne eq_refl)|]. cbn [is_nullable] in Hn.
+      change (is_nullable env c && forallb (is_nullable env) cs' = true) in Hn.
+      rewrite (is_component_not_nullable c (Hc c (or_introl eq_refl))) in Hn. discriminate Hn.
+    - split; [exact Hne|]. split; [intros c Hin; exact (conj (Hk c Hin) (Hf c Hin))|exact Ht].
+Qed.
+
+Lemma make_intersection_gfrag: forall cs, cs <> [] -> (forall c, In c cs -> is_component c = true /\ gfrag c = true) ->
+    (forall c, In c cs -> assignment_mutability env c = assignment_mutability env (Intersection cs)) ->
+    gfrag (Intersection cs) = true.
+Proof.
+    intros cs Hne Hc Hm. simpl. apply andb_true_iff. split; [apply andb_true_iff; split|].
+    - destruct cs; [contradiction (Hne eq_refl)|reflexivity].
+    - apply orb_true_iff. left. apply forallb_forall. intros c Hin. apply andb_true_iff, Hc, Hin.
+    - apply forallb_forall. intros c Hin. rewrite (Hm c Hin). apply internal_Mutability_dec_lb. reflexivity.
+Qed.
+
+Lemma make_kept_intersection_gfrag: forall cs, cs <> [] -> (forall c, In c cs -> is_kept_component c = true /\ gfrag c = true) ->
+    forallb is_nullable_type cs = false ->
+    (forall c, In c cs -> assignment_mutability env c = assignment_mutability env (Intersection cs)) ->
+    gfrag (Intersection cs) = true.
+Proof.
+    intros cs Hne Hc Ht Hm. simpl. apply andb_true_iff. split; [apply andb_true_iff; split|].
+    - destruct cs; [contradiction (Hne eq_refl)|reflexivity].
+    - apply orb_true_iff. right. apply andb_true_iff. split; [|rewrite Ht; reflexivity].
+      apply forallb_forall. intros c Hin. apply andb_true_iff, Hc, Hin.
+    - apply forallb_forall. intros c Hin. rewrite (Hm c Hin). apply internal_Mutability_dec_lb. reflexivity.
 Qed.
 
 (* The components of an intersection are assigned as the intersection *)

@@ -52,12 +52,11 @@ Proof.
     assert (Hi: forall ys, class_components env ys = true -> gfrag env (Intersection ys) = true /\ refs_wf env declared (Intersection ys)).
     { intros ys Hys. destruct (class_components_facts env ys Hys) as [Hl Hc]. split.
       - unfold class_components in Hys. apply andb_true_iff in Hys. destruct Hys as [_ Hu].
-        change (negb (Nat.eqb (length ys) 0) && forallb (fun c => is_component env c && gfrag env c) ys
-            && forallb (fun c => Mutability_beq (assignment_mutability env c) (assignment_mutability env (Intersection ys))) ys = true).
-        rewrite Hu, andb_true_r.
-        apply andb_true_iff. split; [destruct ys; simpl in Hl |- *; [lia|reflexivity]|].
-        apply forallb_forall. intros y Hy. destruct (Hc y Hy) as [Hcl Hf]. apply andb_true_iff.
-        split; [destruct y; first [reflexivity|discriminate Hcl]|exact (in_fragment_is_gfrag env y Hf)].
+        apply (Fragment.make_intersection_gfrag env).
+        + destruct ys; simpl in Hl; [lia|discriminate].
+        + intros y Hy. destruct (Hc y Hy) as [Hcl Hf].
+          split; [destruct y; first [reflexivity|discriminate Hcl]|exact (in_fragment_is_gfrag env y Hf)].
+        + intros y Hy. apply internal_Mutability_dec_bl. exact (proj1 (forallb_forall _ _) Hu y Hy).
       - exact I. }
     intros x H. destruct (cfrag_cases env x H) as [Hx|[[ys [-> Hys]]|[ys [-> Hys]]]].
     - split; [exact (in_fragment_is_gfrag env x Hx)|exact (proj1 (in_fragment_refs_wf env declared (depth x)) x (le_n _) Hx)].

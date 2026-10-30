@@ -13,10 +13,9 @@ import io.kotest.matchers.collections.shouldBeEmpty
  * `GenericCode.closest_common_supertype_stays_in_generic_code`), checked for every pair of a set of types. A
  * conjecture about the types of a fragment claims nothing about others, so each check takes the pairs of it.
  *
- * Of two types of the fragment, `A?` and `P` with `P : Any?`, the intersection is `A? & P`, outside of it:
- * `Conjectures.intersect_stays_in_fragment` is claimed only of operands that don't keep their nullability so
- * ([keepsNullability]), and the checks of `intersect_always_stays_in_fragment` and
- * `intersect_stays_in_generic_code`, false there, leave such intersections out (coverage #15).
+ * Of two types of the fragment, `A?` and `P` with `P : Any?`, the intersection is `A? & P`, whose components keep
+ * their nullability: of the fragment, but not of the types of generic code, so the check of
+ * `intersect_stays_in_generic_code`, false there, leaves such intersections out (coverage #15).
  */
 class CommonTypesTests : FreeSpec({
     val types = TypeGrid.types
@@ -72,9 +71,9 @@ class CommonTypesTests : FreeSpec({
         }.shouldBeNone()
     }
 
-    "the intersection of types of the fragment is of it, but where they keep their nullability" {
+    "the intersection of types of the fragment is of it" {
         violationsOf(BoundTypeReference::isOfFragment) { a, b ->
-            a.intersect(b).takeUnless { it.isOfFragment() || it.keepsNullableComponents() }?.toString()
+            a.intersect(b).takeUnless { it.isOfFragment() }?.toString()
         }.shouldBeNone()
     }
 

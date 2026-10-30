@@ -115,12 +115,13 @@ Proof.
       assert (E: oc l = Intersection (map (fun c => with_mutability env (common_mutability env l) (without_null env c)) l)).
       { unfold oc. rewrite (flat_map_class l) by (intros y Hy; exact (proj1 (H y Hy))).
         apply (of_components_many env l Hl). unfold l. cbn [forallb]. rewrite (proj2 (H y1 (or_introl eq_refl))). reflexivity. }
-      split; [exact Hfr|]. split.
+      assert (Hnl: is_nullable env (oc l) = false).
       { rewrite E. cbn [is_nullable]. unfold l. cbn [map forallb].
         destruct (H y1 (or_introl eq_refl)) as [Hf1 Hn1].
         rewrite (nullable_with_mutability env _ _ (in_fragment_without_null env y1 Hf1)),
             (Substitution.without_null_not_nullable env y1 Hf1). reflexivity. }
-      split; [|rewrite E; split; [intros n E'; discriminate E'|reflexivity]].
+      split; [exact Hfr|]. split; [exact Hnl|].
+      split; [|rewrite E in Hnl |- *; split; [intros n E'; discriminate E'|cbn [nullable_assignee]; exact (without_null_unchanged env _ Hnl)]].
       intros y Hy. destruct (H y Hy) as [Hf Hn].
       set (k := common_mutability env l).
       assert (Hk: Model.is_subtype_of k (assignment_mutability env y) = true)

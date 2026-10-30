@@ -35,9 +35,10 @@ Variable declared: TypeParameterId -> EType.
 
 Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
 
-(* A reference to a type parameter of a nullable bound, as it is: neither narrowed nor `T?` *)
+(* A reference to a type parameter of a nullable bound, as it is: neither narrowed nor `T?`; or an
+   intersection that keeps the nullability of its components, nullable as such references among them *)
 Definition bare_nullable (t: EType): bool :=
-    match t with Generic _ => is_nullable env t | _ => false end.
+    match t with Generic _ | Intersection _ => is_nullable env t | _ => false end.
 
 (* Whether ofComponents may make, of a and b, an intersection whose components keep their nullability
    (`A? & P` of `A?` and `P : Any?`, coverage #15): both may be null, and one is such a reference *)
@@ -45,13 +46,13 @@ Definition keeps_nullability (a b: EType): bool :=
     is_nullable env a && is_nullable env b && (bare_nullable a || bare_nullable b).
 
 (* BoundIntersectionTypeReference.intersect builds types of the fragment: it flattens intersections,
-   nullable ones too, and makes them with ofComponents; but where the components keep their
-   nullability, which the fragment doesn't have *)
+   nullable ones too, and makes them with ofComponents. Claimed here of operands that don't keep their
+   nullability with each other, as those of non-generic code *)
 Definition intersect_stays_in_fragment: Prop :=
     forall a b, in_gfrag a -> in_gfrag b -> keeps_nullability a b = false -> in_gfrag (intersect env a b).
 
-(* That claimed of all types of the fragment. False of the frontend, where the components keep their
-   nullability (coverage #15); the theorems of generic code take it until the fragment has those *)
+(* That claimed of all types of the fragment, intersections whose components keep their nullability
+   among them (`A? & P`, coverage #15); the theorems of generic code take it *)
 Definition intersect_always_stays_in_fragment: Prop :=
     forall a b, in_gfrag a -> in_gfrag b -> in_gfrag (intersect env a b).
 

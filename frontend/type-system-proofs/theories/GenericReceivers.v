@@ -300,6 +300,15 @@ Proof.
       apply (subst_below x A Hcx HcA). apply (Hsnd o x Hx). intros st'' Hl''. rewrite Hl' in Hl''. injection Hl'' as <-. exact Hg.
 Qed.
 
+(* The intersections of generic code don't keep the nullability of their components *)
+Lemma caller_intersection_not_nullable: forall cs, caller (Intersection cs) -> is_nullable env (Intersection cs) = false.
+Proof.
+    intros cs [Hw _]. destruct (wtfrag_cases env (Intersection cs) Hw) as [Hf|[[cs' [E Hc]]|[cs' [E _]]]].
+    - simpl in Hf. discriminate Hf.
+    - injection E as <-. exact (wcomponents_not_nullable env cs Hc).
+    - discriminate E.
+Qed.
+
 (* What a nullable type unifies its nested type with, instantiated, is the instance without null *)
 Lemma instance_nullable_assignee: forall A, gfrag env A = true -> caller A ->
     without_null env (instantiate env sigma (nullable_assignee env A)) = without_null env (instantiate env sigma A).
@@ -313,12 +322,14 @@ Proof.
       destruct (instantiate_exact_generic env sigma (narrow_ref env (mkGenericRef gm nn q bq)) o x Ex Ho (in_fragment_is_gfrag env x Hx)) as [E1 _].
       destruct (instantiate_exact_generic env sigma (mkGenericRef gm nn q bq) o x Ex Ho (in_fragment_is_gfrag env x Hx)) as [E2 _].
       rewrite E1, E2. exact (narrow_ref_inst env _ x Hx).
+    - cbn [nullable_assignee]. rewrite (without_null_not_nullable_intersection env cs (caller_intersection_not_nullable cs HcA)). reflexivity.
 Qed.
 
 Lemma caller_nullable_assignee: forall A, gfrag env A = true -> caller A -> caller (nullable_assignee env A).
 Proof.
     intros A HA HcA. destruct (gfrag_cases env A HA) as [[m [c [args ->]]]|[[an [-> _]]|[[gm [nn [q [bq [-> _]]]]]|[cs ->]]]];
-        cbn [nullable_assignee]; [exact HcA|exact (caller_nullable env declared ps an HcA)|exact (caller_narrowed env wf declared ps _ HcA)|exact HcA].
+        cbn [nullable_assignee]; [exact HcA|exact (caller_nullable env declared ps an HcA)|exact (caller_narrowed env wf declared ps _ HcA)|].
+    rewrite (without_null_not_nullable_intersection env cs (caller_intersection_not_nullable cs HcA)). exact HcA.
 Qed.
 
 (* Without null, a type of the fragment is what a nullable type unifies its nested type with *)
@@ -327,7 +338,6 @@ Proof.
     intros x Hx. destruct (gfrag_cases env x Hx) as [[m [c [args ->]]]|[[an [-> [Hn _]]]|[[gm [nn [q [bq [-> _]]]]]|[cs ->]]]];
         try reflexivity.
     - change (without_null env an = an). exact (without_null_unchanged env an (non_null_not_nullable env an Hn)).
-    - exact (without_null_not_nullable_intersection env cs (gfrag_intersection_not_nullable env cs Hx)).
 Qed.
 
 Lemma rewrap_sigma: forall Y, instantiate env sigma (rewrap_nullable Y) = rewrap_nullable (instantiate env sigma Y).
@@ -372,7 +382,8 @@ Proof.
     cbn [rewrap_nullable]. unfold ground in HX |- *. apply andb_true_iff in HX. destruct HX as [Hg Hr].
     apply andb_true_iff. split; [|exact Hr].
     change (non_null env (Intersection ys) && gfrag env (Intersection ys) = true). rewrite Hg, andb_true_r.
-    change (negb (is_nullable env (Intersection ys)) = true). apply negb_true_iff. exact (gfrag_intersection_not_nullable env ys Hg).
+    change (negb (is_nullable env (Intersection ys)) = true). apply negb_true_iff.
+    exact (ground_intersection_not_nullable env ys (or_introl (proj2 (andb_true_iff _ _) (conj Hg Hr)))).
 Qed.
 
 (* What a ground type is assigned, it is assigned without null *)
@@ -852,7 +863,7 @@ Proof.
     destruct Hy as [Gy [Hv [Hma Hny]]].
     apply (ground_accepts env wf declared declared_wf terminates finite tame); [exact Gt|exact Ha|].
     destruct nn.
-    - apply (target_ordered env wf declared declared_wf f z (without_null env y) a [] Gz (gfrag_without_null env y Gy) Ga
+    - apply (target_ordered env wf declared declared_wf f z (without_null env y) a [] Gz (gfrag_without_null env wf declared declared_wf y Gy) Ga
           (vle_narrow_left env wf declared declared_wf _ _ Hv)); [| |exact H].
       + rewrite (without_null_keeps_assignment_mutability env ranked). exact Hma.
       + intros _. exact (Hnn eq_refl).
@@ -899,7 +910,7 @@ Proof.
       - destruct n as [m c args|n'|g|me msg|v o n'|g|ds]; cbn [intersected_components] in Hzy;
             try (destruct Hzy as [<-|[]]; exact (conj Hfy (conj Hcy HAy))).
         apply in_map_iff in Hzy. destruct Hzy as [d [<- Hd]].
-        destruct (intersection_gfrag env ds Hgn) as [_ Hds]. destruct (Hds d Hd) as [Hcd Hgd].
+        destruct (intersection_gfrag env ds Hgn (proj1 (negb_true_iff _) Hn)) as [_ Hds]. destruct (Hds d Hd) as [Hcd Hgd].
         assert (Hfd: of_fragment env declared (Nullable d)).
         { split; [|exact I]. change (non_null env d && gfrag env d = true). rewrite Hgd, andb_true_r.
           destruct d; first [exact Hcd|discriminate Hcd]. }
@@ -909,7 +920,7 @@ Proof.
         exists (S f). rewrite unify_nullable_nullable. exact Hf.
       - destruct Hzy as [<-|[]]. exact (conj Hfy (conj Hcy HAy)).
       - cbn [intersected_components] in Hzy.
-        destruct (intersection_gfrag env ds (proj1 Hfy)) as [_ Hds]. destruct (Hds z Hzy) as [_ Hgz].
+        pose proof (gfrag_component env ds z (proj1 Hfy) Hzy) as Hgz.
         apply Hthr; [exact (conj Hgz I)|exact (caller_component env declared ps ds z Hcy Hzy)|].
         exact (intersection_below_component env wf declared declared_wf terminates finite tame ds z Hfy Hzy). }
     remember (flat_map intersected_components ys) as zs eqn:Ezs. clear Ezs Hys.
@@ -1100,7 +1111,7 @@ Qed.
 Let gen := generic_arguments env wf declared declared_wf terminates finite tame intersect_in_fragment supertype_in_fragment
     intersect_below supertype_above caller Qa (caller_argument_nested env declared ps) (intersect_generic ps) (supertype_generic ps)
     caller_top' caller_bottom' (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
-    (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) b K Hnv.
+    (caller_narrowed env wf declared ps) (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' b K Hnv.
 
 Lemma yf_top: yf top_type.
 Proof. exact (yfrag_top env wf declared caller caller_top' b). Qed.
@@ -1150,7 +1161,7 @@ Proof.
       destruct n as [|n]; [discriminate H|].
       rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
       destruct n as [|n]; [discriminate H|].
-      pose proof (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps) b A HA)
+      pose proof (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps) caller_ref_apply' b A HA)
           as HA0.
       destruct (Hstep n _ HA0 H) as [f Hf].
       destruct (instance_ground A (proj2 (proj2 (proj2 HA)))) as [_ [_ HgA]].
@@ -1197,7 +1208,7 @@ Proof.
         rewrite (ground_rewrap env _ HgAn), (ground_rewrap env _ HZ). exists (S f). rewrite unify_nullable_nullable.
         exact (ground_unify_without_null env f _ _ [] [] HgAn HZ Hf).
       + rewrite step_generic_nullable in H. discriminate H.
-      + rewrite step_inter_nullable in H by gfrag_hyp. discriminate H.
+      + exfalso. refine (inter_takes_no_nullable_any env _ _ _ _ _ _ H). gfrag_hyp.
 Qed.
 
 (*
@@ -1231,7 +1242,7 @@ Proof.
     { intros P A s s' HP Hn HA Hb' Hs H. destruct (nfrag_cases env P HP) as [HP'|[gm [nn [q [EP Hsq]]]]];
           [destruct (Gt P A s s' HP' Hn HA Hb' Hs H) as [H1 [H2 _]]; exact (conj H1 H2)|].
       destruct (gnested_target env wf declared declared_wf terminates finite tame supertype_in_fragment supertype_above
-          caller (supertype_generic ps) (caller_nullable env declared ps) (caller_narrowed env wf declared ps)
+          caller (supertype_generic ps) (caller_nullable env declared ps) (caller_narrowed env wf declared ps) caller_ref_apply'
           b n gm nn q P A s s' Hsq EP HA Hs H) as [H1 [H2 _]]. exact (conj H1 H2). }
     assert (GHa: forall P A s s', nfrag env P = true -> args_narrowed env P = true -> yf A -> bound_in env b K [] (to_generic P) = true ->
         gwf s -> unify env n A P (Ongoing s) = Some (Ongoing s') ->
@@ -1364,8 +1375,8 @@ Proof.
       + (* a nullable type: what it wraps *)
         rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
         assert (Hb': bound_in env b K [] (to_generic (RootResolved mt ct targs)) = true) by exact Hbp.
-        pose proof (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps)
-            (caller_narrowed env wf declared ps) b A HA) as HyN.
+        pose proof (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps)
+            (caller_narrowed env wf declared ps) caller_ref_apply' b A HA) as HyN.
         destruct (IHt _ _ s s' HP' Hn HyN Hb' Hs Hd H Hr) as [f1 E1].
         pose proof (instance_ground_b _ HP' Hb') as HgP.
         rewrite (inst_root env b mt ct targs (ifrag_no_generics env _ HP') ltac:(solve_bound_vars)) in E1, HgP.
@@ -1519,7 +1530,7 @@ Proof.
           rewrite (inst_nullable env b mp cp pargs (ifrag_no_generics env _ HP') ltac:(solve_bound_vars)), unify_nullable_nullable.
           exact (ground_unify_without_null env f1 _ _ [] [] HgN HgPn E1).
         * rewrite step_generic_nullable in H. discriminate H.
-        * rewrite step_inter_nullable in H by gfrag_hyp. discriminate H.
+        * exfalso. refine (inter_takes_no_nullable_any env _ _ _ _ _ _ H). gfrag_hyp.
       + (* a type variable *)
         destruct (binds_ref_some env wf b K [] (mkGenericRef None false p bnd) Hbp) as [o [z [Ez _]]]. cbn [param_of] in Ez.
         destruct (Hr p o z Ez) as [st' [Hl' Hf']].
@@ -1747,7 +1758,7 @@ Let gpc := gparam_components env wf declared declared_wf terminates finite tame 
     intersect_below supertype_above caller Qa (caller_argument_nested env declared ps) (intersect_generic ps) (supertype_generic ps)
     caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps)
     (caller_bound env wf declared ps) (caller_narrowed env wf declared ps) (caller_component env declared ps)
-    (caller_supertype_arguments env wf declared ps) b K Hnv.
+    (caller_supertype_arguments env wf declared ps) caller_ref_apply' b K Hnv.
 
 (* A parameter of any type of qfrag, at run time; of an intersection, nullable or not, as ofComponents
    makes the instance (below_of_components) *)
@@ -1803,8 +1814,8 @@ Proof.
     - exact (proj2 (Hinter n A HA H Hr)).
     - (* nullable: the intersection takes the argument without null *)
       destruct n as [|n]; [discriminate H|]. rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
-      destruct (Hinter n _ (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps)
-          (caller_narrowed env wf declared ps) b A HA) H Hr) as [HgX [f Hf]].
+      destruct (Hinter n _ (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps)
+          (caller_narrowed env wf declared ps) caller_ref_apply' b A HA) H Hr) as [HgX [f Hf]].
       change (inst env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection (map to_generic cs)))).
       exact (runtime_nullable_variable A _ _ f (proj1 (proj1 HA)) (proj2 (proj2 (proj2 HA))) HgX HgX eq_refl Hf).
 Qed.
@@ -1923,7 +1934,7 @@ Let ginv := generic_invocation_sound env wf declared declared_wf terminates fini
     supertype_in_fragment intersect_below supertype_above caller (caller_argument env declared ps) (caller_argument_nested env declared ps)
     (intersect_generic ps) (supertype_generic ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
     (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps) (caller_component env declared ps)
-    (caller_supertype_arguments env wf declared ps).
+    (caller_supertype_arguments env wf declared ps) caller_ref_apply'.
 
 (*
  * Calling a member function on a receiver of generic code is sound at run time: the receiver's type
@@ -2247,7 +2258,7 @@ Proof.
           intersect_below supertype_above caller (caller_argument env declared ps) (caller_argument_nested env declared ps)
           (intersect_generic ps) (supertype_generic ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
           (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) b K Hnv nf
+          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' b K Hnv nf
           P' A' s1 s1' (proj1 (HPs P' HP')) (HPn P' HP') HyA (Hb P' HP') Hs1 E) as [Hs1' [Hm1 _]].
       split; [exact Hs1'|]. split; [exact Hm1|]. split; [exact (unify_keeps_exact env nf P' A' s1 s1' E)|].
       intros Hr. exact (runtime_qparameter b K Hbv Hnv nf P' A' s1 s1' (proj1 (HPs P' HP')) (HPn P' HP') HyA (Hb P' HP') Hs1 Hd1 E Hr).
@@ -2518,7 +2529,7 @@ Let ayf := argument_yfrag env declared Qa b.
 Let gm (n: nat) := mixed_arguments env wf declared declared_wf terminates finite tame caller Qa
     (caller_argument_nested env declared ps) caller_top' caller_bottom' (caller_root env declared ps) (caller_nullable env declared ps)
     (caller_bound env wf declared ps) (caller_narrowed env wf declared ps) (caller_component env declared ps)
-    (caller_supertype_arguments env wf declared ps) b Hpb Hbf gw (gwf2_capturable env declared caller) n (fun k _ => gleaf k b).
+    (caller_supertype_arguments env wf declared ps) caller_ref_apply' b Hpb Hbf gw (gwf2_capturable env declared caller) n (fun k _ => gleaf k b).
 
 (* What unify does with a mixed type and a type of the arguments, at the fuel n, at run time *)
 Definition rstep (n: nat): Prop :=
@@ -2584,7 +2595,7 @@ Proof.
       destruct n as [|n]; [discriminate H|].
       rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
       destruct n as [|n]; [discriminate H|].
-      pose proof (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps) b A HA)
+      pose proof (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps) caller_ref_apply' b A HA)
           as HA0.
       destruct (Hstep n _ HA0 H) as [f Hf].
       destruct (instance_ground A (proj2 (proj2 (proj2 HA)))) as [_ [_ HgA]].
@@ -2639,7 +2650,7 @@ Proof.
         rewrite (ground_rewrap env _ HgAn), (ground_rewrap env _ HZ). exists (S f). rewrite unify_nullable_nullable.
         exact (ground_unify_without_null env f _ _ [] [] HgAn HZ Hf).
       + rewrite step_generic_nullable in H. discriminate H.
-      + rewrite step_inter_nullable in H by gfrag_hyp. discriminate H.
+      + exfalso. refine (inter_takes_no_nullable_any env _ _ _ _ _ _ H). gfrag_hyp.
 Qed.
 
 (*
@@ -2659,7 +2670,7 @@ Proof.
     { intros P A s s' [HP|HP] HA Hs H; [destruct (Gt P A s s' HP HA Hs H) as [H1 [H2 _]]; exact (conj H1 H2)|].
       destruct (mref_cases env b P HP) as [gm' [nn [q [Hsq EP]]]].
       destruct (mnested_target env wf declared declared_wf terminates finite tame caller (caller_nullable env declared ps)
-          (caller_narrowed env wf declared ps) b Hpb gw n gm' nn q P A s s' (fun k _ => gleaf k b) Hsq
+          (caller_narrowed env wf declared ps) caller_ref_apply' b Hpb gw n gm' nn q P A s s' (fun k _ => gleaf k b) Hsq
           ltac:(destruct EP as [E|[_ E]]; [left|right]; exact E) HA Hs H) as [H1 [H2 _]].
       exact (conj H1 H2). }
     assert (GMa: forall P A s s', mfrag env declared caller b P \/ mref env b P -> yf A -> gw s -> unify env n A P (Ongoing s) = Some (Ongoing s') ->
@@ -2789,8 +2800,8 @@ Proof.
           exact (rtrans _ _ _ HgA Hgc HgP (ex_intro _ f2 E2) (ex_intro _ f1 E1)).
       + (* a nullable type: what it wraps *)
         rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
-        pose proof (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps)
-            (caller_narrowed env wf declared ps) b A HA) as HyN.
+        pose proof (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps)
+            (caller_narrowed env wf declared ps) caller_ref_apply' b A HA) as HyN.
         assert (HcP': caller (instantiate_free env b (RootResolved mt ct targs))) by exact (caller_nullable env declared ps _ HcP).
         destruct (IHt _ _ s s' HP' HcP' HmP HyN Hs Hd H Hr) as [f1 E1].
         destruct (instance_ground _ HcP') as [K' [_ HgPn]]. change (ground env (rinst b (RootResolved mt ct targs)) = true) in HgPn.
@@ -2937,7 +2948,7 @@ Proof.
           rewrite rinst_nullable, rinst_root, unify_nullable_nullable.
           exact (ground_unify_without_null env f1 _ _ [] [] HgN HgPn E1).
         * rewrite step_generic_nullable in H. discriminate H.
-        * rewrite step_inter_nullable in H by gfrag_hyp. discriminate H.
+        * exfalso. refine (inter_takes_no_nullable_any env _ _ _ _ _ _ H). gfrag_hyp.
       + (* a type variable *)
         destruct HmP as [a Ea]. destruct (Hpb p a Ea) as [_ [o [x [-> _]]]].
         rewrite (rinst_variable p bnd o x Ea). destruct (Hr p o x Ea) as [st' [Hl' Hf']].
@@ -3206,8 +3217,8 @@ Proof.
     intros y Hy. destruct (gfrag_cases env y Hy) as [[? [? [? ->]]]|[[n [-> [_ Hgn]]]|[[? [? [? [? [-> _]]]]]|[ds ->]]]];
         try discriminate.
     - destruct n as [| | | | | |ds]; try discriminate. cbn [intersected_components].
-      destruct (intersection_gfrag env ds Hgn) as [Hne _]. destruct ds; [contradiction|discriminate].
-    - cbn [intersected_components]. exact (proj1 (intersection_gfrag env ds Hy)).
+      destruct (intersection_components env ds Hgn) as [Hne _]. destruct ds; [contradiction|discriminate].
+    - cbn [intersected_components]. exact (proj1 (intersection_components env ds Hy)).
 Qed.
 
 Lemma flat_length: forall l, (forall y, In y l -> intersected_components y <> []) ->
@@ -3268,7 +3279,7 @@ Proof.
       destruct (mparam_components env wf declared declared_wf terminates finite tame caller Qa
           (caller_argument_nested env declared ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
           (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) b Hpb Hbf gw
+          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' b Hpb Hbf gw
           (gwf2_capturable env declared caller) k (fun j _ => gleaf j b) cs A0 s s' HSi Hcs
           Hcn Hst
           HA0 Hs E) as [_ [_ [HnA _]]].
@@ -3310,8 +3321,8 @@ Proof.
     - exact (Hinter n A HA H).
     - (* nullable: the intersection takes the argument without null *)
       destruct n as [|n]; [discriminate H|]. rewrite (nullable_target env n _ A s (proj1 (proj1 HA))) in H.
-      destruct (Hinter n _ (yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps)
-          (caller_narrowed env wf declared ps) b A HA) H) as [f Hf].
+      destruct (Hinter n _ (yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps)
+          (caller_narrowed env wf declared ps) caller_ref_apply' b A HA) H) as [f Hf].
       change (instantiate_free env b (Nullable (Intersection cs))) with (rewrap_nullable (instantiate_free env b (Intersection cs))).
       rewrite rewrap_sigma.
       pose proof (proj2 (proj2 (proj2 HA))) as HcA.
@@ -3472,7 +3483,7 @@ Proof.
       destruct (proj1 (mixed_arguments env wf declared declared_wf terminates finite tame caller Qa
           (caller_argument_nested env declared ps) caller_top' caller_bottom' (caller_root env declared ps)
           (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) b Hpb Hbf
+          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' b Hpb Hbf
           gw (gwf2_capturable env declared caller) n1 (fun k _ => gleaf k b))
           _ a s0 s0' HmC Hyab Hs0 E0) as [Hs0' [Hn0 _]].
       split; [exact Hs0'|]. split; [exact Hn0|]. split; [exact (unify_keeps_exact env n1 _ a s0 s0' E0)|].
@@ -3716,7 +3727,7 @@ Proof.
     apply in_map_iff in HC'. destruct HC' as [C [<- HC]].
     destruct (Hcomp' C HC) as [HCf [HCo HCt]].
     destruct (rstatic_components n p cs c (nullable_assignee env c) s s' Hcomp' Hcs Hunif Hc Hbc Hqc
-        (fun b' Hob' => yfrag_nullable_assignee env wf declared caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps)
+        (fun b' Hob' => yfrag_nullable_assignee env wf declared declared_wf caller (caller_nullable env declared ps) (caller_narrowed env wf declared ps) caller_ref_apply'
             b' c (conj Hc (conj Hbc (conj Hob' Hqc)))) (fun Hp _ => Hpn Hp) Hs H b Hpb Hbv Hnb Hob Hvb Hd Hr C HC) as [f Hf].
     assert (HvC: vars_in (fun q => param_eqb q p || bound_b b q) C = true)
         by (cbn [vars_in] in Hvb; rewrite forallb_forall in Hvb; exact (Hvb C HC)).
@@ -3996,7 +4007,7 @@ Proof.
       destruct (mqparameter env wf declared declared_wf terminates finite tame caller Qa
           (caller_argument_nested env declared ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
           (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) [] plain_nil (bf_nil env declared)
+          (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' [] plain_nil (bf_nil env declared)
           gw3 gw3_capturable nf (fun k _ => rleaf_all k [])
           P A s s' HfP HoP (HPn P HP) (nonnull_nil env) (conj HfA (conj HbA (conj (owners_free_nil env A) HqA))) Hs E)
           as [Hs' [Hn' _]].
@@ -4228,7 +4239,7 @@ Proof.
         destruct (mqparameter env wf declared declared_wf terminates finite tame caller Qa
             (caller_argument_nested env declared ps) caller_top' caller_bottom' (caller_any env wf declared ps) (caller_root env declared ps)
             (caller_nullable env declared ps) (caller_bound env wf declared ps) (caller_narrowed env wf declared ps)
-            (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) [] plain_nil (bf_nil env declared)
+            (caller_component env declared ps) (caller_supertype_arguments env wf declared ps) caller_ref_apply' [] plain_nil (bf_nil env declared)
             gw (gwf2_capturable env declared caller) nf (fun k _ => gleaf k [])
             P' A' s1 s1' HfP HoP (HPn P' HP') (nonnull_nil env) (conj HfA (conj HbA (conj (owners_free_nil env A') HqA)))
             Hs1 E) as [Hs1' [Hm1 _]].
