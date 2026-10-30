@@ -1,6 +1,5 @@
 package compiler.parser.grammar
 
-import compiler.InternalCompilerError
 import compiler.ast.AstAnnotation
 import compiler.ast.AstAnnotationSet
 import compiler.lexer.Operator
@@ -14,12 +13,14 @@ val Annotation = sequence("annotation") {
     operator(Operator.SBRACE_OPEN)
     ref(Expression)
     operator(Operator.SBRACE_CLOSE)
+    operator(Operator.NEWLINE)
 }
     .astTransformation { tokens ->
         val hashOp = tokens.next() as OperatorToken
         tokens.next() as OperatorToken // sbrace_open
         val expression = tokens.next() as AstExpression
         val cbraceClose = tokens.next() as OperatorToken
+        tokens.next() as OperatorToken // newline
 
         val span = hashOp.span .. cbraceClose.span
         AstAnnotation(expression, span)
@@ -28,18 +29,13 @@ val Annotation = sequence("annotation") {
 val AnnotationSet = sequence("annotation set") {
     repeating {
         ref(Annotation)
-        operator(Operator.NEWLINE)
     }
 }
     .astTransformation { tokens ->
-        val annotations = mutableListOf<AstAnnotation>()
-        while (tokens.hasNext()) {
-            annotations.add(tokens.next() as AstAnnotation)
-            val next = tokens.next()
-            if (next !is OperatorToken || next.operator != Operator.NEWLINE) {
-                throw InternalCompilerError("Grammar and AST transformer mismatch")
-            }
+        val annotations = tokens.takeWhileIsInstanceOf<AstAnnotation>()
+        if (annotations.isEmpty()) {
+            AstAnnotationSet.EMPTY
+        } else {
+            AstAnnotationSet(annotations)
         }
-
-        AstAnnotationSet(annotations)
     }

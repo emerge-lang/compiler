@@ -42,6 +42,7 @@ import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.circularVariableInitialization
+import compiler.diagnostic.disallowedAnnotation
 import compiler.diagnostic.explicitInferTypeNotAllowed
 import compiler.diagnostic.explicitInferTypeWithArguments
 import compiler.diagnostic.explicitOwnershipNotAllowed
@@ -64,6 +65,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
  */
 class BoundVariable(
     override val context: ExecutionScopedCTContext,
+    val annotations: BoundAnnotationSet,
     override val declaration: VariableDeclaration,
     override val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
@@ -117,6 +119,11 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            annotations.semanticAnalysisPhase1(diagnosis)
+            if (!kind.allowsAnnotations) {
+                annotations.annotations.firstOrNull()?.let(diagnosis::disallowedAnnotation)
+            }
+
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
                 diagnosis.visibilityNotAllowedOnVariable(this)
@@ -176,6 +183,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
             visibility.semanticAnalysisPhase2(diagnosis)
 
             if (initializerExpression != null) {
@@ -206,6 +214,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
+            annotations.semanticAnalysisPhase3(diagnosis)
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
         }
@@ -313,6 +322,7 @@ class BoundVariable(
         val allowsVisibility: Boolean,
         val runInitializerInSubScope: Boolean,
         val allowsShadowingGlobals: Boolean = false,
+        val allowsAnnotations: Boolean = true,
     ) {
         LOCAL_VARIABLE(
             "local variable",
@@ -321,6 +331,7 @@ class BoundVariable(
             isInitializedByDefault = false,
             allowsVisibility = false,
             runInitializerInSubScope = false,
+            allowsAnnotations = false,
         ),
         MEMBER_VARIABLE(
             "member variable",
@@ -358,6 +369,7 @@ class BoundVariable(
             isInitializedByDefault = true,
             allowsVisibility = false,
             runInitializerInSubScope = false,
+            allowsAnnotations = false,
         ),
         /**
          * By definition identical to [PARAMETER], except that [TypeVariance] of the declared type is not relevant
@@ -374,6 +386,7 @@ class BoundVariable(
                this is because constructor parameters are named like the class members they take init values for.
              */
             allowsShadowingGlobals = true,
+            allowsAnnotations = false,
         )
         ;
 

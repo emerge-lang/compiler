@@ -18,6 +18,7 @@
 
 package compiler.binding.expression
 
+import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.AstWildcardTypeArgument
@@ -765,6 +766,7 @@ internal fun buildGenericInvocationLikeIr(
                 val landingpadContext = MutableExecutionScopedCTContext.deriveFrom(context)
                 val throwableVar = VariableDeclaration(
                     invocationLocation,
+                    AstAnnotationSet.EMPTY,
                     null,
                     null,
                     null,

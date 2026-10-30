@@ -97,6 +97,7 @@ class BaseTypeDeclaration(
 
         val (memberVariableEntryDecls, nonVarEntryDecls) = entryDeclarations.partitionIsInstanceOf<_, BaseTypeMemberVariableDeclaration>()
         val (boundChosenCtor, boundMemberVars) = chosenConstructorDeclaration.bindConstructorAndMemberVariables(
+            fileContext,
             fileContextWithDeclaredTypeParams,
             boundTypeParameters ?: emptyList(),
             typeRootContext,
@@ -175,6 +176,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 }
 
 class BaseTypeMemberVariableDeclaration(
+    val annotations: AstAnnotationSet,
     val attributes: List<KeywordToken>,
     val variableDeclaration: VariableDeclaration,
 ) : BaseTypeMemberDeclaration() {
@@ -189,7 +191,10 @@ class BaseTypeMemberVariableDeclaration(
 
     val isDecorated = attributes.any { it.keyword == Keyword.DECORATES }
 
-    inner class Binder(val typeRootContext: CTContext) {
+    inner class Binder(
+        val fileContext: CTContext,
+        val typeRootContext: CTContext,
+    ) {
         val isConstructorParameterInitialized: Boolean = this@BaseTypeMemberVariableDeclaration.isConstructorParameterInitialized
         val isDecorated: Boolean = this@BaseTypeMemberVariableDeclaration.isDecorated
 
@@ -290,6 +295,7 @@ class BaseTypeMemberVariableDeclaration(
                 boundVar = BoundBaseTypeMemberVariable(
                     typeRootContext,
                     boundLocalVariableInCtor,
+                    annotations.bindTo(fileContext),
                     variableDeclaration.visibility?.bindTo(typeRootContext)
                         ?: BoundVisibility.default(typeRootContext),
                     BoundBaseTypeMemberVariableAttributes(attributes),
@@ -304,6 +310,7 @@ class BaseTypeMemberVariableDeclaration(
 }
 
 class BaseTypeConstructorDeclaration(
+    val annotations: AstAnnotationSet,
     val attributes: List<AstFunctionAttribute>,
     val constructorKeyword: KeywordToken,
     val code: AstCodeChunk,
@@ -311,6 +318,7 @@ class BaseTypeConstructorDeclaration(
     override val span = constructorKeyword.span
 
     fun bindConstructorAndMemberVariables(
+        fileContext: CTContext,
         fileContextWithDeclaredTypeParams: CTContext,
         boundTypeParameters: List<BoundTypeParameter>,
         typeRootContext: CTContext,
@@ -319,7 +327,7 @@ class BaseTypeConstructorDeclaration(
         typeDefAccessor: () -> BoundBaseType,
     ): Pair<BoundClassConstructor, List<BoundBaseTypeMemberVariable>> {
         val ctorGeneratedSpan = span.deriveGenerated()
-        val memberVariableBinders = memberVarDecls.map { it.Binder(typeRootContext) }
+        val memberVariableBinders = memberVarDecls.map { it.Binder(fileContext, typeRootContext) }
 
         val typeParameterForDecoratorMutability: BoundTypeParameter?
         val additionalTypeParamsForDecoratedMembers = mutableListOf<BoundTypeParameter>()
@@ -354,6 +362,7 @@ class BaseTypeConstructorDeclaration(
         val constructorFunctionRootContext = BoundClassConstructor.ConstructorRootContext(typeRootContextWithAllCtorTypeParameters, typeDefAccessor)
         val selfVariableForInitCode = VariableDeclaration(
             declaredAt = ctorGeneratedSpan,
+            annotations = AstAnnotationSet.EMPTY,
             visibility = null,
             varToken = null,
             ownership = null,
@@ -422,6 +431,7 @@ class BaseTypeConstructorDeclaration(
             boundTypeParameters ?: emptyList(),
             typeParameterForDecoratorMutability,
             additionalTypeParamsForDecoratedMembers,
+            annotations.bindTo(fileContext),
             BoundParameterList(
                 constructorFunctionRootContext,
                 ParameterList(constructorParameters.map { it.declaration }),
@@ -444,6 +454,7 @@ class BaseTypeConstructorDeclaration(
         fun generateDefault(forBaseType: BaseTypeDeclaration): BaseTypeConstructorDeclaration {
             val span = forBaseType.declaredAt.deriveGenerated()
             return BaseTypeConstructorDeclaration(
+                AstAnnotationSet.EMPTY,
                 listOfNotNull(forBaseType.visibility),
                 KeywordToken(Keyword.CONSTRUCTOR, span = span),
                 AstCodeChunk(emptyList(), span),
@@ -453,6 +464,7 @@ class BaseTypeConstructorDeclaration(
 }
 
 class BaseTypeDestructorDeclaration(
+    val annotations: AstAnnotationSet,
     val destructorKeyword: KeywordToken,
     val attributes: List<AstFunctionAttribute>,
     val code: AstCodeChunk,
@@ -460,18 +472,19 @@ class BaseTypeDestructorDeclaration(
     override val span = destructorKeyword.span
 
     fun bindTo(
-        parentContext: CTContext,
-        parentContextWithTypeParameters: CTContext,
+        fileContext: CTContext,
+        fileContextWithTypeParameters: CTContext,
         typeParameters: List<BoundTypeParameter>?,
         getClassDef: () -> BoundBaseType
     ): BoundClassDestructor {
         lateinit var dtor: BoundClassDestructor
         dtor = BoundClassDestructor(
-            parentContext,
-            parentContextWithTypeParameters,
+            fileContext,
+            fileContextWithTypeParameters,
+            annotations.bindTo(fileContext),
             typeParameters ?: emptyList(),
             getClassDef,
-            BoundFunctionAttributeList(parentContextWithTypeParameters, { dtor }, attributes),
+            BoundFunctionAttributeList(fileContextWithTypeParameters, { dtor }, attributes),
             this
         )
         return dtor

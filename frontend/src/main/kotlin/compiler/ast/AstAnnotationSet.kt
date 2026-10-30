@@ -16,4 +16,8 @@ class AstAnnotationSet(
 
         return BoundAnnotationSet(list)
     }
+
+    companion object {
+        val EMPTY = AstAnnotationSet(emptyList())
+    }
 }

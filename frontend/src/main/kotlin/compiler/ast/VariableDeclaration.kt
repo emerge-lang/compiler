@@ -28,6 +28,7 @@ import compiler.lexer.Span
 
 data class VariableDeclaration(
     override val declaredAt: Span,
+    val annotations: AstAnnotationSet,
     val visibility: AstVisibility?,
     val varToken: KeywordToken?,
     val ownership: Pair<VariableOwnership, KeywordToken>?,
@@ -78,6 +79,7 @@ data class VariableDeclaration(
     ): BoundVariable {
         return BoundVariable(
             context,
+            annotations.bindTo(context),
             this,
             visibility?.bindTo(context) ?: BoundVisibility.default(context),
             initializerExpression?.takeIf { bindInitializer }?.bindTo(initializerContext),

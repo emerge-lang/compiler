@@ -18,6 +18,7 @@
 
 package compiler.binding.basetype
 
+import compiler.ast.AstAnnotationSet
 import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
@@ -192,6 +193,7 @@ class BoundBaseType(
             if (kind.hasCtorsAndDtors) {
                 if (declaredDestructors.none()) {
                     val defaultDtorAst = BaseTypeDestructorDeclaration(
+                        AstAnnotationSet.EMPTY,
                         KeywordToken(Keyword.DESTRUCTOR, span = declaration.declaredAt),
                         emptyList(),
                         AstCodeChunk(emptyList())

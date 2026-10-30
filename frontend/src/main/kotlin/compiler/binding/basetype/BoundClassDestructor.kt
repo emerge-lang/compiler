@@ -1,6 +1,7 @@
 package compiler.binding.basetype
 
 import compiler.InternalCompilerError
+import compiler.ast.AstAnnotationSet
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
@@ -11,6 +12,7 @@ import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
@@ -50,6 +52,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 class BoundClassDestructor(
     override val parentContext: CTContext,
     private val fileContextWithTypeParameters: CTContext,
+    override val annotations: BoundAnnotationSet,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseType,
     override val attributes: BoundFunctionAttributeList,
@@ -97,6 +100,7 @@ class BoundClassDestructor(
         val astParameterList = ParameterList(listOf(
             VariableDeclaration(
                 generatedSourceLocation,
+                AstAnnotationSet.EMPTY,
                 null,
                 null,
                 Pair(
@@ -125,6 +129,7 @@ class BoundClassDestructor(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            annotations.semanticAnalysisPhase1(diagnosis)
             userDefinedCode.semanticAnalysisPhase1(diagnosis)
             parameters.semanticAnalysisPhase1(diagnosis)
         }
@@ -132,14 +137,15 @@ class BoundClassDestructor(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
             userDefinedCode.semanticAnalysisPhase2(diagnosis)
-
             userDefinedCode.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
         }
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
+            annotations.semanticAnalysisPhase3(diagnosis)
             userDefinedCode.semanticAnalysisPhase3(diagnosis)
         }
     }

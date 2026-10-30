@@ -19,6 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstAnnotationSet
 import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
@@ -99,6 +100,7 @@ val Parameter = sequence("parameter declaration") {
 
         VariableDeclaration(
             name.span,
+            AstAnnotationSet.EMPTY,
             null,
             varKeywordToken,
             ownership,
@@ -213,6 +215,7 @@ val FunctionAttributes = sequence("function attributes") {
     }
 
 val StandaloneFunctionDeclaration = sequence("function declaration") {
+    ref(AnnotationSet)
     ref(FunctionAttributes)
     keyword(Keyword.FUNCTION)
     ref(Identifier)
@@ -239,6 +242,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     }
 }
     .astTransformation { tokens ->
+        val annotations = tokens.next() as AstAnnotationSet
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val declarationKeyword = tokens.next() as KeywordToken
         val name = tokens.next() as IdentifierToken
@@ -268,6 +272,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             val singleExpression = tokens.next()!! as AstExpression
 
             return@astTransformation FunctionDeclaration(
+                annotations,
                 declarationKeyword,
                 attributes,
                 name,
@@ -281,6 +286,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         if (next == OperatorToken(Operator.NEWLINE) || next == null) {
             // function without body with trailing newline or immediately followed by EOF
             return@astTransformation FunctionDeclaration(
+                annotations,
                 declarationKeyword,
                 attributes,
                 name,
@@ -294,6 +300,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         val code = next as AstCodeChunk
 
         return@astTransformation FunctionDeclaration(
+            annotations,
             declarationKeyword,
             attributes,
             name,

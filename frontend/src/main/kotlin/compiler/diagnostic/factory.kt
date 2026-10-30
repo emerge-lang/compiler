@@ -20,6 +20,7 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
+import compiler.binding.BoundAnnotation
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
@@ -737,4 +738,8 @@ fun Diagnosis.purityViolation(
     boundary: PurityViolationDiagnostic.SideEffectBoundary
 ) {
     add(PurityViolationDiagnostic(impurity, boundary))
+}
+
+fun Diagnosis.disallowedAnnotation(annotation: BoundAnnotation) {
+    add(DisallowedAnnotationDiagnostic(annotation.astNode))
 }

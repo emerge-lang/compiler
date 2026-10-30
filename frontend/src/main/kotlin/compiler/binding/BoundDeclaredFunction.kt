@@ -42,6 +42,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
  */
 abstract class BoundDeclaredFunction(
     final override val parentContext: CTContext,
+    final override val annotations: BoundAnnotationSet,
     final override val functionRootContext: MutableExecutionScopedCTContext,
     val declaration: FunctionDeclaration,
     final override val attributes: BoundFunctionAttributeList,
@@ -66,6 +67,7 @@ abstract class BoundDeclaredFunction(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            annotations.semanticAnalysisPhase1(diagnosis)
             attributes.semanticAnalysisPhase1(diagnosis)
 
             declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
@@ -88,6 +90,8 @@ abstract class BoundDeclaredFunction(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
+
             handleCyclicInvocation(
                 context = this,
                 action = { this.body?.semanticAnalysisPhase2(diagnosis) },
@@ -139,6 +143,8 @@ abstract class BoundDeclaredFunction(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
+            annotations.semanticAnalysisPhase3(diagnosis)
+
             declaredTypeParameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
 
             if (body != null) {
