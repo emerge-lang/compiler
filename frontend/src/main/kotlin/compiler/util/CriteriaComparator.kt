@@ -9,21 +9,20 @@ package compiler.util
 class CriteriaComparator<T : Any>(
     criterionPredicatesInOrder: List<(T) -> Boolean>,
 ) : Comparator<T> {
-    val criteria = criterionPredicatesInOrder.asSequence()
+    val criteria = criterionPredicatesInOrder
 
     override fun compare(o1: T, o2: T): Int {
         return o1.priority.compareTo(o2.priority)
     }
 
-    private val T.priority: UInt get() {
+    private val T.priority: Int get() {
         return criteria
-            .mapIndexedNotNull { index, criterion -> index.takeIf { criterion(this) } }
-            .firstOrNull()
-            ?.toUInt()
+            .indexOfFirst { criterion -> criterion(this) }
+            .takeUnless { it == -1 }
             ?: PRIO_MAX
     }
 
     private companion object {
-        val PRIO_MAX = Int.MAX_VALUE.toUInt()
+        const val PRIO_MAX = Int.MAX_VALUE
     }
 }
