@@ -83,7 +83,8 @@ Hypothesis Qb_nullable: forall n, Qb (Nullable n) -> Qb n.
 Hypothesis Qb_bound: forall g, Qb (Generic g) -> Qb (effective_bound env g).
 Hypothesis Qb_narrowed: forall g, Qb (Generic g) -> Qb (without_null env (Generic g)).
 Hypothesis Qb_component: forall cs c, Qb (Intersection cs) -> In c cs -> Qb c.
-Hypothesis Qb_nullable_component: forall cs c, Qb (Nullable (Intersection cs)) -> In c cs -> Qb (Nullable c).
+Hypothesis Qb_nullable_component: forall cs c, Qb (Nullable (Intersection cs)) -> is_nullable env (Intersection cs) = false ->
+    In c cs -> Qb (Nullable c).
 Hypothesis Qb_supertype_arguments: forall sub super xs,
     sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
     length xs = length (parameter_ids env sub) -> (forall x, In x xs -> Qa x) ->
@@ -2988,7 +2989,7 @@ Proof.
       assert (Hnn: is_nullable env (Intersection cs) = false)
           by (pose proof (proj1 HS) as HgS; cbn [gfrag] in HgS; apply andb_true_iff in HgS; apply negb_true_iff; exact (proj1 HgS)).
       destruct (proj2 (intersection_gfrag env cs (proj1 HI) Hnn) c Hc) as [Hcc Hgc].
-      split; [split; [|exact I]|split; [exact (Qb_nullable_component cs c HqS Hc)|]].
+      split; [split; [|exact I]|split; [exact (Qb_nullable_component cs c HqS Hnn Hc)|]].
       + cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c; first [exact Hcc|discriminate Hcc].
       + destruct (intersection_below_component cs c HI Hc) as [k Ek]. exists (S k). rewrite unify_nullable_nullable. exact Ek.
     - split; [|split; [exact (Qb_component cs C HqS HC)|exact (intersection_below_component cs C HS HC)]].

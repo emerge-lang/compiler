@@ -434,18 +434,27 @@ Proof.
     destruct n; [discriminate Hu|]. rewrite step_generic_nullable in Hu. discriminate Hu.
 Qed.
 
+(* An intersection with a reference among its components, as it is, takes no `X?` *)
+Lemma ref_component_takes_no_nullable: forall n cs a s r g, forallb no_vars cs = true -> In (Generic g) cs ->
+    unify env n (Intersection cs) (Nullable a) (Ongoing s) = Some (Ongoing r) -> False.
+Proof.
+    intros [|n] cs a s r g Hnv Hin E; [discriminate E|].
+    destruct (is_nullable env (Intersection cs)) eqn:En; [|rewrite (step_inter_nullable n cs a s En) in E; discriminate E].
+    rewrite (step_kept_nullable n cs a s En) in E. unfold intersection_body in E.
+    destruct (no_vars_filter cs Hnv) as [Hvar Hnonvar]. cbn zeta in E. rewrite Hvar, Hnonvar in E.
+    destruct (fold_unify (fun inner c => unify env n c (Nullable a) inner) cs (Ongoing s)) as [[s2|]|] eqn:Ef; try discriminate E.
+    destruct (fold_each_success _ cs s s2 (fun c => unify_keeps_failure env n c (Nullable a)) Ef _ Hin) as [s0 [s1 Eg]].
+    destruct n as [|n]; [discriminate Eg|]. rewrite step_generic_nullable in Eg. discriminate Eg.
+Qed.
+
 (* ... whatever the assignee wraps, type variables among it or not *)
 Lemma inter_takes_no_nullable_any: forall n cs a s r, gfrag (Intersection cs) = true ->
     unify env n (Intersection cs) (Nullable a) (Ongoing s) = Some (Ongoing r) -> False.
 Proof.
     intros [|n] cs a s r H E; [discriminate E|].
     destruct (is_nullable env (Intersection cs)) eqn:En; [|rewrite (step_inter_nullable n cs a s En) in E; discriminate E].
-    rewrite (step_kept_nullable n cs a s En) in E. unfold intersection_body in E.
-    destruct (no_vars_filter cs (gfrag_components_no_vars cs H)) as [Hvar Hnonvar]. cbn zeta in E. rewrite Hvar, Hnonvar in E.
-    destruct (fold_unify (fun inner c => unify env n c (Nullable a) inner) cs (Ongoing s)) as [[s2|]|] eqn:Ef; try discriminate E.
     destruct (kept_has_reference cs H En) as [g Hin].
-    destruct (fold_each_success _ cs s s2 (fun c => unify_keeps_failure env n c (Nullable a)) Ef _ Hin) as [s0 [s1 Eg]].
-    destruct n as [|n]; [discriminate Eg|]. rewrite step_generic_nullable in Eg. discriminate Eg.
+    exact (ref_component_takes_no_nullable (S n) cs a s r g (gfrag_components_no_vars cs H) Hin E).
 Qed.
 
 

@@ -227,7 +227,7 @@ Proof.
     intros m d args Hl H. split; [|split; [exact I|]].
     - change (wfrag env (RootResolved m d args) = true). cbn [wfrag]. rewrite Hl, Nat.eqb_refl. cbn [andb].
       apply forallb_forall. intros a Ha. destruct (H a Ha) as [w [o [X [-> [[Hw _] _]]]]].
-      destruct X as [| [] | | | | |]; unfold wtfrag in Hw; exact Hw.
+      exact Hw.
     - cbn [mentions_only]. clear Hl. induction args as [|a args IH]; [exact I|]. split.
       + destruct (H a (or_introl eq_refl)) as [w [o [X [-> [[_ [_ HmX]] Ho]]]]]. cbn [mentions_only].
         split; [intros q ->; discriminate Ho|exact HmX].
@@ -559,7 +559,7 @@ Proof.
             as [f1 E1].
         destruct (sig_caller Z HcZ) as [GZ _]. destruct (sig_caller _ HcA0) as [GA0 _].
         pose proof (ground_assignee_without_null env f1 _ _ GZ GA0 E1) as E2.
-        rewrite (instance_nullable_assignee env declared ps sigma Hsf Hwithin V0 (proj1 HfV) HcV) in E2.
+        rewrite (instance_nullable_assignee env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared V0 (proj1 HfV) HcV) in E2.
         destruct (fragment_cases env _ HinV) as [[mv [cv [vargs Ev0]]]|[mv [cv [vargs [Ev0 _]]]]]; rewrite Ev0 in E2 |- *;
             cbn [without_null] in E2.
         * assert (HinR: in_fragment env (RootResolved mv cv vargs) = true) by (rewrite <- Ev0; exact HinV).

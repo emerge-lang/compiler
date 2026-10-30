@@ -31,7 +31,7 @@ Import ListNotations.
 (* accepted, by the substitution lemma of SubstitutionWide.v, with the references within their    *)
 (* bounds by WithinBounds.v.                                                                      *)
 (*                                                                                                *)
-(* That takes the types of generic code (caller_type): of the wide fragment of                    *)
+(* That takes the types of generic code (caller_type): of the fragment ktfrag of                   *)
 (* SubstitutionWide.v, the references in them as GenericTypeReference makes them, to the type     *)
 (* parameters of the caller. For the final values of inference to be of them, intersect and       *)
 (* closestCommonSupertypeWith are taken to build them (intersect_stays_in_generic_code,           *)
@@ -53,7 +53,7 @@ Variable ps: list TypeParameterId.
 
 (* The types of generic code: of the wide fragment, the references in them as GenericTypeReference
    makes them, to the type parameters of the caller *)
-Definition caller_type (t: EType): Prop := wtfrag env t = true /\ built env declared t /\ mentions_only env ps t.
+Definition caller_type (t: EType): Prop := ktfrag env t = true /\ built env declared t /\ mentions_only env ps t.
 
 Lemma wtfrag_root_arguments: forall m c args a, wtfrag env (RootResolved m c args) = true -> In a args ->
     argument_wfrag env a = true.
@@ -100,23 +100,30 @@ Proof.
 Qed.
 
 Lemma caller_nullable: forall n, caller_type (Nullable n) -> caller_type n.
-Proof. intros n [Hw [Hb Hm]]. split; [exact (wtfrag_nullable_inner env n Hw)|split; assumption]. Qed.
+Proof. intros n [Hw [Hb Hm]]. split; [exact (ktfrag_nullable_inner env n Hw)|split; assumption]. Qed.
 
 Lemma caller_bound: forall g, caller_type (Generic g) -> caller_type (effective_bound env g).
 Proof.
     intros g [Hw [Hb Hm]]. destruct (generic_of_wtfrag env wf _ Hw) as [Ht _].
-    split; [exact (tfrag_wtfrag env wf _ Ht)|]. split; [exact I|exact (mentions_only_generic env wf ps g Hm)].
+    split; [exact (wtfrag_ktfrag env _ (tfrag_wtfrag env wf _ Ht))|]. split; [exact I|exact (mentions_only_generic env wf ps g Hm)].
 Qed.
 
 Lemma caller_component: forall cs c, caller_type (Intersection cs) -> In c cs -> caller_type c.
 Proof.
-    intros cs c [Hw [Hb Hm]] Hc. destruct (wcomponents_facts env cs Hw) as [_ Hcs].
-    split; [exact (wfrag_wtfrag env c (proj2 (Hcs c Hc)))|]. split; [exact I|exact (fold_and_in _ cs Hm c Hc)].
+    intros cs c [Hw [Hb Hm]] Hc. split; [|split; [exact I|exact (fold_and_in _ cs Hm c Hc)]].
+    destruct (ktfrag_cases env _ Hw) as [Hw'|[[cs' [E Hk]]|[? [E _]]]]; [|injection E as <-|discriminate E].
+    - destruct (wcomponents_facts env cs Hw') as [_ Hcs]. exact (wtfrag_ktfrag env c (wfrag_wtfrag env c (proj2 (Hcs c Hc)))).
+    - destruct (kcomponents_facts env cs Hk) as [_ [Hcs _]]. exact (wtfrag_ktfrag env c (wfrag_wtfrag env c (proj2 (Hcs c Hc)))).
 Qed.
 
-Lemma caller_nullable_component: forall cs c, caller_type (Nullable (Intersection cs)) -> In c cs -> caller_type (Nullable c).
+Lemma caller_nullable_component: forall cs c, caller_type (Nullable (Intersection cs)) -> is_nullable env (Intersection cs) = false ->
+    In c cs -> caller_type (Nullable c).
 Proof.
-    intros cs c [Hw [Hb Hm]] Hc. destruct (wcomponents_facts env cs Hw) as [_ Hcs]. destruct (Hcs c Hc) as [Hsh Hwc].
+    intros cs c [Hw [Hb Hm]] Hnn Hc.
+    assert (Hw': wcomponents env cs = true).
+    { destruct (ktfrag_cases env _ Hw) as [H|[[? [E _]]|[? [E Hk]]]]; [exact H|discriminate E|].
+      injection E as <-. rewrite (kcomponents_nullable env cs Hk) in Hnn. discriminate Hnn. }
+    destruct (wcomponents_facts env cs Hw') as [_ Hcs]. destruct (Hcs c Hc) as [Hsh Hwc].
     split; [|split; [exact I|exact (fold_and_in _ cs Hm c Hc)]].
     assert (Hcl: is_class c || is_generic c = true) by (unfold is_component_shape in Hsh; apply andb_true_iff in Hsh; exact (proj1 Hsh)).
     destruct c as [m cl args|n|g|me msg|v o n|g|cs']; try discriminate Hcl; cbn [wtfrag].
@@ -136,7 +143,7 @@ Proof.
     intros g [Hw [Hb Hm]]. split; [|split; [exact (built_without_null _ Hb)|exact (mentions_without_null _ Hm)]].
     pose proof (generic_of_wtfrag env wf g Hw) as Hg. pose proof (generic_sfrag_sfrag env wf g Hg) as Hs.
     destruct (tfrag_without_null env wf _ (Generic g) (le_n _) (sfrag_tfrag env _ Hs)) as [Ht' _].
-    exact (tfrag_wtfrag env wf _ Ht').
+    exact (wtfrag_ktfrag env _ (tfrag_wtfrag env wf _ Ht')).
 Qed.
 
 (* Made nullable, or without null, a type of generic code is one *)
@@ -149,9 +156,12 @@ Qed.
 Lemma caller_without_null: forall t, caller_type t -> caller_type (without_null env t).
 Proof.
     assert (Hshape: forall n, caller_type n -> match n with Nullable _ => False | _ => True end -> caller_type (without_null env n)).
-    { intros [m c args|n|g|me msg|v o n|g|cs] Hc Hs; try contradiction; try exact Hc;
-          try (rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs (proj1 Hc))); exact Hc);
-          try exact (caller_narrowed g Hc); destruct Hc as [Hw _]; discriminate Hw. }
+    { intros [m c args|n|g|me msg|v o n|g|cs] Hc Hs; try contradiction; try exact Hc; try exact (caller_narrowed g Hc);
+          try (destruct Hc as [Hw _]; discriminate Hw).
+      destruct Hc as [Hw [Hb Hm]]. split; [|split; [exact I|exact (mentions_without_null _ Hm)]].
+      destruct (ktfrag_cases env _ Hw) as [Hw'|[[? [E Hk]]|[? [E _]]]]; [|injection E as <-|discriminate E].
+      - rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs Hw')). exact Hw.
+      - destruct (kept_without_null_shape env wf cs Hk) as [-> Hw'']. exact (wtfrag_ktfrag env (Intersection _) Hw''). }
     intros [m c args|n|g|me msg|v o n|g|cs] Hc; try (apply Hshape; [exact Hc|exact I]).
     change (caller_type (without_null env n)). apply Hshape; [exact (caller_nullable n Hc)|].
     destruct Hc as [Hw _]. destruct n; try exact I. discriminate Hw.
@@ -164,14 +174,17 @@ Proof.
     { intros gm nn p vs Hw. destruct (generic_of_wtfrag env wf _ Hw) as [_ [_ [Hv _]]].
       cbn [no_type_variables variables_of] in Hv. destruct vs; [|discriminate Hv].
       exact (proj2 (proj2 (narrowed_ref env wf declared declared_wf gm nn p))). }
+    assert (Hi: forall cs, ktfrag env (Intersection cs) = true -> is_nullable env (without_null env (Intersection cs)) = false).
+    { intros cs Hw. destruct (ktfrag_cases env _ Hw) as [Hw'|[[? [E Hk]]|[? [E _]]]]; [|injection E as <-|discriminate E].
+      - rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs Hw')).
+        exact (wcomponents_not_nullable env cs Hw').
+      - destruct (kept_without_null_shape env wf cs Hk) as [-> Hw'']. exact (wcomponents_not_nullable env _ Hw''). }
     intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] [Hw _]; try discriminate Hw; try reflexivity.
     - cbn [without_null]. destruct n as [m c args|n'|[gm nn p vs]|me msg|v o n'|g|cs]; try discriminate Hw; try reflexivity.
       + exact (Hg gm nn p vs Hw).
-      + rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs Hw)).
-        exact (wcomponents_not_nullable env cs Hw).
+      + exact (Hi cs Hw).
     - exact (Hg gm nn p vs Hw).
-    - rewrite (without_null_not_nullable_intersection env cs (wcomponents_not_nullable env cs Hw)).
-      exact (wcomponents_not_nullable env cs Hw).
+    - exact (Hi cs Hw).
 Qed.
 
 
@@ -398,11 +411,72 @@ Proof.
     - destruct (Hint cs k Ht Hk) as [cs' [E H]]. rewrite E. exact H.
 Qed.
 
+(* ... an intersection whose components keep their nullability: its components of the mutability they
+   are assigned as in common keep it *)
+Lemma kept_given: forall cs k, kcomponents env cs = true -> Model.is_subtype_of k (mutability_of env (Intersection cs)) = true ->
+    exists cs', with_mutability env k (Intersection cs) = Intersection cs' /\ kcomponents env cs' = true.
+Proof.
+    intros cs k Hcs Hk. destruct (kcomponents_facts env cs Hcs) as [Hlen [Hc _]].
+    assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
+    assert (Hassign: forall c j, In c cs -> assignment_mutability env (with_mutability env j c) = if top_const env c then exclusive else j).
+    { intros c j Hin. destruct (Hc c Hin) as [Hkc Hwc].
+      destruct c as [m d args|n|g|me msg|v o n|g|cs']; cbn [is_kept_shape] in Hkc; try discriminate Hkc.
+      - assert (Hwn: wfrag env n = true) by (cbn [wfrag] in Hwc; apply andb_true_iff in Hwc; exact (proj2 Hwc)).
+        unfold is_component_shape in Hkc.
+        destruct (wfrag_cases env wf n Hwn) as [[m [d [args [-> _]]]]|[[m_bot ->]|[[m [d [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
+            try discriminate Hkc.
+        + cbn [with_mutability rewrap_nullable assignment_mutability top_const]. destruct (is_const _); reflexivity.
+        + cbn [with_mutability rewrap_nullable assignment_mutability top_const]. destruct (is_const _); reflexivity.
+        + pose proof (assignment_given (S (tdepth env (Generic g))) (Generic g) j (le_n _)
+              (sfrag_tfrag env _ (generic_sfrag_sfrag env wf g Hg))) as E.
+          destruct g as [gm nn p vs]. cbn [with_mutability rewrap_nullable] in E |- *. exact E.
+      - exact (assignment_given (S (tdepth env (Generic g))) (Generic g) j (le_n _) (sfrag_tfrag env _ Hwc)). }
+    (* each component keeps its shape *)
+    assert (Hshape: forall c j, In c cs -> Model.is_subtype_of j (mutability_of env c) = true ->
+        is_kept_shape env (with_mutability env j c) = true /\ wfrag env (with_mutability env j c) = true
+        /\ is_nullable_type (with_mutability env j c) = is_nullable_type c).
+    { intros c j Hin Hj. destruct (Hc c Hin) as [Hkc Hwc]. pose proof (wtfrag_given c j (wfrag_wtfrag env c Hwc) Hj) as Hw'.
+      destruct c as [m d args|n|g|me msg|v o n|g|cs']; cbn [is_kept_shape] in Hkc; try discriminate Hkc.
+      - unfold is_component_shape in Hkc. apply andb_true_iff in Hkc. destruct Hkc as [Hcl Hnn].
+        destruct n as [m d args|n'|[gm nn p vs]|me msg|v o n'|g|cs']; try discriminate Hcl.
+        + cbn [with_mutability rewrap_nullable] in Hw' |- *. split; [|split; [exact Hw'|reflexivity]]. reflexivity.
+        + cbn [with_mutability rewrap_nullable] in Hw' |- *. split; [|split; [exact Hw'|reflexivity]].
+          cbn [is_kept_shape]. unfold is_component_shape. rewrite <- (is_nullable_with_mutability env wf j (Generic (mkGenericRef gm nn p vs))) in Hnn.
+          cbn [with_mutability] in Hnn. rewrite Hnn. reflexivity.
+      - destruct g as [gm nn p vs]. cbn [with_mutability] in Hw' |- *. split; [|split; [exact Hw'|reflexivity]].
+        rewrite <- (is_nullable_with_mutability env wf j (Generic (mkGenericRef gm nn p vs))) in Hkc. exact Hkc. }
+    set (C := if existsb (top_const env) cs then exclusive else k).
+    exists (map (with_mutability env C) cs). split.
+    - cbn [with_mutability]. unfold C. rewrite (common_given k cs Hne); [reflexivity|].
+      intros c Hin. exact (Hassign c k Hin).
+    - unfold kcomponents in Hcs |- *. apply andb_true_iff in Hcs. destruct Hcs as [_ Hnt].
+      rewrite length_map. apply andb_true_iff. split; [apply andb_true_iff; split; [apply Nat.leb_le; lia|]|].
+      + apply forallb_forall. intros c' Hc'. apply in_map_iff in Hc'. destruct Hc' as [c [<- Hin]].
+        destruct (Hshape c C Hin (common_below k cs Hk c Hin)) as [H1 [H2 _]]. rewrite H1, H2. reflexivity.
+      + assert (E: forall l, (forall c, In c l -> In c cs) ->
+            forallb is_nullable_type (map (with_mutability env C) l) = forallb is_nullable_type l).
+        { induction l as [|c l IH]; intros Hl; [reflexivity|]. cbn [map forallb].
+          rewrite (proj2 (proj2 (Hshape c C (Hl c (or_introl eq_refl)) (common_below k cs Hk c (Hl c (or_introl eq_refl)))))).
+          rewrite (IH (fun c' Hc' => Hl c' (or_intror Hc'))). reflexivity. }
+        rewrite (E cs (fun c H => H)). exact Hnt.
+Qed.
+
+(* ... a type of generic code *)
+Lemma ktfrag_given: forall t k, ktfrag env t = true -> Model.is_subtype_of k (mutability_of env t) = true ->
+    ktfrag env (with_mutability env k t) = true.
+Proof.
+    intros t k Ht Hk. destruct (ktfrag_cases env t Ht) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]];
+        [exact (wtfrag_ktfrag env _ (wtfrag_given t k Hw Hk))| |].
+    - destruct (kept_given cs k Hcs Hk) as [cs' [E H]]. rewrite E. exact (proj1 (kept_ktfrag env cs' H)).
+    - change (ktfrag env (rewrap_nullable (with_mutability env k (Intersection cs))) = true).
+      destruct (kept_given cs k Hcs Hk) as [cs' [E H]]. rewrite E. exact (proj2 (kept_ktfrag env cs' H)).
+Qed.
+
 (* A type of generic code given a mutability, as instantiating `m T` gives it, or narrowed *)
 Lemma caller_given: forall m x, caller_type x -> caller_type (with_mutability env (intersect_mutability (mutability_of env x) m) x).
 Proof.
     intros m x [Hw [Hb Hm]]. split; [|split; [exact I|exact (mentions_only_with_mutability env ps _ x Hm)]].
-    apply wtfrag_given; [exact Hw|apply intersect_mutability_left].
+    apply ktfrag_given; [exact Hw|apply intersect_mutability_left].
 Qed.
 
 Lemma caller_ref_apply: forall gm nn x, caller_type x -> caller_type (ref_apply env gm nn x).
@@ -474,12 +548,22 @@ Proof.
           cbn [intersected_components] in Hzy;
           try (destruct Hzy as [<-|[]]; pose proof (Hno _ Hy Hnz) as F; first [reflexivity|contradiction F]).
       - apply in_map_iff in Hzy. destruct Hzy as [d [<- _]]. reflexivity.
-      - destruct (wcomponents_facts env cs (proj1 (Hys _ Hy))) as [_ Hcs]. destruct (Hcs z Hzy) as [Hsh _].
+      - destruct (ktfrag_cases env _ (proj1 (Hys _ Hy))) as [Hw|[[? [E Hk]]|[? [E _]]]]; [|injection E as <-|discriminate E];
+            [|exfalso; exact (Hno _ Hy (kcomponents_nullable env cs Hk))].
+        destruct (wcomponents_facts env cs Hw) as [_ Hcs]. destruct (Hcs z Hzy) as [Hsh _].
         unfold is_component_shape in Hsh. apply andb_true_iff in Hsh. rewrite Hnz in Hsh. destruct Hsh as [_ F]. discriminate F. }
     assert (Hz: forall z, In z (flat_map intersected_components ys) ->
         caller_type (without_null env z) /\ is_component_shape env (without_null env z) = true /\ wfrag env (without_null env z) = true).
     { intros z Hz. apply in_flat_map in Hz. destruct Hz as [y [Hy Hzy]]. pose proof (Hys y Hy) as Hcy.
-      destruct (wtfrag_cases env y (proj1 Hcy)) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+      destruct (ktfrag_cases env y (proj1 Hcy)) as [Hk0|[[cs [-> Hk]]|[cs [-> Hk]]]].
+      2: exfalso; exact (Hno _ Hy (kcomponents_nullable env cs Hk)).
+      2: { cbn [intersected_components] in Hzy. apply in_map_iff in Hzy. destruct Hzy as [d [<- Hd]].
+           change (without_null env (Nullable d)) with (without_null env d).
+           destruct (kcomponents_facts env cs Hk) as [_ [Hc _]]. destruct (Hc d Hd) as [Hkd Hwd].
+           destruct (kept_shape_without_null env wf d Hkd Hwd) as [Hs Hf].
+           split; [|exact (conj Hs Hf)]. split; [exact (wtfrag_ktfrag env _ (wfrag_wtfrag env _ Hf))|split; [exact I|]].
+           apply mentions_without_null. exact (fold_and_in _ cs (proj2 (proj2 Hcy)) d Hd). }
+      destruct (wtfrag_cases env y Hk0) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
       - assert (Ey: intersected_components y = [y])
             by (destruct y as [| [| | | | | |cs] | | | | |cs]; try reflexivity; cbn in Hw; discriminate Hw).
         rewrite Ey in Hzy. destruct Hzy as [<-|[]]. exact (caller_component_without_null y Hcy Hw).
@@ -487,13 +571,15 @@ Proof.
         exact (caller_component_without_null z (caller_component cs z Hcy Hzy) (proj2 (Hc z Hzy))).
       - cbn [intersected_components] in Hzy. apply in_map_iff in Hzy. destruct Hzy as [d [<- Hd]].
         destruct (wcomponents_facts env cs Hcs) as [_ Hc].
-        pose proof (caller_nullable_component cs d Hcy Hd) as Hcd.
+        pose proof (caller_nullable_component cs d Hcy (wcomponents_not_nullable env cs Hcs) Hd) as Hcd.
         change (without_null env (Nullable d)) with (without_null env d).
         exact (caller_component_without_null d (caller_nullable d Hcd) (proj2 (Hc d Hd))). }
     assert (Hlen: 2 <= length (flat_map intersected_components ys)).
     { enough (Hge: length ys <= length (flat_map intersected_components ys)) by lia.
       assert (Hne: forall y, In y ys -> intersected_components y <> []).
-      { intros y Hy. destruct (wtfrag_cases env y (proj1 (Hys y Hy))) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+      { intros y Hy. destruct (ktfrag_cases env y (proj1 (Hys y Hy))) as [Hk0|[[cs [-> Hk]]|[cs [-> Hk]]]].
+        2,3: destruct (kcomponents_facts env cs Hk) as [Hl' _]; destruct cs; [simpl in Hl'; lia|discriminate].
+        destruct (wtfrag_cases env y Hk0) as [Hw|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
         - destruct y as [| [| | | | | |cs] | | | | |cs]; try discriminate; cbn in Hw; discriminate Hw.
         - destruct (wcomponents_facts env cs Hcs) as [Hl' _]. destruct cs; [simpl in Hl'; lia|discriminate].
         - destruct (wcomponents_facts env cs Hcs) as [Hl' _]. destruct cs; [simpl in Hl'; lia|discriminate]. }
@@ -515,7 +601,7 @@ Proof.
       pose proof (caller_given m _ Hcz) as Hc. rewrite (Emeet _ _ Hmz) in Hc.
       assert (Hshape: forall w, is_component_shape env w = true ->
           is_component_shape env (with_mutability env m w) = true
-          /\ (wtfrag env (with_mutability env m w) = true -> wfrag env (with_mutability env m w) = true)).
+          /\ (ktfrag env (with_mutability env m w) = true -> wfrag env (with_mutability env m w) = true)).
       { intros w Hsw. unfold is_component_shape in Hsw |- *. rewrite (is_nullable_with_mutability env wf).
         destruct w as [m0 d args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; try discriminate Hsw;
             (split; [exact Hsw|intros Ht; exact Ht]). }
@@ -530,8 +616,10 @@ Proof.
       apply (fold_and_map (mentions_only env ps) (fun c => with_mutability env m (without_null env c)) zs).
       intros z Hz'. exact (proj2 (proj2 (proj1 (Hw z Hz')))). }
     unfold of_components. destruct zs as [|z1 [|z2 zs']]; [simpl in Hlen; lia|simpl in Hlen; lia|]. fold m. fold ws.
-    destruct (negb (forallb (is_nullable env) (z1 :: z2 :: zs'))) eqn:Enn; [split; [exact Hcws|split; [exact I|exact Hmo]]|].
-    destruct (forallb is_nullable_type (z1 :: z2 :: zs')) eqn:Ewr; [split; [exact Hcws|split; [exact I|exact Hmo]]|].
+    destruct (negb (forallb (is_nullable env) (z1 :: z2 :: zs'))) eqn:Enn;
+        [split; [exact (wtfrag_ktfrag env (Intersection ws) Hcws)|split; [exact I|exact Hmo]]|].
+    destruct (forallb is_nullable_type (z1 :: z2 :: zs')) eqn:Ewr;
+        [split; [exact (wtfrag_ktfrag env (Nullable (Intersection ws)) Hcws)|split; [exact I|exact Hmo]]|].
     exfalso. apply negb_false_iff in Enn. rewrite forallb_forall in Enn.
     assert (Ewr': forallb is_nullable_type (z1 :: z2 :: zs') = true)
         by (apply forallb_forall; intros z Hz'; exact (Hwr z Hz' (Enn z Hz'))).
@@ -933,7 +1021,7 @@ Proof.
           pose proof (classes_caller (depth C) C (le_n _) Hfr Hcl) as Hcc.
           split; [exact Hcc|]. split; [exact Hsh|]. rewrite EC in Hcc |- *. exact (proj1 Hcc). }
         split; [|split; [exact I|]].
-        + change (wcomponents env cs = true). unfold wcomponents. apply andb_true_iff. split; [apply Nat.leb_le; exact Hl|].
+        + apply (wtfrag_ktfrag env (Intersection cs)). change (wcomponents env cs = true). unfold wcomponents. apply andb_true_iff. split; [apply Nat.leb_le; exact Hl|].
           apply forallb_forall. intros C HC'. destruct (HC C HC') as [_ [Hs Hf]]. rewrite Hs, Hf. reflexivity.
         + change (fold_right (fun c acc => mentions_only env ps c /\ acc) True cs).
           clear -HC. induction cs as [|C cs IH]; [exact I|].
@@ -1240,7 +1328,7 @@ Proof.
           - apply in_map_iff in HC. destruct HC as [c0 [<- Hc0]].
             pose proof (proj1 HfS) as HgS. cbn [gfrag] in HgS. apply andb_true_iff in HgS. destruct HgS as [Hnn HgI].
             destruct (proj2 (intersection_gfrag env cs' HgI (proj1 (negb_true_iff _) Hnn)) c0 Hc0) as [Hcc Hgc].
-            split; [exact (caller_nullable_component env declared ps cs' c0 HqS Hc0)|].
+            split; [exact (caller_nullable_component env declared ps cs' c0 HqS (proj1 (negb_true_iff _) Hnn) Hc0)|].
             cbn [gfrag]. rewrite Hgc, andb_true_r. destruct c0; first [exact Hcc|discriminate Hcc].
           - split; [exact (caller_component env declared ps cs C HqS HC)|exact (gfrag_component env cs C (proj1 HfS) HC)]. }
         rewrite (free_unmentioned env b Hpb C (proj2 HC') (unmentioned env b C (proj2 HC') (Hown C (proj1 HC')))). exact (proj1 HC').

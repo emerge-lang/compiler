@@ -67,7 +67,7 @@ private fun bottomOnly(t: BoundTypeReference, visiting: Set<BoundTypeParameter>)
 
 /**
  * `GenericCode.caller_type`: the types of generic code with the type parameters [parameters]: of the wide fragment
- * (`SubstitutionWide.wtfrag`), mentioning no other type parameters (`WithinBounds.mentions_only`)
+ * (`SubstitutionWide.ktfrag`), mentioning no other type parameters (`WithinBounds.mentions_only`)
  */
 internal fun BoundTypeReference.isOfGenericCode(parameters: Set<String>): Boolean = isWide(this) && mentionsOnly(this, parameters, emptySet())
 
@@ -89,9 +89,20 @@ private fun BoundTypeReference.intersectionComponents(): List<BoundTypeReference
 private fun intersectionOf(components: List<BoundTypeReference>, ofComponent: (BoundTypeReference) -> Boolean) =
     components.size >= 2 && components.all { it.isComponentShape() && ofComponent(it) }
 
+/** `SubstitutionWide.is_kept_shape`: `A?`, or a reference to a type parameter of a nullable bound */
+private fun BoundTypeReference.isKeptShape() = when (this) {
+    is NullableTypeReference -> nested.isComponentShape()
+    is GenericTypeReference -> isNullable
+    else -> false
+}
+
+/** `SubstitutionWide.kcomponents`: an intersection whose components keep their nullability */
+private fun keptIntersectionOf(components: List<BoundTypeReference>, ofComponent: (BoundTypeReference) -> Boolean) =
+    components.size >= 2 && components.all { it.isKeptShape() && ofComponent(it) } && !components.all { it is NullableTypeReference }
+
 /**
  * An intersection with a component that keeps its nullability, `A? & P` with `P : Any?`, as ofComponents makes it
- * where null is a value exactly where it is one of each component: of [isOfFragment], but of no other fragment (coverage #15)
+ * where null is a value exactly where it is one of each component: of [isOfFragment] and [isOfGenericCode] (coverage #15)
  */
 internal fun BoundTypeReference.keepsNullableComponents(): Boolean = intersectionComponents()?.any { it.isNullable } == true
 
@@ -105,8 +116,9 @@ internal fun BoundTypeReference.isBareNullable(): Boolean = (this is GenericType
 internal fun keepsNullability(a: BoundTypeReference, b: BoundTypeReference): Boolean =
     a.isNullable && b.isNullable && (a.isBareNullable() || b.isBareNullable())
 
-/** `SubstitutionWide.wtfrag` */
-private fun isWide(t: BoundTypeReference): Boolean = t.intersectionComponents()?.let { intersectionOf(it, ::isWideBelowTop) } ?: isWideBelowTop(t)
+/** `SubstitutionWide.ktfrag` */
+private fun isWide(t: BoundTypeReference): Boolean =
+    t.intersectionComponents()?.let { intersectionOf(it, ::isWideBelowTop) || keptIntersectionOf(it, ::isWideBelowTop) } ?: isWideBelowTop(t)
 
 /** `SubstitutionWide.wfrag` */
 private fun isWideBelowTop(t: BoundTypeReference): Boolean = when (t) {
