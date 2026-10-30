@@ -167,9 +167,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * allow to change the order of arguments? It's important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
 24. threading
-    The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
-    complexity of having a `shared` mutability like D allows to infer some properties necessary for
-    multithreading:
+    A big point with the explicit-mutability types is to simplify multithreading (though, the other
+    big benefit of them is the assemble-then-return-as-const pattern). Avoiding the complexity of 
+    having a `shared` mutability like D allows to infer some properties necessary for multithreading:
     * mutable global state as in D: it is not shared across threads. Each thread has its own copy,
       starting a new thread re-initializes the mutable global state as defined in the source (as opposed
       to copying it from the parent thread).
