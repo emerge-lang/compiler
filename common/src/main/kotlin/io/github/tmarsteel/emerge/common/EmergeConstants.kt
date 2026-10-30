@@ -1,7 +1,5 @@
 package io.github.tmarsteel.emerge.common
 
-import io.github.tmarsteel.emerge.common.EmergeConstants.IterableContract.RANGE_FRONT_FUNCTION_NAME
-
 
 /**
  * Necessary, "magic" constants that are chosen arbitrarily
@@ -30,6 +28,8 @@ data object EmergeConstants {
         val SWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "SWord")
         val UWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UWord")
         val ARRAY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Array")
+        val STRING_TYPE_NAME = CanonicalElementName.BaseType(NAME, "String")
+        val ANNOTATABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Annotatable")
     }
 
     data object ReflectionModule {

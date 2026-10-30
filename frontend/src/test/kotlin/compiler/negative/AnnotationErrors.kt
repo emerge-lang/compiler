@@ -1,8 +1,11 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.DisallowedAnnotationDiagnostic
+import compiler.diagnostic.InvalidAnnotationMemberDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
+import compiler.diagnostic.ValueNotAnnotatableDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -125,12 +128,112 @@ class AnnotationErrors : FreeSpec({
 
     "circular reference between toplevel functions" {
         validateModule("""
+            #[Annotatable()]
+            class SomeAnnotation {}
+            
             #[b()]
-            fn a() {}
+            fn a() -> const SomeAnnotation = SomeAnnotation()
             
             #[a()]
-            fn b() {}
+            fn b() -> const SomeAnnotation = SomeAnnotation()
         """.trimIndent())
             .shouldHaveNoDiagnostics()
+    }
+
+    "value not annotatable" - {
+        "not annotated with Annotatable (direct core scalar)" {
+            validateModule("""
+                fn a() -> S32 = 0
+                #[a()]
+                fn b() {}
+            """.trimIndent())
+                .shouldFind<ValueNotAnnotatableDiagnostic>()
+        }
+
+        "not annotated with Annotatable (user-defined class)" {
+            validateModule(
+                """
+                    class A {}
+                    #[A()]
+                    fn b() {}
+            """.trimIndent())
+                .shouldFind<ValueNotAnnotatableDiagnostic>()
+        }
+
+        "not const" {
+            validateModule("""
+                #[Annotatable()]
+                class A {}
+                
+                fn someA() -> mut A = A()
+                
+                #[someA()]
+                fn b() {}
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "mut testmodule.A"
+                    it.targetType.toString() shouldBe "const Any"
+                }
+        }
+    }
+
+    "invalid annotation member" - {
+        "reassignable" {
+            validateModule("""
+                #[Annotatable()]
+                class A {
+                    var x = 0
+                }
+            """.trimIndent())
+                .shouldFind<InvalidAnnotationMemberDiagnostic>()
+        }
+
+        "non scalar type" {
+            validateModule("""
+                class A {}
+                #[Annotatable()]
+                class B {
+                    foo: A = A()
+                }
+            """.trimIndent())
+                .shouldFind<InvalidAnnotationMemberDiagnostic>()
+        }
+
+        "regression for valid annotation classes" {
+            validateModule("""
+                #[Annotatable()]
+                class A {
+                    a: Bool
+                    b: S8
+                    c: U8
+                    d: S16
+                    e: U16
+                    f: S32
+                    g: U32
+                    h: S64
+                    i: U64
+                    j: SWord
+                    k: UWord
+                    l: F32
+                    m: F64
+                    l: String
+                }
+                
+                fn someA() -> const A = A()
+                
+                #[someA()]
+                fn foo() {}
+            """.trimIndent())
+        }
+
+        "ref".config(enabled = false) {
+            // disabled because ref is not yet implemented in this branch
+            validateModule("""
+                #[Annotatable()]
+                class A {
+                    ref x = 0
+                }
+            """.trimIndent())
+        }
     }
 })

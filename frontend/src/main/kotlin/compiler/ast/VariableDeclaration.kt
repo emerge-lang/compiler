@@ -77,14 +77,17 @@ data class VariableDeclaration(
         kind: BoundVariable.Kind,
         bindInitializer: Boolean = true,
     ): BoundVariable {
-        return BoundVariable(
+        lateinit var boundVar: BoundVariable
+        boundVar = BoundVariable(
             context,
-            annotations.bindTo(context),
+            annotations.bindTo(context, { boundVar }),
             this,
             visibility?.bindTo(context) ?: BoundVisibility.default(context),
             initializerExpression?.takeIf { bindInitializer }?.bindTo(initializerContext),
             typeInferenceStrategy,
             kind,
         )
+
+        return boundVar
     }
 }

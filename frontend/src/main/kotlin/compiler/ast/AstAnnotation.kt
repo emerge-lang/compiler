@@ -8,7 +8,7 @@ class AstAnnotation(
     val expression: Expression,
     val span: Span,
 ) {
-    fun bindTo(context: ExecutionScopedCTContext): BoundAnnotation {
-        return BoundAnnotation(this, expression.bindTo(context))
+    fun bindTo(context: ExecutionScopedCTContext, lazySubject: () -> Any): BoundAnnotation {
+        return BoundAnnotation(this, expression.bindTo(context), lazySubject)
     }
 }

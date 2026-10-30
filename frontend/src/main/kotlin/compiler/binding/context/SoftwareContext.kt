@@ -167,6 +167,7 @@ class SoftwareContext {
     val array: BoundBaseType by coreType()
     val throwable: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.CoreModule.THROWABLE_TYPE_NAME)
     val error: BoundBaseType by coreType()
+    val annotatable: BoundBaseType by coreType()
     val reflectionBaseType: BoundBaseType by lazy {
         val reflectPackageName = CanonicalElementName.Package(listOf(
             "emerge", "core", "reflection"

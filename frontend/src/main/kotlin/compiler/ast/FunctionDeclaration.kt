@@ -49,7 +49,7 @@ data class FunctionDeclaration(
 
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         lateinit var boundFn: BoundTopLevelFunction
-        val boundAnnotations = annotations.bindTo(context)
+        val boundAnnotations = annotations.bindTo(context, { boundFn })
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
@@ -87,7 +87,7 @@ data class FunctionDeclaration(
             context,
             functionRootContext,
             entryDeclaration,
-            annotations.bindTo(context),
+            annotations.bindTo(context, { boundFn }),
             attributes,
             boundTypeParams,
             boundParameterList,

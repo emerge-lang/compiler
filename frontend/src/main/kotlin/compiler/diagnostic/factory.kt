@@ -740,6 +740,14 @@ fun Diagnosis.purityViolation(
     add(PurityViolationDiagnostic(impurity, boundary))
 }
 
-fun Diagnosis.disallowedAnnotation(annotation: BoundAnnotation) {
-    add(DisallowedAnnotationDiagnostic(annotation.astNode))
+fun Diagnosis.disallowedAnnotation(annotation: BoundAnnotation, message: String? = null) {
+    add(DisallowedAnnotationDiagnostic(annotation.astNode, message))
+}
+
+fun Diagnosis.valueNotAnnotatable(annotation: BoundAnnotation) {
+    add(ValueNotAnnotatableDiagnostic(annotation.astNode, annotation.expression.type))
+}
+
+fun Diagnosis.invalidAnnotationMember(member: BoundBaseTypeMemberVariable, annotation: BoundAnnotation, reason: String, spanOverride: Span? = null) {
+    add(InvalidAnnotationMemberDiagnostic(member.entryDeclaration, annotation.astNode, reason, spanOverride))
 }

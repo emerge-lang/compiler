@@ -57,8 +57,6 @@ class BaseTypeDeclaration(
     override val declaredAt = name.span
 
     fun bindTo(fileContext: CTContext): BoundBaseType {
-        val boundAnnotations = annotations.bindTo(fileContext)
-
         /*
         this method is SERIOUSLY complex, because it does all the reordering of the syntactic elements in the
         base type definition, including a bunch of code generation for the constructor
@@ -69,6 +67,8 @@ class BaseTypeDeclaration(
         // TODO: maybe no longer needed after BoundBaseType.init has been added
         lateinit var boundTypeDef: BoundBaseType
         val typeDefAccessor = { boundTypeDef }
+
+        val boundAnnotations = annotations.bindTo(fileContext, typeDefAccessor)
 
         val canonicalName = CanonicalElementName.BaseType(fileContext.packageName, name.value)
         val kind = when (declarationKeyword.keyword) {
@@ -295,7 +295,7 @@ class BaseTypeMemberVariableDeclaration(
                 boundVar = BoundBaseTypeMemberVariable(
                     typeRootContext,
                     boundLocalVariableInCtor,
-                    annotations.bindTo(fileContext),
+                    annotations.bindTo(fileContext, { boundVar }),
                     variableDeclaration.visibility?.bindTo(typeRootContext)
                         ?: BoundVisibility.default(typeRootContext),
                     BoundBaseTypeMemberVariableAttributes(attributes),
@@ -425,13 +425,14 @@ class BaseTypeConstructorDeclaration(
             userInitCode,
             contextForUserInitCode,
         )
-        val boundCtor = BoundClassConstructor(
+        lateinit var boundCtor: BoundClassConstructor
+        boundCtor = BoundClassConstructor(
             fileContextWithDeclaredTypeParams,
             constructorFunctionRootContext,
             boundTypeParameters ?: emptyList(),
             typeParameterForDecoratorMutability,
             additionalTypeParamsForDecoratedMembers,
-            annotations.bindTo(fileContext),
+            annotations.bindTo(fileContext, { boundCtor }),
             BoundParameterList(
                 constructorFunctionRootContext,
                 ParameterList(constructorParameters.map { it.declaration }),
@@ -481,7 +482,7 @@ class BaseTypeDestructorDeclaration(
         dtor = BoundClassDestructor(
             fileContext,
             fileContextWithTypeParameters,
-            annotations.bindTo(fileContext),
+            annotations.bindTo(fileContext, { dtor }),
             typeParameters ?: emptyList(),
             getClassDef,
             BoundFunctionAttributeList(fileContextWithTypeParameters, { dtor }, attributes),

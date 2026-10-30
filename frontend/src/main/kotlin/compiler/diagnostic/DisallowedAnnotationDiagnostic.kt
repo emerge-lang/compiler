@@ -4,8 +4,9 @@ import compiler.ast.AstAnnotation
 
 class DisallowedAnnotationDiagnostic(
     val annotation: AstAnnotation,
+    message: String? = null,
 ) : Diagnostic(
     Severity.ERROR,
-    "Annotations are not allowed here",
+    message ?: "Annotations are not allowed here",
     annotation.span,
 )
