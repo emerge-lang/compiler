@@ -6,3 +6,6 @@
 dune text eol=lf
 dune-project text eol=lf
 _CoqProject text eol=lf
+
+# written by RocqOracleTests (frontend/type-system-proofs/readme.md); collapsed in diffs
+frontend/type-system-proofs/theories/Generated/** linguist-generated=true

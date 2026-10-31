@@ -5,7 +5,7 @@ import compiler.compiler.negative.useValidModule
 
 /**
  * A set of types to check properties of the type system over, by pairs and triples: of the fragments the proofs in
- * `type-system-proofs/theories` cover (see `fragments.kt`), and some just outside of them. The types are written
+ * `type-system-proofs/theories` cover (`OracleGrid.v` checks which), and some just outside of them. The types are written
  * within `Ctx`, so they can mention its type parameters.
  */
 internal object TypeGrid {

@@ -73,6 +73,8 @@ internal fun SoftwareContext.parseTypeArgument(
     return boundArg
 }
 
+internal fun BoundTypeReference.isBelow(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null
+
 internal fun beAssignableTo(target: BoundTypeReference) = object : Matcher<BoundTypeReference> {
     override fun test(value: BoundTypeReference): MatcherResult {
         val result = value.evaluateAssignabilityTo(target, Span.UNKNOWN)

@@ -30,7 +30,7 @@ class RootResolvedTypeReference private constructor(
     override val context: CTContext,
     val original: AstSimpleTypeReference?,
     private val modifiedSinceOriginal: Boolean,
-    private val explicitMutability: TypeMutability?,
+    internal val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {

@@ -141,6 +141,10 @@ jobs:
   type-system-proofs:
     name: verify type system proofs
     runs-on: ubuntu-latest
+    # the maven tests check that the checked-in theories/Generated/Grid.v is what RocqOracleTests writes;
+    # proving a stale one would check the model against answers the frontend no longer gives
+    needs:
+      - emerge-toolchain-maven
     steps:
       - name: checkout
         uses: actions/checkout@v4
