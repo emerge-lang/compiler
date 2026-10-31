@@ -34,6 +34,23 @@ Proof.
     rewrite (H a (or_introl eq_refl)), IH; [reflexivity|]. intros a' Ha'. apply H. right. exact Ha'.
 Qed.
 
+(* No in-variant type argument, nested ones included *)
+Fixpoint without_contravariance (t: EType): bool :=
+    match t with
+    | RootResolved _ _ arguments => forallb without_contravariance arguments
+    | Nullable n => without_contravariance n
+    | TypeArgument v _ n => negb (Variance_beq v input) && without_contravariance n
+    | Intersection components => forallb without_contravariance components
+    | _ => true
+    end.
+
+(* The type arguments of supertypes are without contravariance: no supertype declaration has an
+   in-variant type argument, nested ones included (`class K : Cn<Cn<in K>>` has one). With them, unify
+   needn't terminate (Conjectures.v); and normalizing a type without contravariance to a supertype may
+   make one with it (Constraints.v, which takes this where the arguments must be without it). *)
+Definition supertypes_without_contravariance (env: Environment): Prop :=
+    forall sub super, forallb without_contravariance (supertype_arguments env sub super) = true.
+
 Section Inference.
 
 Variable env: Environment.
@@ -494,6 +511,39 @@ Proof.
             first [reflexivity | apply IHt; [lia|exact Hn']].
 Qed.
 
+(* A template without contravariance, instantiated with type arguments without it, is without it: a type
+   argument widened where a type parameter in it is bound loosely becomes out-variant *)
+Lemma template_without_contravariance: forall k, (forall y, In y ys -> without_contravariance y = true) ->
+    (forall t, depth t <= k -> template_type env sub t = true -> without_contravariance t = true ->
+        without_contravariance (instantiate env (bindings_of env sub ys) t) = true)
+    /\ (forall r, argument_depth r <= k -> template_argument env sub r = true -> without_contravariance r = true ->
+        without_contravariance (instantiate env (bindings_of env sub ys) r) = true).
+Proof.
+    intros k Hc. induction k as [|k [IHt IHa]].
+    { split; intros t Hd Ht; [pose proof (template_type_depth env sub t Ht)|pose proof (template_argument_depth env sub t Ht)]; lia. }
+    assert (Hroot: forall m c targs, depth (RootResolved m c targs) <= S k ->
+        template_type env sub (RootResolved m c targs) = true -> without_contravariance (RootResolved m c targs) = true ->
+        without_contravariance (instantiate env (bindings_of env sub ys) (RootResolved m c targs)) = true).
+    { intros m c targs Hd Ht Hw. destruct (root_template env sub m c targs Ht) as [_ Htargs]. rewrite instantiate_class.
+      change (forallb without_contravariance targs = true) in Hw. rewrite forallb_forall in Hw.
+      change (forallb without_contravariance (map (instantiate env (bindings_of env sub ys)) targs) = true). apply forallb_forall.
+      intros a' Ha'. apply in_map_iff in Ha'. destruct Ha' as [a [<- Ha]]. pose proof (argument_depth_below m c targs a Ha).
+      apply IHa; [lia|apply Htargs, Ha|apply Hw, Ha]. }
+    split.
+    - intros t Hd Ht Hw. destruct (template_type_cases env sub t Ht) as [[m [c [targs ->]]]|[m [c [targs [-> Ht']]]]].
+      + exact (Hroot m c targs Hd Ht Hw).
+      + rewrite depth_nullable in Hd. rewrite instantiate_nullable_class, <- instantiate_class.
+        exact (Hroot m c targs ltac:(lia) Ht' Hw).
+    - intros r Hd Hr Hw. destruct (template_kind env sub r Hr) as [[p [bp [i [-> Hi]]]]|[v [o [n [-> [_ [Ho Hn']]]]]]].
+      + destruct (nth_error_same_length _ ys i p (eq_sym Hlength) Hi) as [y Hy].
+        rewrite (selects env wf sub ys p bp i y Hi Hy (Hys y (nth_error_In _ _ Hy))). apply Hc. eapply nth_error_In. exact Hy.
+      + simpl in Hd. cbn [without_contravariance] in Hw. apply andb_true_iff in Hw. destruct Hw as [Hv Hwn].
+        assert (Hn: without_contravariance (instantiate env (bindings_of env sub ys) n) = true) by (apply IHt; [lia|exact Hn'|exact Hwn]).
+        rewrite (instantiate_template_argument env _ v o n Ho (template_shape env sub n Hn')).
+        destruct (mentions_loosely_bound _ n); [destruct v; [| simpl in Hv; discriminate Hv |]|]; cbn [without_contravariance];
+            rewrite Hn, ?andb_true_r; first [reflexivity | exact Hv].
+Qed.
+
 End Templates.
 
 Lemma supertype_arguments_narrowed: forall sub super ys,
@@ -528,6 +578,22 @@ Proof.
       exact (proj2 (proj2 (template_bridge sub ys Hl Hys (argument_depth r)) r (le_n _) (Ht r Hr)) Hng).
     - intros Hc a Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
       exact (proj2 (template_closed sub ys Hl Hys (argument_depth r) Hc) r (le_n _) (Ht r Hr)).
+Qed.
+
+(* The type arguments of a supertype, normalized from those of a subclass without contravariance, are
+   without it, where those of supertypes are *)
+Lemma supertype_arguments_without_contravariance: forall sub super ys,
+    supertypes_without_contravariance env ->
+    sub <> super -> sub <> nothing -> base_type_is_subtype_of env sub super = true ->
+    length ys = length (parameter_ids env sub) -> (forall y, In y ys -> is_type_argument y = true) ->
+    (forall y, In y ys -> without_contravariance y = true) ->
+    forall a, In a (parameterized_supertype_arguments env sub ys super) -> without_contravariance a = true.
+Proof.
+    intros sub super ys Hsw Hne Hn Hbase Hl Hys Hw a Ha.
+    destruct (wf_supertypes_are_templates env wf sub super Hne Hn Hbase) as [_ Ht].
+    rewrite parameterized_supertype_arguments_eq in Ha. apply in_map_iff in Ha. destruct Ha as [r [<- Hr]].
+    pose proof (Hsw sub super) as Hr'. rewrite forallb_forall in Hr'.
+    exact (proj2 (template_without_contravariance sub ys Hl Hys (argument_depth r) Hw) r (le_n _) (Ht r Hr) (Hr' r Hr)).
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -937,6 +1003,10 @@ Proof.
     destruct (fragment_cases env A HA) as [[ma [ca [aargs ->]]]|[ma [ca [aargs [-> HR]]]]]; [exact (conj HA eq_refl)|].
     split; [|reflexivity]. exact HR.
 Qed.
+
+Lemma without_null_without_contravariance: forall A, afrag A = true -> without_contravariance A = true ->
+    without_contravariance (without_null env A) = true.
+Proof. intros A HA Hw. destruct (fragment_cases env A HA) as [[ma [ca [aargs ->]]]|[ma [ca [aargs [-> _]]]]]; exact Hw. Qed.
 
 (* A type of the arguments, as a reference to a type parameter bound to it makes it *)
 Lemma ref_apply_afrag: forall gm nn x, afrag x = true -> afrag (ref_apply gm nn x) = true /\ closed (ref_apply gm nn x) = closed x.

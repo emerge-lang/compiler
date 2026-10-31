@@ -44,6 +44,7 @@ class CommonTypesTests : FreeSpec({
 
     "the grid has types of each fragment" {
         types.filterNot { (_, t) -> t.isClassType() }.map { it.first }.let { check(it.size < types.size - 10) { it } }
+        types.filter { (_, t) -> t.isClassType() && !t.isWithoutContravariance() }.let { check(it.isNotEmpty()) }
         types.filterNot { (_, t) -> t.isOfFragment() && t.isOfGenericCode(ctxParameters) }.map { it.first }
             .let { check(it.isEmpty()) { it } }
         types.filter { (_, t) -> t.keepsNullableComponents() }.map { it.first }
@@ -105,9 +106,9 @@ class CommonTypesTests : FreeSpec({
         }.shouldBeNone()
     }
 
-    "the closest common supertype of class types is one" {
-        violationsOf(BoundTypeReference::isClassType) { a, b ->
-            a.closestCommonSupertypeWith(b).takeUnless { it.isClassType() }?.toString()
+    "the closest common supertype of class types without contravariance is one, without contravariance" {
+        violationsOf({ it.isClassType() && it.isWithoutContravariance() }) { a, b ->
+            a.closestCommonSupertypeWith(b).takeUnless { it.isClassType() && it.isWithoutContravariance() }?.toString()
         }.shouldBeNone()
     }
 

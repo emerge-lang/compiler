@@ -2,6 +2,7 @@ From EmergeTypeSystem Require Import Model.
 From EmergeTypeSystem Require Import Subtyping.
 From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import States.
+From EmergeTypeSystem Require Import Inference.
 From EmergeTypeSystem Require Import Constraints.
 From EmergeTypeSystem Require Import Fragment.
 From EmergeTypeSystem Require Import Generics.
@@ -197,25 +198,14 @@ Definition non_expansive: Prop :=
 Definition finitely_many_templates: Prop :=
     exists classes: list Class, forall sub super, supertype_arguments env sub super <> [] -> In sub classes.
 
-(* No in-variant type argument, nested ones included *)
-Fixpoint without_contravariance (t: EType): bool :=
-    match t with
-    | RootResolved _ _ arguments => forallb without_contravariance arguments
-    | Nullable n => without_contravariance n
-    | TypeArgument v _ n => negb (Variance_beq v input) && without_contravariance n
-    | Intersection components => forallb without_contravariance components
-    | _ => true
-    end.
-
-(* The type arguments of supertypes are without contravariance. With it, unify needn't terminate:
-   with `class K : Cn<Cn<in K>>`, deciding K below `Cn<in K>` decides it again, after K is normalized to
-   `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's
-   example). The frontend fails such a goal (RootResolvedTypeReference.unify), which the model doesn't *)
-Definition supertypes_without_contravariance: Prop :=
-    forall sub super, forallb without_contravariance (supertype_arguments env sub super) = true.
+(* The type arguments of supertypes are without contravariance (Inference.supertypes_without_contravariance).
+   With it, unify needn't terminate: with `class K : Cn<Cn<in K>>`, deciding K below `Cn<in K>` decides it
+   again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and
+   assignee (Kennedy and Pierce's example). The frontend fails such a goal (RootResolvedTypeReference.unify),
+   which the model doesn't. *)
 
 (* Inheritance unify is conjectured to terminate on *)
-Definition tame_inheritance: Prop := non_expansive /\ supertypes_without_contravariance.
+Definition tame_inheritance: Prop := non_expansive /\ supertypes_without_contravariance env.
 
 End Expansive.
 

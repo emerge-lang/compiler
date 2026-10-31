@@ -436,10 +436,14 @@ Qed.
 
 Lemma supertype_of_classes: closest_common_supertype_of_classes penv.
 Proof.
-    intros a b Ha Hca Hb Hcb. change (closest_common_supertype_with penv a b) with (join a b).
-    destruct (join_is a b) as [->|[->| ->]]; [split; assumption|split; assumption|].
-    split; [exact (top_in_afrag penv wf)|reflexivity].
+    intros a b Ha Hca Hwa Hb Hcb Hwb. change (closest_common_supertype_with penv a b) with (join a b).
+    destruct (join_is a b) as [->|[->| ->]]; [split; [|split]; assumption|split; [|split]; assumption|].
+    split; [exact (top_in_afrag penv wf)|split; reflexivity].
 Qed.
+
+(* No supertype has an in-variant type argument: the arguments may be taken without contravariance *)
+Lemma supertypes_wc: supertypes_without_contravariance penv.
+Proof. intros sub super. classes sub; classes super; reflexivity. Qed.
 
 Definition Ps4: list EType := [RootResolved None CList [arg output any_ownership (tvar pV)]; RootResolved None CBox [arg input any_ownership (tvar pV)]].
 Definition As4: list EType := [RootResolved None CArrayList [arg invariant ref tInt]; RootResolved None CBox [arg invariant ref tNumber]].
@@ -452,7 +456,7 @@ Definition u4: VariableStates :=
     end.
 Definition b4: Bindings := [(pV, arg invariant ref tNumber)].
 
-Lemma s4_wf: wf_states penv xf xf s4.
+Lemma s4_wf: wf_states penv xf xf true s4.
 Proof.
     intros p st H. cbn in H. destruct (param_eqb p pV) eqn:Ep; [|discriminate H]. injection H as <-.
     split; [reflexivity|]. split; [reflexivity|]. split; [|vm_compute; reflexivity].
@@ -467,8 +471,9 @@ Example invocation_instance:
     /\ (exists f, is_assignable_to penv f (RootResolved None CBox [arg invariant ref tNumber])
         (RootResolved None CBox [arg input any_ownership tNumber]) = Some true).
 Proof.
-    destruct (invocation_sound penv wf xf xf types supertype_of_classes 20 Ps4 As4 s4 u4 s4_wf
+    destruct (invocation_sound penv wf xf xf types supertype_of_classes true (fun _ => supertypes_wc) 20 Ps4 As4 s4 u4 s4_wf
         ltac:(intros P [<-|[<-|[]]]; reflexivity) ltac:(intros A [<-|[<-|[]]]; split; reflexivity)
+        ltac:(intros _ A [<-|[<-|[]]]; reflexivity)
         ltac:(vm_compute; reflexivity)) as [_ Hall].
     assert (Hb: bindings_in_fragment penv b4).
     { intros p o x H. cbn in H. destruct (param_eqb p pV); [injection H as <- <-; reflexivity|discriminate H]. }
@@ -514,7 +519,7 @@ Proof.
       + cbn in Hin. destruct Hin as [Hin|[]]. injection Hin as <- <-. destruct j; discriminate Ha.
       + cbn in Hin. destruct Hin as [Hin|[]]. injection Hin as <- <-. destruct j as [|[|j]]; try discriminate Ha.
         injection Ha as <-. cbn in Hp. destruct Hp as [Hp|[]]. discriminate Hp.
-    - intros sub super. classes sub; classes super; reflexivity.
+    - exact supertypes_wc.
 Qed.
 
 Lemma intersect_in_fragment: intersect_always_stays_in_fragment penv bound.

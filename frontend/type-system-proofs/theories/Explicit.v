@@ -80,10 +80,10 @@ Definition explicit_states (vars: list (TypeParameterId * EType)) (ts: list ETyp
 
 (* Those are the variable states unify works with *)
 Lemma explicit_wf: forall vars ts s, (forall p S, In (p, S) vars -> static_bound env bfrag vars p S) ->
-    (forall t, In t ts -> explicit_argument t) -> explicit_states vars ts s -> wf_states s.
+    (forall t, In t ts -> explicit_argument t) -> explicit_states vars ts s -> wf_states (bounds_with_variables vars) s.
 Proof.
     intros vars ts s Hst Hts [Hex _] q st Hq. destruct (Hex q st Hq) as [i [S [t [Hi [Ht [-> | ->]]]]]].
-    - exact (static_initial_ok env wf xfrag bfrag types vars q S (Hst q S (nth_error_In _ _ Hi)) s).
+    - exact (static_initial_ok env wf xfrag bfrag types vars q S (nth_error_In _ _ Hi) (Hst q S (nth_error_In _ _ Hi)) s).
     - destruct (Hts t (nth_error_In _ _ Ht)) as [o [x [-> [_ [Hx _]]]]].
       pose proof (Inference.in_fragment_no_vars env x (afrag_in_fragment env x Hx)) as Hnx.
       unfold exact_state. cbn [upper_bound lower_bound is_exact static_upper_bound].
@@ -145,7 +145,7 @@ Lemma explicit_arguments: forall n vars ts pre tpre rest trest s u,
     vars = pre ++ rest -> ts = tpre ++ trest -> length tpre = length pre -> length trest = length rest ->
     NoDup (map fst vars) -> StronglySorted (fun p q => parameter_rank env p < parameter_rank env q) (map fst vars) ->
     (forall p S, In (p, S) vars -> static_bound env bfrag vars p S) ->
-    (forall t, In t ts -> explicit_argument t) ->
+    (forall t, In t ts -> explicit_argument t) -> arguments_without_contravariance env vars ts ->
     explicit_states vars ts s ->
     (forall p S, In (p, S) rest -> lookup_state s p = Some (initial_state S)) ->
     (forall q st, lookup_state s q = Some st -> is_exact st = false -> In q (map fst rest)) ->
@@ -160,13 +160,15 @@ Lemma explicit_arguments: forall n vars ts pre tpre rest trest s u,
             /\ (no_vars S = false -> exists s0, explicit_states vars ts s0 /\ checked_at s0 p S x)).
 Proof.
     intros n vars ts pre tpre rest. revert pre tpre. induction rest as [|[p S] rest IH];
-        intros pre tpre [|t trest] s u Ev Et Hlp Hlr Hnd Hsort Hst Hts Hs Hinit Hne H; simpl in Hlr; try discriminate Hlr.
+        intros pre tpre [|t trest] s u Ev Et Hlp Hlr Hnd Hsort Hst Hts Hwts Hs Hinit Hne H; simpl in Hlr; try discriminate Hlr.
     - simpl in H. injection H as <-. split; [exact Hs|]. split.
       { intros q st Hq. destruct (is_exact st) eqn:E; [reflexivity|]. destruct (Hne q st Hq E). }
       split; [reflexivity|]. intros [|i]; discriminate.
     - assert (Hin: In (p, S) vars) by (rewrite Ev; apply in_or_app; right; left; reflexivity).
       assert (Hint: In t ts) by (rewrite Et; apply in_or_app; right; left; reflexivity).
       destruct (Hts t Hint) as [o [x [-> [Ho [Hx Hcx]]]]].
+      assert (Hwx: bounds_with_variables vars = true -> without_contravariance x = true)
+          by (intros E; pose proof (proj2 (Hwts E) _ Hint) as W; cbn [without_contravariance] in W; apply andb_true_iff in W; exact (proj2 W)).
       pose proof (afrag_in_fragment env x Hx) as HxF.
       pose proof (Inference.in_fragment_no_vars env x HxF) as Hnx.
       simpl in H. destruct (plus_exact_binding env (unify env n) s p (TypeArgument invariant o x)) as [[u1|]|] eqn:E;
@@ -187,7 +189,7 @@ Proof.
       assert (Hsame: same_states s2 s).
       { destruct (no_vars S) eqn:Ens; [rewrite Hchk; intros q; reflexivity|].
         apply (check_same env wf (it_intersect_no_vars env xfrag bfrag types) (it_supertype_no_vars env xfrag bfrag types)
-            n p x S s s2 (wf_ranked env xfrag bfrag s Hwf) Hsv' Hnx); [|exact Hchk].
+            n p x S s s2 (wf_ranked env xfrag bfrag _ s Hwf) Hsv' Hnx); [|exact Hchk].
         intros q st Hq Hr. destruct (is_exact st) eqn:Ex; [reflexivity|].
         destruct (Hne q st Hq Ex) as [Eq|Hq']; [cbn [fst] in Eq; subst q; lia|]. pose proof (Hrest q Hq'). lia. }
       assert (Hlu1: forall q, q <> p -> lookup_state u1 q = lookup_state s q)
@@ -195,7 +197,7 @@ Proof.
       assert (Hpu1: lookup_state u1 p = Some (exact_state S (TypeArgument invariant o x))) by (rewrite Eu1; apply lookup_set_same).
       destruct (IH (pre ++ [(p, S)]) (tpre ++ [TypeArgument invariant o x]) trest u1 u
           ltac:(rewrite Ev, <- app_assoc; reflexivity) ltac:(rewrite Et, <- app_assoc; reflexivity)
-          ltac:(rewrite !length_app; cbn; lia) ltac:(lia) Hnd Hsort Hst Hts) as [Hsu [Hexu [Hothu Hidx]]].
+          ltac:(rewrite !length_app; cbn; lia) ltac:(lia) Hnd Hsort Hst Hts Hwts) as [Hsu [Hexu [Hothu Hidx]]].
       + (* the variable states after binding p *)
         destruct Hs as [Hex Hdom]. split.
         * intros q st Hq. destruct (Nat.eq_dec p q) as [<-|Hne'].
@@ -224,14 +226,14 @@ Proof.
             exact E0. }
           intros Ens. rewrite Ens in Hchk. exists s. split; [exact Hs|].
           assert (Hform: static_form env p S).
-          { destruct (static_initial_ok env wf xfrag bfrag types vars p S (Hst p S Hin) s) as [_ [_ [Hexo _]]].
+          { destruct (static_initial_ok env wf xfrag bfrag types vars p S Hin (Hst p S Hin) s) as [_ [_ [Hexo _]]].
             destruct (Hexo eq_refl) as [_ [_ [_ [_ Hok]]]]. unfold Constraints.static_ok in Hok.
             cbn [static_upper_bound] in Hok. rewrite Ens in Hok. destruct Hok as [_ [_ [_ [_ [Hform _]]]]]. exact Hform. }
-          destruct (static_whole env wf xfrag bfrag types n p S x s s2
-              (proj1 (constraints_with_arguments env wf xfrag bfrag types supertype_of_classes n))
-              (fun j _ => leaf_all env wf xfrag bfrag types supertype_of_classes j
-                  (proj1 (constraints_with_arguments env wf xfrag bfrag types supertype_of_classes j)))
-              (fun C HC => proj1 (Hcomp C HC)) Hform Hx Hcx Hwf Hchk) as [_ [_ Hall]].
+          destruct (static_whole env wf xfrag bfrag types _ n p S x s s2
+              (proj1 (constraints_with_arguments env wf xfrag bfrag types supertype_of_classes _ (fun E => proj1 (Hwts E)) n))
+              (fun j _ => leaf_all env wf xfrag bfrag types supertype_of_classes _ j
+                  (proj1 (constraints_with_arguments env wf xfrag bfrag types supertype_of_classes _ (fun E => proj1 (Hwts E)) j)))
+              (fun C HC => proj1 (Hcomp C HC)) Hform Hx Hcx Hwx Hwf Hchk) as [_ [_ Hall]].
           intros C HC b K Hb Hsb Hbf. apply (Hall C HC b K Hb); [|exact Hbf].
           intros q o' x' Eq. destruct (Hsb q o' x' Eq) as [Hx' [st [Hq Hfit]]]. split; [exact Hx'|].
           exists st. split; [rewrite (Hsame q); exact Hq|exact Hfit].
@@ -266,14 +268,18 @@ Theorem explicit_invocation_with_bounded_variables_sound: forall n vars ts s Ps 
     (* the parameters and the arguments, accepted in turn *)
     (forall P, In P Ps -> kqfrag env P = true /\ vars_in (fun q => existsb (param_eqb q) (map fst vars)) P = true
         /\ forall C, In C (intersected_components P) -> owners_in (fun q => existsb (param_eqb q) (map fst vars)) C = true) ->
-    (forall A, In A As -> afrag env A = true /\ closed A = true) ->
+    (forall A, In A As -> afrag env A = true /\ closed A = true) -> arguments_without_contravariance env vars (ts ++ As) ->
     fold_unify (fun inner '(P, A) => unify env nf P A inner) (combine Ps As) (Ongoing s) = Some (Ongoing U) ->
     forall b, b = combine (map fst vars) ts ->
     (exists K, forall p S, In (p, S) vars ->
         unify env K (inst_nested env b (parameter_bound env p)) (value_of b p) (Ongoing []) = Some (Ongoing []))
     /\ forall P A, In (P, A) (combine Ps As) -> exists f, is_assignable_to env f A (inst env b P) = Some true.
 Proof.
-    intros n vars ts s Ps As nf U Hnd Hsort Hst Hl Hts Hbind HPs HAs Hfold b Hbdef.
+    intros n vars ts s Ps As nf U Hnd Hsort Hst Hl Hts Hbind HPs HAs Hw Hfold b Hbdef.
+    assert (Hwts: arguments_without_contravariance env vars ts)
+        by (intros E; split; [exact (proj1 (Hw E))|intros t Ht; exact (proj2 (Hw E) t (in_or_app _ _ _ (or_introl Ht)))]).
+    assert (HwAs: arguments_without_contravariance env vars As)
+        by (intros E; split; [exact (proj1 (Hw E))|intros A HA; exact (proj2 (Hw E) A (in_or_app _ _ _ (or_intror HA)))]).
     set (s0 := map (fun '(q, bnd) => (q, mkVariableState bnd (initial_upper_bound bnd) bottom_type false (existsb (param_eqb q) []))) vars).
     assert (Hs0: for_inference_of vars [] = Ongoing s0) by reflexivity. rewrite Hs0 in Hbind.
     assert (Hl0: forall p S, In (p, S) vars -> lookup_state s0 p = Some (initial_state S))
@@ -288,10 +294,11 @@ Proof.
       - intros i q S Hi. exists (initial_state S). exact (Hl0 q S (nth_error_In _ _ Hi)). }
     assert (Hne0: forall q st, lookup_state s0 q = Some st -> is_exact st = false -> In q (map fst vars)).
     { intros q st Hq _. destruct (lookup_for_inference_in vars [] q st Hq) as [S Hin]. exact (in_map fst _ _ Hin). }
-    destruct (explicit_arguments n vars ts [] [] vars ts s0 s eq_refl eq_refl eq_refl Hl Hnd Hsort Hst Hts Hes0
+    destruct (explicit_arguments n vars ts [] [] vars ts s0 s eq_refl eq_refl eq_refl Hl Hnd Hsort Hst Hts Hwts Hes0
         (fun p S Hin => Hl0 p S Hin) Hne0 Hbind) as [Hes [Hexs [_ Hidx]]].
     pose proof (explicit_wf vars ts s Hst Hts Hes) as Hwf.
-    destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes nf Ps As s U Hwf (fun P HP => proj1 (HPs P HP)) HAs Hfold)
+    destruct (invocation_sound env wf xfrag bfrag types supertype_of_classes (bounds_with_variables vars) (fun E => proj1 (HwAs E))
+        nf Ps As s U Hwf (fun P HP => proj1 (HPs P HP)) HAs (fun E => proj2 (HwAs E)) Hfold)
         as [HwfU Hsound].
     destruct (fold_keeps_exact_unify env nf _ s U Hfold) as [Hkeep _].
     (* the bindings: the explicit type arguments, class types *)
@@ -329,7 +336,7 @@ Proof.
       - right. split; [reflexivity|].
         destruct (Hchecked eq_refl) as [s1 [Hes1 Hchk]].
         assert (Hform: static_form env p S).
-        { destruct (static_initial_ok env wf xfrag bfrag types vars p S (Hst p S Hin) s) as [_ [_ [Hexo _]]].
+        { destruct (static_initial_ok env wf xfrag bfrag types vars p S Hin (Hst p S Hin) s) as [_ [_ [Hexo _]]].
           destruct (Hexo eq_refl) as [_ [_ [_ [_ Hok]]]]. unfold Constraints.static_ok in Hok.
           cbn [static_upper_bound] in Hok. rewrite Ens in Hok. destruct Hok as [_ [_ [_ [_ [Hform _]]]]]. exact Hform. }
         (* the type arguments satisfy the states the check was made at *)
@@ -338,7 +345,7 @@ Proof.
           intros j q S' o' x' Hj Htj. destruct (Hidx j q S' _ Hj Htj) as [_ Hf']. destruct (Hf' o' x' eq_refl) as [Hup _]. exact Hup. }
         split; [exact Hx|]. split; [exact Hcx|]. split; [exact Hform|].
         intros C HC K Hb _ Hbf. exact (Hchk C HC b K Hb Hsb1 Hbf). }
-    destruct (bindings_within env wf xfrag bfrag types vars U b true Hst HwfU Hdom Hvar (fun _ => Hbfin))
+    destruct (bindings_within env wf xfrag bfrag types vars U b true _ Hst HwfU Hdom Hvar (fun _ => Hbfin))
         as [Hsat [K [HK Hb]]].
     split.
     - exists K. exact HK.

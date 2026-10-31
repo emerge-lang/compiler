@@ -1,6 +1,7 @@
 package compiler.compiler.binding.type
 
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -51,6 +52,14 @@ internal fun BoundTypeReference.isClassType(): Boolean = when (this) {
     is RootResolvedTypeReference -> hasAllTypeArguments() && typeArguments.all { it.type.isClassType() }
     is NullableTypeReference -> nested is RootResolvedTypeReference && nested.isClassType()
     else -> false
+}
+
+/** `Inference.without_contravariance`: no in-variant type argument, nested ones included */
+internal fun BoundTypeReference.isWithoutContravariance(): Boolean = when (this) {
+    is RootResolvedTypeReference -> typeArguments.all { it.variance != TypeVariance.IN && it.type.isWithoutContravariance() }
+    is NullableTypeReference -> nested.isWithoutContravariance()
+    is BoundIntersectionTypeReference -> components.all { it.isWithoutContravariance() }
+    else -> true
 }
 
 /** `GenericArguments.bottom_only`: mentions Nothing only as Nothing, not as an intersection or a type parameter that is Nothing, also in the bounds of the parameters it refers to */

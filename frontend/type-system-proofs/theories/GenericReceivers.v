@@ -1574,7 +1574,7 @@ Proof.
       destruct (proj2 (proj2 (proj2 (proj2 HA)))) as [HcN [Hmq _]].
       destruct (bound_in_argument env b K [] vt ot (to_generic nt) Hbp) as [Hob Hbn].
       rewrite (unify_type_arguments_exact env s n vt ot nt va oa na
-          (not_capturable env (of_fragment env declared) (of_fragment env declared) s nt (proj1 Hs))) in H.
+          (not_capturable env (of_fragment env declared) (of_fragment env declared) false s nt (proj1 Hs))) in H.
       destruct (ownership_is_assignable_to oa ot) eqn:Ho; [|discriminate H].
       destruct (instance_of_argument va oa na HcN Hmq) as [EA HgN].
       pose proof (ownership_runtime oa ot Ho Hoa Hob) as Hown.

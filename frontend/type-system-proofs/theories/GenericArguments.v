@@ -1367,7 +1367,7 @@ Definition qstates (s: VariableStates): Prop :=
     forall p st, lookup_state s p = Some st -> is_exact st = false ->
         Qb (upper_bound st) /\ Qb (lower_bound st) /\ no_vars (static_upper_bound st) = true.
 
-Definition gwf_states (s: VariableStates): Prop := wf_states env of_fragment of_fragment s /\ qstates s.
+Definition gwf_states (s: VariableStates): Prop := wf_states env of_fragment of_fragment false s /\ qstates s.
 
 Lemma qstates_set: forall s p st, qstates s ->
     (is_exact st = false -> Qb (upper_bound st) /\ Qb (lower_bound st) /\ no_vars (static_upper_bound st) = true) ->
@@ -2027,7 +2027,7 @@ Proof.
           try (destruct HA as [HA _]; simpl in HA; discriminate HA).
       simpl in HP. destruct (yfrag_argument b va oa na HA) as [HAn Hoa]. pose proof (narrowed_content env _ _ _ Hn) as Hnn.
       destruct (bound_in_argument env b K [] vt ot (to_generic nt) Hb) as [_ Hbn].
-      rewrite (unify_type_arguments_exact env s n vt ot nt va oa na (not_capturable env of_fragment of_fragment s nt (proj1 Hs))) in H.
+      rewrite (unify_type_arguments_exact env s n vt ot nt va oa na (not_capturable env of_fragment of_fragment false s nt (proj1 Hs))) in H.
       destruct (ownership_is_assignable_to oa ot) eqn:Ho; [|discriminate H].
       pose proof (ownership_kept b oa ot Ho Hoa) as Hown.
       assert (Hfi: is_type_variable (inst env b nt) = false)
@@ -5077,7 +5077,7 @@ Proof.
         n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx)
         as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hwfu0 [Hp Hrest]]]]]]]]].
     assert (Hwfu: gwf_states u).
-    { split; [exact Hwfu0|]. intros p st Hl' He'. destruct (Hrest p st Hl' He') as [bound [Hin ->]].
+    { split; [exact (Hwfu0 false)|]. intros p st Hl' He'. destruct (Hrest p st Hl' He') as [bound [Hin ->]].
       cbn [upper_bound lower_bound static_upper_bound]. rewrite (initial_in_fragment env bound (Hbounds p bound (in_or_app _ _ _ (or_intror Hin)))).
       split; [exact (HQbounds p bound Hin)|]. split; [exact Qb_bottom|].
       exact (in_fragment_no_vars env bound (Hbounds p bound (in_or_app _ _ _ (or_intror Hin)))). }

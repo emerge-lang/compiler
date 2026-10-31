@@ -38,8 +38,11 @@ Let fits := Constraints.fits env.
 Let final_value := Constraints.final_value env.
 Let wf_states := Constraints.wf_states env xfrag bfrag.
 Hypothesis supertype_of_classes: closest_common_supertype_of_classes env.
-Let invocation_sound := Constraints.invocation_sound env wf xfrag bfrag types supertype_of_classes.
-Let final_value_fits := Constraints.final_value_fits env xfrag bfrag types.
+(* The type parameters of the functions here are bounded by class types, so the arguments needn't be
+   without contravariance (Constraints.strict) *)
+Let invocation_sound := Constraints.invocation_sound env wf xfrag bfrag types supertype_of_classes false
+    (fun E => False_ind _ (diff_false_true E)).
+Let final_value_fits := Constraints.final_value_fits env xfrag bfrag types false.
 
 Definition final_value_of (u: VariableStates) (p: TypeParameterId): EType :=
     match lookup_state u p with Some st => final_value st | None => bottom_type end.
@@ -375,18 +378,18 @@ Qed.
 
 (* The state a type parameter of the function starts inference with is one unify works with, whatever
    the states of the other variables *)
-Definition initial_ok (p: TypeParameterId) (bound: EType): Prop :=
+Definition initial_ok (strict: bool) (p: TypeParameterId) (bound: EType): Prop :=
     forall s, let st := mkVariableState bound (initial_upper_bound bound) bottom_type false false in
         no_vars (upper_bound st) = true /\ no_vars (lower_bound st) = true
         /\ (is_exact st = false -> is_capturable st = false
             /\ (exists K, unify env K (upper_bound st) (lower_bound st) (Ongoing []) = Some (Ongoing []))
-            /\ bfrag (upper_bound st) /\ bfrag (lower_bound st) /\ Constraints.static_ok env xfrag s p st)
+            /\ bfrag (upper_bound st) /\ bfrag (lower_bound st) /\ Constraints.static_ok env xfrag strict s p st)
         /\ vars_in (static_vars env p) (static_upper_bound st) = true.
 
 (* So does one bounded by a class type *)
-Lemma initial_ok_closed: forall p bound, in_fragment env bound = true -> initial_ok p bound.
+Lemma initial_ok_closed: forall strict p bound, in_fragment env bound = true -> initial_ok strict p bound.
 Proof.
-    intros p bound Hfb s. cbn zeta. cbn [upper_bound lower_bound is_exact is_capturable static_upper_bound].
+    intros strict p bound Hfb s. cbn zeta. cbn [upper_bound lower_bound is_exact is_capturable static_upper_bound].
     rewrite (initial_in_fragment env bound Hfb).
     split; [exact (in_fragment_no_vars bound Hfb)|]. split; [reflexivity|]. split.
     - intros _. split; [reflexivity|]. split; [exists 2; apply (below_all env wf [] bound 2 Hfb); lia|].
@@ -504,11 +507,11 @@ Proof.
 Qed.
 
 (* So, with the type parameters of the function starting as unify works with them *)
-Lemma receiver_and_object_with: forall n mr c cvars ovars ma ca ys u mo e xs zs n0,
+Lemma receiver_and_object_with: forall strict n mr c cvars ovars ma ca ys u mo e xs zs n0,
     c <> nothing -> ca <> nothing -> e <> nothing ->
     map fst cvars = parameter_ids env c -> NoDup (map fst (cvars ++ ovars)) ->
     (forall p bound, In (p, bound) cvars -> in_fragment env bound = true) ->
-    (forall p bound, In (p, bound) ovars -> initial_ok p bound) ->
+    (forall p bound, In (p, bound) ovars -> initial_ok strict p bound) ->
     in_fragment env (RootResolved ma ca ys) = true ->
     unify env n (RootResolved mr c (map receiver_leaf cvars)) (RootResolved ma ca ys)
         (for_inference_of (cvars ++ ovars) (map fst cvars)) = Some (Ongoing u) ->
@@ -522,12 +525,12 @@ Lemma receiver_and_object_with: forall n mr c cvars ovars ma ca ys u mo e xs zs 
         /\ (forall i p bound y, nth_error cvars i = Some (p, bound) -> nth_error ys' i = Some y ->
             lookup_state u p = Some (mkVariableState bound y y true true))
         /\ (forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound (initial_upper_bound bound) bottom_type false false))
-        /\ wf_states u
+        /\ wf_states strict u
         /\ Forall2 (fun z y => unify env n1 y z (Ongoing []) = Some (Ongoing [])) zs ys'
         /\ (forall p st, lookup_state u p = Some st -> is_exact st = false ->
             exists bound, In (p, bound) ovars /\ st = mkVariableState bound (initial_upper_bound bound) bottom_type false false).
 Proof.
-    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hcb Hinit Hfy Hrec Hfo Hobj Hzs Hzx.
+    intros strict n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hcb Hinit Hfy Hrec Hfo Hobj Hzs Hzx.
     destruct (receiver_captures n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hcb Hfy Hrec Hfo Hobj Hzs Hzx)
         as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [Hdomu [Hp Hrest]]]]]]]]].
     exists ys', n1. split; [exact Hl|]. split; [exact Hlz|]. split; [exact Hys|]. split; [exact Hcap|]. split; [exact Hownu|].
@@ -562,15 +565,21 @@ Lemma receiver_and_object: forall n mr c cvars ovars ma ca ys u mo e xs zs n0,
         /\ (forall i p bound y, nth_error cvars i = Some (p, bound) -> nth_error ys' i = Some y ->
             lookup_state u p = Some (mkVariableState bound y y true true))
         /\ (forall p bound, In (p, bound) ovars -> lookup_state u p = Some (mkVariableState bound (initial_upper_bound bound) bottom_type false false))
-        /\ wf_states u
+        /\ (forall strict, wf_states strict u)
         /\ Forall2 (fun z y => unify env n1 y z (Ongoing []) = Some (Ongoing [])) zs ys'
         /\ (forall p st, lookup_state u p = Some st -> is_exact st = false ->
             exists bound, In (p, bound) ovars /\ st = mkVariableState bound (initial_upper_bound bound) bottom_type false false).
 Proof.
-    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds.
-    refine (receiver_and_object_with n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd _ _).
-    - intros p bound Hin. exact (Hbounds p bound (in_or_app _ _ _ (or_introl Hin))).
-    - intros p bound Hin. exact (initial_ok_closed p bound (Hbounds p bound (in_or_app _ _ _ (or_intror Hin)))).
+    intros n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd Hbounds Hfy Hrec Hfo Hobj Hzs Hzx.
+    (* the states are those unify works with whatever strict is: the bounds have no type variables *)
+    pose proof (fun strict => receiver_and_object_with strict n mr c cvars ovars ma ca ys u mo e xs zs n0 Hc Hca He Hids Hnd
+        (fun p bound Hin => Hbounds p bound (in_or_app _ _ _ (or_introl Hin)))
+        (fun p bound Hin => initial_ok_closed strict p bound (Hbounds p bound (in_or_app _ _ _ (or_intror Hin))))
+        Hfy Hrec Hfo Hobj Hzs Hzx) as H.
+    destruct (H false) as [ys' [n1 [Hl [Hlz [Hys [Hcap [Hownu [_ [Hp Hrest]]]]]]]]].
+    exists ys', n1. split; [exact Hl|]. split; [exact Hlz|]. split; [exact Hys|]. split; [exact Hcap|]. split; [exact Hownu|].
+    split; [|split; [exact Hp|exact Hrest]].
+    intros strict. destruct (H strict) as [? [? [_ [_ [_ [_ [_ [Hw _]]]]]]]]. exact Hw.
 Qed.
 
 (*
@@ -627,7 +636,8 @@ Proof.
     { intros P HP. apply (pbound_in_from_refs vars _ _ P (proj1 (HPs P HP)) (proj2 (HPs P HP)) HK0 HK0r).
       intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         simpl. unfold b0. rewrite (lookup_map_vars vars _ q bound Hnd' Hin). reflexivity. }
-    destruct (invocation_sound nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold) as [HwfU _].
+    destruct (invocation_sound nf Ps As u U (Hwfu false) (fun P HP => proj1 (HPs P HP)) HAs (fun E => False_ind _ (diff_false_true E)) Hfold)
+        as [HwfU _].
     destruct (fold_keeps_exact_unify nf _ u U Hfold) as [Hkeep [Hkeep2 _]].
     assert (Hfinal': forall p bound, In (p, bound) ovars -> xfrag (final_value_of U p)).
     { intros p bound Hin. apply (Hfinal p bound Hin).
@@ -675,7 +685,8 @@ Proof.
     { intros P HP. apply (pbound_in_from_refs vars _ _ P (proj1 (HPs P HP)) (proj2 (HPs P HP)) HK HKr).
       intros q Hq. apply in_map_iff in Hq. destruct Hq as [[q' bound] [Hfst Hin]]. simpl in Hfst. subst q'.
         destruct (Hlookup q bound Hin) as [o [x [Hl' [Ho _]]]]. simpl. rewrite Hl'. exact Ho. }
-    destruct (invocation_sound nf Ps As u U Hwfu (fun P HP => proj1 (HPs P HP)) HAs Hfold) as [_ Hsound].
+    destruct (invocation_sound nf Ps As u U (Hwfu false) (fun P HP => proj1 (HPs P HP)) HAs (fun E => False_ind _ (diff_false_true E)) Hfold)
+        as [_ Hsound].
     (* the type parameters bound in b *)
     assert (Hvars: forall p o x, lookup_binding b p = Some (TypeArgument Model.invariant o x) -> exists bound, In (p, bound) vars).
     { intros p o x Hpb. rewrite Hbdef, lookup_app in Hpb. destruct (lookup_binding (bindings_of env c zs) p) as [a|] eqn:Ec.
