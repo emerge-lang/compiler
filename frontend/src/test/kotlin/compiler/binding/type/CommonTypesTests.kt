@@ -47,7 +47,10 @@ class CommonTypesTests : FreeSpec({
         types.filterNot { (_, t) -> t.isOfFragment() && t.isOfGenericCode(ctxParameters) }.map { it.first }
             .let { check(it.isEmpty()) { it } }
         types.filter { (_, t) -> t.keepsNullableComponents() }.map { it.first }
-            .let { check(it == listOf("A? & P", "P & R")) { it } }
+            .let { check(it == listOf(
+                "A? & P", "P & R", "Nothing? & P", "A? & R? & P", "A? & B? & P", "P & R & A?", "R & B?", "mut R & mut B?",
+                "D? & P", "U & R", "A? & U", "U & P",
+            )) { it } }
     }
 
     "the closest common supertype is above both types" {
@@ -88,13 +91,17 @@ class CommonTypesTests : FreeSpec({
 
     "the intersection of types of generic code is of it" {
         violationsOf({ it.isOfFragment() && it.isOfGenericCode(ctxParameters) }) { a, b ->
-            a.intersect(b).takeUnless { it.isOfGenericCode(ctxParameters) }?.toString()
+            a.intersect(b)
+                .takeUnless { it.isOfGenericCode(a.mentionedParameters() + b.mentionedParameters()) }
+                ?.toString()
         }.shouldBeNone()
     }
 
     "the closest common supertype of types of generic code is of it" {
         violationsOf({ it.isOfFragment() && it.isOfGenericCode(ctxParameters) }) { a, b ->
-            a.closestCommonSupertypeWith(b).takeUnless { it.isOfGenericCode(ctxParameters) }?.toString()
+            a.closestCommonSupertypeWith(b)
+                .takeUnless { it.isOfGenericCode(a.mentionedParameters() + b.mentionedParameters()) }
+                ?.toString()
         }.shouldBeNone()
     }
 

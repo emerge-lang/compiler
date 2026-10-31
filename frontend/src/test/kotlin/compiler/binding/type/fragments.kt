@@ -61,7 +61,8 @@ private fun bottomOnly(t: BoundTypeReference, visiting: Set<BoundTypeParameter>)
     is NullableTypeReference -> bottomOnly(t.nested, visiting)
     is GenericTypeReference -> !t.effectiveBound.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
         && (t.parameter in visiting || bottomOnly(t.parameter.bound, visiting + t.parameter))
-    is BoundIntersectionTypeReference -> !t.isNonNullableNothing && t.components.all { bottomOnly(it, visiting) }
+    is BoundIntersectionTypeReference -> !t.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
+        && t.components.all { bottomOnly(it, visiting) }
     else -> true
 }
 
@@ -146,6 +147,18 @@ private fun isInstantiable(t: BoundTypeReference, visiting: Set<BoundTypeParamet
 /** `Substitution.tfrag_h`, `tfrag_top_h` */
 private fun isInstantiableTop(t: BoundTypeReference, visiting: Set<BoundTypeParameter>?): Boolean =
     t.intersectionComponents()?.let { intersectionOf(it) { c -> isInstantiable(c, visiting) } } ?: isInstantiable(t, visiting)
+
+/** the type parameters [this] mentions, also in the bounds of those: the least `ps` of which it is [isOfGenericCode] */
+internal fun BoundTypeReference.mentionedParameters(): Set<String> = mentioned(this, emptySet())
+
+private fun mentioned(t: BoundTypeReference, visiting: Set<BoundTypeParameter>): Set<String> = when (t) {
+    is RootResolvedTypeReference -> t.typeArguments.flatMap { mentioned(it.type, visiting) }.toSet()
+    is NullableTypeReference -> mentioned(t.nested, visiting)
+    is GenericTypeReference -> setOf(t.parameter.name) +
+        if (t.parameter in visiting) emptySet() else mentioned(t.parameter.bound, visiting + t.parameter)
+    is BoundIntersectionTypeReference -> t.components.flatMap { mentioned(it, visiting) }.toSet()
+    else -> emptySet()
+}
 
 private fun mentionsOnly(t: BoundTypeReference, parameters: Set<String>, visiting: Set<BoundTypeParameter>): Boolean = when (t) {
     is RootResolvedTypeReference -> t.typeArguments.all { mentionsOnly(it.type, parameters, visiting) }

@@ -51,10 +51,11 @@ class BoundIntersectionTypeReference private constructor(
     } else {
         components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
     }
+    private val isEffectivelyBottom by lazy { simplifyIsEffectivelyBottomType(components) }
     override val assignmentMutability get() = mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
     override val isNonNullableNothing by lazy {
-        components.any { it.isNonNullableNothing } || simplifyIsEffectivelyBottomType(components)
+        components.any { it.isNonNullableNothing } || isEffectivelyBottom
     }
 
     override val baseTypeOfLowerBound by lazy {
@@ -196,6 +197,10 @@ class BoundIntersectionTypeReference private constructor(
         carry: TypeUnification,
         reason: () -> String,
     ): TypeUnification {
+        if (isEffectivelyBottom) {
+            return carry
+        }
+
         return components.asSequence()
             .map { targetType.unify(it, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
