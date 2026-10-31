@@ -23,9 +23,9 @@ Import ListNotations.
 (* too (`Box<A & T>`, the wide fragment wtfrag). Instantiated, those are types of the fragment of *)
 (* Fragment.v without type parameters (ground), but no longer of the fragment of Transitivity.v,  *)
 (* whose transitivity Substitution.v relies on. So this takes transitivity from Generics.v and    *)
-(* Conjectures.v: where unify terminates (unify_terminates, which rests on inheritance not being  *)
-(* expansive, as findExpansiveSupertypes in compiler/binding/basetype/ExpansiveInheritance.kt     *)
-(* makes sure), unify is transitive on them (transitivity_terminating), and what it never         *)
+(* Conjectures.v: where unify terminates on the environment (unify_terminates_on, a premise about *)
+(* the program at hand; Conjectures.v says what is known about which programs it holds for),      *)
+(* unify is transitive on them (transitivity_terminating), and what it never                      *)
 (* rejects, it accepts (accepts). The proof is the induction of Substitution.v once more, in the  *)
 (* form of some fuel being enough (wide_main), with intersections as targets and as assignees in  *)
 (* every position: an intersection takes what each of its components takes, of the mutability     *)
@@ -1054,16 +1054,14 @@ Hypothesis wf: wellformed env.
 Let ranked := wf_bounds_ranked env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 Variable b: Bindings.
 
 (* What unify never rejects of ground types, it accepts *)
 Lemma ground_accepts: forall D y, ground env D = true -> ground env y = true -> never_fails env D y ->
     exists f, unify env f D y (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros D y HD Hy H. exact (accepts env wf declared declared_wf terminates finite tame y D
+    intros D y HD Hy H. exact (accepts env wf declared declared_wf terminates y D
         (ground_of_fragment env declared y Hy) (ground_of_fragment env declared D HD) H).
 Qed.
 
@@ -1076,7 +1074,7 @@ Proof.
     destruct (ground_of_fragment env declared Z HZ) as [gZ rZ].
     assert (A1: is_assignable_to env f1 X Y = Some true) by (unfold is_assignable_to, empty_unification; rewrite H1; reflexivity).
     assert (A2: is_assignable_to env f2 Y Z = Some true) by (unfold is_assignable_to, empty_unification; rewrite H2; reflexivity).
-    destruct (transitivity_terminating env wf declared declared_wf terminates finite tame f1 f2 X Y Z
+    destruct (transitivity_terminating env wf declared declared_wf terminates f1 f2 X Y Z
         gX gY gZ rX rY rZ A1 A2) as [f Hf].
     exists f. unfold is_assignable_to, empty_unification in Hf.
     destruct (unify env f Z X (Ongoing [])) as [[u|]|] eqn:E; try discriminate Hf.
@@ -1219,11 +1217,11 @@ Proof. intros n t0 [| |[]| | | |] s H; try contradiction; reflexivity. Qed.
 Lemma gof: forall t, ground env t = true -> of_fragment env declared t.
 Proof. intros t H. exact (ground_of_fragment env declared t H). Qed.
 
-Let btrans := below_trans env wf declared declared_wf terminates finite tame.
-Let brefl := below_refl env wf declared declared_wf terminates finite tame.
-Let bcomponent := intersection_below_component env wf declared declared_wf terminates finite tame.
-Let binter := below_intersection_of env wf declared declared_wf terminates finite tame.
-Let bcomponents := below_of_components env wf declared declared_wf terminates finite tame.
+Let btrans := below_trans env wf declared declared_wf terminates.
+Let brefl := below_refl env wf declared declared_wf terminates.
+Let bcomponent := intersection_below_component env wf declared declared_wf terminates.
+Let binter := below_intersection_of env wf declared declared_wf terminates.
+Let bcomponents := below_of_components env wf declared declared_wf terminates.
 
 (* ... and below each of them, without null *)
 Lemma below_flat_component: forall zs z, zs <> [] -> (forall z, In z zs -> flat_ground env z) -> In z zs ->
@@ -1386,9 +1384,7 @@ Hypothesis wf: wellformed env.
 Let ranked := wf_bounds_ranked env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 Variable b: Bindings.
 Variable K: nat.
 Hypothesis Hbf: bindings_in_fragment env b.
@@ -1518,10 +1514,10 @@ Proof.
     assert (Hl': 2 <= length (map (instantiate env b) cs)) by (rewrite length_map; exact Hl).
     split; [exact Heq|]. split; [exact Hl'|]. split; [exact Hys|]. rewrite Heq.
     apply (ground_of_components env _ Hys).
-    destruct (below_of_components env wf declared declared_wf terminates finite tame bottom_type _
+    destruct (below_of_components env wf declared declared_wf terminates bottom_type _
         (bottom_of_fragment env wf declared) eq_refl Hl'
         (fun y Hy => conj (gof env declared _ (Hys y Hy))
-            (GenericArguments.below_bottom env wf declared declared_wf terminates finite tame y (gof env declared _ (Hys y Hy)))))
+            (GenericArguments.below_bottom env wf declared declared_wf terminates y (gof env declared _ (Hys y Hy)))))
         as [_ [_ [Hf _]]].
     apply Hf. intros y Hy Hn. pose proof (Hys y Hy) as Hg.
     destruct (ground_cases env y Hg) as [[? [? [? ->]]]|[[? [? [? ->]]]|[[ws [-> _]]|[? [-> _]]]]]; try exact I; try discriminate Hn.
@@ -1704,7 +1700,7 @@ Proof.
         Model.is_subtype_of (assignment_mutability env y) (assignment_mutability env (instantiate env b c)) = true).
     { intros c Hin y Hy. destruct (Hcomp c Hin) as [f Hf]. destruct (Hcs c Hin) as [Hgc Hclc].
       exact (ground_class_components_mutability env wf f _ _ Hgc Hclc HA Hf y Hy). }
-    rewrite Heq. apply (ground_accepts env wf declared declared_wf terminates finite tame).
+    rewrite Heq. apply (ground_accepts env wf declared declared_wf terminates ).
     - unfold ground. apply andb_true_iff. split.
       + exact (intersection_instance_gfrag ts Hts Hbt).
       + change (forallb no_refs (map (with_mutability env (common_mutability env (map (instantiate env b) ts))) (map (instantiate env b) ts)) = true).
@@ -1743,7 +1739,7 @@ Proof.
         (with_mutability env (common_mutability env (map (instantiate env b) cs)) (instantiate env b c)) (Ongoing []) = Some (Ongoing [])).
     { apply (ground_accepts_lower env wf f); [exact HT|exact Hgc|exact Hclc|exact Hst| |exact Hf].
       apply fold_intersect_below_element. apply in_map, in_map, Hin. }
-    rewrite Heq. apply (ground_accepts env wf declared declared_wf terminates finite tame).
+    rewrite Heq. apply (ground_accepts env wf declared declared_wf terminates ).
     - exact HT.
     - rewrite <- Heq. exact (proj1 (inst_facts (Intersection cs) Hcs Hba)).
     - set (k := common_mutability env (map (instantiate env b) cs)) in *.
@@ -1773,7 +1769,7 @@ Proof.
     destruct (intersection_target env n ks a [] u Hnv Hne Hshape
         (fun c u' Hin E => no_vars_keeps env wf n c a [] u' (proj1 (forallb_forall _ _) Hnvs c Hin) Hnva E) H) as [_ Hall].
     destruct (kept_instance ks Hks Hbt) as [Heq [Hl' [Hys _]]].
-    rewrite Heq. apply (below_of_components_ground env wf declared declared_wf terminates finite tame); [exact (inst_ground a Ha Hba)|exact Hl'|].
+    rewrite Heq. apply (below_of_components_ground env wf declared declared_wf terminates ); [exact (inst_ground a Ha Hba)|exact Hl'|].
     intros y Hy. split; [exact (Hys y Hy)|]. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]].
     destruct (Hc c Hin) as [_ Hwc].
     exact (IH c a (wtfrag_ktfrag env c (wfrag_wtfrag env c Hwc)) Ha (bound_in_component env b K [] ks c Hbt Hin) Hba [] (Hall c Hin)).
@@ -1791,9 +1787,9 @@ Proof.
     destruct (IH t c Ht (wtfrag_ktfrag env c (wfrag_wtfrag env c Hwc)) Hbt (bound_in_component env b K [] cs c Hba Hin) u Hc)
         as [f Hf].
     destruct (kept_instance cs Hcs Hba) as [Heq [Hl [Hys HI]]].
-    destruct (of_components_below env wf declared declared_wf terminates finite tame _ _ Hl Hys (in_map _ _ _ Hin)) as [f' Hf'].
+    destruct (of_components_below env wf declared declared_wf terminates _ _ Hl Hys (in_map _ _ _ Hin)) as [f' Hf'].
     rewrite <- Heq in Hf'.
-    exact (ground_trans env wf declared declared_wf terminates finite tame f' f _ _ _ HI (Hys _ (in_map _ _ _ Hin))
+    exact (ground_trans env wf declared declared_wf terminates f' f _ _ _ HI (Hys _ (in_map _ _ _ Hin))
         (inst_ground t Ht Hbt) Hf' Hf).
 Qed.
 
@@ -1817,7 +1813,7 @@ Proof.
     - rewrite (inst_nested_instantiate env wf b K [] _ Hfb Hbe) in Hra.
       pose proof (wfrag_wtfrag env _ (sfrag_wfrag env wf _ Hsb)) as Hwb.
       destruct (IH t _ Ht Hwb Hbt Hbe u Hu) as [f Hf].
-      exact (ground_trans env wf declared declared_wf terminates finite tame K f _ _ _ HgI
+      exact (ground_trans env wf declared declared_wf terminates K f _ _ _ HgI
           (proj1 (inst_facts _ Hwb Hbe)) HT Hra Hf).
     - (* the bound is an intersection: through the component of it that the target takes *)
       rewrite Eb in Hu, Hra, Hbe, HB. destruct n as [|n]; [discriminate Hu|].
@@ -1838,7 +1834,7 @@ Proof.
       destruct (Hcomp c Hin) as [Hfc Hm].
       pose proof (with_mutability_accepts env K' _ _ _ [] [] Hfc HI Hm (Hall _ (in_map _ _ _ (in_map _ _ _ Hin)))) as Hcx.
       rewrite (inst_nested_instantiate env wf b K [] c (sfrag_tfrag env c Hsc) Hbc) in Hcx.
-      exact (ground_trans env wf declared declared_wf terminates finite tame K' f _ _ _ HgI
+      exact (ground_trans env wf declared declared_wf terminates K' f _ _ _ HgI
           (proj1 (inst_facts c Hwc Hbc)) HT Hcx Hf).
     - (* a nullable bound, which a class type or a reference takes nothing of *)
       rewrite Eb in Hu. destruct n as [|n]; [discriminate Hu|].
@@ -2056,20 +2052,19 @@ End WideMain.
 (*
  * The substitution lemma, intersections in type arguments included: within the wide fragment, a
  * type that is assignable to another stays so, with the type parameters in both instantiated
- * exactly, where unify terminates (unify_terminates, on inheritance that isn't expansive:
- * ExpansiveInheritance.kt)
+ * exactly, where unify terminates on the environment (unify_terminates_on, Conjectures.v)
  *)
 Theorem substitution_wide: forall env declared b K fuel t a,
-    wellformed env -> bounds_wellformed env declared -> unify_terminates ->
-    finitely_many_templates env -> tame_inheritance env -> bindings_in_fragment env b ->
+    wellformed env -> bounds_wellformed env declared -> unify_terminates_on env declared ->
+    bindings_in_fragment env b ->
     ktfrag env t = true -> ktfrag env a = true -> bound_in env b K [] t = true -> bound_in env b K [] a = true ->
     is_assignable_to env fuel a t = Some true ->
     exists f, is_assignable_to env f (instantiate env b a) (instantiate env b t) = Some true.
 Proof.
-    intros env declared b K fuel t a wf declared_wf terminates finite tame Hbf Ht Ha Hbt Hba H.
+    intros env declared b K fuel t a wf declared_wf terminates Hbf Ht Ha Hbt Hba H.
     unfold is_assignable_to, empty_unification in *.
     destruct (unify env fuel t a (Ongoing [])) as [[u|]|] eqn:Eu; try discriminate H.
-    destruct (proj1 (wide_main env wf declared declared_wf terminates finite tame b K Hbf fuel)
+    destruct (proj1 (wide_main env wf declared declared_wf terminates b K Hbf fuel)
         t a Ht Ha Hbt Hba u Eu) as [f Hf].
     exists f. rewrite Hf. reflexivity.
 Qed.

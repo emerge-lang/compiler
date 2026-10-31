@@ -142,9 +142,7 @@ Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
 
 (* The conjectures of Conjectures.v *)
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 Hypothesis intersect_in_fragment: intersect_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
@@ -182,8 +180,7 @@ Lemma accepts: forall x y, of_fragment x -> of_fragment y ->
     never_fails env y x -> exists n, unify env n y x (Ongoing []) = Some (Ongoing []).
 Proof.
     intros x y [Hx Hrx] [Hy Hry] Hnf.
-    destruct (terminates env declared wf declared_wf finite tame
-        y x [] Hy Hx Hry Hrx) as [n Hn].
+    destruct (terminates wf declared_wf y x [] Hy Hx Hry Hrx) as [n Hn].
     exists n. specialize (Hnf n []).
     destruct (unify env n y x (Ongoing [])) as [[u|]|] eqn:E; [|contradiction Hnf; reflexivity|contradiction Hn; reflexivity].
     rewrite (gkeeps env wf n y x [] u Hy Hx E). reflexivity.
@@ -244,7 +241,7 @@ Lemma unify_assignable: forall n x y, unify env n y x (Ongoing []) = Some (Ongoi
 Proof. intros n x y H. unfold is_assignable_to, empty_unification. rewrite H. reflexivity. Qed.
 
 Let transitive := transitivity_terminating env wf declared declared_wf
-    terminates finite tame.
+    terminates.
 
 (* What is assignable to the intersection of a bound and a type is assignable to each of them *)
 Lemma below_intersection: forall a b x n, bound_fragment a -> in_fragment env b = true -> of_fragment x ->

@@ -41,9 +41,7 @@ Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 
 (* The conjectures of Conjectures.v *)
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 
 (* The type parameters of the code, and what they are bound to at run time *)
 Variable ps: list TypeParameterId.
@@ -329,7 +327,7 @@ Proof.
     rewrite (instance_ref_gen _ g v o Y Ly HfY), (instance_ref_gen _ g v o _ Ly' HfsY).
     set (gm := given_mutability g). set (nn := is_narrowed g).
     pose proof (caller_ref_apply env wf declared ps gm nn Y HY) as HcR.
-    pose proof (instance_ref_apply env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared gm nn Y HfY HY) as ER.
+    pose proof (instance_ref_apply env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared gm nn Y HfY HY) as ER.
     pose proof (gfrag_not_nested _ (proj1 (ref_apply_of_fragment env wf declared declared_wf gm nn Y HfY))) as Hn1.
     pose proof (gfrag_not_nested _ (proj1 (ref_apply_of_fragment env wf declared declared_wf gm nn _ HfsY))) as Hn2.
     unfold final_argument. rewrite Hn1, Hn2, !orb_false_r.
@@ -524,7 +522,7 @@ Proof.
     intros f V0 fuel Hf HcV HfV HnV HnaV HinV H.
     assert (Hsub: forall W, caller W -> unify env fuel W V0 (Ongoing []) = Some (Ongoing []) ->
         exists f', unify env f' (instantiate env sigma W) (instantiate env sigma V0) (Ongoing []) = Some (Ongoing [])).
-    { intros W HcW E. exact (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared
+    { intros W HcW E. exact (subst_below env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared
           V0 W HcV HcW (ex_intro _ fuel E)). }
     rewrite <- (compose_write f Hf). unfold write_member in *.
     destruct (mentions_loosely_bound_in_arguments bY f).
@@ -535,8 +533,8 @@ Proof.
       rewrite (sig_argument v o Z Ho (good_caller Z HcZ)). destruct fuel as [|n]; [discriminate H|].
       destruct (Variance_beq v output) eqn:Ev.
       + rewrite (argument_takes_value env n v o Z V0 [] (proj1 HfV)), Ev, HnV in H. discriminate H.
-      + pose proof (argument_value_below env wf declared declared_wf terminates finite tame n v o Z V0 Ev HfZ HfV H) as HB.
-        destruct (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared V0 Z HcV HcZ HB)
+      + pose proof (argument_value_below env wf declared declared_wf terminates n v o Z V0 Ev HfZ HfV H) as HB.
+        destruct (subst_below env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared V0 Z HcV HcZ HB)
             as [f1 E1].
         exists (S f1). rewrite (unify_argument_value env f1 v o _ _ [] HinV), Ev. exact E1.
     - (* a type argument made nullable: what it takes without null is below its type, unless it is
@@ -553,13 +551,13 @@ Proof.
         exists 2. change (instantiate env sigma (Nullable bottom_type)) with (Nullable bottom_type).
         rewrite unify_nullable_nullable, (unify_argument_value env 0 v o _ bottom_type [] (bottom_in_fragment env wf)), Ev.
         reflexivity.
-      + pose proof (argument_value_below env wf declared declared_wf terminates finite tame n v o Z _ Ev HfZ (conj HgA0 I) H) as HB.
+      + pose proof (argument_value_below env wf declared declared_wf terminates n v o Z _ Ev HfZ (conj HgA0 I) H) as HB.
         pose proof (caller_nullable_assignee env wf declared ps V0 (proj1 HfV) HcV) as HcA0.
-        destruct (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared _ Z HcA0 HcZ HB)
+        destruct (subst_below env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared _ Z HcA0 HcZ HB)
             as [f1 E1].
         destruct (sig_caller Z HcZ) as [GZ _]. destruct (sig_caller _ HcA0) as [GA0 _].
         pose proof (ground_assignee_without_null env f1 _ _ GZ GA0 E1) as E2.
-        rewrite (instance_nullable_assignee env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared V0 (proj1 HfV) HcV) in E2.
+        rewrite (instance_nullable_assignee env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared V0 (proj1 HfV) HcV) in E2.
         destruct (fragment_cases env _ HinV) as [[mv [cv [vargs Ev0]]]|[mv [cv [vargs [Ev0 _]]]]]; rewrite Ev0 in E2 |- *;
             cbn [without_null] in E2.
         * assert (HinR: in_fragment env (RootResolved mv cv vargs) = true) by (rewrite <- Ev0; exact HinV).
@@ -667,7 +665,7 @@ Theorem override_return_composed: forall R Re fuel, (forall y, In y ys -> is_loo
     exists f, unify env f (instantiate env bS R) (instantiate env sigma Re) (Ongoing []) = Some (Ongoing []).
 Proof.
     intros R Re fuel Hl Hf HcRe H. rewrite <- (proj1 (compose_member R Hf)).
-    exact (subst_below env wf declared declared_wf terminates finite tame ps sigma Hsf Hwithin Hdeclared Re _ HcRe
+    exact (subst_below env wf declared declared_wf terminates ps sigma Hsf Hwithin Hdeclared Re _ HcRe
         (member_instance_exact R Hl Hf) (ex_intro _ fuel H)).
 Qed.
 

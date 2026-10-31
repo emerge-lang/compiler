@@ -23,9 +23,10 @@ Import ListNotations.
 (* The types are those of Generics.v: of the fragment gfrag. A conjecture whose inputs are outside *)
 (* of it claims nothing about them.                                                               *)
 (*                                                                                                *)
-(* One conjecture is about the model alone: that unify terminates where inheritance isn't          *)
-(* expansive (unify_terminates, below). It is a claim about every such environment, a theorem to   *)
-(* prove rather than a property to check of the Kotlin implementation.                            *)
+(* One premise is about the model alone: that unify terminates on the environment at hand          *)
+(* (unify_terminates_on, below). It was a claim about every environment whose inheritance is tame, *)
+(* and that claim is false (Examples.unify_always_terminates_is_false); so it is taken of the one  *)
+(* environment, like the conjectures about intersect and closestCommonSupertypeWith.              *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Section Conjectures.
@@ -144,8 +145,9 @@ End Bounds.
 (* in `interface N<Z> : C<in N<N<Z>>>`, checking subtyping can go on forever (Kennedy and Pierce, *)
 (* "On Decidability of Nominal Subtyping with Variance"). The frontend rejects expansive          *)
 (* inheritance (findExpansiveSupertypes, in compiler/binding/basetype/ExpansiveInheritance.kt).   *)
-(* Kennedy and Pierce show subtyping decidable without it; that unify terminates then is          *)
-(* conjectured here, for a program's finite class table (unify_terminates).                       *)
+(* Kennedy and Pierce show subtyping decidable without it. Whether unify terminates then is taken  *)
+(* of the environment at hand (unify_terminates_on), not conjectured of every one: F-bounds bring  *)
+(* contravariance in without inheritance (Examples.v).                                            *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* The type parameters a type mentions, each with whether nested in a type argument of a class type
@@ -218,38 +220,48 @@ Definition tame_inheritance: Prop := non_expansive /\ supertypes_without_contrav
 End Expansive.
 
 (*
- * unify terminates on the types of the fragment of Generics.v, where inheritance isn't expansive, as
- * ExpansiveInheritance.kt makes sure, and the type arguments of supertypes are without contravariance
- * (tame_inheritance). The frontend doesn't make sure of the latter, but fails a goal that comes up
- * again while it is being decided; programs with such supertypes are outside of the theorems taking
- * this conjecture.
+ * unify terminates on the types of the fragment of Generics.v, in the environment at hand. This is a
+ * premise about one environment, like the conjectures above, not a claim about every one.
  *
- * Why this stays a conjecture: Kennedy and Pierce show the goals reachable from a query finite where
- * inheritance isn't expansive, for a much smaller calculus. Here no size of the types decreases:
- * normalizing an assignee to a supertype grows its type arguments (`B<E> : A<Box<E>>`), and an
- * in-variant type argument swaps target and assignee. A measure would have to come from the rank of
- * non_expansive, and cover effective bounds, intersections, nullability and Nothing as well. That
- * declared supertypes have no variance on their type arguments (wf_supertypes_are_exact), nor
- * contravariance nested in them (supertypes_without_contravariance), helps: inheritance alone brings
- * in no contravariance, which their undecidable examples rest on; `in` comes only from the types
- * written.
+ * It was one (unify_always_terminates, below): that unify terminates wherever inheritance isn't
+ * expansive, as ExpansiveInheritance.kt makes sure, and the type arguments of supertypes are without
+ * contravariance (tame_inheritance). That is false: with `fn f<T : Cn<Cn<in T>>>(t: T)`, deciding T
+ * below `Cn<in T>` unfolds the bound and, at the in-variant type argument, swaps target and assignee,
+ * asking the same question again (Examples.Counterexample). Inheritance is no part of it; the F-bound
+ * brings the contravariance in. The frontend fails a goal that comes up again while it is being
+ * decided (RootResolvedTypeReference.unify: "X is a subtype of Y only if it already is"), so it
+ * finishes; the model doesn't have that cut, and modelling it is open (roadmap.md).
  *
- * What it would take if it didn't hold: where the frontend runs unify, it would not finish (a stack
- * overflow), or fail a goal that comes up again, and so reject a program, never accept one. The theorems resting on it, though, are about
- * unifications the frontend never runs: of the instances of generic code (SubstitutionTerminating.v,
- * SubstitutionWide.v) and of the final values of inference (FinalValues.v). For those, unify never
- * rejecting is proven without it (transitivity_never_fails, instances_never_fail); what rests on it is
- * that unify also accepts. A unification that neither fails nor ends is a derivation in the
- * coinductive reading of subtyping, which Kennedy and Pierce discuss, and which suits nominal types;
- * so this would be a gap in the proof, not a known way for an unsound program to be accepted.
+ * What is known about the environments it holds for: Kennedy and Pierce show the goals reachable
+ * from a query finite where inheritance isn't expansive and there is no contravariance, for a much
+ * smaller calculus. Here no size of the types decreases: normalizing an assignee to a supertype grows
+ * its type arguments (`B<E> : A<Box<E>>`), and an in-variant type argument swaps target and assignee.
+ * A measure would have to come from the rank of non_expansive and bounds_deep_ranked, and cover
+ * effective bounds, intersections, nullability and Nothing as well. Programs without `in` anywhere
+ * are the plausible case; none is proven.
+ *
+ * What it would take if it didn't hold of a program: where the frontend runs unify, it fails a goal
+ * that comes up again, and so rejects the program, never accepts one. The theorems resting on it,
+ * though, are about unifications the frontend never runs: of the instances of generic code
+ * (SubstitutionTerminating.v, SubstitutionWide.v) and of the final values of inference
+ * (FinalValues.v). For those, unify never rejecting is proven without it (transitivity_never_fails,
+ * instances_never_fail); what rests on it is that unify also accepts. A unification that never fails
+ * and never finishes is accepted under a coinductive reading of subtyping, which Kennedy and Pierce
+ * discuss, and which suits nominal types; so this is a gap in the proof for such programs, not a
+ * known way for an unsound program to be accepted.
  *)
-Definition unify_terminates: Prop :=
+Definition unify_terminates_on (env: Environment) (declared: TypeParameterId -> EType): Prop :=
+    wellformed env -> bounds_wellformed env declared ->
+    forall t a s, gfrag env t = true -> gfrag env a = true -> refs_wf env declared t -> refs_wf env declared a ->
+        exists n, unify env n t a (Ongoing s) <> None.
+
+(* The former conjecture, kept to state its refutation (Examples.unify_always_terminates_is_false) *)
+Definition unify_always_terminates: Prop :=
     forall env declared,
         wellformed env ->
         bounds_wellformed env declared ->
         finitely_many_templates env -> tame_inheritance env ->
-        forall t a s, gfrag env t = true -> gfrag env a = true -> refs_wf env declared t -> refs_wf env declared a ->
-            exists n, unify env n t a (Ongoing s) <> None.
+        unify_terminates_on env declared.
 
 Section Terminating.
 
@@ -260,9 +272,7 @@ Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 Let declared_gfrag := bw_gfrag env declared declared_wf.
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 
 (* Transitivity, as usual, where unify terminates *)
 Theorem transitivity_terminating: forall n1 n2 x y z,
@@ -272,8 +282,7 @@ Theorem transitivity_terminating: forall n1 n2 x y z,
     exists f, is_assignable_to env f x z = Some true.
 Proof.
     intros n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2.
-    destruct (terminates env declared wf declared_wf finite tame
-        z x [] Hz Hx Hrz Hrx) as [f Hf].
+    destruct (terminates wf declared_wf z x [] Hz Hx Hrz Hrx) as [f Hf].
     exists f. pose proof (transitivity_never_fails env wf declared declared_wf
         n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 f) as Hnf.
     unfold is_assignable_to, empty_unification in *.

@@ -1078,9 +1078,7 @@ Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 
 (* The conjectures of Conjectures.v, and those above *)
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 Hypothesis intersect_in_fragment: intersect_always_stays_in_fragment env declared.
 Hypothesis supertype_in_fragment: closest_common_supertype_stays_in_fragment env declared.
 Hypothesis intersect_below: intersect_is_below_both env declared.
@@ -1126,8 +1124,8 @@ Theorem member_call_in_generic_code_instantiated: forall ps sigma n mr c cvars o
 Proof.
     intros ps sigma n mr c cvars ovars ma ca ys u mo e xs zs n0 Ps As nf U Hsf Hwithin Hdeclared Hc Hca He Hids Hnd Hbounds Hfy Hrec
         Hfo Hcl Hobj Hzs Hxx Hzb HPs HPn HAs HQbounds Hfold b Hbdef Hdb P A HPA.
-    destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates finite
-        tame intersect_in_fragment supertype_in_fragment intersect_below supertype_above
+    destruct (member_call_in_generic_code_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates
+         intersect_in_fragment supertype_in_fragment intersect_below supertype_above
         (caller_type env declared ps) (caller_argument env declared ps) (caller_argument_nested env declared ps)
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env wf declared ps)
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
@@ -1171,7 +1169,7 @@ Proof.
     destruct (HAs A HA) as [_ [_ [_ [HwA [HbA HmA]]]]].
     destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbP HmP) as [K1 HK1].
     destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ HbA HmA) as [K2 HK2].
-    exact (substitution_wide env declared sigma (max K1 K2) f0 (inst env b P) A wf declared_wf terminates finite tame Hsf
+    exact (substitution_wide env declared sigma (max K1 K2) f0 (inst env b P) A wf declared_wf terminates Hsf
         HwP HwA (bound_in_mono env wf sigma K1 (max K1 K2) _ (Nat.le_max_l K1 K2) HK1) (bound_in_mono env wf sigma K2 (max K1 K2) _ (Nat.le_max_r K1 K2) HK2) Hf0).
 Qed.
 
@@ -1251,7 +1249,7 @@ Proof.
     assert (HAs': forall A, In A As -> yfrag env declared (caller_type env declared ps) b A).
     { intros A HA. destruct (HAs A HA) as [Hf [Hbo Hq]]. split; [exact Hf|]. split; [exact Hbo|]. split; [exact (Hown A Hq)|exact Hq]. }
     destruct (generic_member_call_with_bounded_variables_sound env wf intersect_no_vars supertype_no_vars declared declared_wf terminates
-        finite tame intersect_in_fragment supertype_in_fragment intersect_below supertype_above
+        intersect_in_fragment supertype_in_fragment intersect_below supertype_above
         (caller_type env declared ps) (caller_argument env declared ps) (caller_argument_nested env declared ps)
         (intersect_generic ps) (supertype_generic ps) (caller_top env wf declared ps) (caller_bottom env wf declared ps)
         (caller_any env wf declared ps) (caller_root env declared ps) (caller_nullable env declared ps) (caller_bound env wf declared ps)
@@ -1300,7 +1298,7 @@ Proof.
         + destruct (Hst q S Hin) as [ES [Hsv [Hcl' Hvar]]]. exists S. split; [exact ES|]. right.
           destruct (Hfinal q S Hin) as [_ HbF]. destruct (no_vars S) eqn:Ens.
           * left. intros C HC. destruct (Hcl' eq_refl) as [HfS HqS].
-            destruct (bound_component_of env wf declared declared_wf terminates finite tame (caller_type env declared ps)
+            destruct (bound_component_of env wf declared declared_wf terminates (caller_type env declared ps)
                 (caller_component env declared ps) (caller_nullable_component env declared ps) S C HfS HqS HC) as [HfC [HqC _]].
             split; [exact (proj1 HfC)|]. pose proof (HbF C HC) as HbC.
             rewrite (free_unmentioned env b Hpb C (proj1 HfC) (unmentioned env b C (proj1 HfC) (Hown C HqC))) in HbC. exact HbC.
@@ -1314,7 +1312,7 @@ Proof.
     { intros x y [Hwx [Hbx Hmx]] [Hwy [Hby Hmy]] [f0 Ef0].
       destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ Hbx Hmx) as [K1 HK1].
       destruct (bound_in_derived env wf sigma Hsf declared ps Hwithin Hdeclared (bw_declared env declared declared_wf) _ Hby Hmy) as [K2 HK2].
-      apply (substitution_wide env declared sigma (max K1 K2) f0 y x wf declared_wf terminates finite tame Hsf Hwy Hwx
+      apply (substitution_wide env declared sigma (max K1 K2) f0 y x wf declared_wf terminates Hsf Hwy Hwx
           (bound_in_mono env wf sigma K2 (max K1 K2) _ (Nat.le_max_r K1 K2) HK2)
           (bound_in_mono env wf sigma K1 (max K1 K2) _ (Nat.le_max_l K1 K2) HK1)).
       unfold is_assignable_to, empty_unification. rewrite Ef0. reflexivity. }

@@ -28,7 +28,7 @@ Import ListNotations.
 (* and what is written is below what the object holds (intersection_member_write_sound).          *)
 (*                                                                                                *)
 (* Intersections aren't of the fragment of MemberAccess.v but of Fragment.v, where assignability   *)
-(* rests on unify_terminates, as in GenericArguments.v.                                            *)
+(* rests on unify_terminates_on, as in GenericArguments.v.                                         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Section MemberIntersections.
@@ -39,9 +39,7 @@ Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
 
 (* The conjectures of Conjectures.v *)
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 
 Let frag := of_fragment env declared.
 
@@ -52,7 +50,7 @@ Lemma below_class: forall f x y, unify env f y x (Ongoing []) = Some (Ongoing []
 Proof. intros f x y H. exists f. exact H. Qed.
 
 Lemma trans: forall x y z, frag x -> frag y -> frag z -> below env x y -> below env y z -> below env x z.
-Proof. exact (below_trans env wf declared declared_wf terminates finite tame). Qed.
+Proof. exact (below_trans env wf declared declared_wf terminates ). Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Intersections of class types                                                                    *)
@@ -77,14 +75,14 @@ Proof. intros y H. unfold oc. rewrite (flat_map_class [y]) by (intros y' [<-|[]]
 Lemma remut_below: forall k w, in_fragment env w = true -> Model.is_subtype_of k (assignment_mutability env w) = true ->
     below env (with_mutability env k w) w.
 Proof.
-    intros k w Hw Hk. destruct (below_refl env wf declared declared_wf terminates finite tame w (frag_class w Hw)) as [f Hf].
+    intros k w Hw Hk. destruct (below_refl env wf declared declared_wf terminates w (frag_class w Hw)) as [f Hf].
     exists f. apply (unify_remut env f w w w _ [] [] (remut_refl env w Hw) (remut_with_mutability env k w Hw)); [|exact Hf].
     destruct (fit_cases env k w Hw) as [[E _]|[E _]]; rewrite E; [exact Hk|apply exclusive_fits].
 Qed.
 
 Lemma without_null_below: forall w, in_fragment env w = true -> below env (without_null env w) w.
 Proof.
-    intros w Hw. destruct (below_refl env wf declared declared_wf terminates finite tame w (frag_class w Hw)) as [f Hf].
+    intros w Hw. destruct (below_refl env wf declared declared_wf terminates w (frag_class w Hw)) as [f Hf].
     exists f. exact (unify_without_null_assignee env f w w [] [] Hw Hw Hf).
 Qed.
 
@@ -101,16 +99,16 @@ Proof.
     destruct l as [|y1 [|y2 rest]]; [contradiction| |].
     - destruct (H y1 (or_introl eq_refl)) as [Hf Hn]. rewrite (oc_single y1 Hf).
       split; [exact (frag_class y1 Hf)|]. split; [exact Hn|].
-      split; [intros y [<-|[]]; exact (below_refl env wf declared declared_wf terminates finite tame y1 (frag_class y1 Hf))|].
+      split; [intros y [<-|[]]; exact (below_refl env wf declared declared_wf terminates y1 (frag_class y1 Hf))|].
       destruct (fragment_cases env y1 Hf) as [[? [? [? ->]]]|[? [? [? [-> _]]]]]; [|discriminate Hn].
       split; [intros n E; discriminate E|reflexivity].
     - set (l := y1 :: y2 :: rest) in *.
       assert (Hl: 2 <= length l) by (simpl; lia).
       assert (Hfr: frag (oc l)).
-      { destruct (below_of_components env wf declared declared_wf terminates finite tame bottom_type l
+      { destruct (below_of_components env wf declared declared_wf terminates bottom_type l
             (bottom_of_fragment env wf declared) eq_refl Hl) as [_ [_ [Hf _]]].
         - intros y Hy. split; [exact (frag_class y (proj1 (H y Hy)))|].
-          exact (below_bottom env wf declared declared_wf terminates finite tame y (frag_class y (proj1 (H y Hy)))).
+          exact (below_bottom env wf declared declared_wf terminates y (frag_class y (proj1 (H y Hy)))).
         - apply Hf. intros y Hy Hny. rewrite (proj2 (H y Hy)) in Hny. discriminate Hny. }
       assert (E: oc l = Intersection (map (fun c => with_mutability env (common_mutability env l) (without_null env c)) l)).
       { unfold oc. rewrite (flat_map_class l) by (intros y Hy; exact (proj1 (H y Hy))).
@@ -128,7 +126,7 @@ Proof.
           by (exact (fold_intersect_below_element (map (assignment_mutability env) l) readonly _ (in_map _ _ _ Hy))).
       pose proof (in_fragment_without_null env y Hf) as Hwf.
       assert (Hz: below env (oc l) (with_mutability env k (without_null env y))).
-      { rewrite E in Hfr |- *. apply (intersection_below_component env wf declared declared_wf terminates finite tame _ _ Hfr).
+      { rewrite E in Hfr |- *. apply (intersection_below_component env wf declared declared_wf terminates _ _ Hfr).
         apply in_map_iff. exists y. split; [reflexivity|exact Hy]. }
       assert (Hwm: frag (with_mutability env k (without_null env y))) by (apply frag_class, in_fragment_with_mutability, Hwf).
       apply (trans _ _ y Hfr Hwm (frag_class y Hf) Hz).
@@ -209,7 +207,7 @@ Proof.
         exists f. exact (unify_without_null env f y0 x [] [] (Hys y0 Hy0) (Hxs x Hx) Hf). }
       unfold NY. destruct ys as [|y1 [|y2 rest]]; [contradiction| |].
       - cbn [map]. rewrite (oc_single _ (proj1 (Hyw _ (or_introl eq_refl)))). exact (Hy _ (or_introl eq_refl)).
-      - refine (proj1 (below_of_components env wf declared declared_wf terminates finite tame NX
+      - refine (proj1 (below_of_components env wf declared declared_wf terminates NX
             (map (without_null env) (y1 :: y2 :: rest)) HfX HnX ltac:(simpl; lia) _)).
         intros y Hy'. split; [exact (frag_class y (proj1 (Hyw y Hy')))|exact (Hy y Hy')]. }
     assert (HrY: frag (Nullable NY)).
@@ -458,7 +456,7 @@ Proof.
       + destruct (Hrd LY LY_nonempty (Hplain Hna)) as [H1 [_ [H3 _]]]. rewrite (read_of_gfrag _ (proj1 H1)). auto.
       + destruct (Hrd K HKne HK) as [H1 [_ [H3 _]]]. cbn [read_of read_type]. auto.
       + cbn [read_of read_type]. split; [exact (top_of_fragment env wf declared)|].
-        exact (below_top env wf declared declared_wf terminates finite tame _ HfX).
+        exact (below_top env wf declared declared_wf terminates _ HfX).
       + destruct (Hrd _ unwrapped_nonempty (unwrap_readable LY Hni)) as [H1 [_ [H3 _]]].
         rewrite (read_of_gfrag _ (proj1 H1)). auto.
     - change (instantiate env (bindings_of env c xs) (Nullable (Intersection cs)))
@@ -470,7 +468,7 @@ Proof.
       + destruct (Hrd LY LY_nonempty (Hplain Hna)) as [_ [H2 [_ H4]]]. rewrite (read_of_gfrag _ (proj1 H2)). auto.
       + destruct (Hrd K HKne HK) as [_ [H2 [_ H4]]]. cbn [rewrap_nullable read_of read_type]. auto.
       + cbn [rewrap_nullable read_of read_type]. split; [exact (top_of_fragment env wf declared)|].
-        exact (below_top env wf declared declared_wf terminates finite tame _ HrX).
+        exact (below_top env wf declared declared_wf terminates _ HrX).
       + destruct (Hrd _ unwrapped_nonempty (unwrap_readable LY Hni)) as [_ [H2 [_ H4]]].
         rewrite (read_of_gfrag _ (proj1 H2)). auto.
 Qed.
@@ -495,7 +493,7 @@ Proof.
     - (* nothing but Nothing, or null *)
       left. destruct Hf as [-> | ->]; cbn iota in HW.
       + rewrite object_instance. apply (trans V bottom_type _ HfV (bottom_of_fragment env wf declared) HfX); [exists fuel; exact HW|].
-        exact (below_bottom env wf declared declared_wf terminates finite tame _ HfX).
+        exact (below_bottom env wf declared declared_wf terminates _ HfX).
       + change (instantiate env (bindings_of env c xs) (Nullable (Intersection cs)))
             with (rewrap_nullable (instantiate env (bindings_of env c xs) (Intersection cs))).
         rewrite object_instance.
@@ -506,7 +504,7 @@ Proof.
         destruct (oc_nonnull _ Hne' Hw) as [HfNX _].
         rewrite EX. rewrite EX in HrX.
         exact (nullable_assigned_below env _ bottom_type (proj1 HrX)
-            (below_bottom env wf declared declared_wf terminates finite tame _ HfNX)).
+            (below_bottom env wf declared declared_wf terminates _ HfNX)).
     - pose proof (fun H => proj1 (written_below Em H)) as Hw1. pose proof (fun H => proj2 (written_below Em H)) as Hw2.
       destruct Hf as [-> | ->].
       + left. rewrite object_instance. rewrite EY in HW.
@@ -532,7 +530,7 @@ Proof.
           destruct (nullable_assignee_facts env wf declared declared_wf V (proj1 HfV)) as [Hg _].
           destruct f as [|f]; [discriminate E|].
           apply (nullable_below env wf declared declared_wf V T (proj1 HfV)).
-          refine (argument_value_below env wf declared declared_wf terminates finite tame f v any_ownership T _ _ HT (conj Hg I) E).
+          refine (argument_value_below env wf declared declared_wf terminates f v any_ownership T _ _ HT (conj Hg I) E).
           destruct v; first [reflexivity|contradiction Hv; reflexivity]. }
         destruct (instance_cases LY LY_nonempty) as [[E Hna]|[[K [E [HKne HK]]]|[[E Hno]|[E [Hno Hni]]]]]; rewrite E in HW.
         * left. rewrite <- (unwrap_plain LY Hna) in HW. specialize (Hw2 (plain_none_out Hna)).

@@ -20,10 +20,9 @@ Import ListNotations.
 (* on without end on it: Kennedy and Pierce show that it may, with expansive inheritance. So the  *)
 (* substitution lemma for intersections as assignees takes the form of never rejecting, as        *)
 (* transitivity does in Generics.v (instances_never_fail); where unify terminates, that is the    *)
-(* usual form (substitution_terminating). That unify terminates is the conjecture                 *)
-(* unify_terminates of Conjectures.v. It rests on inheritance not being expansive, which the      *)
-(* frontend enforces: findExpansiveSupertypes in                                                  *)
-(* compiler/binding/basetype/ExpansiveInheritance.kt rejects the programs it would not hold for.  *)
+(* usual form (substitution_terminating). That unify terminates on the environment is the premise *)
+(* unify_terminates_on of Conjectures.v, taken of the program at hand; Conjectures.v says what is  *)
+(* known about which programs it holds for.                                                       *)
 (*                                                                                                *)
 (* ofComponents gives each component the mutability common to all of them, as which they are      *)
 (* assigned: with a component of a const class, exclusive, as all values are its objects          *)
@@ -39,9 +38,7 @@ Hypothesis wf: wellformed env.
 Let ranked := wf_bounds_ranked env wf.
 Variable declared: TypeParameterId -> EType.
 Hypothesis declared_wf: bounds_wellformed env declared.
-Hypothesis terminates: unify_terminates.
-Hypothesis finite: finitely_many_templates env.
-Hypothesis tame: tame_inheritance env.
+Hypothesis terminates: unify_terminates_on env declared.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* The instances                                                                                    *)
@@ -329,7 +326,7 @@ Qed.
 (*
  * The substitution lemma, intersections as assignees included: within the fragment, a type that is
  * assignable to another stays so, with the type parameters in both instantiated exactly, where unify
- * terminates (unify_terminates, on inheritance that isn't expansive: ExpansiveInheritance.kt).
+ * terminates on the environment (unify_terminates_on, Conjectures.v).
  *)
 Theorem substitution_terminating: forall fuel t a,
     tfrag env t = true -> tfrag env a = true -> bound_in env b K [] t = true -> bound_in env b K [] a = true ->
@@ -343,7 +340,7 @@ Proof.
     pose proof (instances_never_fail fuel t a u Ht Ha Hbt Hba Eu) as Hnf.
     pose proof (proj1 (instance_facts env wf b K [] Hbf _ t (le_n _) Ht Hbt)) as HT.
     pose proof (proj1 (instance_facts env wf b K [] Hbf _ a (le_n _) Ha Hba)) as HA.
-    destruct (accepts env wf declared declared_wf terminates finite tame _ _
+    destruct (accepts env wf declared declared_wf terminates _ _
         (cfrag_of_fragment _ HA) (cfrag_of_fragment _ HT) Hnf) as [f Hf].
     exists f. rewrite Hf. reflexivity.
 Qed.
