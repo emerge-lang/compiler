@@ -16,7 +16,9 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 11 | Member access in generic code where the instances aren't class types, or of members typed as intersections; overrides of intersection types | `box.value` with `box: Box<A & T>`; `b.v` with `b: H<T>` and `v: A & X`; an override taking `A & T` | `Composition.v` covers reads and writes through a reference mentioning type parameters, and through a value of a type parameter, which the frontend reads as its bound (roadmap 32): instantiated for the run-time bindings, they are those through the reference at run time (`compose_member`, for member types as MemberAccess has them). At run time, MemberAccess takes over, which needs the instances of the type arguments of the reference, and of a value written, to be class types. Intersections as member types are left out, also those whose components keep their nullability, `A? & T`, which are types of generic code since step 12. The frontend agrees over the grid (`MemberAccessPropertiesTests`) |
 | 13 | In generic code, types that are Nothing without being `Nothing` among the types of the arguments: intersections with a Nothing component or of disjoint classes, type parameters bounded by Nothing | `x: mut A & read Nothing` (the frontend makes it `const A & Nothing`), `n: N` with `N : Nothing` | Unify takes them for Nothing (`is_non_nullable_nothing`): an `out` type argument takes them, and a variable with one as its lower bound falls back to its upper bound. The proofs show of `Nothing` itself only that what unify takes for Nothing is below every type (`bottom_only_nothing`, `below_nothing`); `bottom_only` keeps the others out. No value has such a type; the frontend warns of `mut A & read Nothing`. `Nothing` itself, of any mutability, is covered (roadmap 35, step 10) |
 | 15 | Intersections whose components keep their nullability, with type variables among them, as the types of parameters of calls in generic code, instantiated, or of functions whose bounds mention type variables | `fn id<P>(x: A? & P) -> A? & P`, `id(null)` in a generic function, its body instantiated | ofComponents makes `(A & B)?` only where every component is `X?`, non-null components where one isn't nullable, and otherwise keeps the components as they are, so that null is a value exactly where it is one of each component: `A? & P`, `P & R` with `P, R : Any?`. They are covered as the types of arguments and final values (`gfrag`: unify with them is transitive, `Generics.transitivity_never_fails`, and `intersect` builds them, `intersect_always_stays_in_fragment`) and as the types of generic code (`GenericCode.caller_type`, of `SubstitutionWide.ktfrag`, also in type arguments and made nullable: the substitution lemma holds of them, `substitution_wide`, and `intersect` builds them, `intersect_stays_in_generic_code`); `CommonTypesTests` checks both conjectures of the frontend (step 12). As the types of parameters, outside generic code (`Inference.kqfrag`: of an argument that may be null, which a component covers, the variables take `Any?`, `Constraints.param_components`; the instance, `ofComponents` of class types, nullable or not, takes what the instance of each component takes, `Inference.below_flat_components`), and in generic code (`GenericArguments.member_call_in_generic_code_sound`: `gparam_components`, and `below_of_components_nullable` of an argument that may be null). Not yet instantiated (`GenericCode`, `GenericReceivers`; the model's `(A? & P)?` for `T?` of `T` bound to `A? & P`, where the frontend makes `(A & P!)?`, is in the way, step 12), nor with bounds that mention type variables (`GenericArguments.mqparameter`), which take `qfrag`, of intersections of non-null components only. Inferring from an argument that may be null, the frontend and the model took null as covered by the component that takes the argument, and bound `P` to a non-null `Any`: `id(null)` was an `A`. Both now leave null to every component (`Subtyping.intersection_body`) |
-| 16 | Programs with classes whose supertypes have `in` type arguments nested in their type arguments, wherever the theorems rest on `unify_terminates` (◐) | `class K : Cn<Cn<in K>>` | Deciding `K` below `Cn<in K>` decides it again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and assignee (Kennedy and Pierce's example): the model's unify doesn't terminate. The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't, and `unify_terminates` is conjectured only where supertypes are without contravariance (`Conjectures.tame_inheritance`) |
+| 16 | Programs on which the model's unify doesn't terminate, wherever the theorems rest on `unify_terminates_on` (◐) | `fn f<T : Cn<Cn<in T>>>(t: T) { val c: Cn<in T> = t }`; `class K : Cn<Cn<in K>>` | Deciding `T` below `Cn<in T>` unfolds the bound to `Cn<Cn<in T>>`, and the in-variant type argument swaps target and assignee: the question comes up again, and the model's unify gives no answer with any fuel (`Examples.Counterexample`); the same through supertypes (Kennedy and Pierce's example). The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't. The claim that unify terminates wherever inheritance is tame (`unify_always_terminates`) is refuted (`Examples.unify_always_terminates_is_false`): F-bounds bring the contravariance in without inheritance. So the theorems of generic code take termination on the program at hand as a premise (`Conjectures.unify_terminates_on`), like the conjectures about `intersect` and `closestCommonSupertypeWith`; which programs satisfy it is open, plausibly those without `in` type arguments anywhere, and modelling the frontend's cut is roadmap item 39 |
+| 17 | Calls with arguments whose in-variant type arguments differ, where the callee's bounds mention other type parameters, outside generic code: the ✓ theorems of inference take `closest_common_supertype_of_classes`, which is false of the frontend (◐‡) | `fn f<T, U : Box<T>>(a: T, b: T, u: U)`, `f(box1, box2, u)` with `box1: Box<in A>`, `box2: Box<in B>` | The join of two class types with in-variant type arguments intersects them: `Box<in A> ⊔ Box<in B> = Box<in A & B>`, precise and sound, but no longer a class type (`Inference.afrag`), which the check of the lower bound against a static upper bound with type variables takes (`Constraints.static_whole`); found by `CommonTypesTests` over the widened grid (step 14). As a claim about the frontend, the premise is false, so until it is narrowed to arguments without in-variant type arguments (`Conjectures.without_contravariance`) or the inference proofs admit intersections inside in-variant type arguments, `Constraints.invocation_sound` and what takes it (`Explicit.v`, `FBounded.v`, `MemberCalls.v`, `FinalValues.v`) say nothing about the frontend; the same calls in generic code are covered by `GenericArguments.v`, whose fragment admits such types, under its premises |
+| 18 | Calls in generic code with an argument `Box<in Nothing?>` or `Box<Nothing?>` against another whose type argument is a type parameter (◐) | `fn f<T>(a: T, b: T)`, `f(Box<P>, Box<in Nothing?>)` in generic code | The join is `Box<in P & Nothing?>`: the intersection is Nothing without null, which `GenericArguments.bottom_only` excludes, so `closest_common_supertype_keeps_bottom_only` is false of the frontend (step 14). The theorems of generic code taking it say nothing about the frontend until `bottom_only` admits such intersections, which rests on unify treating an intersection that is Nothing as Nothing (the frontend does since step 14, the model doesn't yet) |
 
 ## Subtyping (unify)
 
@@ -25,7 +27,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | Class types (variance, ownership, nullability): transitivity, reflexivity | ✓ | `Transitivity.v` |
 | Mutability promises are conflict-free; assignability respects mutability | ✓ | `Ops.v` |
 | Const classes (fit every mutability) | ✓ | `Subtyping.v`, `Ops.v` |
-| Type parameters, `m T`, `T!`, `T?`, intersections: transitivity | ◐ proven only to never reject; accepting rests on `unify_terminates` | `Generics.v`, `Conjectures.v` |
+| Type parameters, `m T`, `T!`, `T?`, intersections: transitivity | ◐ proven only to never reject; accepting rests on `unify_terminates_on` | `Generics.v`, `Conjectures.v` |
 | Reflexivity on type parameters and intersections | ◐ same | `FinalValues.v` |
 | Erroneous types | ✗ modelled in unify, no theorem | — |
 | Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin | `Ownership.v` |
@@ -35,8 +37,8 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | area | status | where |
 |---|---|---|
 | Class types, `T`, `m T`, `T!`, `T?`, bounds mentioning other parameters, F-bounds | ✓ | `Substitution.v` |
-| Intersections at the top level and as assignees | ◐ assumes `unify_terminates` | `SubstitutionTerminating.v` |
-| Intersections inside type arguments (`Box<A & T>`) | ◐ assumes `unify_terminates` | `SubstitutionWide.v` |
+| Intersections at the top level and as assignees | ◐ assumes `unify_terminates_on` | `SubstitutionTerminating.v` |
+| Intersections inside type arguments (`Box<A & T>`) | ◐ assumes `unify_terminates_on` | `SubstitutionWide.v` |
 | Explicit type arguments within declared bounds, including F-bounds | ✓ | `WithinBounds.v` |
 
 ## Member access
@@ -44,8 +46,8 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | area | status |
 |---|---|
 | Read and write through variant type arguments; members typed `T`, `T?`, `m T`, `T!`, `m T?`, class types of those; explicit ownership | ✓ `MemberAccess.v` |
-| Member types that are intersections of those, made nullable or not (`A & T`, `(A & T!)?`, `A? & T`), but of components `T?` | ◐ `MemberIntersections.v` (assumes `unify_terminates`) |
-| In generic code and through values of type parameters, for the member types of `MemberAccess.v`: what is read and written, instantiated, is so through the reference at run time | ◐ `Composition.v`: `generic_member_read_sound`, `generic_member_write_sound` (assumes `unify_terminates`; run-time type arguments class types, #11) |
+| Member types that are intersections of those, made nullable or not (`A & T`, `(A & T!)?`, `A? & T`), but of components `T?` | ◐ `MemberIntersections.v` (assumes `unify_terminates_on`) |
+| In generic code and through values of type parameters, for the member types of `MemberAccess.v`: what is read and written, instantiated, is so through the reference at run time | ◐ `Composition.v`: `generic_member_read_sound`, `generic_member_write_sound` (assumes `unify_terminates_on`; run-time type arguments class types, #11) |
 | Members typed as intersections in generic code | ✗ (#11) |
 | Objects of a subclass of the reference's class | — only classes have member variables, and classes have no subtypes (`BoundBaseType.Kind`) |
 
@@ -85,7 +87,7 @@ Columns:
 type arguments of class types for free functions (#5); in the from-generic-code and instantiated columns, a variable without one where its bound
 mentions only type parameters of the function and is a class type or a type variable (#4).
 † only when the final values are class types.
-◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates`; in generic code
+◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates_on`; in generic code
 also that the types of the arguments are Nothing only as `Nothing` (#13), and none of the callee's type
 parameters as an ownership. Of an intersection bound, the final value is shown within each component (`bound_components`).
 
@@ -117,7 +119,7 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | An argument the call takes fits the override's parameter, with the type parameters of the object's class bound | ✓ | `Overrides.v`: `override_parameter` |
 | What the override returns fits the return type the call expects | ✓ where the object's type arguments are within their bounds | `override_return` |
 | The object fits the override's declared receiver (an override can't demand `mut` where the overridden function takes `read`) | ✓ class-type receivers; the intersection Kotlin checks is taken unsimplified | `override_receiver` |
-| Parameter and return types `m T`, `T!`, `T?`, class types of those | ◐ assumes `unify_terminates` | `Composition.v`: `override_parameter_composed`, `override_return_composed` |
+| Parameter and return types `m T`, `T!`, `T?`, class types of those | ◐ assumes `unify_terminates_on` | `Composition.v`: `override_parameter_composed`, `override_return_composed` |
 | Parameter and return types that are intersections | ✗ (#11) | — |
 | Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
 | Every function a concrete class inherits is implemented, so dispatch finds one | assumed: the compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction`) | readme, assumptions |
@@ -259,13 +261,17 @@ Proofs:
     tests in `ResolvedTypeReferenceTest`, `TypeErrors`, `TypeInferenceErrors`, `VarianceErrors`, the grid of
     `CommonTypesTests` with `read Nothing`. What stays out of #13: types that are Nothing without being `Nothing`,
     in generic code).
-11. `unify_terminates`, which turns every ◐ into ✓, and with it #16: the model failing goals that come up again
-    while they are decided, as the frontend does, so that it terminates on all inheritance that isn't expansive.
-    It is last of the type system, as it isn't a soundness problem: where unify doesn't finish, the compiler
-    rejects the program. Deferred (2026-10-30), it stays a conjecture: no size of the types decreases, so
-    proving the model as it is needs a measure from the rank of `non_expansive` that isn't known to exist;
-    modelling the cut touches every use of unify, and with it, a cut in one alternative of an intersection lets
-    another succeed, so what the theorems show of unify accepting doesn't carry over by itself.
+11. Termination of unify. ~~`unify_terminates`, which turns every ◐ into ✓~~: the conjecture, that unify terminates
+    wherever inheritance isn't expansive and supertypes are without contravariance, is false (`Examples.v`, 2026-10-31):
+    with `fn f<T : Cn<Cn<in T>>>(t: T)`, deciding `T` below `Cn<in T>` asks itself again, and no inheritance is involved.
+    Narrowed (2026-10-31) to a premise about the environment at hand, `unify_terminates_on`, which the ◐ theorems take
+    like the conjectures about `intersect` and `closestCommonSupertypeWith`; the refuted claim stays as
+    `unify_always_terminates`, for its refutation. Open: which programs satisfy the premise (plausibly those without `in`
+    type arguments anywhere; no proof), and modelling the frontend's cut (roadmap 39), which fails a goal that comes up
+    again while it is decided, so that the model terminates where the frontend does. The cut touches every use of
+    unify, and a cut in one alternative of an intersection lets another succeed, so what the theorems show of unify
+    accepting doesn't carry over by itself. Not a soundness problem: where unify doesn't finish, the compiler rejects
+    the program.
 12. #15 in generic code: ~~gfrag widened to intersections whose components keep their nullability, and the
     theorems on it~~ (done: `Fragment.is_kept_component`, `intersection_gfrag_cases`. A target intersection takes
     no `X?`, as one of its components is a reference as it is (`Generics.inter_takes_no_nullable_any`). Transitivity
@@ -297,3 +303,20 @@ Proofs:
     intersections in generic code (#11).
 13. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
     of types.
+13. ~~Concrete instances of the headline theorems~~ (done, 2026-10-31: `Examples.v` instantiates `transitivity`,
+    `substitution_lemma`, `member_read_sound`, `member_write_sound`, `invocation_sound`, `override_parameter`,
+    `member_call_in_generic_code_sound` and `generic_member_call_with_bounded_variables_instantiated` on one program,
+    `intersect` and `closestCommonSupertypeWith` given as a coarse meet and join, so that their premises are shown jointly
+    satisfiable, not vacuous; the last two take `unify_terminates_on` of that program, which is open. Found: the
+    termination conjecture was false, step 11)
+14. ~~The conjectures over a wider grid~~ (done, 2026-10-31: `TypeGrid` grown from 75 to 277 types and from 5 to 11
+    instantiations, with subtypes through several supertypes and parameterized ones, type parameters bounded by
+    another and by an intersection, in-variant type arguments of unrelated types, intersections in type arguments
+    and Nothing in variant positions. Found: `closest_common_supertype_of_classes` is false of the frontend (#17);
+    `closest_common_supertype_keeps_bottom_only` is false of the frontend (#18); and `closest_common_supertype_is_above_both`
+    failed for intersections of disjoint classes, which the join takes for `exclusive Nothing` (step 4) while unify
+    didn't put them below it: `BoundIntersectionTypeReference.flippedUnify` now takes such an intersection below every
+    type, as the bottom type is; the model's `intersection_flipped_unify` doesn't yet (open: it makes the lemmas that
+    take a component of an accepted intersection, `Generics.flipped_some` and its kind, hold only of other
+    intersections). Also found: the frontend crashes on `fn f<T : A & B, Q : A>(x: T & Q)`, roadmap 40. #17 and #18
+    stay red in `CommonTypesTests` until the conjectures are reformulated)

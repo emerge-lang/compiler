@@ -334,6 +334,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     `InheritedBoundMemberFunction.semanticAnalysisPhase1` checks the receiver, and so unifies the type arguments,
     before the inheritance trees of `A` and `B` are built
+39. model the cut in `RootResolvedTypeReference.unify` that fails a goal which comes up again while it is being decided
+    ("X is a subtype of Y only if it already is"), so that the model's unify terminates where the frontend's does. Today the
+    proofs of generic code take termination on the program at hand as a premise (`Conjectures.unify_terminates_on`,
+    coverage #16): the claim that unify terminates wherever inheritance is tame is false, as an F-bound with `in` nested
+    in it, `T : Cn<Cn<in T>>`, loops without any inheritance (`Examples.v`). The cut touches every use of unify, and a
+    cut in one alternative of an intersection lets another succeed, so what the theorems show of unify accepting
+    doesn't carry over by itself
+40. the compiler crashes (`IllegalStateException`: this should have been prevented in ofComponents, from
+    `BoundIntersectionTypeReference.validate` through `asRootResolved`) on an intersection of a type parameter bounded
+    by an intersection with another type: `fn f<T : A & B, Q : A>(x: T & Q)`, `fn f<T : A & B>(x: T & C)`
 -----
 
 ## Future features

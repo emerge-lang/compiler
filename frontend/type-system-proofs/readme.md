@@ -32,6 +32,7 @@ it shows and why; the tables below are the map.
 | `FreeInstances.v`    | instantiating only the type variables (`instantiateFreeVariables`), for types of generic code  | `free_unmentioned`, `free_candidate`                                    |
 | `Generics.v`         | transitivity with type parameters and intersections, in the form of never rejecting            | `transitivity_never_fails`                                              |
 | `Conjectures.v`      | the conjectures below, and what follows from them directly                                     | `transitivity_terminating`                                              |
+| `Examples.v`         | the headline theorems instantiated on one program, so their premises are known satisfiable; the refutation of `unify_always_terminates` | `invocation_instance`, `unify_always_terminates_is_false` |
 | `FinalValues.v`      | member calls are sound whatever the final values of inference are                               | `member_call_with_any_final_values_sound`                               |
 | `SubstitutionTerminating.v` | substitution with intersections as assignees, where unify terminates                      | `substitution_terminating`                                              |
 | `SubstitutionWide.v` | substitution with intersections in type arguments, where unify terminates                       | `substitution_wide`                                                     |
@@ -87,16 +88,17 @@ of the theorems, mostly bundled in records:
 | `closest_common_supertype_keeps_bottom_only`   | `GenericArguments.v` | conjecture: of two types that are Nothing only as `Nothing` (`bottom_only`), the closest common supertype mentions it only so. Lower bounds of variables stay so, as checking them against static upper bounds with type variables takes |
 | `closest_common_supertype_of_classes`          | `Constraints.v`   | the closest common supertype of two class types is a class type: lower bounds of variables stay of the types of the arguments, checked against static upper bounds with type variables |
 | dispatch finds a function                      | `Overrides.v`     | not a premise, as the model has no dispatch: a class overrides every function it inherits, or a mixin provides it. The compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction.semanticAnalysisPhase3`) |
-| `unify_terminates`                             | `Conjectures.v`   | conjecture: unify terminates on `gfrag` where inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`), the type arguments of supertypes are without contravariance, nested ones included (`supertypes_without_contravariance`, together `tame_inheritance`), and the class table is finite. Without the second it is false: with `class K : Cn<Cn<in K>>`, deciding `K` below `Cn<in K>` decides it again (Kennedy and Pierce's example); the frontend fails such a goal, the model doesn't (coverage #16) |
+| `unify_terminates_on`                          | `Conjectures.v`   | premise about the environment at hand: unify terminates on `gfrag` in it. The claim that it does wherever inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the type arguments of supertypes are without contravariance (`tame_inheritance`), `unify_always_terminates`, is false: with `fn f<T : Cn<Cn<in T>>>(t: T)`, deciding `T` below `Cn<in T>` decides it again (`Examples.unify_always_terminates_is_false`); the frontend fails such a goal, the model doesn't (coverage #16) |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
 lets be anything; so the conjectures about them are properties of an environment that a theorem
 takes as a premise, never axioms, which would be false of some environment and so let Rocq prove
-anything. `unify_terminates` is a claim about the model alone, a theorem yet to be proven.
+anything. `unify_terminates_on` is about the model alone, but a premise all the same: the claim about every
+environment with tame inheritance was refuted (`Examples.v`).
 
-Proving `unify_terminates` is not straightforward (no size of the types decreases, see `Conjectures.v`),
-so it stays a conjecture. Were it false, the frontend would not finish on, and so reject, programs where
-it runs unify itself. The theorems resting on it are about unifications it never runs: of instances of
+Which environments satisfy `unify_terminates_on` is open (no size of the types decreases, see `Conjectures.v`).
+Where a program doesn't, the frontend fails a goal that comes up again, and so rejects the program; it never
+accepts one for it. The theorems resting on it are about unifications it never runs: of instances of
 generic code and of final values of inference. For those, unify never rejecting is proven without it;
 only that it also accepts rests on it. That is a gap in the proof, not a known way to accept an unsound
 program.
