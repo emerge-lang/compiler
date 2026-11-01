@@ -278,6 +278,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `if`/`try` branch, or for a temporary whose declared type differs from the value's, is never dropped
     (it keeps the array object alive with it, but never dangles). Call arguments, assignments, returns and
     invocation results move or drop their boxes correctly
+39. `EmergeLlvmContext.getArrayObjectType` chooses the array object type (and with it the raw element accessors) from
+    the static bound of the element type: `Array<T>` with `T : Printable`, or `Array<out Printable>`, is accessed as
+    an array of references. But an `Array<S32>` is a valid argument for both (`S32` is a `Printable`) and stores raw
+    32-bit values, so the access reads/writes garbage. Only `Any` is handled correctly as a bound. Element bounds
+    other than `Any` that have value-type subtypes need the virtual accessors (or the exact element type)
+40. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
+    slice's size, so the rest of the base array can be freed. `U64.toString` returns a slice of its 21-byte buffer,
+    keeping the entire buffer alive for as long as the string lives
 -----
 
 ## Future features
