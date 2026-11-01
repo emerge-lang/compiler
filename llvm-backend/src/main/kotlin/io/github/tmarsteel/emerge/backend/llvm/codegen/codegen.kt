@@ -577,9 +577,20 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                             is ArrayDispatchOverride.InvokeIntrinsic -> {
                                 // IMPORTANT! this deliberately doesn't box the arguments to the parameter types because
                                 // that would box primitives in exactly a situation where that shouldn't happen.
+                                // The exception is the element being stored: the intrinsic takes it in the representation
+                                // of the element type of the array object (raw for value arrays, boxed for reference arrays),
+                                // which may differ from the representation of the argument (e.g. a S32 or an array slice
+                                // stored into an Array<Any>).
                                 overridenCallInstruction = call(
                                     context.registerIntrinsic(override.intrinsic),
-                                    expression.arguments.map { autoBoxOrUnbox(it, it.type) }
+                                    expression.arguments.mapIndexed { index, argument ->
+                                        val elementArgument = override.elementArgument
+                                        if (elementArgument != null && elementArgument.first == index) {
+                                            prepareArgument(argument, elementArgument.second)
+                                        } else {
+                                            autoBoxOrUnbox(argument, argument.type)
+                                        }
+                                    }
                                 )
                             }
                             else -> {}
@@ -1029,8 +1040,15 @@ internal fun IrType.findSimpleTypeBound(): IrSimpleType {
 private sealed interface ArrayDispatchOverride {
     /** there is no override, the regular approach works */
     object None : ArrayDispatchOverride
-    /** invoke this intrinsic instead */
-    class InvokeIntrinsic(val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>) : ArrayDispatchOverride
+    /**
+     * invoke this intrinsic instead
+     * @param elementArgument if the intrinsic takes an element to store into the array: the index of that argument
+     * and the element type of the array, which the argument has to be converted to (see [Autoboxer.autoBoxOrUnbox]).
+     */
+    class InvokeIntrinsic(
+        val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>,
+        val elementArgument: Pair<Int, IrType>? = null,
+    ) : ArrayDispatchOverride
     /** invoke a virtual function dispatched on the array object */
     class InvokeVirtual(val hash: ULong, val fnType: LlvmFunctionType<*>) : ArrayDispatchOverride
 
@@ -1058,13 +1076,18 @@ private sealed interface ArrayDispatchOverride {
                 else -> return None
             }
 
-            return when (val arrayType = context.getArrayObjectType(invocation.arguments.first().type)) {
-                is EmergeArrayType<*> -> InvokeIntrinsic(when (accessor) {
-                    ArrayAccessor.GET_FALLIBLE -> arrayType.rawGetterWithFallibleBoundsCheck
-                    ArrayAccessor.GET_PANIC -> arrayType.rawGetterWithPanicBoundsCheck
-                    ArrayAccessor.SET_FALLIBLE -> arrayType.rawSetterWithFallibleBoundsCheck
-                    ArrayAccessor.SET_PANIC -> arrayType.rawSetterWithPanicBoundsCheck
-                })
+            val receiverType = invocation.arguments.first().type
+            return when (val arrayType = context.getArrayObjectType(receiverType)) {
+                is EmergeArrayType<*> -> {
+                    val elementType = receiverType.arrayElementTypeOrNull()
+                        ?: throw CodeGenerationException("Cannot determine the element type of $receiverType in ${invocation.function.canonicalName}")
+                    when (accessor) {
+                        ArrayAccessor.GET_FALLIBLE -> InvokeIntrinsic(arrayType.rawGetterWithFallibleBoundsCheck)
+                        ArrayAccessor.GET_PANIC -> InvokeIntrinsic(arrayType.rawGetterWithPanicBoundsCheck)
+                        ArrayAccessor.SET_FALLIBLE -> InvokeIntrinsic(arrayType.rawSetterWithFallibleBoundsCheck, Pair(2, elementType))
+                        ArrayAccessor.SET_PANIC -> InvokeIntrinsic(arrayType.rawSetterWithPanicBoundsCheck, Pair(2, elementType))
+                    }
+                }
                 else -> {
                     check(arrayType == EmergeArrayBaseType)
                     when (accessor) {
@@ -1092,9 +1115,12 @@ private sealed interface ArrayDispatchOverride {
         private fun findForStaticFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
             if (invocation.function.canonicalName.simpleName == "new" && invocation.function.parameters.size == 2) {
                 val arrayType = context.getArrayObjectType(invocation.evaluatesTo)
+                val elementType = invocation.evaluatesTo.arrayElementTypeOrNull()
+                    ?: throw CodeGenerationException("Cannot determine the element type of ${invocation.evaluatesTo} in ${invocation.function.canonicalName}")
                 return InvokeIntrinsic(
                     (arrayType as? EmergeArrayType<*>)?.defaultValueConstructor
-                        ?: EmergeReferenceArrayType.defaultValueConstructor
+                        ?: EmergeReferenceArrayType.defaultValueConstructor,
+                    Pair(1, elementType),
                 )
             }
 
@@ -1119,6 +1145,15 @@ private sealed interface ArrayDispatchOverride {
             return None
         }
     }
+}
+
+/**
+ * @return for a `emerge.core.Array<E>` (also when referenced through a type parameter bound by one): `E`
+ */
+private fun IrType.arrayElementTypeOrNull(): IrType? = when (this) {
+    is IrParameterizedType -> arguments.values.singleOrNull()?.type
+    is IrGenericTypeReference -> effectiveBound.arrayElementTypeOrNull()
+    else -> null
 }
 
 private enum class ArrayAccessor {
