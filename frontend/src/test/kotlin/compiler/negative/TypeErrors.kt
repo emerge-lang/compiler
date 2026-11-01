@@ -394,7 +394,7 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
-            "an intersection that has no values isn't Nothing" {
+            "an intersection that has no values is Nothing" {
                 validateModule("""
                     interface A {}
                     class F : A {}
@@ -403,7 +403,8 @@ class TypeErrors : FreeSpec({
                         return t
                     }
                 """.trimIndent())
-                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+                    .shouldFind<SimplifiableIntersectionTypeDiagnostic>()
+                    .shouldNotFind<ReturnTypeMismatchDiagnostic>()
             }
         }
 

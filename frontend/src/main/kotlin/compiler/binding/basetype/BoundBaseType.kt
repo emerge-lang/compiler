@@ -441,8 +441,8 @@ class BoundBaseType(
         )
 
     /**
-     * True iff this type is declared `const` on a supertype (`class Foo : const Any`), or inherits from one that
-     * is. All references to it are immutable, so nothing can mutate its objects.
+     * Whether this type or one it inherits from is declared `const` on a supertype (`class Foo : const Any`): all
+     * references to it are immutable.
      */
     val isConst: Boolean get() = superTypes.isConst
 

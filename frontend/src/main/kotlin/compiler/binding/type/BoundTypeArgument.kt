@@ -367,9 +367,6 @@ fun BoundTypeReference.asReadType(): BoundTypeReference = when {
     else -> this
 }
 
-/**
- * Whether this type mentions a type parameter that [context] binds to an out- or in-variant type argument
- */
 private fun BoundTypeReference.mentionsVariantlyBoundParameter(context: TypeUnification): Boolean = when (this) {
     is GenericTypeReference -> context.bindsVariantly(parameter)
     is TypeVariable -> context.bindsVariantly(parameter)
@@ -380,9 +377,6 @@ private fun BoundTypeReference.mentionsVariantlyBoundParameter(context: TypeUnif
     else -> false
 }
 
-/**
- * Like [mentionsVariantlyBoundParameter], but only in the type arguments of this type, not as this type itself
- */
 private fun BoundTypeReference.mentionsVariantlyBoundParameterInTypeArguments(context: TypeUnification): Boolean = when (this) {
     is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
     is NullableTypeReference -> nested.mentionsVariantlyBoundParameterInTypeArguments(context)

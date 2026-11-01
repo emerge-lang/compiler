@@ -12,8 +12,10 @@ import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.Rule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.assertions.fail
+import io.kotest.assertions.withClue
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
+import io.kotest.matchers.collections.shouldBeEmpty
 
 private fun <T : Any> SoftwareContext.parse(
     snippet: String,
@@ -74,6 +76,12 @@ internal fun SoftwareContext.parseTypeArgument(
 }
 
 internal fun BoundTypeReference.isBelow(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null
+
+internal fun List<String>.shouldBeNone(shown: Int = 100) {
+    withClue(take(shown).joinToString("\n") + if (size > shown) "\n... ${size - shown} more" else "") {
+        shouldBeEmpty()
+    }
+}
 
 internal fun beAssignableTo(target: BoundTypeReference) = object : Matcher<BoundTypeReference> {
     override fun test(value: BoundTypeReference): MatcherResult {

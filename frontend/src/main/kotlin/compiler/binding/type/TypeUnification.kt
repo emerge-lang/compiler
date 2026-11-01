@@ -120,10 +120,9 @@ class TypeUnification private constructor(
     }
 
     /**
-     * Where the [VariableState.staticUpperBound] of [parameter] mentions type variables, that [candidate] is assignable
-     * to it, with [candidate] in place of [parameter] itself, which constrains the other variables. Of an intersection,
-     * those take only what the other components don't cover (`_N : Nested & _M` leaves `_M` the mutability). Where it
-     * doesn't mention type variables, the [VariableState.upperBound] is below it already.
+     * Checks [candidate] against the [VariableState.staticUpperBound] of [parameter], with [candidate] in place of
+     * [parameter], which constrains the other variables (`_N : Nested & _M` leaves `_M` the mutability). Without type
+     * variables in it, the [VariableState.upperBound] is below it already.
      */
     private fun plusStaticCheck(
         parameter: BoundTypeParameter,
@@ -333,10 +332,8 @@ class TypeUnification private constructor(
         }
 
         /**
-         * Binds each of [parameters] to the argument in its place, as is: unlike [fromExplicit], this doesn't check the
-         * arguments against the bounds of the parameters, and so works with arguments that contain [TypeVariable]s of
-         * another inference. For instantiating types with the arguments of a type reference, whose bounds are checked
-         * when the reference is validated.
+         * Binds each of [parameters] to its argument as is. Unlike [fromExplicit] it doesn't check the arguments against
+         * the bounds, which validating the type reference does, so it works with [TypeVariable]s of another inference.
          */
         fun forSubstitution(parameters: List<BoundTypeParameter>, arguments: List<BoundTypeArgument>): TypeUnification {
             return TypeUnification(

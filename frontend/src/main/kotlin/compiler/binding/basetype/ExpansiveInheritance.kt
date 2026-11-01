@@ -10,13 +10,10 @@ import compiler.binding.type.RootResolvedTypeReference
 import java.util.IdentityHashMap
 
 /**
- * Inheritance is expansive where a type parameter recurs, nested deeper, in the supertypes of its own type, as in
- * `interface N<Z> : C<N<N<Z>>>`: infinitely many types are reachable through the supertypes of `N<X>` then, and
- * checking subtyping may go on forever (Kennedy and Pierce, "On Decidability of Nominal Subtyping with Variance").
- *
- * In a graph of the type parameters, there is an edge from `X` to the j-th type parameter of `G` wherever `X` is the
- * j-th type argument of a `G<...>` in a supertype declaration; an expansive one where `X` is nested deeper in it.
- * Inheritance is expansive where a cycle has an expansive edge.
+ * Inheritance is expansive where a type parameter recurs, nested deeper, in the supertypes of its own type
+ * (`interface N<Z> : C<N<N<Z>>>`); checking subtyping may not terminate then (Kennedy and Pierce, "On Decidability of
+ * Nominal Subtyping with Variance"). An edge goes from `X` to the j-th type parameter of `G` where `X` is the j-th type
+ * argument of a `G<...>` in a supertype, expansive where `X` is nested deeper in it.
  *
  * @return the supertype declarations that make for an expansive edge in a cycle
  */

@@ -32,9 +32,6 @@ class GenericTypeReference private constructor(
 ) : BoundTypeReference {
     override val context = parameter.context
 
-    /**
-     * The bound of [parameter] with the [givenMutability] and [isNarrowed] applied.
-     */
     val effectiveBound: BoundTypeReference by lazy {
         var bound = parameter.bound
         if (givenMutability != null) {

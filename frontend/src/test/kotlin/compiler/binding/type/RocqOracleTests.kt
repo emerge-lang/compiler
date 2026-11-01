@@ -43,6 +43,10 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
     private val pendingParameters = ArrayDeque<BoundTypeParameter>()
     private val nodes = LinkedHashMap<String, Int>()
     private val nodeTypes = mutableListOf<BoundTypeReference?>()
+    private val classDeclarations = LinkedHashMap<String, String>()
+    private val supertypes = LinkedHashMap<String, List<String>>()
+    private val parameterizedSupertypes = LinkedHashMap<Pair<String, String>, String>()
+    private val bounds = LinkedHashMap<Int, String>()
 
     private fun classOf(baseType: BoundBaseType): String = classIds.getOrPut(baseType) {
         pendingClasses.add(baseType)
@@ -136,11 +140,6 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
         is BoundTypeArgument -> mentioned(t.type)
         else -> emptySet()
     }
-
-    private val classDeclarations = LinkedHashMap<String, String>()
-    private val supertypes = LinkedHashMap<String, List<String>>()
-    private val parameterizedSupertypes = LinkedHashMap<Pair<String, String>, String>()
-    private val bounds = LinkedHashMap<Int, String>()
 
     private fun drain() {
         while (pendingClasses.isNotEmpty() || pendingParameters.isNotEmpty()) {

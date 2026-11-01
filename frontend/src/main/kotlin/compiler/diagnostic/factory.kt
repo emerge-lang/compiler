@@ -640,6 +640,10 @@ fun Diagnosis.typeParameterNameConflict(originalType: BoundTypeReference, confli
     add(TypeParameterNameConflictDiagnostic(originalType, conflicting))
 }
 
+fun Diagnosis.typeParameterBoundedByItself(parameter: TypeParameter, selfReference: TypeReference) {
+    add(TypeParameterBoundedByItselfDiagnostic(parameter, selfReference.span ?: parameter.span))
+}
+
 fun Diagnosis.duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers: Set<BoundBaseTypeMemberVariable>) {
     add(DuplicateBaseTypeMemberDiagnostic(typeDef, duplicateMembers))
 }

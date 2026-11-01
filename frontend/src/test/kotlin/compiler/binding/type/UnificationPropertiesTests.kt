@@ -1,10 +1,8 @@
 package compiler.compiler.binding.type
 
-import compiler.binding.type.BoundTypeReference
 import compiler.compiler.negative.useValidModule
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.shouldBe
 import java.util.concurrent.atomic.AtomicReference
@@ -13,17 +11,11 @@ import java.util.concurrent.atomic.AtomicReference
  * What the proofs in `type-system-proofs/theories` show of the model's unify, checked of the frontend's over the
  * types of [TypeGrid]: reflexivity (`FinalValues.reflexive_never_fails`), transitivity (`Transitivity.v`,
  * `Generics.transitivity_never_fails`), that instantiating type parameters with bindings within their bounds keeps
- * assignability (`Substitution.v`), and that unify finishes (the conjecture `unify_terminates` in `Conjectures.v`).
- * A violation is a divergence between the frontend and the model, or a counterexample to the conjecture.
+ * assignability (`Substitution.v`), and that unify finishes (the premise `unify_terminates_on` in `Conjectures.v`).
+ * A violation is a divergence between the frontend and the model, or an environment that breaks the premise.
  */
 class UnificationPropertiesTests : FreeSpec({
     val types = TypeGrid.types
-
-    fun List<String>.shouldBeNone() {
-        withClue(take(100).joinToString("\n") + if (size > 100) "\n... ${size - 100} more" else "") {
-            shouldBeEmpty()
-        }
-    }
 
     /** whether a is below b, of the types of [TypeGrid] by index; null where unify threw */
     val below: List<List<Boolean?>> = types.map { (_, a) ->

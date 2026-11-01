@@ -11,7 +11,7 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.TypeParameterBoundedByItselfDiagnostic
+import compiler.diagnostic.typeParameterBoundedByItself
 import compiler.diagnostic.typeParameterNameConflict
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -69,7 +69,7 @@ data class BoundTypeParameter(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         selfReferenceAtTopOfBound?.let { selfReference ->
-            diagnosis.add(TypeParameterBoundedByItselfDiagnostic(astNode, selfReference.span ?: astNode.span))
+            diagnosis.typeParameterBoundedByItself(astNode, selfReference)
         }
         bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this), diagnosis)
     }

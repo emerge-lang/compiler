@@ -286,8 +286,8 @@ class RootResolvedTypeReference private constructor(
                 goal fails then: what holds only by assuming it doesn't hold.
                  */
                 val goal = Triple(this, assigneeType, carry.stateOfVariables)
-                val goalsInProgress = goalsInProgress.get()
-                if (!goalsInProgress.add(goal)) {
+                val inProgress = goalsInProgress.get()
+                if (!inProgress.add(goal)) {
                     return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a subtype of ${this.baseType.simpleName} only if it already is", assignmentLocation)
                     )
@@ -302,7 +302,7 @@ class RootResolvedTypeReference private constructor(
                             targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                         }
                 } finally {
-                    goalsInProgress.remove(goal)
+                    inProgress.remove(goal)
                 }
             }
             is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)

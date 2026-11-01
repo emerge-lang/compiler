@@ -1,14 +1,11 @@
 package compiler.compiler.binding.type
 
+import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.instantiateAllParametersForWriting
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeVariance
-import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 
 /**
  * Member access in generic code: what is read through a reference `H<y>`, y mentioning the type parameters of `Ctx`,
@@ -41,12 +38,6 @@ class MemberAccessPropertiesTests : FreeSpec({
         t is BoundTypeArgument -> if (t.variance == TypeVariance.OUT) swCtx.parseType("exclusive Nothing") else t.type
         t is NullableTypeReference && t.nested is BoundTypeArgument -> NullableTypeReference(taken(t.nested))
         else -> t
-    }
-
-    fun List<String>.shouldBeNone() {
-        withClue(take(60).joinToString("\n") + if (size > 60) "\n... ${size - 60} more" else "") {
-            shouldBeEmpty()
-        }
     }
 
     "the grid has references" {
