@@ -42,8 +42,6 @@ sudo apt install -f ~/Downloads/emerge-toolchain-{INSERT VERSION}.deb
 
 Install the dependencies manually:
 
-* `llvm-20`
-* `lld-20`
 * a Java runtime >= 21
 
 Download the latest `.tar.gz` package from the [releases page][1]. Then run **after filling in**:

@@ -10,8 +10,10 @@ data class MultipleClassConstructorsDiagnostic(
     "Classes can have only one constructor. These must be removed",
     additionalConstructors.first().span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(additionalConstructors.map { SourceHint(it.span, severity = severity) })
+        with(builder) {
+            sourceHints(additionalConstructors.map { SourceHint(it.span, severity = severity) })
+        }
     }
 }

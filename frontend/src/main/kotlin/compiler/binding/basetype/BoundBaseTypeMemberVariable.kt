@@ -35,6 +35,7 @@ import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitializat
 import compiler.diagnostic.quoteIdentifier
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundBaseTypeMemberVariable(
@@ -131,7 +132,7 @@ class BoundBaseTypeMemberVariable(
     override fun toStringForErrorMessage() = "member variable ${name.quoteIdentifier()}"
 
     private val _backendIr by lazy {
-        IrClassMemberVariableImpl(name, type!!.toBackendIr(), field.id)
+        IrClassMemberVariableImpl(name, type!!.toBackendIr(), field.id, declaredAt)
     }
     fun toBackendIr(): IrClass.MemberVariable = _backendIr
 
@@ -142,6 +143,7 @@ private class IrClassMemberVariableImpl(
     override val name: String,
     override val type: IrType,
     private val fieldId: Int,
+    override val declaredAt: IrSourceLocation,
 ) : IrClass.MemberVariable {
     override val readStrategy = object : IrClass.MemberVariable.AccessStrategy.BareField {
         override val fieldId: Int = this@IrClassMemberVariableImpl.fieldId

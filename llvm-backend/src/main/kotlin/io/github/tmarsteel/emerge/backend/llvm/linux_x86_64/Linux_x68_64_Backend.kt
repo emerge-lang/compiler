@@ -13,9 +13,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
@@ -46,7 +46,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         return listOf(
             ConfigModuleDefinition(FFIC_MODULE_NAME, toolchainConfig.ffiCSources),
             ConfigModuleDefinition(LIBC_MODULE_NAME, toolchainConfig.libcSources, uses = setOf(FFIC_MODULE_NAME)),
-            ConfigModuleDefinition(EmergeConstants.PLATFORM_MODULE_NAME, toolchainConfig.platformSources, uses = setOf(FFIC_MODULE_NAME, LIBC_MODULE_NAME)),
+            ConfigModuleDefinition(EmergeConstants.PlatformModule.NAME, toolchainConfig.platformSources, uses = setOf(FFIC_MODULE_NAME, LIBC_MODULE_NAME)),
         )
     }
 
@@ -55,7 +55,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         projectConfig.outputDirectory.createDirectories()
 
         val bitcodeFilePath = projectConfig.outputDirectory.resolve("out.bc").toAbsolutePath()
-        writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath)
+        writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath, projectConfig.emitDebugInfo)
 
         /* we cannot use LLVMTargetMachineEmitToFile because:
         it insists on using .ctor sections for static initializers, but these are LONG deprecated
@@ -96,7 +96,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         )
     }
 
-    private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path) {
+    private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path, emitDebugInfo: Boolean) {
         Llvm.LLVMInitializeX86TargetInfo()
         Llvm.LLVMInitializeX86Target()
         Llvm.LLVMInitializeX86TargetMC()
@@ -105,7 +105,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
 
         softwareContext.assignVirtualFunctionHashes()
 
-        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
+        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu"), emitDebugInfo) { llvmContext ->
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
                 .forEach(llvmContext::registerBaseType)
@@ -175,11 +175,11 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
                         .forEach(llvmContext::defineFunctionBody)
                 }
 
-            llvmContext.registerIntrinsic(KotlinLlvmFunction.define("_Ux86_64_setcontext", LlvmI32Type) {
+            llvmContext.registerIntrinsic(KotlinLlvmFunction.define("_Ux86_64_setcontext", LlvmS32Type) {
                 val contextPtr by param(pointerTo(LlvmVoidType))
                 body {
                     val setctxfnaddr = context.getNamedFunctionAddress("setcontext")!!
-                    val setctffntype = LlvmFunctionType<LlvmI32Type>(LlvmI32Type, listOf(LlvmPointerType(LlvmVoidType)))
+                    val setctffntype = LlvmFunctionType<LlvmS32Type>(LlvmS32Type, listOf(LlvmPointerType(LlvmVoidType)))
                     ret(call(setctxfnaddr, setctffntype, listOf(contextPtr)))
                 }
             })
@@ -262,7 +262,7 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "malloc")
         private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "free")
         private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "exit")
-        private val COLLECT_STACK_TRACE_FUNCTION_NAME = CanonicalElementName.Function(EmergeConstants.PLATFORM_MODULE_NAME, "collectStackTrace")
+        private val COLLECT_STACK_TRACE_FUNCTION_NAME = CanonicalElementName.Function(EmergeConstants.PlatformModule.NAME, "collectStackTrace")
 
         private val FUNCTION_SYMBOL_NAME_OVERRIDES: Map<CanonicalElementName.Function, String> = mapOf(
             // find those by calling the c-pre-processor on libunwind.h
@@ -334,6 +334,8 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
     data class ProjectConfig(
         @param:JsonDeserialize(using = DirectoryDeserializer::class)
         val outputDirectory: Path,
+
+        val emitDebugInfo: Boolean,
     )
 }
 

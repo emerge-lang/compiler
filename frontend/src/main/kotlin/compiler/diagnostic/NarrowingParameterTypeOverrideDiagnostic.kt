@@ -12,8 +12,9 @@ class NarrowingParameterTypeOverrideDiagnostic(
     "Cannot narrow type of overridden parameter ${override.name}; ${assignabilityError.reason}",
     assignabilityError.span,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(
             SourceHint(
                 superParameter.declaration.type?.span ?: superParameter.declaration.span,
                 "overridden function establishes the type ${assignabilityError.sourceType.quote()}",

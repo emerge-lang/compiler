@@ -164,8 +164,8 @@ class BoundCastExpression(
         }
 
         val classCastErrorBoundType = context.swCtx
-            .resolveBaseType(EmergeConstants.CAST_ERROR_TYPE_NAME)
-            ?: throw InternalCompilerError("Could not resolve base type ${EmergeConstants.CAST_ERROR_TYPE_NAME}")
+            .resolveBaseType(EmergeConstants.CoreModule.CAST_ERROR_TYPE_NAME)
+            ?: throw InternalCompilerError("Could not resolve base type ${EmergeConstants.CoreModule.CAST_ERROR_TYPE_NAME}")
 
         val exceptionInstanceExpr = buildGenericInvocationLikeIr(
             context,

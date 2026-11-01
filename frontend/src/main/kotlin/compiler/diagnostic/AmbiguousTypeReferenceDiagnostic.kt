@@ -15,13 +15,15 @@ class AmbiguousTypeReferenceDiagnostic(
     "This reference is ambiguous, there are multiple types in scope with simple name ${reference.simpleName.quoteIdentifier()}",
     reference.span ?: Span.UNKNOWN,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderMessage() {
-        text(message)
-        for (candidate in candidates) {
-            assureOnBlankLine()
-            append(TextSpan("- "))
-            append(candidate.simpleName.quoteIdentifier())
+        with(builder) {
+            text(message)
+            for (candidate in candidates) {
+                assureOnBlankLine()
+                append(TextSpan("- "))
+                append(candidate.simpleName.quoteIdentifier())
+            }
         }
     }
 }

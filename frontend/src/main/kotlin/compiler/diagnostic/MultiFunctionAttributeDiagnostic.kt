@@ -14,9 +14,11 @@ abstract class MultiFunctionAttributeDiagnostic(
         require(sourceLocations.map { it.sourceFile }.toSet().size == 1)
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(sourceLocations.map { SourceHint(it, severity = severity) })
+        with(builder) {
+            sourceHints(sourceLocations.map { SourceHint(it, severity = severity) })
+        }
     }
 
     override fun equals(other: Any?): Boolean {

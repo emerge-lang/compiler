@@ -13,14 +13,16 @@ class SimplifiableIntersectionTypeDiagnostic(
     if (simplerVersion.isNonNullableNothing) "It is impossible to construct a value that satisfies this type" else "This intersection-type can be simplified",
     complicatedType.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        if (!simplerVersion.isNonNullableNothing) {
-            append(TextSpan("simpler alternative: "))
-            append(simplerVersion.quote())
-            appendLineBreak()
-        }
+        with(builder) {
+            if (!simplerVersion.isNonNullableNothing) {
+                append(TextSpan("simpler alternative: "))
+                append(simplerVersion.quote())
+                appendLineBreak()
+            }
 
-        super.renderBody()
+            super.renderBody()
+        }
     }
 }

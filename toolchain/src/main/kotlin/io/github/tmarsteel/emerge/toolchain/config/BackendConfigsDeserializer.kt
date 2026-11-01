@@ -13,7 +13,6 @@ abstract class BackendConfigsDeserializer(
     val getConfigKClass: (EmergeBackend<*, *>) -> KClass<*>
 ) : JsonDeserializer<Map<EmergeBackend<*, *>, Any>>() {
     override fun deserialize(p: JsonParser, ctx: DeserializationContext): Map<EmergeBackend<*, *>, Any> {
-        val mapType = ctx.typeFactory.constructMapType(Map::class.java, EmergeBackend::class.java, Any::class.java)
         if (p.currentToken() == JsonToken.START_OBJECT) {
             p.nextToken()
         }

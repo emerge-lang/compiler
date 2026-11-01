@@ -124,6 +124,8 @@ internal fun buildIrThrow(
         override val isBorrowed = false
         override val isReAssignable = false
         override val isSSA = true
+        override val declaredAt = throwLocation
+        override val scope get()= context.parentScopeContext!!.irScope
     }
     val fillStackTraceExceptionTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(varDeclExceptionFromFillStackTrace))
     val fillStackTraceLandingpad = IrInvocationExpression.Landingpad(

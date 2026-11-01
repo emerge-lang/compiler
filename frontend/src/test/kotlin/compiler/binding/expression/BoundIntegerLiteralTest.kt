@@ -92,7 +92,7 @@ private fun <A, B, C> List<A>.tripleZip(bs: List<B>, cs: List<C>): Sequence<Trip
 }
 
 private fun mockNumericBaseType(nBits: Int, prefix: Char): BoundBaseType {
-    val _canonicalName = CanonicalElementName.BaseType(EmergeConstants.CORE_MODULE_NAME, prefix.toString() + nBits.toString())
+    val _canonicalName = CanonicalElementName.BaseType(EmergeConstants.CoreModule.NAME, prefix.toString() + nBits.toString())
     val _context = mockk<CTContext>()
     return mockk {
         every { semanticAnalysisPhase1(any()) } just Runs

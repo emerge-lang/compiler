@@ -119,8 +119,8 @@ class SoftwareContext {
     }
 
     val emergeCorePackage: PackageContext by lazy {
-        getPackage(EmergeConstants.CORE_MODULE_NAME)
-            ?: throw InternalCompilerError("Core package ${EmergeConstants.CORE_MODULE_NAME} is not registered")
+        getPackage(EmergeConstants.CoreModule.NAME)
+            ?: throw InternalCompilerError("Core package ${EmergeConstants.CoreModule.NAME} is not registered")
     }
 
     private fun lazyBaseTypeFromSource(name: CanonicalElementName.BaseType) = object {
@@ -165,7 +165,7 @@ class SoftwareContext {
     val f64: BoundBaseType by coreType()
     val weak: BoundBaseType by coreType()
     val array: BoundBaseType by coreType()
-    val throwable: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.THROWABLE_TYPE_NAME)
+    val throwable: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.CoreModule.THROWABLE_TYPE_NAME)
     val error: BoundBaseType by coreType()
     val reflectionBaseType: BoundBaseType by lazy {
         val reflectPackageName = CanonicalElementName.Package(listOf(

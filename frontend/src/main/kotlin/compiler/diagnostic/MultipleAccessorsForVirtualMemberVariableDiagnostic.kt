@@ -38,10 +38,12 @@ class MultipleAccessorsForVirtualMemberVariableDiagnostic(
         return true
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(accessorsOfSameKind.map {
-            SourceHint(it.declaredAt, severity = severity)
-        })
+        with(builder) {
+            sourceHints(accessorsOfSameKind.map {
+                SourceHint(it.declaredAt, severity = severity)
+            })
+        }
     }
 }

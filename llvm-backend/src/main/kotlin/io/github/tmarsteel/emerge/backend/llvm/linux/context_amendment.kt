@@ -2,25 +2,25 @@ package io.github.tmarsteel.emerge.backend.llvm.linux
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordType
 import io.github.tmarsteel.emerge.backend.llvm.tackLazyVal
 
 /**
  * The libc write function, if available on this target
  */
-internal val EmergeLlvmContext.libcWriteFunction: LlvmFunction<EmergeWordType> by tackLazyVal {
+internal val EmergeLlvmContext.libcWriteFunction: LlvmFunction<EmergeSWordType> by tackLazyVal {
     LlvmFunction(
         getNamedFunctionAddress("write")!!,
         LlvmFunctionType(
-            EmergeWordType,
+            EmergeSWordType,
             listOf(
-                LlvmI32Type,
+                LlvmS32Type,
                 LlvmPointerType.pointerTo(LlvmVoidType),
-                EmergeWordType
+                EmergeSWordType
             )
         )
     )

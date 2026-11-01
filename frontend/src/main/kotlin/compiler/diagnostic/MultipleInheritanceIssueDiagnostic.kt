@@ -18,9 +18,11 @@ class MultipleInheritanceIssueDiagnostic(
     },
     base.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        widget(base)
+        with(builder) {
+            widget(base)
+        }
     }
 
     override fun equals(other: Any?): Boolean {

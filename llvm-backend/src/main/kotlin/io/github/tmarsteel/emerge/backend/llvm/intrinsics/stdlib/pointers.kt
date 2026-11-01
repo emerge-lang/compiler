@@ -5,7 +5,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 
 val isNullBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>("emerge.core.isNull", LlvmBooleanType) {
     val value by param(pointerTo(LlvmVoidType))
@@ -17,12 +17,12 @@ val isNullBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType
     }
 }
 
-internal val addressOfBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeWordType>("emerge.core.addressOf", EmergeWordType) {
+internal val addressOfBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>("emerge.core.addressOf", EmergeUWordType) {
     val ptr by param(pointerTo(LlvmVoidType))
 
     instructionAliasAttributes()
 
     body {
-        ret(ptrtoint(ptr, EmergeWordType))
+        ret(ptrtoint(ptr, EmergeUWordType))
     }
 }

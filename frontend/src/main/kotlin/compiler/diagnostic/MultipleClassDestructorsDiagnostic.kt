@@ -10,7 +10,8 @@ data class MultipleClassDestructorsDiagnostic(
     "Classes can have only one destructor. These must be removed",
     additionalDestructors.first().span,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(additionalDestructors.map { SourceHint(it.span, severity = severity) })
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(additionalDestructors.map { SourceHint(it.span, severity = severity) })
     }
 }

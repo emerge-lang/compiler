@@ -72,9 +72,9 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
             return KotlinLlvmFunction(name, declaredOn, returnType, definition)
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         fun <R : LlvmType> callIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, out R>, args: List<LlvmValue<*>>): LlvmValue<R> {
-            return call(context.registerIntrinsic(fn), args)
+            return builder.call(builder.context.registerIntrinsic(fn), args)
         }
     }
 }
@@ -158,8 +158,9 @@ private class DeclaredInContextImpl<C : LlvmContext, R : LlvmType>(
         )
         val canonicalName = CanonicalElementName.Function(canonicalPackageName, name.split('.').last())
 
-        val diBuilder = DiBuilder(context.module, Path.of(declaredOn.fileName ?: "<unknown file>"), LlvmDwarfEmissionKind.None)
-        val diFunction = diBuilder.createFunction(canonicalName, declaredOn.lineNumber.toUInt())
+        val diBuilder = DiBuilder(context, context.module, Path.of(declaredOn.fileName ?: "<unknown file>"), LlvmDwarfEmissionKind.None)
+        val diFnType = diBuilder.createSubroutineType(emptyList())
+        val diFunction = diBuilder.createFunction(canonicalName.toString(), name,declaredOn.lineNumber.toUInt(), diFnType)
 
         BasicBlockBuilder.fillBody(context, function, diBuilder, diFunction, bodyGenerator)
     }

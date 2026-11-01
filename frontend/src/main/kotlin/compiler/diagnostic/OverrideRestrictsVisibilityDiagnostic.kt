@@ -14,8 +14,9 @@ data class OverrideRestrictsVisibilityDiagnostic(
     "The visibility of overrides must be the same or broader than that of the overridden function.",
     override.declaredAt,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(
             SourceHint(superFunction.visibilityLocation, "overridden function is ${superFunction.visibility}"),
             SourceHint(override.visibilityLocation, "override is ${override.visibility}"),
         )

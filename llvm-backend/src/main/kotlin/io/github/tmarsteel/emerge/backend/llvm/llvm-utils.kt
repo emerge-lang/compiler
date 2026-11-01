@@ -1,9 +1,12 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmContextRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTargetDataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -19,7 +22,7 @@ val LlvmTypeRef.isStruct: Boolean
  * * matching members in `this` and [other] by index
  *   * the members in both types have the same offset
  *
- * @param inContext requires because the offsets depend on the datalayout
+ * @param targetData required because the offsets depend on the datalayout
  */
 fun requireStructuralSupertypeOf(supertype: LlvmTypeRef, subtype: LlvmTypeRef, targetData: LlvmTargetDataRef) {
     require(supertype.isStruct)
@@ -202,4 +205,31 @@ private fun LlvmTypeRef.describeVectorMemoryLayoutTo(
     out.append(" x ")
     elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
     out.append(">")
+}
+
+internal fun LlvmMetadataRef.toString(contextRef: LlvmContextRef): String {
+    val metadataAsValue = Llvm.LLVMMetadataAsValue(contextRef, this)
+    val sb = StringBuilder()
+    metadataAsValue.metadataAsValueToString(contextRef, "", sb)
+    return sb.toString()
+}
+
+private fun LlvmValueRef.metadataAsValueToString(contextRef: LlvmContextRef, indent: String, to: StringBuilder) {
+    val asStringFromLlvm = Llvm.LLVMPrintValueToString(this)?.value ?: "<LLVMs toString returned null>"
+    to.append(indent)
+    to.append(asStringFromLlvm)
+    val nOperands = Llvm.LLVMGetMDNodeNumOperands(this)
+    if (nOperands > 0) {
+        NativePointerArray.allocate(nOperands, LlvmValueRef::class.java).use { operandsArray ->
+            Llvm.LLVMGetMDNodeOperands(this, operandsArray)
+            operandsArray.copyToJava().forEachIndexed { operandIndex, operand ->
+                to.append("\n${indent}operand#$operandIndex: ")
+                if (operand == null) {
+                    to.append("<null>")
+                } else {
+                    operand.metadataAsValueToString(contextRef, indent + "  ", to)
+                }
+            }
+        }
+    }
 }

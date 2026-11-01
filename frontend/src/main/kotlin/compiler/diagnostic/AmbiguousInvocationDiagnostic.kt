@@ -12,13 +12,16 @@ class AmbiguousInvocationDiagnostic(
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
     invocation.span,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        val uniqueCandidates = candidates.distinctBy { it.declaredAt }
-        sourceHints(
-            SourceHint(invocation.span, "this invocation is ambiguous", true, severity = severity),
-            *uniqueCandidates.map { SourceHint(it.declaredAt, "this is a viable candidate", nLinesContext = 0u) }.toTypedArray(),
-        )
+        with(builder) {
+            val uniqueCandidates = candidates.distinctBy { it.declaredAt }
+            sourceHints(
+                SourceHint(invocation.span, "this invocation is ambiguous", true, severity = severity),
+                *uniqueCandidates.map { SourceHint(it.declaredAt, "this is a viable candidate", nLinesContext = 0u) }
+                    .toTypedArray(),
+            )
+        }
     }
 
     override fun equals(other: Any?): Boolean {

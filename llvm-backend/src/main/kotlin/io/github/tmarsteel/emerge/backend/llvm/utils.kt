@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
+import java.math.BigInteger
+
 fun <T, K> Iterable<T>.associateByErrorOnDuplicate(keySelector: (T) -> K): Map<K, T> {
     val destination = HashMap<K, T>()
     for (e in this) {
@@ -20,3 +22,26 @@ fun <T, K> Sequence<Pair<K, T>>.associateErrorOnDuplicate(): Map<K, T> {
     }
     return destination
 }
+
+fun UInt.toBigInteger(): BigInteger = BigInteger(
+    if (this == 0u) 0 else 1,
+    byteArrayOf(
+        ( this shr 24           ).toByte(),
+        ((this shr 16) and 0xFFu).toByte(),
+        ((this shr 8)  and 0xFFu).toByte(),
+        ( this         and 0xFFu).toByte(),
+    ),
+)
+
+fun ULong.toBigInteger(): BigInteger = BigInteger(
+    if (this == 0uL) 0 else 1,
+    byteArrayOf(
+        ( this shr 56           ).toByte(),
+        ((this shr 48) and 0xFFu).toByte(),
+        ((this shr 40) and 0xFFu).toByte(),
+        ((this shr 32) and 0xFFu).toByte(),
+        ((this shr 24) and 0xFFu).toByte(),
+        ((this shr 16) and 0xFFu).toByte(),
+        ( this         and 0xFFu).toByte(),
+    ),
+)

@@ -113,4 +113,38 @@ class OtherRegressions : FreeSpec({
                 }
         }
     }
+
+    "termination" - {
+        "termination by either return or throw" {
+            validateModule("""
+                intrinsic fn fallibleFn() -> S32
+                intrinsic fn rewrap(e: Throwable) -> exclusive Throwable
+                
+                fn test() -> S32 {
+                    try {
+                        return fallibleFn()
+                    } catch e {
+                        throw rewrap(e)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "termination by return try {}" {
+            validateModule("""
+                intrinsic fn fallibleFn() -> S32
+                intrinsic fn rewrap(e: Throwable) -> exclusive Throwable
+                
+                fn test() -> S32 {
+                    return try {
+                        fallibleFn()
+                    } catch e {
+                        throw rewrap(e)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
 })

@@ -38,7 +38,7 @@
                         <phase>compile</phase>
                         <goals> <goal>compile</goal> </goals>
                         <configuration>
-                            <args>-Xcontext-receivers</args>
+                            <args>-Xcontext-parameters</args>
                         </configuration>
                     </execution>
 

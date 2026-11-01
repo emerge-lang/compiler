@@ -18,6 +18,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class SourceFileRootContext(
@@ -50,6 +52,11 @@ class SourceFileRootContext(
 
     override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
+    }
+
+    override val parentScopeContext: ExecutionScopedCTContext = this
+    override val irScope = object : IrVariableDeclaration.Scope.File {
+        override val file: IrSourceFile get() = sourceFile.lexerFile.asBackendIr
     }
 
     private val ambiguousSimpleNamesByImport = HashSet<String>()
@@ -134,6 +141,10 @@ class SourceFileRootContext(
             override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
 
             override val parentLoop = null
+
+            override val parentScopeContext: ExecutionScopedCTContext? = null
+            override val irScope: IrVariableDeclaration.Scope
+                get() = throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
 
             override fun registerMixin(
                 mixinStatement: BoundMixinStatement,

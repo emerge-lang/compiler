@@ -212,7 +212,7 @@ private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, acces
     }
 
     // always allow accessing emerge.platform
-    if (EmergeConstants.PLATFORM_MODULE_NAME.containsOrEquals(moduleOfAccessedElement.moduleName)) {
+    if (EmergeConstants.PlatformModule.NAME.containsOrEquals(moduleOfAccessedElement.moduleName)) {
         return
     }
 

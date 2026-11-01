@@ -30,10 +30,12 @@ class DuplicateBaseTypeMemberDiagnostic(
     "Member ${duplicates.iterator().next().name} declared multiple times",
     typeDef.declaration.declaredAt,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(duplicates.map {
-            SourceHint(it.entryDeclaration.span, severity = severity)
-        })
+        with(builder) {
+            sourceHints(duplicates.map {
+                SourceHint(it.entryDeclaration.span, severity = severity)
+            })
+        }
     }
 }

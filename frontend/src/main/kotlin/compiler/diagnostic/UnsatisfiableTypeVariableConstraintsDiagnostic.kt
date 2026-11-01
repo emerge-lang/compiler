@@ -25,12 +25,14 @@ class UnsatisfiableTypeVariableConstraintsDiagnostic private constructor (
     """.trimIndent(),
     inferenceLocation,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        sourceHints(
-            SourceHint(span, "constraints become unsatisfiable here", severity = severity),
-            SourceHint(parameter.name.span, "this parameter is affected", severity = Severity.INFO),
-        )
+        with(builder) {
+            sourceHints(
+                SourceHint(span, "constraints become unsatisfiable here", severity = severity),
+                SourceHint(parameter.name.span, "this parameter is affected", severity = Severity.INFO),
+            )
+        }
     }
 
     override fun equals(other: Any?): Boolean {

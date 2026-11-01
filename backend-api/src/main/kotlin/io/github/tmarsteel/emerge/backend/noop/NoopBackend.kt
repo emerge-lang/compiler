@@ -19,7 +19,7 @@ class NoopBackend : EmergeBackend<NoopBackend.Config, Unit> {
         projectConfig: Unit
     ): Iterable<ConfigModuleDefinition> {
         return listOf(ConfigModuleDefinition(
-            EmergeConstants.PLATFORM_MODULE_NAME,
+            EmergeConstants.PlatformModule.NAME,
             toolchainConfig.platformSources,
         ))
     }

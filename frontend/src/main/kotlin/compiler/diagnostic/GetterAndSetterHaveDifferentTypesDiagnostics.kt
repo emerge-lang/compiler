@@ -11,13 +11,25 @@ class GetterAndSetterHaveDifferentTypesDiagnostics(
     "The getter and setter for virtual member variable `${getter.name.value}` disagree on the type of the variable.",
     getter.declaredAt,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        val setterParam = setter.parameters.parameters.drop(1).firstOrNull()
-        val setterSpan = setterParam?.type?.span ?: setterParam?.span ?: setter.declaredAt
-        sourceHints(
-            SourceHint(getter.parsedReturnType?.span ?: getter.declaredAt, "the getter returns one type", relativeOrderMatters = false, severity = severity),
-            SourceHint(setterSpan, "the setter takes another type", relativeOrderMatters = false, severity = severity),
-        )
+        with(builder) {
+            val setterParam = setter.parameters.parameters.drop(1).firstOrNull()
+            val setterSpan = setterParam?.type?.span ?: setterParam?.span ?: setter.declaredAt
+            sourceHints(
+                SourceHint(
+                    getter.parsedReturnType?.span ?: getter.declaredAt,
+                    "the getter returns one type",
+                    relativeOrderMatters = false,
+                    severity = severity
+                ),
+                SourceHint(
+                    setterSpan,
+                    "the setter takes another type",
+                    relativeOrderMatters = false,
+                    severity = severity
+                ),
+            )
+        }
     }
 }

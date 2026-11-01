@@ -60,7 +60,7 @@ internal fun IrSoftwareContext.assignVirtualFunctionHashes() {
     // array special case
     this.modules
         .flatMap { it.packages }
-        .single { it.name == EmergeConstants.CORE_MODULE_NAME }
+        .single { it.name == EmergeConstants.CoreModule.NAME }
         .classes
         .single { it.canonicalName.simpleName == "Array" }
         .memberFunctions

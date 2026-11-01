@@ -49,13 +49,15 @@ class UnresolvableFunctionOverloadDiagnostic(
         }
     }
 
-    context(CellBuilder)
+    context(builder: CellBuilder)    
     override fun renderBody() {
-        super.renderBody()
+        with(builder) {
+            super.renderBody()
 
-        if (inapplicableCandidates.isNotEmpty()) {
-            text("These functions could be invoked, but are not applicable:")
-            sourceHints(inapplicableCandidates.map { it.inapplicabilityHint })
+            if (inapplicableCandidates.isNotEmpty()) {
+                text("These functions could be invoked, but are not applicable:")
+                sourceHints(inapplicableCandidates.map { it.inapplicabilityHint })
+            }
         }
     }
 

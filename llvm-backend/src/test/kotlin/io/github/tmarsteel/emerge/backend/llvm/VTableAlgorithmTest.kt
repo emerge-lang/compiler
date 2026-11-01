@@ -55,6 +55,8 @@ class VTableAlgorithmTest : FreeSpec({
                                         override val isBorrowed = true
                                         override val isReAssignable = false
                                         override val isSSA = true
+                                        override val declaredAt = MockSourceLocation
+                                        override val scope = mockk<IrVariableDeclaration.Scope>()
                                     })
                                     override val declaresReceiver = true
                                     override val returnType = IrSimpleTypeImpl(MockIrUnit, IrTypeMutability.READONLY, false)
@@ -102,6 +104,8 @@ class VTableAlgorithmTest : FreeSpec({
                                             override val isBorrowed = parameter.isBorrowed
                                             override val isReAssignable = parameter.isReAssignable
                                             override val isSSA = parameter.isSSA
+                                            override val declaredAt = MockSourceLocation
+                                            override val scope = mockk<IrVariableDeclaration.Scope>()
                                         }
                                     }
                                     override val declaresReceiver = true
@@ -121,6 +125,7 @@ class VTableAlgorithmTest : FreeSpec({
                         override val constructor = mockk<IrFunction>()
                         override val destructor = mockk<IrFunction>()
                         override val memberVariables = emptyList<IrClass.MemberVariable>()
+                        override val declaredAt = MockSourceLocation
                     }
 
                     val irSoftwareContext = mockk<IrSoftwareContext> {
@@ -132,7 +137,7 @@ class VTableAlgorithmTest : FreeSpec({
                                     every { interfaces } returns virtualTypes
                                 },
                                 mockk {
-                                    every { name } returns EmergeConstants.CORE_MODULE_NAME
+                                    every { name } returns EmergeConstants.CoreModule.NAME
                                     every { classes } returns setOf(object : MockCoreType("Array") {})
                                     every { interfaces } returns emptySet()
                                 }
@@ -140,7 +145,7 @@ class VTableAlgorithmTest : FreeSpec({
                         })
                     }
 
-                    EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmCtx ->
+                    EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu"), false) { llvmCtx ->
                         irSoftwareContext.assignVirtualFunctionHashes()
                         llvmCtx.registerBaseType(MockIrUnit)
                         virtualTypes.forEach(llvmCtx::registerBaseType)
@@ -189,6 +194,7 @@ private abstract class MockCoreType(simpleName: String) : IrClass {
     override val fields = emptyList<IrClass.Field>()
     override val constructor: IrFunction = mockk()
     override val destructor: IrFunction = mockk()
+    override val declaredAt = MockSourceLocation
 }
 private object MockIrUnit : MockCoreType("Unit")
 private class SingletonIrOverloadGroup<T : IrFunction>(val single: T) : IrOverloadGroup<T> {

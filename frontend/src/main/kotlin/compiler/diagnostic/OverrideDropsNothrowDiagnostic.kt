@@ -12,8 +12,9 @@ data class OverrideDropsNothrowDiagnostic(
     "Function ${override.canonicalName} must be declared ${Keyword.NOTHROW.text}, because it is overriding a function that is also declared nothrow.",
     override.declaredAt,
 ) {
-    context(CellBuilder) override fun renderBody() {
-        sourceHints(
+    context(builder: CellBuilder)
+    override fun renderBody() {
+        builder.sourceHints(
             SourceHint(override.declaredAt, "override is not declared ${Keyword.NOTHROW.text}", severity = severity),
             SourceHint(superFunction.attributes.firstNothrowAttribute!!.sourceLocation, "overridden function is declared ${Keyword.NOTHROW.text} here"),
         )
