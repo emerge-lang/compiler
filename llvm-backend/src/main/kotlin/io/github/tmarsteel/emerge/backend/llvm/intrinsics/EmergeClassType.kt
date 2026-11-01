@@ -322,6 +322,11 @@ private val bridgeParameter = Unit
  */
 private fun buildArrayBoxBridge(arrayFn: IrMemberFunction): KotlinLlvmFunction<EmergeLlvmContext, LlvmType> {
     val arrayFnType = arrayFn.llvmFunctionType
+    check(arrayFnType.parameterTypes.firstOrNull() == EmergeArraySliceType) {
+        "Cannot bridge ${arrayFn.canonicalName} through emerge.platform.ArrayBox: its receiver is of type " +
+            "${arrayFnType.parameterTypes.firstOrNull()}, not an array slice. Only functions declared on emerge.core.Array " +
+            "can be bridged; a function inherited from a supertype of Array needs a bridge of its own."
+    }
     return KotlinLlvmFunction.define(
         "emerge.platform.ArrayBox::${arrayFn.llvmName}",
         arrayFnType.returnType,
