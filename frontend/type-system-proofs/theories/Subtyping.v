@@ -31,8 +31,8 @@ From EmergeTypeSystem Require Import Model.
 
 Section Subtyping.
 
-Definition class_eqb (a b: Class): bool := if Class_eq_dec a b then true else false.
-Definition param_eqb (a b: TypeParameterId): bool := Nat.eqb a b.
+Definition class_eqb (c0 c1: Class): bool := if Class_eq_dec c0 c1 then true else false.
+Definition param_eqb (p q: TypeParameterId): bool := Nat.eqb p q.
 
 Variable env: Environment.
 
@@ -91,7 +91,7 @@ Fixpoint has_same_base_type_as (t other: EType): bool :=
     end.
 
 (* whether `f` holds for any two distinct elements of `l`, like twoElementPermutationsUnordered().any(f) *)
-Fixpoint exists_unordered_pair {A: Type} (f: A -> A -> bool) (l: list A): bool :=
+Fixpoint exists_unordered_pair {T: Type} (f: T -> T -> bool) (l: list T): bool :=
     match l with
     | [] => false
     | x :: rest => existsb (f x) rest || exists_unordered_pair f rest
@@ -541,40 +541,40 @@ Definition intersect_instances (instances: list EType): EType :=
 
 Definition not_argument (t: EType): bool := match t with TypeArgument _ _ _ => false | _ => true end.
 
-Lemma intersect_instances_plain: forall l, (forall t, In t l -> not_argument t = true) ->
-    intersect_instances l = of_components (flat_map intersected_components l).
+Lemma intersect_instances_plain: forall xs, (forall t, In t xs -> not_argument t = true) ->
+    intersect_instances xs = of_components (flat_map intersected_components xs).
 Proof.
-    intros l H. unfold intersect_instances. destruct (existsb _ l) eqn:E; [|reflexivity].
+    intros xs H. unfold intersect_instances. destruct (existsb _ xs) eqn:E; [|reflexivity].
     apply existsb_exists in E. destruct E as [t [Ht Et]]. specialize (H t Ht). destruct t; discriminate.
 Qed.
 
 (* The intersection of some of the instances, or of the types in those that are type arguments; as
    it is, or a type argument of it *)
-Lemma intersect_instances_cases: forall l, exists l',
-    (forall t, In t l' -> In t l \/ exists v o, In (TypeArgument v o t) l)
-    /\ (intersect_instances l = of_components (flat_map intersected_components l')
-        \/ exists v, intersect_instances l = TypeArgument v any_ownership (of_components (flat_map intersected_components l'))).
+Lemma intersect_instances_cases: forall xs, exists xs',
+    (forall t, In t xs' -> In t xs \/ exists v o, In (TypeArgument v o t) xs)
+    /\ (intersect_instances xs = of_components (flat_map intersected_components xs')
+        \/ exists v, intersect_instances xs = TypeArgument v any_ownership (of_components (flat_map intersected_components xs'))).
 Proof.
-    intros l. unfold intersect_instances. destruct (existsb _ l).
-    - generalize (if existsb (is_argument_of output) l then output else if existsb (is_argument_of input) l then input else invariant).
-      intros v. exists (map unwrap_argument (filter (fun t => negb (Variance_beq v output && is_argument_of input t)) l)). split.
+    intros xs. unfold intersect_instances. destruct (existsb _ xs).
+    - generalize (if existsb (is_argument_of output) xs then output else if existsb (is_argument_of input) xs then input else invariant).
+      intros v. exists (map unwrap_argument (filter (fun t => negb (Variance_beq v output && is_argument_of input t)) xs)). split.
       + intros t Ht. apply in_map_iff in Ht. destruct Ht as [u [<- Hu]]. apply filter_In in Hu. destruct Hu as [Hu _].
         destruct u as [| | | |w o x| |]; try (left; exact Hu). right. exists w, o. exact Hu.
       + destruct v; [left; reflexivity|right; eexists; reflexivity|right; eexists; reflexivity].
-    - exists l. split; [intros t Ht; left; exact Ht|left; reflexivity].
+    - exists xs. split; [intros t Ht; left; exact Ht|left; reflexivity].
 Qed.
 
 (* What holds of the instances holds of their intersection, where it holds of the intersection of
    components, and of type arguments as of their types *)
-Lemma intersect_instances_keeps: forall (Q: EType -> bool) l,
-    (forall cs, (forall c, In c cs -> Q c = true) -> Q (of_components cs) = true) ->
-    (forall t, Q t = true -> forall c, In c (intersected_components t) -> Q c = true) ->
+Lemma intersect_instances_keeps: forall (Q: EType -> bool) xs,
+    (forall cs, (forall C, In C cs -> Q C = true) -> Q (of_components cs) = true) ->
+    (forall t, Q t = true -> forall C, In C (intersected_components t) -> Q C = true) ->
     (forall v o x, Q (TypeArgument v o x) = Q x) ->
-    (forall t, In t l -> Q t = true) -> Q (intersect_instances l) = true.
+    (forall t, In t xs -> Q t = true) -> Q (intersect_instances xs) = true.
 Proof.
-    intros Q l Hof Hint Harg Hl. destruct (intersect_instances_cases l) as [l' [Hl' [E|[v E]]]]; rewrite E;
-        [|rewrite Harg]; apply Hof; intros c Hc; apply in_flat_map in Hc; destruct Hc as [i [Hi Hc]];
-        refine (Hint i _ c Hc); (destruct (Hl' i Hi) as [Hi'|[v' [o' Hi']]]; [exact (Hl i Hi')|rewrite <- (Harg v' o'); exact (Hl _ Hi')]).
+    intros Q xs Hof Hint Harg Hl. destruct (intersect_instances_cases xs) as [l' [Hl' [E|[v E]]]]; rewrite E;
+        [|rewrite Harg]; apply Hof; intros C Hc; apply in_flat_map in Hc; destruct Hc as [i [Hi Hc]];
+        refine (Hint i _ C Hc); (destruct (Hl' i Hi) as [Hi'|[v' [o' Hi']]]; [exact (Hl i Hi')|rewrite <- (Harg v' o'); exact (Hl _ Hi')]).
 Qed.
 
 (* instantiate, taking what a reference to a type parameter without a binding becomes from unbound *)
@@ -645,17 +645,17 @@ End InstantiateWith.
    effective bound. through is that for a reference, from the level of its rank. *)
 Section ThroughBounds.
 
-Context {X: Type}.
-Variable f_h: (GenericRef -> X) -> EType -> X.
-Variable default: X.
+Context {T: Type}.
+Variable f_h: (GenericRef -> T) -> EType -> T.
+Variable default: T.
 
-Fixpoint through_level (k: nat) (g: GenericRef): X :=
+Fixpoint through_level (k: nat) (g: GenericRef): T :=
     match k with
     | 0 => default
     | S k' => f_h (through_level k') (effective_bound g)
     end.
 
-Definition through (g: GenericRef): X := through_level (S (rank_of g)) g.
+Definition through (g: GenericRef): T := through_level (S (rank_of g)) g.
 
 End ThroughBounds.
 
@@ -666,17 +666,17 @@ End ThroughBounds.
    level of the rank of the parameter. *)
 Section ThroughParams.
 
-Context {X: Type}.
-Variable f_h: (TypeParameterId -> X) -> EType -> X.
-Variable default: X.
+Context {T: Type}.
+Variable f_h: (TypeParameterId -> T) -> EType -> T.
+Variable default: T.
 
-Fixpoint param_level (k: nat) (p: TypeParameterId): X :=
+Fixpoint param_level (k: nat) (p: TypeParameterId): T :=
     match k with
     | 0 => default
     | S k' => f_h (fun q => if param_eqb q p then default else param_level k' q) (parameter_bound env p)
     end.
 
-Definition through_param (p: TypeParameterId): X := param_level (S (parameter_rank env p)) p.
+Definition through_param (p: TypeParameterId): T := param_level (S (parameter_rank env p)) p.
 
 End ThroughParams.
 
@@ -968,8 +968,8 @@ Fixpoint lookup_state (states: VariableStates) (p: TypeParameterId): option Vari
     end.
 
 (* `states + mapOf(p to s)` *)
-Definition set_state (states: VariableStates) (p: TypeParameterId) (s: VariableState): VariableStates :=
-    (p, s) :: filter (fun '(p', _) => negb (param_eqb p p')) states.
+Definition set_state (states: VariableStates) (p: TypeParameterId) (st: VariableState): VariableStates :=
+    (p, st) :: filter (fun '(p', _) => negb (param_eqb p p')) states.
 
 (*
  * unify gives no answer (None) when it runs out of fuel, and where the Kotlin code throws. Whatever
@@ -1210,8 +1210,8 @@ Definition unify_erroneous (unify: UnifyFn) (self: EType) (m: Mutability) (assig
 (* Whether a type argument with ownership `sub` can stand in for one with ownership `super`: one with
    any ownership takes all of them; the others only themselves. In particular, a type parameter's
    ownership might be either owned or ref, so neither can stand in for it. *)
-Definition ownership_is_assignable_to (sub super: Ownership): bool :=
-    match super, sub with
+Definition ownership_is_assignable_to (oa ot: Ownership): bool :=
+    match ot, oa with
     | any_ownership, _ => true
     | owned, owned | ref, ref => true
     | parameter_ownership p, parameter_ownership p' => param_eqb p p'
@@ -1368,29 +1368,29 @@ Fixpoint unify (fuel: nat) (target assignee: EType) (carry: Unification): option
 
 (* BoundTypeReference.isAssignableTo: whether a value of type `sub` can be assigned to a reference
    of type `super`, i.e. whether `sub` is a subtype of `super`. None if unify gives no answer. *)
-Definition is_assignable_to (fuel: nat) (sub super: EType): option bool :=
+Definition is_assignable_to (fuel: nat) (x y: EType): option bool :=
     option_map
         (fun u => match u with Ongoing _ => true | Failed => false end)
-        (unify fuel super sub empty_unification).
+        (unify fuel y x empty_unification).
 
 Lemma unify_keeps_failure: forall fuel target assignee,
     unify fuel target assignee Failed = Some Failed.
 Proof. intros [|fuel] target assignee; reflexivity. Qed.
 
 (* An intersection with a component that can't be null can't be either: it takes no nullable value *)
-Lemma intersection_not_nullable: forall cs c, In c cs -> is_nullable c = false -> is_nullable (Intersection cs) = false.
+Lemma intersection_not_nullable: forall cs C, In C cs -> is_nullable C = false -> is_nullable (Intersection cs) = false.
 Proof.
-    intros cs c Hc Hn. cbn [is_nullable]. destruct (forallb is_nullable cs) eqn:E; [|reflexivity].
-    rewrite forallb_forall in E. rewrite (E c Hc) in Hn. discriminate Hn.
+    intros cs C Hc Hn. cbn [is_nullable]. destruct (forallb is_nullable cs) eqn:E; [|reflexivity].
+    rewrite forallb_forall in E. rewrite (E C Hc) in Hn. discriminate Hn.
 Qed.
 
 Lemma without_null_not_nullable_intersection: forall cs, is_nullable (Intersection cs) = false ->
     without_null (Intersection cs) = Intersection cs.
 Proof. intros cs H. cbn [is_nullable] in H. cbn [without_null]. rewrite H. reflexivity. Qed.
 
-Lemma unify_not_nullable_intersection: forall fuel cs n s, is_nullable (Intersection cs) = false ->
-    unify (S fuel) (Intersection cs) (Nullable n) (Ongoing s) = Some Failed.
-Proof. intros fuel cs n s H. cbn [unify unify_step unify_intersection]. rewrite H. reflexivity. Qed.
+Lemma unify_not_nullable_intersection: forall fuel cs x s, is_nullable (Intersection cs) = false ->
+    unify (S fuel) (Intersection cs) (Nullable x) (Ongoing s) = Some Failed.
+Proof. intros fuel cs x s H. cbn [unify unify_step unify_intersection]. rewrite H. reflexivity. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* More fuel never changes an answer                                                               *)
@@ -1399,27 +1399,27 @@ Proof. intros fuel cs n s H. cbn [unify unify_step unify_intersection]. rewrite 
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* g gives every answer f gives, and maybe more *)
-Definition refines (f g: UnifyFn): Prop :=
-    forall target assignee carry u, f target assignee carry = Some u -> g target assignee carry = Some u.
+Definition refines (uf0 uf1: UnifyFn): Prop :=
+    forall target assignee carry u, uf0 target assignee carry = Some u -> uf1 target assignee carry = Some u.
 
-Lemma fold_unify_refines: forall {A: Type} (h k: Unification -> A -> option Unification) l carry u,
-    (forall inner x v, h inner x = Some v -> k inner x = Some v) ->
-    fold_unify h l carry = Some u -> fold_unify k l carry = Some u.
+Lemma fold_unify_refines: forall {T: Type} (f0 f1: Unification -> T -> option Unification) l carry u,
+    (forall inner x u0, f0 inner x = Some u0 -> f1 inner x = Some u0) ->
+    fold_unify f0 l carry = Some u -> fold_unify f1 l carry = Some u.
 Proof.
-    intros A h k l. induction l as [|x rest IH]; intros carry u Hhk H; simpl in *.
+    intros T f0 f1 l. induction l as [|x rest IH]; intros carry u Hhk H; simpl in *.
     - exact H.
-    - destruct (h carry x) as [next|] eqn:E; [|discriminate].
+    - destruct (f0 carry x) as [next|] eqn:E; [|discriminate].
       rewrite (Hhk _ _ _ E). apply IH; assumption.
 Qed.
 
-Lemma find_first_refines: forall (h k: EType -> option Unification) candidates result,
-    (forall x v, h x = Some v -> k x = Some v) ->
-    find_first h candidates = Some result -> find_first k candidates = Some result.
+Lemma find_first_refines: forall (f0 f1: EType -> option Unification) candidates result,
+    (forall x u0, f0 x = Some u0 -> f1 x = Some u0) ->
+    find_first f0 candidates = Some result -> find_first f1 candidates = Some result.
 Proof.
-    intros h k candidates. induction candidates as [|x rest IH]; intros result Hhk H; simpl in *.
+    intros f0 f1 candidates. induction candidates as [|x rest IH]; intros result Hhk H; simpl in *.
     - exact H.
-    - destruct (h x) as [v|] eqn:E; [|discriminate].
-      rewrite (Hhk _ _ E). destruct v; [|apply IH]; assumption.
+    - destruct (f0 x) as [u0|] eqn:E; [|discriminate].
+      rewrite (Hhk _ _ E). destruct u0; [|apply IH]; assumption.
 Qed.
 
 (* The obligation of fold_unify_refines and find_first_refines: the function given to them calls f
@@ -1469,73 +1469,73 @@ Ltac solve_refines Hfg H :=
     end.
 
 Section StepRefines.
-    Variables f g: UnifyFn.
-    Hypothesis Hfg: refines f g.
+    Variables uf0 uf1: UnifyFn.
+    Hypothesis Hfg: refines uf0 uf1.
 
     Lemma plus_subtype_constraint_refines: forall states p upper u,
-        plus_subtype_constraint f states p upper = Some u -> plus_subtype_constraint g states p upper = Some u.
+        plus_subtype_constraint uf0 states p upper = Some u -> plus_subtype_constraint uf1 states p upper = Some u.
     Proof. intros * H. unfold plus_subtype_constraint in *. solve_refines Hfg H. Qed.
 
-    Lemma plus_static_check_refines: forall st p c carry u,
-        plus_static_check f st p c carry = Some u -> plus_static_check g st p c carry = Some u.
+    Lemma plus_static_check_refines: forall st p x carry u,
+        plus_static_check uf0 st p x carry = Some u -> plus_static_check uf1 st p x carry = Some u.
     Proof.
         intros * H. unfold plus_static_check in *. destruct (no_vars _); [exact H|]. exact (Hfg _ _ _ _ H).
     Qed.
 
     Lemma plus_supertype_constraint_refines: forall states p lower u,
-        plus_supertype_constraint f states p lower = Some u -> plus_supertype_constraint g states p lower = Some u.
+        plus_supertype_constraint uf0 states p lower = Some u -> plus_supertype_constraint uf1 states p lower = Some u.
     Proof.
         intros * H. unfold plus_supertype_constraint in *.
         destruct (lookup_state states p) as [st|]; [|discriminate H]. destruct (is_exact st); [exact (Hfg _ _ _ _ H)|].
         cbn zeta in H |- *.
-        destruct (f (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
+        destruct (uf0 (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
             [rewrite (Hfg _ _ _ _ E1)|rewrite (Hfg _ _ _ _ E1); exact H|discriminate H].
-        destruct (plus_static_check f st p _ (Ongoing s1)) as [w|] eqn:E2; [|discriminate H].
+        destruct (plus_static_check uf0 st p _ (Ongoing s1)) as [w|] eqn:E2; [|discriminate H].
         rewrite (plus_static_check_refines _ _ _ _ _ E2). exact H.
     Qed.
 
-    Lemma plus_binding_check_refines: forall st p binding c u,
-        plus_binding_check f st p binding c = Some u -> plus_binding_check g st p binding c = Some u.
+    Lemma plus_binding_check_refines: forall st p binding u u',
+        plus_binding_check uf0 st p binding u = Some u' -> plus_binding_check uf1 st p binding u = Some u'.
     Proof.
         intros * H. unfold plus_binding_check in *.
         destruct binding as [| | | |[] o t| |]; try exact H. exact (plus_static_check_refines _ _ _ _ _ H).
     Qed.
 
     Lemma plus_exact_binding_refines: forall states p binding u,
-        plus_exact_binding f states p binding = Some u -> plus_exact_binding g states p binding = Some u.
+        plus_exact_binding uf0 states p binding = Some u -> plus_exact_binding uf1 states p binding = Some u.
     Proof.
         intros * H. unfold plus_exact_binding in *.
         destruct (lookup_state states p) as [st|]; [|discriminate H].
-        destruct (f (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
+        destruct (uf0 (upper_bound st) _ (Ongoing states)) as [[s1|]|] eqn:E1;
             [rewrite (Hfg _ _ _ _ E1)|rewrite (Hfg _ _ _ _ E1); exact H|discriminate H].
-        destruct (f binding (lower_bound st) (Ongoing states)) as [[s2|]|] eqn:E2;
+        destruct (uf0 binding (lower_bound st) (Ongoing states)) as [[s2|]|] eqn:E2;
             [rewrite (Hfg _ _ _ _ E2)|rewrite (Hfg _ _ _ _ E2); exact H|discriminate H].
-        destruct (plus_binding_check f st p binding (Ongoing s2)) as [u'|] eqn:E3; [|discriminate H].
+        destruct (plus_binding_check uf0 st p binding (Ongoing s2)) as [u'|] eqn:E3; [|discriminate H].
         rewrite (plus_binding_check_refines _ _ _ _ _ E3). exact H.
     Qed.
 
     Lemma intersection_flipped_unify_refines: forall target components states u,
-        intersection_flipped_unify f target components states = Some u -> intersection_flipped_unify g target components states = Some u.
+        intersection_flipped_unify uf0 target components states = Some u -> intersection_flipped_unify uf1 target components states = Some u.
     Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
 
     Lemma unify_arguments_refines: forall targets assignees states u,
-        unify_arguments f targets assignees states = Some u -> unify_arguments g targets assignees states = Some u.
+        unify_arguments uf0 targets assignees states = Some u -> unify_arguments uf1 targets assignees states = Some u.
     Proof. intros * H. unfold unify_arguments in *. solve_refines Hfg H. Qed.
 
     (* the helpers above, where the lockstep evaluation reaches them *)
     Ltac solve_step H :=
         solve_refines Hfg H;
         match type of H with
-        | plus_subtype_constraint f ?s ?p ?t = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
-        | plus_supertype_constraint f ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
-        | type_variable_flipped_unify f ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
-        | intersection_flipped_unify f ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
-        | plus_exact_binding f ?s ?p ?t = Some _ => exact (plus_exact_binding_refines _ _ _ _ H)
-        | unify_arguments f ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
+        | plus_subtype_constraint uf0 ?s ?p ?t = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | plus_supertype_constraint uf0 ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
+        | type_variable_flipped_unify uf0 ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
+        | intersection_flipped_unify uf0 ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
+        | plus_exact_binding uf0 ?s ?p ?t = Some _ => exact (plus_exact_binding_refines _ _ _ _ H)
+        | unify_arguments uf0 ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
         end.
 
     Lemma unify_step_refines: forall target assignee states u,
-        unify_step f target assignee states = Some u -> unify_step g target assignee states = Some u.
+        unify_step uf0 target assignee states = Some u -> unify_step uf1 target assignee states = Some u.
     Proof.
         intros target assignee states u H. unfold unify_step in *.
         destruct target as [| |[]| | |[]|]; cbn beta iota zeta in H |- *.
@@ -1569,13 +1569,13 @@ Proof.
 Qed.
 
 (* Once is_assignable_to answers, that's the answer for any amount of fuel from there on. *)
-Theorem is_assignable_to_fuel_monotone: forall fuel more_fuel sub super answer,
+Theorem is_assignable_to_fuel_monotone: forall fuel more_fuel x y answer,
     fuel <= more_fuel ->
-    is_assignable_to fuel sub super = Some answer ->
-    is_assignable_to more_fuel sub super = Some answer.
+    is_assignable_to fuel x y = Some answer ->
+    is_assignable_to more_fuel x y = Some answer.
 Proof.
-    intros fuel more_fuel sub super answer Hle H. unfold is_assignable_to in *.
-    destruct (unify fuel super sub empty_unification) as [u|] eqn:E; [|discriminate].
+    intros fuel more_fuel x y answer Hle H. unfold is_assignable_to in *.
+    destruct (unify fuel y x empty_unification) as [u|] eqn:E; [|discriminate].
     rewrite (unify_fuel_monotone fuel more_fuel _ _ _ u Hle E). exact H.
 Qed.
 
@@ -1599,11 +1599,11 @@ Proof.
 Qed.
 
 (* Nothing, of any mutability, is a subtype of every non-nullable class type: it is const *)
-Theorem nothing_is_assignable_to_root_resolved: forall fuel mn m c arguments,
+Theorem nothing_is_assignable_to_root_resolved: forall fuel m0 m1 c arguments,
     is_const (declaration_of env nothing) = true ->
-    is_assignable_to (S fuel) (RootResolved mn nothing []) (RootResolved m c arguments) = Some true.
+    is_assignable_to (S fuel) (RootResolved m0 nothing []) (RootResolved m1 c arguments) = Some true.
 Proof.
-    intros fuel mn m c arguments Hnothing. unfold is_assignable_to. simpl.
+    intros fuel m0 m1 c arguments Hnothing. unfold is_assignable_to. simpl.
     unfold unify_root_resolved, base_type_is_subtype_of.
     rewrite (class_eqb_refl nothing). simpl. rewrite Hnothing. simpl.
     destruct (class_eqb c nothing), (class_eqb c any); reflexivity.
@@ -1615,19 +1615,19 @@ Theorem nullable_is_not_assignable_to_root_resolved: forall fuel t m c arguments
 Proof. reflexivity. Qed.
 
 (* With T bound to `out X`, `Box<Box<T>>` is a `Box<out Box<out X>>` *)
-Example instantiating_widens_nested_type_arguments: forall box x T vs,
-    instantiate [(T, TypeArgument output ref (RootResolved None x []))]
-        (RootResolved None box [TypeArgument invariant ref
-            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None false T vs))])])
-    = RootResolved None box [TypeArgument output ref
-        (RootResolved None box [TypeArgument output ref (RootResolved None x [])])].
+Example instantiating_widens_nested_type_arguments: forall c0 c1 p vs,
+    instantiate [(p, TypeArgument output ref (RootResolved None c1 []))]
+        (RootResolved None c0 [TypeArgument invariant ref
+            (RootResolved None c0 [TypeArgument invariant (parameter_ownership p) (Generic (mkGenericRef None false p vs))])])
+    = RootResolved None c0 [TypeArgument output ref
+        (RootResolved None c0 [TypeArgument output ref (RootResolved None c1 [])])].
 Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 
 (* With T bound to `out X`, `Consumer<in Box<T>>` takes nothing anymore *)
-Example instantiating_voids_nested_in_variant_type_arguments: forall consumer box x T vs,
-    instantiate [(T, TypeArgument output ref (RootResolved None x []))]
+Example instantiating_voids_nested_in_variant_type_arguments: forall consumer c0 c1 p vs,
+    instantiate [(p, TypeArgument output ref (RootResolved None c1 []))]
         (RootResolved None consumer [TypeArgument input ref
-            (RootResolved None box [TypeArgument invariant (parameter_ownership T) (Generic (mkGenericRef None false T vs))])])
+            (RootResolved None c0 [TypeArgument invariant (parameter_ownership p) (Generic (mkGenericRef None false p vs))])])
     = RootResolved None consumer [TypeArgument input ref bottom_type].
 Proof. intros. simpl. unfold param_eqb. rewrite Nat.eqb_refl. reflexivity. Qed.
 
@@ -1964,12 +1964,12 @@ Proof. through_bound ref_non_nullable_nothing is_non_nullable_nothing_top is_non
 
 Section Through.
 
-Context {X: Type}.
-Variable f_h: (GenericRef -> X) -> EType -> X.
-Variable default: X.
+Context {T: Type}.
+Variable f_h: (GenericRef -> T) -> EType -> T.
+Variable default: T.
 (* f_h gives the same for types whose references it is given the same for *)
-Hypothesis f_agree: forall k U1 U2, (forall g, rank_of g < k -> U1 g = U2 g) ->
-    forall t, ranked_below k t = true -> f_h U1 t = f_h U2 t.
+Hypothesis f_agree: forall k f1 f2, (forall g, rank_of g < k -> f1 g = f2 g) ->
+    forall t, ranked_below k t = true -> f_h f1 t = f_h f2 t.
 
 Lemma through_level_agree: forall j k, j <= k -> forall g, rank_of g < j -> through_level f_h default j g = through_level f_h default k g.
 Proof.
@@ -1989,13 +1989,13 @@ End Through.
 
 Section ThroughParam.
 
-Context {X: Type}.
-Variable f_h: (TypeParameterId -> X) -> EType -> X.
-Variable default: X.
+Context {T: Type}.
+Variable f_h: (TypeParameterId -> T) -> EType -> T.
+Variable default: T.
 Hypothesis deep: bounds_deep_ranked.
 (* f_h gives the same for types whose type parameters it is given the same for *)
-Hypothesis f_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
-    forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t.
+Hypothesis f_agree: forall p k f1 f2, (forall q, q = p \/ parameter_rank env q < k -> f1 q = f2 q) ->
+    forall t, deep_ranked p k t = true -> f_h f1 t = f_h f2 t.
 
 Lemma param_level_agree: forall j k, j <= k -> forall q, parameter_rank env q < j ->
     param_level f_h default j q = param_level f_h default k q.
@@ -2023,9 +2023,9 @@ End ThroughParam.
    through_param gives for a type parameter is what it gives for its declared bound, also for the
    parameter itself in it: assuming the parameter passes, so does its bound exactly where it does *)
 Lemma through_param_fix: forall (f_h: (TypeParameterId -> bool) -> EType -> bool), bounds_deep_ranked ->
-    (forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
-        forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t) ->
-    (forall U1 U2 t, (forall q, U1 q = true -> U2 q = true) -> f_h U1 t = true -> f_h U2 t = true) ->
+    (forall p k Q1 Q2, (forall q, q = p \/ parameter_rank env q < k -> Q1 q = Q2 q) ->
+        forall t, deep_ranked p k t = true -> f_h Q1 t = f_h Q2 t) ->
+    (forall Q1 Q2 t, (forall q, Q1 q = true -> Q2 q = true) -> f_h Q1 t = true -> f_h Q2 t = true) ->
     forall p, through_param f_h true p = f_h (through_param f_h true) (parameter_bound env p).
 Proof.
     intros f_h deep f_agree f_mono p. pose proof (through_param_eq f_h true deep f_agree p) as Heq.
@@ -2038,9 +2038,9 @@ Proof.
 Qed.
 
 Lemma through_param_fix_prop: forall (f_h: (TypeParameterId -> Prop) -> EType -> Prop), bounds_deep_ranked ->
-    (forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
-        forall t, deep_ranked p k t = true -> f_h U1 t = f_h U2 t) ->
-    (forall U1 U2 t, (forall q, U1 q -> U2 q) -> f_h U1 t -> f_h U2 t) ->
+    (forall p k Q1 Q2, (forall q, q = p \/ parameter_rank env q < k -> Q1 q = Q2 q) ->
+        forall t, deep_ranked p k t = true -> f_h Q1 t = f_h Q2 t) ->
+    (forall Q1 Q2 t, (forall q, Q1 q -> Q2 q) -> f_h Q1 t -> f_h Q2 t) ->
     forall p, through_param f_h True p <-> f_h (through_param f_h True) (parameter_bound env p).
 Proof.
     intros f_h deep f_agree f_mono p. pose proof (through_param_eq f_h True deep f_agree p) as Heq. split.

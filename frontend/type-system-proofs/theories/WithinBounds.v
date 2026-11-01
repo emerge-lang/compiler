@@ -77,30 +77,30 @@ Proof. intros [| | | | | |]; reflexivity. Qed.
 
 (* x below a class type is below the same class type of another mutability that fits, and without
    null where that is *)
-Lemma lift: forall f Y T Z (nn: bool), in_fragment env Y = true -> in_fragment env T = true -> in_fragment env Z = true ->
-    remut (without_null env Y) (without_null env T) ->
-    Model.is_subtype_of (assignment_mutability env Z) (assignment_mutability env T) = true ->
-    (is_nullable env T = false -> is_nullable env Y = false \/ nn = true) ->
-    unify env f Y Z (Ongoing []) = Some (Ongoing []) ->
-    exists f', unify env f' T (if nn then without_null env Z else Z) (Ongoing []) = Some (Ongoing []).
+Lemma lift: forall n y t z (nn: bool), in_fragment env y = true -> in_fragment env t = true -> in_fragment env z = true ->
+    remut (without_null env y) (without_null env t) ->
+    Model.is_subtype_of (assignment_mutability env z) (assignment_mutability env t) = true ->
+    (is_nullable env t = false -> is_nullable env y = false \/ nn = true) ->
+    unify env n y z (Ongoing []) = Some (Ongoing []) ->
+    exists n', unify env n' t (if nn then without_null env z else z) (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros f Y T Z nn HY HT HZ Hr Hm Hn H.
-    pose proof (unify_without_null env f Y Z [] [] HY HZ H) as H2.
-    assert (H3: unify env f (without_null env T) (without_null env Z) (Ongoing []) = Some (Ongoing [])).
-    { apply (unify_remut env f (without_null env Y) (without_null env T) (without_null env Z) (without_null env Z) [] [] Hr
-          (remut_refl env _ (in_fragment_without_null env Z HZ))); [|exact H2].
-      rewrite (assignment_mutability_of_without_null env Z HZ), (assignment_mutability_of_without_null env T HT). exact Hm. }
-    destruct (is_nullable env T) eqn:EnT.
-    - exists (S f). destruct (fragment_cases env T HT) as [[mt [ct [targs ->]]]|[mt [ct [targs [-> _]]]]]; [discriminate EnT|].
-      assert (HZ': in_fragment env (if nn then without_null env Z else Z) = true)
+    intros n y t z nn HY HT HZ Hr Hm Hn H.
+    pose proof (unify_without_null env n y z [] [] HY HZ H) as H2.
+    assert (H3: unify env n (without_null env t) (without_null env z) (Ongoing []) = Some (Ongoing [])).
+    { apply (unify_remut env n (without_null env y) (without_null env t) (without_null env z) (without_null env z) [] [] Hr
+          (remut_refl env _ (in_fragment_without_null env z HZ))); [|exact H2].
+      rewrite (assignment_mutability_of_without_null env z HZ), (assignment_mutability_of_without_null env t HT). exact Hm. }
+    destruct (is_nullable env t) eqn:EnT.
+    - exists (S n). destruct (fragment_cases env t HT) as [[mt [ct [targs ->]]]|[mt [ct [targs [-> _]]]]]; [discriminate EnT|].
+      assert (HZ': in_fragment env (if nn then without_null env z else z) = true)
           by (destruct nn; [apply in_fragment_without_null|]; exact HZ).
-      rewrite (unify_nullable_target env f _ _ [] HZ').
-      replace (without_null env (if nn then without_null env Z else Z)) with (without_null env Z)
-          by (destruct nn; [symmetry; apply (without_null_idempotent env Z HZ)|reflexivity]).
+      rewrite (unify_nullable_target env n _ _ [] HZ').
+      replace (without_null env (if nn then without_null env z else z)) with (without_null env z)
+          by (destruct nn; [symmetry; apply (without_null_idempotent env z HZ)|reflexivity]).
       exact H3.
-    - rewrite (without_null_non_null env T HT EnT) in H3. exists f. destruct nn; [exact H3|].
+    - rewrite (without_null_non_null env t HT EnT) in H3. exists n. destruct nn; [exact H3|].
       destruct (Hn eq_refl) as [HnY|E]; [|discriminate E].
-      rewrite (without_null_non_null env Z HZ (accepted_non_null env f Y Z [] [] HY HZ HnY H)) in H3. exact H3.
+      rewrite (without_null_non_null env z HZ (accepted_non_null env n y z [] [] HY HZ HnY H)) in H3. exact H3.
 Qed.
 
 Section Bindings.
@@ -109,58 +109,58 @@ Variable b: Bindings.
 Hypothesis Hbf: bindings_in_fragment env b.
 
 (* A class type of x of a lower mutability is below what x is below *)
-Lemma cfrag_lower: forall f Y x Z, cfrag env Y = true -> in_fragment env x = true -> in_fragment env Z = true ->
-    remut x Z -> Model.is_subtype_of (assignment_mutability env Z) (assignment_mutability env x) = true ->
-    unify env f Y x (Ongoing []) = Some (Ongoing []) -> exists f', unify env f' Y Z (Ongoing []) = Some (Ongoing []).
+Lemma cfrag_lower: forall n y x z, cfrag env y = true -> in_fragment env x = true -> in_fragment env z = true ->
+    remut x z -> Model.is_subtype_of (assignment_mutability env z) (assignment_mutability env x) = true ->
+    unify env n y x (Ongoing []) = Some (Ongoing []) -> exists n', unify env n' y z (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros f Y x Z HY Hx HZ Hr Hm H.
-    assert (Hinter: forall f0 ys x Z, class_components env ys = true -> in_fragment env x = true -> in_fragment env Z = true ->
-        remut x Z -> Model.is_subtype_of (assignment_mutability env Z) (assignment_mutability env x) = true ->
+    intros n y x z HY Hx HZ Hr Hm H.
+    assert (Hinter: forall f0 ys x z, class_components env ys = true -> in_fragment env x = true -> in_fragment env z = true ->
+        remut x z -> Model.is_subtype_of (assignment_mutability env z) (assignment_mutability env x) = true ->
         unify env (S f0) (Intersection ys) x (Ongoing []) = Some (Ongoing []) ->
-        unify env (S f0) (Intersection ys) Z (Ongoing []) = Some (Ongoing [])).
-    { clear x Z Hx HZ Hr Hm H. intros f0 ys x Z Hys Hx' HZ' Hr' Hm' E. destruct (inter_accepts env wf f0 ys x [] [] Hys Hx' E) as [_ [Hnx Hall]].
+        unify env (S f0) (Intersection ys) z (Ongoing []) = Some (Ongoing [])).
+    { clear x z Hx HZ Hr Hm H. intros f0 ys x z Hys Hx' HZ' Hr' Hm' E. destruct (inter_accepts env wf f0 ys x [] [] Hys Hx' E) as [_ [Hnx Hall]].
       destruct (class_components_facts env ys Hys) as [_ Hc].
-      apply (inter_takes env f0 ys Z [] Hys HZ').
+      apply (inter_takes env f0 ys z [] Hys HZ').
       - destruct Hr' as [[m [m' [c [args [-> ->]]]]]|[m [m' [c [args [-> ->]]]]]]; [reflexivity|discriminate Hnx].
-      - intros c Hin. apply (unify_remut env f0 c c x Z [] [] (remut_refl env c (proj2 (Hc c Hin))) Hr'); [|exact (Hall c Hin)].
+      - intros c Hin. apply (unify_remut env f0 c c x z [] [] (remut_refl env c (proj2 (Hc c Hin))) Hr'); [|exact (Hall c Hin)].
         exact (mutability_subtype_trans _ _ _ Hm' (accepted_mutability_classes env f0 c x [] [] (proj2 (Hc c Hin)) Hx' (Hall c Hin))). }
-    destruct (cfrag_cases env Y HY) as [HY'|[[ys [-> Hys]]|[ys [-> Hys]]]].
-    - exists f. apply (unify_remut env f Y Y x Z [] [] (remut_refl env Y HY') Hr); [|exact H].
-      exact (mutability_subtype_trans _ _ _ Hm (accepted_mutability_classes env f Y x [] [] HY' Hx H)).
-    - destruct f as [|f]; [discriminate H|]. exists (S f). exact (Hinter f ys x Z Hys Hx HZ Hr Hm H).
-    - destruct f as [|f]; [discriminate H|]. exists (S f).
-      rewrite (unify_nullable_target env f _ x [] Hx) in H. rewrite (unify_nullable_target env f _ Z [] HZ).
-      destruct f as [|f]; [discriminate H|].
-      apply (Hinter f ys _ _ Hys (in_fragment_without_null env x Hx) (in_fragment_without_null env Z HZ) (remut_without_null _ _ Hr));
+    destruct (cfrag_cases env y HY) as [HY'|[[ys [-> Hys]]|[ys [-> Hys]]]].
+    - exists n. apply (unify_remut env n y y x z [] [] (remut_refl env y HY') Hr); [|exact H].
+      exact (mutability_subtype_trans _ _ _ Hm (accepted_mutability_classes env n y x [] [] HY' Hx H)).
+    - destruct n as [|n]; [discriminate H|]. exists (S n). exact (Hinter n ys x z Hys Hx HZ Hr Hm H).
+    - destruct n as [|n]; [discriminate H|]. exists (S n).
+      rewrite (unify_nullable_target env n _ x [] Hx) in H. rewrite (unify_nullable_target env n _ z [] HZ).
+      destruct n as [|n]; [discriminate H|].
+      apply (Hinter n ys _ _ Hys (in_fragment_without_null env x Hx) (in_fragment_without_null env z HZ) (remut_without_null _ _ Hr));
           [|exact H].
-      rewrite (assignment_mutability_of_without_null env Z HZ), (assignment_mutability_of_without_null env x Hx). exact Hm.
+      rewrite (assignment_mutability_of_without_null env z HZ), (assignment_mutability_of_without_null env x Hx). exact Hm.
 Qed.
 
 (* Below the instance of a reference, of a class type of x: below the instance of another reference
    to the same type parameter, of a mutability m that fits *)
-Lemma ref_lift: forall f g1 g2 x m Z (nn: bool), in_fragment env x = true -> in_fragment env Z = true ->
-    given_mutability g2 = Some m -> Model.is_subtype_of (assignment_mutability env Z) m = true ->
-    (forall Y, Y = inst_ref env g1 x \/ Y = rewrap_nullable (inst_ref env g1 x) ->
-        forall T, (T = inst_ref env g2 x /\ (is_nullable env T = false -> is_nullable env Y = false \/ nn = true))
-            \/ (T = rewrap_nullable (inst_ref env g2 x)) ->
-        unify env f Y Z (Ongoing []) = Some (Ongoing []) ->
-        exists f', unify env f' T (if nn then without_null env Z else Z) (Ongoing []) = Some (Ongoing [])).
+Lemma ref_lift: forall n g1 g2 x m z (nn: bool), in_fragment env x = true -> in_fragment env z = true ->
+    given_mutability g2 = Some m -> Model.is_subtype_of (assignment_mutability env z) m = true ->
+    (forall y, y = inst_ref env g1 x \/ y = rewrap_nullable (inst_ref env g1 x) ->
+        forall t, (t = inst_ref env g2 x /\ (is_nullable env t = false -> is_nullable env y = false \/ nn = true))
+            \/ (t = rewrap_nullable (inst_ref env g2 x)) ->
+        unify env n y z (Ongoing []) = Some (Ongoing []) ->
+        exists n', unify env n' t (if nn then without_null env z else z) (Ongoing []) = Some (Ongoing [])).
 Proof.
-    intros f g1 g2 x m Z nn Hx HZ Hg Hm Y HY T HT H.
-    assert (HfY: in_fragment env Y = true)
+    intros n g1 g2 x m z nn Hx HZ Hg Hm y HY t HT H.
+    assert (HfY: in_fragment env y = true)
         by (destruct HY as [->| ->]; [|apply in_fragment_rewrap]; apply inst_ref_in_fragment, Hx).
-    assert (HfT: in_fragment env T = true)
+    assert (HfT: in_fragment env t = true)
         by (destruct HT as [[-> _]| ->]; [|apply in_fragment_rewrap]; apply inst_ref_in_fragment, Hx).
-    assert (HwY: without_null env Y = without_null env (inst_ref env g1 x)) by (destruct HY as [->| ->]; [|apply without_null_rewrap]; reflexivity).
-    assert (HwT: without_null env T = without_null env (inst_ref env g2 x))
+    assert (HwY: without_null env y = without_null env (inst_ref env g1 x)) by (destruct HY as [->| ->]; [|apply without_null_rewrap]; reflexivity).
+    assert (HwT: without_null env t = without_null env (inst_ref env g2 x))
         by (destruct HT as [[-> _]| ->]; [|apply without_null_rewrap]; reflexivity).
-    assert (HmY: assignment_mutability env Y = assignment_mutability env (inst_fit env g1 x)).
+    assert (HmY: assignment_mutability env y = assignment_mutability env (inst_fit env g1 x)).
     { destruct HY as [->| ->]; [|rewrite (mutability_rewrap _ (inst_ref_in_fragment env g1 x Hx))]; apply mutability_inst_ref, Hx. }
-    assert (HmT: assignment_mutability env T = assignment_mutability env (inst_fit env g2 x)).
+    assert (HmT: assignment_mutability env t = assignment_mutability env (inst_fit env g2 x)).
     { destruct HT as [[-> _]| ->]; [|rewrite (mutability_rewrap _ (inst_ref_in_fragment env g2 x Hx))]; apply mutability_inst_ref, Hx. }
-    apply (lift f Y T Z nn HfY HfT HZ).
+    apply (lift n y t z nn HfY HfT HZ).
     - rewrite HwY, HwT. exact (remut_trans _ _ _ (remut_sym _ _ (remut_inst_ref g1 x Hx)) (remut_inst_ref g2 x Hx)).
-    - rewrite HmT. pose proof (accepted_mutability_classes env f Y Z [] [] HfY HZ H) as HZY. rewrite HmY in HZY.
+    - rewrite HmT. pose proof (accepted_mutability_classes env n y z [] [] HfY HZ H) as HZY. rewrite HmY in HZY.
       pose proof (mutability_subtype_trans _ _ _ HZY (inst_fit_mutability_below env g1 x Hx)) as HZx.
       unfold inst_fit. rewrite Hg.
       destruct (with_mutability_cases env x Hx) as [Hc|Hc]; rewrite Hc; [apply intersect_mutability_greatest|exact HZx].
@@ -171,22 +171,22 @@ Proof.
 Qed.
 
 (* Below a class type, below it of another mutability that fits, and without null *)
-Lemma lift_class: forall f Y Z m (nn: bool), in_fragment env Y = true -> in_fragment env Z = true ->
-    Model.is_subtype_of (assignment_mutability env Z) m = true ->
-    unify env f Y Z (Ongoing []) = Some (Ongoing []) ->
-    exists f', unify env f' (if nn then without_null env (with_mutability env m Y) else with_mutability env m Y)
-        (if nn then without_null env Z else Z) (Ongoing []) = Some (Ongoing []).
+Lemma lift_class: forall n y z m (nn: bool), in_fragment env y = true -> in_fragment env z = true ->
+    Model.is_subtype_of (assignment_mutability env z) m = true ->
+    unify env n y z (Ongoing []) = Some (Ongoing []) ->
+    exists n', unify env n' (if nn then without_null env (with_mutability env m y) else with_mutability env m y)
+        (if nn then without_null env z else z) (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros f Y Z m nn HY HZ Hm H. pose proof (in_fragment_with_mutability env m Y HY) as HwY.
-    apply (lift f Y _ Z nn HY); [destruct nn; [apply in_fragment_without_null|]; exact HwY|exact HZ| | | |exact H].
-    - replace (without_null env (if nn then without_null env (with_mutability env m Y) else with_mutability env m Y))
-          with (without_null env (with_mutability env m Y)) by (destruct nn; [symmetry; apply (without_null_idempotent env _ HwY)|reflexivity]).
-      exact (remut_without_null _ _ (remut_with_mutability env m Y HY)).
-    - replace (assignment_mutability env (if nn then without_null env (with_mutability env m Y) else with_mutability env m Y))
-          with (assignment_mutability env (with_mutability env m Y)) by (destruct nn; [symmetry; apply (assignment_mutability_of_without_null env _ HwY)|reflexivity]).
-      pose proof (accepted_mutability_classes env f Y Z [] [] HY HZ H) as HZY.
-      destruct (with_mutability_cases env Y HY) as [Hc|Hc]; rewrite Hc; assumption.
-    - intros Hn. destruct nn; [right; reflexivity|left]. rewrite (nullable_with_mutability env m Y HY) in Hn. exact Hn.
+    intros n y z m nn HY HZ Hm H. pose proof (in_fragment_with_mutability env m y HY) as HwY.
+    apply (lift n y _ z nn HY); [destruct nn; [apply in_fragment_without_null|]; exact HwY|exact HZ| | | |exact H].
+    - replace (without_null env (if nn then without_null env (with_mutability env m y) else with_mutability env m y))
+          with (without_null env (with_mutability env m y)) by (destruct nn; [symmetry; apply (without_null_idempotent env _ HwY)|reflexivity]).
+      exact (remut_without_null _ _ (remut_with_mutability env m y HY)).
+    - replace (assignment_mutability env (if nn then without_null env (with_mutability env m y) else with_mutability env m y))
+          with (assignment_mutability env (with_mutability env m y)) by (destruct nn; [symmetry; apply (assignment_mutability_of_without_null env _ HwY)|reflexivity]).
+      pose proof (accepted_mutability_classes env n y z [] [] HY HZ H) as HZY.
+      destruct (with_mutability_cases env y HY) as [Hc|Hc]; rewrite Hc; assumption.
+    - intros Hn. destruct nn; [right; reflexivity|left]. rewrite (nullable_with_mutability env m y HY) in Hn. exact Hn.
 Qed.
 
 Lemma remut_class_instances: forall g g' x, in_fragment env x = true ->
@@ -218,11 +218,11 @@ Proof.
         destruct (is_const (declaration_of env c)); first [reflexivity|apply intersect_mutability_right].
 Qed.
 
-Lemma inst_fit_mutability: forall g x m, in_fragment env x = true -> given_mutability g = Some m ->
-    forall k, Model.is_subtype_of k m = true -> Model.is_subtype_of k (assignment_mutability env x) = true ->
-    Model.is_subtype_of k (assignment_mutability env (inst_fit env g x)) = true.
+Lemma inst_fit_mutability: forall g x m0, in_fragment env x = true -> given_mutability g = Some m0 ->
+    forall m1, Model.is_subtype_of m1 m0 = true -> Model.is_subtype_of m1 (assignment_mutability env x) = true ->
+    Model.is_subtype_of m1 (assignment_mutability env (inst_fit env g x)) = true.
 Proof.
-    intros g x m Hx Hg k Hkm Hkx. unfold inst_fit. rewrite Hg.
+    intros g x m0 Hx Hg m1 Hkm Hkx. unfold inst_fit. rewrite Hg.
     destruct (with_mutability_cases env x Hx) as [Hc|Hc]; rewrite Hc; [apply intersect_mutability_greatest|exact Hkx].
     - exact (mutability_subtype_trans _ _ _ Hkx (assignment_mutability_below env ranked x)).
     - exact Hkm.
@@ -233,19 +233,19 @@ Qed.
  * below, applied, and without null where that is applied: a type argument within the declared bound
  * of its type parameter, instantiated, is within the effective bound of a reference to it (adjust).
  *)
-Lemma within_adjust: forall K D m (nn: bool) Z, tfrag env D = true -> bex env b D = true -> bound_in_top_h env b K [] (top_bound_in env b K []) D = true ->
-    in_fragment env Z = true -> Model.is_subtype_of (assignment_mutability env Z) m = true ->
-    (exists f, unify env f (inst_nested env b D) Z (Ongoing []) = Some (Ongoing [])) ->
-    exists f, unify env f (inst_nested env b (adjust env m nn D)) (if nn then without_null env Z else Z) (Ongoing []) = Some (Ongoing []).
+Lemma within_adjust: forall d0 t m (nn: bool) z, tfrag env t = true -> bex env b t = true -> bound_in_top_h env b d0 [] (top_bound_in env b d0 []) t = true ->
+    in_fragment env z = true -> Model.is_subtype_of (assignment_mutability env z) m = true ->
+    (exists n, unify env n (inst_nested env b t) z (Ongoing []) = Some (Ongoing [])) ->
+    exists n, unify env n (inst_nested env b (adjust env m nn t)) (if nn then without_null env z else z) (Ongoing []) = Some (Ongoing []).
 Proof.
-    intros K D m nn Z HD Hb Htop HZ Hm [f H].
+    intros d0 t m nn z HD Hb Htop HZ Hm [n H].
     (* intersections: each component takes what it took before *)
-    assert (Hinter: forall m cs W, components_sfrag env cs = true -> bex env b (Intersection cs) = true -> bound_in_top_h env b K [] (top_bound_in env b K []) (Intersection cs) = true ->
+    assert (Hinter: forall m cs W, components_sfrag env cs = true -> bex env b (Intersection cs) = true -> bound_in_top_h env b d0 [] (top_bound_in env b d0 []) (Intersection cs) = true ->
         in_fragment env W = true -> Model.is_subtype_of (assignment_mutability env W) m = true ->
         forall f0, unify env f0 (inst_nested env b (Intersection cs)) W (Ongoing []) = Some (Ongoing []) ->
         is_nullable env W = false /\ exists ys f', inst_nested env b (Intersection (map (with_mutability env m) cs)) = Intersection ys
             /\ unify env f' (Intersection ys) W (Ongoing []) = Some (Ongoing [])).
-    { clear f H Hm m. intros m cs W Hcs Hbc Htc HW HmW f0 E.
+    { clear n H Hm m. intros m cs W Hcs Hbc Htc HW HmW f0 E.
       destruct (components_sfrag_facts env cs Hcs) as [Hl Hc].
       assert (Hcomp: forall c, In c cs ->
           (exists md d args, c = RootResolved md d args)
@@ -258,8 +258,8 @@ Proof.
           exists g, o, x. split; [reflexivity|]. split; [exact Ex|exact (Hbf _ o x Ex)]. }
       assert (Hn: forall c, In c cs -> is_nullable env (inst_nested env b c) = false).
       { intros c Hin. destruct (Hc c Hin) as [Hsh Hsc].
-        exact (proj2 (proj2 (instance_facts_ex env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
-            (bex_component env b cs _ Hbc Hin) (top_component env b K [] cs _ Htc Hin))) (component_non_null env c Hsh)). }
+        exact (proj2 (proj2 (instance_facts_ex env wf b d0 [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
+            (bex_component env b cs _ Hbc Hin) (top_component env b d0 [] cs _ Htc Hin))) (component_non_null env c Hsh)). }
       destruct (intersection_instance_ex env wf b Hbf cs Hcs Hbc Hn) as [HeqY [Hcc Hfacts]].
       set (ys := map (inst_nested env b) cs) in *. set (cm := common_mutability env ys) in *.
       rewrite HeqY in E. destruct f0 as [|f1]; [discriminate E|].
@@ -325,38 +325,38 @@ Proof.
         intros k Hk. apply in_map_iff in Hk. destruct Hk as [y [<- Hy]]. apply in_map_iff in Hy. destruct Hy as [c' [<- Hin2]].
         exact (proj2 (proj2 (proj2 (Hc' c' Hin2))) _ HmW (HWy c' Hin2)). }
     (* what an intersection takes is assigned as no more than the mutability its components take *)
-    assert (Hcommon: forall cs W f0, components_sfrag env cs = true -> bex env b (Intersection cs) = true -> bound_in_top_h env b K [] (top_bound_in env b K []) (Intersection cs) = true ->
+    assert (Hcommon: forall cs W f0, components_sfrag env cs = true -> bex env b (Intersection cs) = true -> bound_in_top_h env b d0 [] (top_bound_in env b d0 []) (Intersection cs) = true ->
         in_fragment env W = true -> Model.is_subtype_of (assignment_mutability env W) m = true ->
         unify env f0 (inst_nested env b (Intersection cs)) W (Ongoing []) = Some (Ongoing []) ->
         Model.is_subtype_of (assignment_mutability env W)
             (fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) = true).
     { intros cs W f0 Hcs Hbc Htc HW HmW E.
-      destruct (instance_facts_ex env wf b K [] Hbf _ (Intersection cs) (le_n _) Hcs Hbc Htc) as [Hcf [Hmi _]].
+      destruct (instance_facts_ex env wf b d0 [] Hbf _ (Intersection cs) (le_n _) Hcs Hbc Htc) as [Hcf [Hmi _]].
       pose proof (mutability_subtype_trans _ _ _ (cfrag_mutability env wf _ _ W _ _ Hcf HW E) Hmi) as HWc.
       apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|]. intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hin]].
       eapply mutability_subtype_trans; [|apply (assignment_with_mutability_above env wf)].
       apply intersect_mutability_greatest; [exact HmW|].
       exact (mutability_subtype_trans _ _ _ HWc (fold_intersect_below_element _ _ _ (in_map _ _ _ Hin))). }
-    destruct (tfrag_cases env D HD) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
-    - destruct (sfrag_cases env wf D Hs) as [[md [c [args [-> _]]]]|[[m_bot ->]|[[md [c [args [-> Hs']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
+    destruct (tfrag_cases env t HD) as [Hs|[[cs [-> Hcs]]|[cs [-> Hcs]]]].
+    - destruct (sfrag_cases env wf t Hs) as [[md [c [args [-> _]]]]|[[m_bot ->]|[[md [c [args [-> Hs']]]]|[[g [-> Hg]]|[g [-> Hg]]]]]].
       + (* a class type *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.
         replace (inst_nested env b (adjust env m nn (RootResolved md c args)))
             with (if nn then without_null env (with_mutability env m (inst_nested env b (RootResolved md c args)))
                   else with_mutability env m (inst_nested env b (RootResolved md c args))) by (destruct nn; reflexivity).
-        exact (lift_class f _ Z m nn HY HZ Hm H).
+        exact (lift_class n _ z m nn HY HZ Hm H).
       + (* Nothing *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.
         replace (inst_nested env b (adjust env m nn (RootResolved m_bot nothing [])))
             with (if nn then without_null env (with_mutability env m (inst_nested env b (RootResolved m_bot nothing [])))
                   else with_mutability env m (inst_nested env b (RootResolved m_bot nothing []))) by (destruct nn; reflexivity).
-        exact (lift_class f _ Z m nn HY HZ Hm H).
+        exact (lift_class n _ z m nn HY HZ Hm H).
       + (* a nullable class type *)
         pose proof (instance_in_fragment_ex env wf b Hbf _ Hs Hb) as HY.
         replace (inst_nested env b (adjust env m nn (Nullable (RootResolved md c args))))
             with (if nn then without_null env (with_mutability env m (inst_nested env b (Nullable (RootResolved md c args))))
                   else with_mutability env m (inst_nested env b (Nullable (RootResolved md c args)))) by (destruct nn; reflexivity).
-        exact (lift_class f _ Z m nn HY HZ Hm H).
+        exact (lift_class n _ z m nn HY HZ Hm H).
       + (* a reference to a type parameter *)
         destruct (bex_some env b g Hb) as [o [x [Ex _]]]. pose proof (Hbf _ o x Ex) as Hx.
         rewrite (inst_nested_generic env b g _ o x Ex) in H. destruct g as [gm nng q bq].
@@ -364,7 +364,7 @@ Proof.
             else mkGenericRef (Some m) nng q bq).
         assert (E'': inst_nested env b (adjust env m nn (Generic (mkGenericRef gm nng q bq))) = inst_ref env g'' x).
         { unfold g''. destruct nn; cbn [adjust without_null with_mutability]; apply (inst_nested_generic env b _ Model.invariant o x); exact Ex. }
-        rewrite E''. apply (ref_lift f (mkGenericRef gm nng q bq) g'' x m Z nn Hx HZ ltac:(unfold g''; destruct nn; reflexivity) Hm _ (or_introl eq_refl));
+        rewrite E''. apply (ref_lift n (mkGenericRef gm nng q bq) g'' x m z nn Hx HZ ltac:(unfold g''; destruct nn; reflexivity) Hm _ (or_introl eq_refl));
             [|exact H].
         left. split; [reflexivity|]. intros Hn. destruct nn; [right; reflexivity|left].
         rewrite nullable_inst_ref in Hn |- * by exact Hx. unfold g'' in Hn. cbn [is_narrowed] in Hn |- *. exact Hn.
@@ -375,13 +375,13 @@ Proof.
         destruct nn.
         * assert (E'': inst_nested env b (adjust env m true (Nullable (Generic (mkGenericRef gm nng q bq)))) = inst_ref env (narrow_ref env g') x)
               by (apply (inst_nested_generic env b _ Model.invariant o x); exact Ex).
-          rewrite E''. apply (ref_lift f (mkGenericRef gm nng q bq) (narrow_ref env g') x m Z true Hx HZ eq_refl Hm _ (or_intror eq_refl)); [|exact H].
+          rewrite E''. apply (ref_lift n (mkGenericRef gm nng q bq) (narrow_ref env g') x m z true Hx HZ eq_refl Hm _ (or_intror eq_refl)); [|exact H].
           left. split; [reflexivity|]. intros _. right. reflexivity.
         * assert (E'': inst_nested env b (adjust env m false (Nullable (Generic (mkGenericRef gm nng q bq)))) = rewrap_nullable (inst_ref env g' x))
               by (apply (inst_nested_nullable_generic env b _ Model.invariant o x); exact Ex).
-          rewrite E''. exact (ref_lift f (mkGenericRef gm nng q bq) g' x m Z false Hx HZ eq_refl Hm _ (or_intror eq_refl) _ (or_intror eq_refl) H).
+          rewrite E''. exact (ref_lift n (mkGenericRef gm nng q bq) g' x m z false Hx HZ eq_refl Hm _ (or_intror eq_refl) _ (or_intror eq_refl) H).
     - (* an intersection *)
-      destruct (Hinter _ cs Z Hcs Hb Htop HZ (Hcommon cs Z f Hcs Hb Htop HZ Hm H) f H) as [HnZ [ys [f' [Eys H']]]].
+      destruct (Hinter _ cs z Hcs Hb Htop HZ (Hcommon cs z n Hcs Hb Htop HZ Hm H) n H) as [HnZ [ys [f' [Eys H']]]].
       replace (inst_nested env b (adjust env m nn (Intersection cs)))
           with (inst_nested env b (Intersection (map (with_mutability env (fold_left intersect_mutability
               (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly)) cs)))
@@ -389,19 +389,19 @@ Proof.
               assert (Hwn: is_nullable env (with_mutability env m (Intersection cs)) = false)
                   by (rewrite (proj1 (proj2 (with_mutability_keeps env ranked m _))); exact (components_sfrag_not_nullable env cs HD));
               cbn [with_mutability] in Hwn |- *; rewrite (without_null_not_nullable_intersection env _ Hwn); reflexivity).
-      rewrite Eys. exists f'. destruct nn; [rewrite (without_null_non_null env Z HZ HnZ)|]; exact H'.
+      rewrite Eys. exists f'. destruct nn; [rewrite (without_null_non_null env z HZ HnZ)|]; exact H'.
     - (* a nullable intersection *)
-      destruct f as [|f]; [discriminate H|].
+      destruct n as [|n]; [discriminate H|].
       change (inst_nested env b (Nullable (Intersection cs))) with (rewrap_nullable (inst_nested env b (Intersection cs))) in H.
       destruct (intersection_instance_ex env wf b Hbf cs Hcs Hb) as [HeqY _].
       { intros c Hin. destruct (components_sfrag_facts env cs Hcs) as [_ Hc]. destruct (Hc c Hin) as [Hsh Hsc].
-        exact (proj2 (proj2 (instance_facts_ex env wf b K [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
-            (bex_component env b cs _ Hb Hin) (top_component env b K [] cs _ Htop Hin))) (component_non_null env c Hsh)). }
-      rewrite HeqY in H. cbn [rewrap_nullable] in H. rewrite (unify_nullable_target env f _ Z [] HZ) in H. rewrite <- HeqY in H.
-      pose proof (in_fragment_without_null env Z HZ) as HZ'.
-      assert (HmZ': Model.is_subtype_of (assignment_mutability env (without_null env Z)) m = true)
-          by (rewrite (assignment_mutability_of_without_null env Z HZ); exact Hm).
-      destruct (Hinter _ cs (without_null env Z) Hcs Hb Htop HZ' (Hcommon cs _ f Hcs Hb Htop HZ' HmZ' H) f H) as [_ [ys [f' [Eys H']]]].
+        exact (proj2 (proj2 (instance_facts_ex env wf b d0 [] Hbf _ c (le_n _) (sfrag_tfrag env c Hsc)
+            (bex_component env b cs _ Hb Hin) (top_component env b d0 [] cs _ Htop Hin))) (component_non_null env c Hsh)). }
+      rewrite HeqY in H. cbn [rewrap_nullable] in H. rewrite (unify_nullable_target env n _ z [] HZ) in H. rewrite <- HeqY in H.
+      pose proof (in_fragment_without_null env z HZ) as HZ'.
+      assert (HmZ': Model.is_subtype_of (assignment_mutability env (without_null env z)) m = true)
+          by (rewrite (assignment_mutability_of_without_null env z HZ); exact Hm).
+      destruct (Hinter _ cs (without_null env z) Hcs Hb Htop HZ' (Hcommon cs _ n Hcs Hb Htop HZ' HmZ' H) n H) as [_ [ys [f' [Eys H']]]].
       set (k := fold_left intersect_mutability (map (fun c => assignment_mutability env (with_mutability env m c)) cs) readonly) in Eys.
       destruct nn.
       + replace (inst_nested env b (adjust env m true (Nullable (Intersection cs)))) with (inst_nested env b (Intersection (map (with_mutability env k) cs)))
@@ -411,31 +411,31 @@ Proof.
         rewrite Eys. exists f'. exact H'.
       + replace (inst_nested env b (adjust env m false (Nullable (Intersection cs))))
             with (rewrap_nullable (inst_nested env b (Intersection (map (with_mutability env k) cs)))) by reflexivity.
-        rewrite Eys. exists (S f'). cbn [rewrap_nullable]. rewrite (unify_nullable_target env f' _ Z [] HZ). exact H'.
+        rewrite Eys. exists (S f'). cbn [rewrap_nullable]. rewrite (unify_nullable_target env f' _ z [] HZ). exact H'.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Every reference within its bound                                                                *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma respects_mono: forall K K' x B, K <= K' -> respects env K [] x B = true -> respects env K' [] x B = true.
+Lemma respects_mono: forall d d' x B, d <= d' -> respects env d [] x B = true -> respects env d' [] x B = true.
 Proof.
-    intros K K' x B Hle H. unfold respects in *. destruct (unify env K B x (Ongoing [])) as [[w|]|] eqn:E; try discriminate H.
-    rewrite (unify_fuel_monotone env K K' _ _ _ _ Hle E). reflexivity.
+    intros d d' x B Hle H. unfold respects in *. destruct (unify env d B x (Ongoing [])) as [[w|]|] eqn:E; try discriminate H.
+    rewrite (unify_fuel_monotone env d d' _ _ _ _ Hle E). reflexivity.
 Qed.
 
-Lemma bound_in_mono: forall K K' t, K <= K' -> bound_in env b K [] t = true -> bound_in env b K' [] t = true.
+Lemma bound_in_mono: forall d d' t, d <= d' -> bound_in env b d [] t = true -> bound_in env b d' [] t = true.
 Proof.
-    intros K K' t Hle. apply (bound_in_lift_any env wf b K [] b K' []); [|intros o Ho; exact Ho].
+    intros d d' t Hle. apply (bound_in_lift_any env wf b d [] b d' []); [|intros o Ho; exact Ho].
     intros g Hb. unfold binds_ref in Hb |- *.
     destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
-    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono K K' _ _ Hle Hb).
+    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono d d' _ _ Hle Hb).
 Qed.
 
-Lemma bound_in_list: forall l, (forall a, In a l -> exists K, bound_in env b K [] a = true) ->
-    exists K, forall a, In a l -> bound_in env b K [] a = true.
+Lemma bound_in_list: forall xs, (forall a, In a xs -> exists d, bound_in env b d [] a = true) ->
+    exists d, forall a, In a xs -> bound_in env b d [] a = true.
 Proof.
-    intros l H. induction l as [|a l IH]; [exists 0; intros _ []|].
+    intros xs H. induction xs as [|a xs IH]; [exists 0; intros _ []|].
     destruct (H a (or_introl eq_refl)) as [K1 H1]. destruct (IH (fun a' Ha' => H a' (or_intror Ha'))) as [K2 H2].
     exists (max K1 K2). intros a' [<-|Ha'].
     - apply (bound_in_mono K1); [lia|exact H1].
@@ -488,10 +488,10 @@ Proof.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
 Qed.
 
-Lemma mentions_only_h_agree: forall p k U1 U2, (forall q, q = p \/ parameter_rank env q < k -> U1 q = U2 q) ->
-    forall t, deep_ranked env p k t = true -> mentions_only_h U1 t = mentions_only_h U2 t.
+Lemma mentions_only_h_agree: forall p k Q1 Q2, (forall q, q = p \/ parameter_rank env q < k -> Q1 q = Q2 q) ->
+    forall t, deep_ranked env p k t = true -> mentions_only_h Q1 t = mentions_only_h Q2 t.
 Proof.
-    intros p k U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
+    intros p k Q1 Q2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity; try exact (IH n Ht).
     - induction args as [|a args IHa]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Ha Has].
       rewrite (IH a Ha), (IHa Has). reflexivity.
     - rewrite (HU _ (deep_ranked_param env p k g Ht)). reflexivity.
@@ -500,9 +500,9 @@ Proof.
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
-Lemma mentions_only_h_mono: forall U1 U2, (forall q, U1 q -> U2 q) -> forall t, mentions_only_h U1 t -> mentions_only_h U2 t.
+Lemma mentions_only_h_mono: forall Q1 Q2, (forall q, Q1 q -> Q2 q) -> forall t, mentions_only_h Q1 t -> mentions_only_h Q2 t.
 Proof.
-    intros U1 U2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht; try exact (IH n Ht).
+    intros Q1 Q2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht; try exact (IH n Ht).
     - induction args as [|a args IHa]; [exact I|]. destruct Ht as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
     - destruct Ht as [Hp [Hv Hu]]. exact (conj Hp (conj Hv (HU _ Hu))).
     - destruct Ht as [Ho Hn]. exact (conj Ho (IH n Hn)).
@@ -557,7 +557,7 @@ Qed.
    instantiated: as Kotlin checks type arguments *)
 Hypothesis Hwithin: forall p, In p ps -> exists o x, lookup_binding b p = Some (TypeArgument Model.invariant o x)
     /\ is_exact_ownership o = true
-    /\ exists f, unify env f (inst_nested env b (declared p)) x (Ongoing []) = Some (Ongoing []).
+    /\ exists n, unify env n (inst_nested env b (declared p)) x (Ongoing []) = Some (Ongoing []).
 (* Their declared bounds are of tfrag, and the references in them as above *)
 Hypothesis Hdeclared: forall p, In p ps ->
     tfrag env (declared p) = true /\ built (declared p) /\ mentions_only (declared p).
@@ -576,7 +576,7 @@ Fixpoint refs_in (R: GenericRef -> Prop) (t: EType): Prop :=
     | _ => True
     end.
 
-Lemma refs_in_mono: forall (R1 R2: GenericRef -> Prop), (forall r, R1 r -> R2 r) -> forall t, refs_in R1 t -> refs_in R2 t.
+Lemma refs_in_mono: forall (R1 R2: GenericRef -> Prop), (forall g0, R1 g0 -> R2 g0) -> forall t, refs_in R1 t -> refs_in R2 t.
 Proof.
     intros R1 R2 HR. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try exact Ht; try exact (IH n Ht).
     - induction args as [|a args IHa]; [exact I|]. destruct Ht as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
@@ -611,7 +611,7 @@ Qed.
 (* Of a type mentioning only the type parameters of the caller, the references are of R where R takes
    those to the parameters of a rank below k, and to p0 *)
 Lemma refs_in_from_mentions: forall (R: GenericRef -> Prop) p0 k,
-    (forall r, In (param_of r) ps -> variables_of r = [] -> parameter_rank env (param_of r) < k \/ param_of r = p0 -> R r) ->
+    (forall g0, In (param_of g0) ps -> variables_of g0 = [] -> parameter_rank env (param_of g0) < k \/ param_of g0 = p0 -> R g0) ->
     forall t, mentions_only t -> deep_ranked env p0 k t = true -> refs_in R t.
 Proof.
     intros R p0 k HR. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hm Hd; simpl in Hm, Hd |- *; try exact I.
@@ -660,7 +660,7 @@ Proof.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl. destruct Hm as [Hc Hcs]. rewrite (IH c Hc), (IHc Hcs). reflexivity.
 Qed.
 
-Lemma refs_in_all: forall t, mentions_only t -> refs_in (fun r => In (param_of r) ps /\ variables_of r = []) t.
+Lemma refs_in_all: forall t, mentions_only t -> refs_in (fun g0 => In (param_of g0) ps /\ variables_of g0 = []) t.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Hm; simpl in Hm |- *; try exact I.
     - induction args as [|a args IHa]; [exact I|]. destruct Hm as [Ha Has]. exact (conj (IH a Ha) (IHa Has)).
@@ -674,16 +674,16 @@ Qed.
    the declared bounds of their parameters, every type of references of R is bound in *)
 Section Refs.
 
-Variable K: nat.
+Variable d: nat.
 Variable R: GenericRef -> Prop.
-Hypothesis HR: forall r, R r -> binds_ref env b K [] r = true /\ variables_of r = [].
-Hypothesis Hclose: forall r, R r -> refs_in R (effective_bound env r) /\ refs_in R (parameter_bound env (param_of r)).
+Hypothesis HR: forall g, R g -> binds_ref env b d [] g = true /\ variables_of g = [].
+Hypothesis Hclose: forall g, R g -> refs_in R (effective_bound env g) /\ refs_in R (parameter_bound env (param_of g)).
 
-Lemma refs_top: forall r, R r -> top_bound_in env b K [] r = true.
+Lemma refs_top: forall g, R g -> top_bound_in env b d [] g = true.
 Proof.
-    intros r. remember (rank_of env r) as n eqn:En. revert r En. induction n as [n IH] using lt_wf_ind. intros r -> Hr.
-    rewrite (top_bound_in_eq env wf b K []). pose proof (proj1 (Hclose r Hr)) as Ht.
-    pose proof (effective_bound_ranked env ranked r) as Hrk. revert Ht Hrk. generalize (effective_bound env r) as t.
+    intros g. remember (rank_of env g) as n eqn:En. revert g En. induction n as [n IH] using lt_wf_ind. intros g -> Hr.
+    rewrite (top_bound_in_eq env wf b d []). pose proof (proj1 (Hclose g Hr)) as Ht.
+    pose proof (effective_bound_ranked env ranked g) as Hrk. revert Ht Hrk. generalize (effective_bound env g) as t.
     fix IHt 1. intros [m c args|n|q|me msg|v o n|q|cs] Ht Hrk; simpl in Ht, Hrk |- *; try reflexivity.
     - exact (IHt n Ht Hrk).
     - destruct (HR q Ht) as [Hq Hv]. rewrite Hq. unfold no_type_variables. rewrite Hv.
@@ -693,11 +693,11 @@ Proof.
       rewrite (IHt c Hc (proj1 Hrk)), (IHc Hcs (proj2 Hrk)). reflexivity.
 Qed.
 
-Lemma refs_param: forall r, R r -> param_bound_in env b K [] (param_of r) = true.
+Lemma refs_param: forall g, R g -> param_bound_in env b d [] (param_of g) = true.
 Proof.
-    assert (H: forall n p, parameter_rank env p = n -> (exists r, R r /\ param_of r = p) -> param_bound_in env b K [] p = true).
+    assert (H: forall n p, parameter_rank env p = n -> (exists g, R g /\ param_of g = p) -> param_bound_in env b d [] p = true).
     { induction n as [n IH] using lt_wf_ind. intros p En [r0 [Hr0 Ep]].
-      unfold param_bound_in. rewrite (through_param_eq env (bound_in_h env b K []) true deep (bound_in_h_agree env b K []) p).
+      unfold param_bound_in. rewrite (through_param_eq env (bound_in_h env b d []) true deep (bound_in_h_agree env b d []) p).
       pose proof (proj2 (Hclose r0 Hr0)) as Ht. rewrite Ep in Ht. pose proof (deep p) as Hd.
       revert Ht Hd. generalize (parameter_bound env p) as t.
       fix IHt 1. intros [m c args|n'|q|me msg|v o n'|q|cs] Ht Hd; simpl in Ht, Hd |- *; try reflexivity.
@@ -710,10 +710,10 @@ Proof.
       - destruct Ht as [Ho Hn]. rewrite Ho. exact (IHt n' Hn Hd).
       - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hd |- *. apply andb_true_iff in Hd. destruct Ht as [Hc Hcs].
         rewrite (IHt c Hc (proj1 Hd)), (IHc Hcs (proj2 Hd)). reflexivity. }
-    intros r Hr. exact (H _ (param_of r) eq_refl (ex_intro _ r (conj Hr eq_refl))).
+    intros g Hr. exact (H _ (param_of g) eq_refl (ex_intro _ g (conj Hr eq_refl))).
 Qed.
 
-Lemma refs_bound_in: forall t, refs_in R t -> bound_in env b K [] t = true.
+Lemma refs_bound_in: forall t, refs_in R t -> bound_in env b d [] t = true.
 Proof.
     fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
     - induction args as [|a args IHa]; [reflexivity|]. simpl. destruct Ht as [Ha Has]. rewrite (IH a Ha), (IHa Has). reflexivity.
@@ -725,20 +725,20 @@ Qed.
 
 End Refs.
 
-Lemma uniform_fuel: forall {A: Type} (l: list A) (Q: nat -> A -> Prop),
-    (forall f f' x, f <= f' -> Q f x -> Q f' x) -> (forall x, In x l -> exists f, Q f x) ->
-    exists f, forall x, In x l -> Q f x.
+Lemma uniform_fuel: forall {T: Type} (l: list T) (Q: nat -> T -> Prop),
+    (forall n n' x, n <= n' -> Q n x -> Q n' x) -> (forall x, In x l -> exists n, Q n x) ->
+    exists n, forall x, In x l -> Q n x.
 Proof.
-    intros A l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
+    intros T l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
     destruct (H x (or_introl eq_refl)) as [f1 H1]. destruct (IH (fun y Hy => H y (or_intror Hy))) as [f2 H2].
     exists (max f1 f2). intros y [<-|Hy]; [apply (Hm f1); [lia|exact H1]|apply (Hm f2); [lia|exact (H2 y Hy)]].
 Qed.
 
-Lemma binds_ref_mono: forall K K' g, K <= K' -> binds_ref env b K [] g = true -> binds_ref env b K' [] g = true.
+Lemma binds_ref_mono: forall d d' g, d <= d' -> binds_ref env b d [] g = true -> binds_ref env b d' [] g = true.
 Proof.
-    intros K K' g Hle Hb. unfold binds_ref in Hb |- *.
+    intros d d' g Hle Hb. unfold binds_ref in Hb |- *.
     destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
-    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono K K' _ _ Hle Hb).
+    apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox. exact (respects_mono d d' _ _ Hle Hb).
 Qed.
 
 (* The mutabilities and `!` a reference may be given *)
@@ -751,12 +751,12 @@ Proof. intros [[]|] []; simpl; tauto. Qed.
 (* Every reference to a type parameter of the caller, of any mutability and `!`, is within its
    bound, instantiated: by the rank of the parameter. The parameter written plainly is, as Kotlin
    checks it; then the declared bound is bound in, by the lower ranks; and so the others are *)
-Lemma param_refs: forall p, In p ps -> exists K, forall gm nn, binds_ref env b K [] (mkGenericRef gm nn p []) = true.
+Lemma param_refs: forall p, In p ps -> exists d, forall gm nn, binds_ref env b d [] (mkGenericRef gm nn p []) = true.
 Proof.
     intros p. remember (parameter_rank env p) as n eqn:En. revert p En. induction n as [n IH] using lt_wf_ind. intros p -> Hp.
     set (lower := filter (fun q => Nat.ltb (parameter_rank env q) (parameter_rank env p)) ps).
-    destruct (uniform_fuel lower (fun K q => forall gm nn, binds_ref env b K [] (mkGenericRef gm nn q []) = true)) as [KL HKL].
-    { intros f f' q Hle H gm nn. exact (binds_ref_mono f f' _ Hle (H gm nn)). }
+    destruct (uniform_fuel lower (fun d q => forall gm nn, binds_ref env b d [] (mkGenericRef gm nn q []) = true)) as [KL HKL].
+    { intros n'' f' q Hle H gm nn. exact (binds_ref_mono n'' f' _ Hle (H gm nn)). }
     { intros q Hq. apply filter_In in Hq. destruct Hq as [Hq Hr]. apply Nat.ltb_lt in Hr. exact (IH _ Hr q eq_refl Hq). }
     destruct (Hwithin p Hp) as [o [x [Ex [Ho [f0 Hf0]]]]]. pose proof (Hbf _ o x Ex) as Hx.
     destruct (Hdeclared p Hp) as [HtD [_ HmD]].
@@ -793,31 +793,31 @@ Proof.
     assert (HtopD: bound_in_top_h env b K2 [] (top_bound_in env b K2 []) (declared p) = true)
         by (apply Htop; [exact HmD|rewrite Hbound; apply ranked]).
     (* any mutability and `!`: within the bound with them applied, by the instance of the declared bound *)
-    assert (Hshape: forall gm nn, exists f, binds_ref env b f [] (mkGenericRef gm nn p []) = true).
+    assert (Hshape: forall gm nn, exists n'', binds_ref env b n'' [] (mkGenericRef gm nn p []) = true).
     { intros gm nn. set (g := mkGenericRef gm nn p []).
       assert (Heff: effective_bound env g = if nn then without_null env (match gm with Some m => with_mutability env m (declared p) | None => declared p end)
           else match gm with Some m => with_mutability env m (declared p) | None => declared p end)
           by (rewrite (effective_bound_eq env ranked), Hbound; reflexivity).
       destruct (instance_facts_ex env wf b K2 [] Hbf _ (declared p) (le_n _) HtD Hex HtopD) as [HcD [HmiD _]].
-      assert (Hf: exists f, unify env f (inst_nested env b (effective_bound env g)) (inst_ref env g x) (Ongoing []) = Some (Ongoing [])).
+      assert (Hf: exists n'', unify env n'' (inst_nested env b (effective_bound env g)) (inst_ref env g x) (Ongoing []) = Some (Ongoing [])).
       { destruct gm as [m0|].
         - pose proof (inst_fit_in_fragment env g x Hx) as HZ.
           assert (HmZ: Model.is_subtype_of (assignment_mutability env (inst_fit env g x)) m0 = true)
               by exact (inst_fit_below_given g x m0 Hx eq_refl).
           destruct (cfrag_lower f0 _ x _ HcD Hx HZ (remut_inst_fit env g x Hx) (inst_fit_mutability_below env g x Hx) Hf0) as [f1 Hf1].
-          destruct (within_adjust K2 (declared p) m0 nn _ HtD Hex HtopD HZ HmZ (ex_intro _ f1 Hf1)) as [f Hf].
-          exists f. rewrite Heff. unfold inst_ref. cbn [is_narrowed g]. destruct nn; exact Hf.
+          destruct (within_adjust K2 (declared p) m0 nn _ HtD Hex HtopD HZ HmZ (ex_intro _ f1 Hf1)) as [n'' Hf].
+          exists n''. rewrite Heff. unfold inst_ref. cbn [is_narrowed g]. destruct nn; exact Hf.
         - rewrite Heff. unfold inst_ref, inst_fit. cbn [is_narrowed given_mutability g].
           destruct nn; [|exists f0; exact Hf0].
           rewrite (narrow_instance_ex env wf b K2 [] Hbf _ HtD Hex HtopD).
           exists f0. exact (cfrag_without_null env wf f0 _ x [] [] HcD Hx Hf0). }
-      destruct Hf as [f Hf]. exists f.
+      destruct Hf as [n'' Hf]. exists n''.
       unfold binds_ref. cbn [param_of g]. rewrite Ex, Ho, (in_fragment_is_gfrag env x Hx). cbn [andb].
       unfold respects. rewrite Hf. reflexivity. }
-    destruct (uniform_fuel shapes (fun K s => binds_ref env b K [] (mkGenericRef (fst s) (snd s) p []) = true)) as [K HK].
-    { intros f f' s Hle H. exact (binds_ref_mono f f' _ Hle H). }
+    destruct (uniform_fuel shapes (fun d s => binds_ref env b d [] (mkGenericRef (fst s) (snd s) p []) = true)) as [d HK].
+    { intros n'' f' s Hle H. exact (binds_ref_mono n'' f' _ Hle H). }
     { intros [gm nn] _. exact (Hshape gm nn). }
-    exists K. intros gm nn. exact (HK (gm, nn) (shapes_complete gm nn)).
+    exists d. intros gm nn. exact (HK (gm, nn) (shapes_complete gm nn)).
 Qed.
 
 (*
@@ -825,14 +825,14 @@ Qed.
  * is within its bound, instantiated (bound_in), where the type parameters are bound to types within
  * their declared bounds, instantiated
  *)
-Theorem bound_in_derived: forall t, built t -> mentions_only t -> exists K, bound_in env b K [] t = true.
+Theorem bound_in_derived: forall t, built t -> mentions_only t -> exists d, bound_in env b d [] t = true.
 Proof.
     intros t _ Hm.
-    destruct (uniform_fuel ps (fun K q => forall gm nn, binds_ref env b K [] (mkGenericRef gm nn q []) = true)) as [K HK].
-    { intros f f' q Hle H gm nn. exact (binds_ref_mono f f' _ Hle (H gm nn)). }
+    destruct (uniform_fuel ps (fun d q => forall gm nn, binds_ref env b d [] (mkGenericRef gm nn q []) = true)) as [d HK].
+    { intros n f' q Hle H gm nn. exact (binds_ref_mono n f' _ Hle (H gm nn)). }
     { exact param_refs. }
-    exists K. set (R := fun r => In (param_of r) ps /\ variables_of r = []).
-    apply (refs_bound_in K R); [| |exact (refs_in_all t Hm)].
+    exists d. set (R := fun r => In (param_of r) ps /\ variables_of r = []).
+    apply (refs_bound_in d R); [| |exact (refs_in_all t Hm)].
     - intros [gm nn q vs] [Hq Hv]. cbn [param_of variables_of] in Hq, Hv. subst vs. exact (conj (HK q Hq gm nn) eq_refl).
     - intros [gm nn q vs] [Hq Hv]. cbn [param_of variables_of] in Hq, Hv |- *. subst vs.
       destruct (Hdeclared q Hq) as [_ [_ HmD]]. rewrite Hbound in HmD.

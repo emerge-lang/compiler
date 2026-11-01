@@ -32,11 +32,11 @@ Import ListNotations.
 (* null, which fits any nullable member.                                                           *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma uniform_fuel: forall {A: Type} (l: list A) (Q: nat -> A -> Prop),
-    (forall f f' x, f <= f' -> Q f x -> Q f' x) -> (forall x, In x l -> exists f, Q f x) ->
-    exists f, forall x, In x l -> Q f x.
+Lemma uniform_fuel: forall {T: Type} (l: list T) (Q: nat -> T -> Prop),
+    (forall n n' x, n <= n' -> Q n x -> Q n' x) -> (forall x, In x l -> exists n, Q n x) ->
+    exists n, forall x, In x l -> Q n x.
 Proof.
-    intros A l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
+    intros T l Q Hm. induction l as [|x l IH]; intros H; [exists 0; intros _ []|].
     destruct (H x (or_introl eq_refl)) as [f1 H1]. destruct (IH (fun y Hy => H y (or_intror Hy))) as [f2 H2].
     exists (max f1 f2). intros y [<-|Hy]; [apply (Hm f1); [lia|exact H1]|apply (Hm f2); [lia|exact (H2 y Hy)]].
 Qed.
@@ -130,11 +130,11 @@ Definition holds_only_null (V: EType): bool :=
 (* ---------------------------------------------------------------------------------------------- *)
 
 Lemma exact_argument_facts: forall x, is_exact_argument x = true ->
-    exists o n, x = TypeArgument Model.invariant o n /\ in_fragment env n = true
+    exists o y, x = TypeArgument Model.invariant o y /\ in_fragment env y = true
         /\ argument_in_fragment env x = true /\ is_loose x = false.
 Proof.
-    intros [| | | |[] o n| |] H; simpl in H; try discriminate H.
-    exists o, n. destruct o; try discriminate H. all: repeat split; first [reflexivity|exact H].
+    intros [| | | |[] o y| |] H; simpl in H; try discriminate H.
+    exists o, y. destruct o; try discriminate H. all: repeat split; first [reflexivity|exact H].
 Qed.
 
 (* The type arguments of a reference that an object is assignable to, pairwise *)
@@ -165,18 +165,18 @@ Proof.
     apply In_nth_error. exact Hq.
 Qed.
 
-Lemma fragment_not_nesting: forall Y, in_fragment env Y = true -> nests_argument Y = false.
-Proof. intros Y HY. destruct (fragment_cases env Y HY) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; reflexivity. Qed.
+Lemma fragment_not_nesting: forall y, in_fragment env y = true -> nests_argument y = false.
+Proof. intros y HY. destruct (fragment_cases env y HY) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; reflexivity. Qed.
 
 (* A reference to a type parameter bound to a type argument of type Y: the type argument, of the
    mutability and nullability of the reference applied to Y (GenericTypeReference.instantiateAllParameters,
    BoundTypeArgument.withMutability) *)
-Lemma instantiate_bound_reference: forall b g v o Y,
-    lookup_binding b (param_of g) = Some (TypeArgument v o Y) -> in_fragment env Y = true ->
-    instantiate env b (Generic g) = final_argument (TypeArgument v o (inst_ref env g Y)).
+Lemma instantiate_bound_reference: forall b g v o y,
+    lookup_binding b (param_of g) = Some (TypeArgument v o y) -> in_fragment env y = true ->
+    instantiate env b (Generic g) = final_argument (TypeArgument v o (inst_ref env g y)).
 Proof.
-    intros b [gm nn p bp] v o Y H HY. cbn [param_of] in H.
-    destruct (fragment_cases env Y HY) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
+    intros b [gm nn p bp] v o y H HY. cbn [param_of] in H.
+    destruct (fragment_cases env y HY) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
         simpl; rewrite H; destruct v, o, gm, nn; reflexivity.
 Qed.
 
@@ -196,37 +196,37 @@ Lemma parameter_member: forall n' s c xs ys p,
     (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
     Forall2 (fun x y => unify env n' y x (Ongoing s) = Some (Ongoing s)) xs ys ->
     existsb (param_eqb p) (parameter_ids env c) = true ->
-    exists o X v oy Y n'',
-        lookup_binding (bindings_of env c xs) p = Some (TypeArgument Model.invariant o X)
-        /\ lookup_binding (bindings_of env c ys) p = Some (TypeArgument v oy Y)
-        /\ in_fragment env X = true /\ in_fragment env Y = true /\ n' = S n''
-        /\ compare_variances (unify env n'') v Model.invariant Y X s = Some (Ongoing s).
+    exists o z v oy y0 n'',
+        lookup_binding (bindings_of env c xs) p = Some (TypeArgument Model.invariant o z)
+        /\ lookup_binding (bindings_of env c ys) p = Some (TypeArgument v oy y0)
+        /\ in_fragment env z = true /\ in_fragment env y0 = true /\ n' = S n''
+        /\ compare_variances (unify env n'') v Model.invariant y0 z s = Some (Ongoing s).
 Proof.
     intros n' s c xs ys p Hlx Hly Hxs Hys H Hp. destruct (member_parameter c p Hp) as [i Hi].
     destruct (nth_error_same_length _ xs i p (eq_sym Hlx) Hi) as [x Ex].
     destruct (nth_error_same_length _ ys i p (eq_sym Hly) Hi) as [y Ey].
-    destruct (exact_argument_facts x (Hxs x (nth_error_In _ _ Ex))) as [o [X [-> [HX _]]]].
+    destruct (exact_argument_facts x (Hxs x (nth_error_In _ _ Ex))) as [o [z [-> [HX _]]]].
     pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
-    destruct y as [| | | |v oy Y| |]; simpl in Hy; try discriminate Hy.
+    destruct y as [| | | |v oy y0| |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
     rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
     destruct (ownership_is_assignable_to o oy); [|discriminate E].
-    exists o, X, v, oy, Y, n''. repeat split; auto.
+    exists o, z, v, oy, y0, n''. repeat split; auto.
     - exact (lookup_parameter env wf c xs i p _ Hi Ex).
     - exact (lookup_parameter env wf c ys i p _ Hi Ey).
 Qed.
 
 (* What a member of type T or T? reads as, of the mutability and nullability of the reference *)
-Lemma read_member_reference: forall b g v o Y,
-    lookup_binding b (param_of g) = Some (TypeArgument v o Y) -> in_fragment env Y = true ->
-    read_member b (Generic g) = read_type v (inst_ref env g Y)
-    /\ read_member b (Nullable (Generic g)) = rewrap_nullable (read_type v (inst_ref env g Y)).
+Lemma read_member_reference: forall b g v o y,
+    lookup_binding b (param_of g) = Some (TypeArgument v o y) -> in_fragment env y = true ->
+    read_member b (Generic g) = read_type v (inst_ref env g y)
+    /\ read_member b (Nullable (Generic g)) = rewrap_nullable (read_type v (inst_ref env g y)).
 Proof.
-    intros b g v o Y H HY. unfold read_member.
+    intros b g v o y H HY. unfold read_member.
     change (instantiate env b (Nullable (Generic g))) with (rewrap_nullable (instantiate env b (Generic g))).
-    rewrite (instantiate_bound_reference b g v o Y H HY). pose proof (inst_ref_in_fragment env g Y HY) as HY'.
-    set (Y' := inst_ref env g Y) in *. clearbody Y'.
+    rewrite (instantiate_bound_reference b g v o y H HY). pose proof (inst_ref_in_fragment env g y HY) as HY'.
+    set (Y' := inst_ref env g y) in *. clearbody Y'.
     unfold final_argument. rewrite (fragment_not_nesting Y' HY'), orb_false_r.
     destruct (is_loose (TypeArgument v o Y')) eqn:El; [split; reflexivity|].
     assert (Hv: v = Model.invariant) by (destruct v; first [reflexivity|discriminate El]). subst v. cbn [read_type].
@@ -238,21 +238,21 @@ Definition related (s: VariableStates) (v: Variance) (X Y: EType): Prop :=
     (v <> input -> exists f, unify env f Y X (Ongoing s) = Some (Ongoing s))
     /\ (v <> output -> exists f, unify env f X Y (Ongoing s) = Some (Ongoing s)).
 
-Lemma related_of_compare: forall n s v X Y, in_fragment env X = true -> in_fragment env Y = true ->
-    compare_variances (unify env n) v Model.invariant Y X s = Some (Ongoing s) -> related s v X Y.
+Lemma related_of_compare: forall n s v x y, in_fragment env x = true -> in_fragment env y = true ->
+    compare_variances (unify env n) v Model.invariant y x s = Some (Ongoing s) -> related s v x y.
 Proof.
-    intros n s v X Y HX HY H. destruct v; unfold compare_variances in H.
-    - apply (both_ways (unify env n) Y X s) in H; [|apply unify_keeps_failure|].
+    intros n s v x y HX HY H. destruct v; unfold compare_variances in H.
+    - apply (both_ways (unify env n) y x s) in H; [|apply unify_keeps_failure|].
       + split; intros _; exists n; apply H.
       + intros w. apply (proj1 (keeps_states_with_arguments env wf n)); assumption.
     - split; [intros C; exfalso; apply C; reflexivity|intros _; exists n; exact H].
     - split; [intros _; exists n; exact H|intros C; exfalso; apply C; reflexivity].
 Qed.
 
-Lemma compare_of_related: forall s v X Y, related s v X Y ->
-    exists n, compare_variances (unify env n) v Model.invariant Y X s = Some (Ongoing s).
+Lemma compare_of_related: forall s v x y, related s v x y ->
+    exists n, compare_variances (unify env n) v Model.invariant y x s = Some (Ongoing s).
 Proof.
-    intros s v X Y [Hup Hdown]. destruct v; unfold compare_variances.
+    intros s v x y [Hup Hdown]. destruct v; unfold compare_variances.
     - destruct (Hup ltac:(discriminate)) as [f1 H1]. destruct (Hdown ltac:(discriminate)) as [f2 H2].
       exists (f1 + f2). rewrite (unify_fuel_monotone env f1 (f1 + f2) _ _ _ _ ltac:(lia) H1).
       exact (unify_fuel_monotone env f2 (f1 + f2) _ _ _ _ ltac:(lia) H2).
@@ -264,22 +264,22 @@ Lemma exclusive_fits: forall m, Model.is_subtype_of exclusive m = true.
 Proof. intros []; reflexivity. Qed.
 
 (* A class type takes the mutability given and is assigned as it, or is of a const class *)
-Lemma fit_cases: forall k x, in_fragment env x = true ->
-    (assignment_mutability env (with_mutability env k x) = k /\ mutability_of env x = assignment_mutability env x)
-    \/ (assignment_mutability env (with_mutability env k x) = exclusive /\ assignment_mutability env x = exclusive).
+Lemma fit_cases: forall m0 x, in_fragment env x = true ->
+    (assignment_mutability env (with_mutability env m0 x) = m0 /\ mutability_of env x = assignment_mutability env x)
+    \/ (assignment_mutability env (with_mutability env m0 x) = exclusive /\ assignment_mutability env x = exclusive).
 Proof.
-    intros k x H. destruct (fragment_cases env x H) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
+    intros m0 x H. destruct (fragment_cases env x H) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
         simpl; destruct (is_const (declaration_of env c)); first [right; split; reflexivity|left; split; reflexivity].
 Qed.
 
-Lemma inst_fit_mono: forall g X Y, in_fragment env X = true -> in_fragment env Y = true ->
-    Model.is_subtype_of (assignment_mutability env X) (assignment_mutability env Y) = true ->
-    Model.is_subtype_of (assignment_mutability env (inst_fit env g X)) (assignment_mutability env (inst_fit env g Y)) = true.
+Lemma inst_fit_mono: forall g x y, in_fragment env x = true -> in_fragment env y = true ->
+    Model.is_subtype_of (assignment_mutability env x) (assignment_mutability env y) = true ->
+    Model.is_subtype_of (assignment_mutability env (inst_fit env g x)) (assignment_mutability env (inst_fit env g y)) = true.
 Proof.
-    intros g X Y HX HY Hm. unfold inst_fit. destruct (given_mutability g) as [m|]; [|exact Hm].
-    destruct (fit_cases (intersect_mutability (mutability_of env X) m) X HX) as [[EX MX]|[EX _]];
+    intros g x y HX HY Hm. unfold inst_fit. destruct (given_mutability g) as [m|]; [|exact Hm].
+    destruct (fit_cases (intersect_mutability (mutability_of env x) m) x HX) as [[EX MX]|[EX _]];
         rewrite EX; [|apply exclusive_fits].
-    destruct (fit_cases (intersect_mutability (mutability_of env Y) m) Y HY) as [[EY MY]|[EY AY]]; rewrite EY.
+    destruct (fit_cases (intersect_mutability (mutability_of env y) m) y HY) as [[EY MY]|[EY AY]]; rewrite EY.
     - rewrite MX, MY. apply intersect_mutability_greatest.
       + exact (mutability_subtype_trans _ _ _ (intersect_mutability_left _ _) Hm).
       + apply intersect_mutability_right.
@@ -287,120 +287,120 @@ Proof.
 Qed.
 
 (* Where Y is above X, the reference to a type parameter bound to Y is above the one bound to X *)
-Lemma inst_ref_mono: forall g f X Y s, in_fragment env X = true -> in_fragment env Y = true ->
-    unify env f Y X (Ongoing s) = Some (Ongoing s) ->
-    unify env f (inst_ref env g Y) (inst_ref env g X) (Ongoing s) = Some (Ongoing s).
+Lemma inst_ref_mono: forall g n x y s, in_fragment env x = true -> in_fragment env y = true ->
+    unify env n y x (Ongoing s) = Some (Ongoing s) ->
+    unify env n (inst_ref env g y) (inst_ref env g x) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros g f X Y s HX HY H.
-    pose proof (accepted_mutability_classes env f Y X s s HY HX H) as Hm.
-    assert (Hf: unify env f (inst_fit env g Y) (inst_fit env g X) (Ongoing s) = Some (Ongoing s)).
-    { apply (unify_remut env f Y _ X _ s s (remut_inst_fit env g Y HY) (remut_inst_fit env g X HX)); [|exact H].
+    intros g n x y s HX HY H.
+    pose proof (accepted_mutability_classes env n y x s s HY HX H) as Hm.
+    assert (Hf: unify env n (inst_fit env g y) (inst_fit env g x) (Ongoing s) = Some (Ongoing s)).
+    { apply (unify_remut env n y _ x _ s s (remut_inst_fit env g y HY) (remut_inst_fit env g x HX)); [|exact H].
       apply inst_fit_mono; assumption. }
     unfold inst_ref. destruct (is_narrowed g); [|exact Hf].
     apply (unify_without_null env); [apply (inst_fit_in_fragment env); exact HY|apply (inst_fit_in_fragment env); exact HX|exact Hf].
 Qed.
 
-Lemma related_inst_ref: forall g s v X Y, in_fragment env X = true -> in_fragment env Y = true ->
-    related s v X Y -> related s v (inst_ref env g X) (inst_ref env g Y).
+Lemma related_inst_ref: forall g s v x y, in_fragment env x = true -> in_fragment env y = true ->
+    related s v x y -> related s v (inst_ref env g x) (inst_ref env g y).
 Proof.
-    intros g s v X Y HX HY [Hup Hdown]. split.
+    intros g s v x y HX HY [Hup Hdown]. split.
     - intros Hv. destruct (Hup Hv) as [f Hf]. exists f. apply inst_ref_mono; assumption.
     - intros Hv. destruct (Hdown Hv) as [f Hf]. exists f. apply inst_ref_mono; assumption.
 Qed.
 
 (* As the target, a type argument takes what its type, of the fragment, takes *)
-Lemma final_argument_target: forall f v o Y V s, in_fragment env V = true -> in_fragment env Y = true ->
-    unify env f (final_argument (TypeArgument v o Y)) V (Ongoing s) = Some (Ongoing s) ->
-    exists f', unify env f' (TypeArgument v o Y) V (Ongoing s) = Some (Ongoing s).
+Lemma final_argument_target: forall n v o y V s, in_fragment env V = true -> in_fragment env y = true ->
+    unify env n (final_argument (TypeArgument v o y)) V (Ongoing s) = Some (Ongoing s) ->
+    exists n', unify env n' (TypeArgument v o y) V (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros f v o Y V s HV HY H. unfold final_argument in H. rewrite (fragment_not_nesting Y HY), orb_false_r in H.
-    destruct (is_loose (TypeArgument v o Y)) eqn:El; [exists f; exact H|].
+    intros n v o y V s HV HY H. unfold final_argument in H. rewrite (fragment_not_nesting y HY), orb_false_r in H.
+    destruct (is_loose (TypeArgument v o y)) eqn:El; [exists n; exact H|].
     assert (Hv: v = Model.invariant) by (destruct v; first [reflexivity|discriminate El]). subst v.
-    exists (S f). rewrite (unify_argument_value f Model.invariant o Y V s HV). exact H.
+    exists (S n). rewrite (unify_argument_value n Model.invariant o y V s HV). exact H.
 Qed.
 
-Lemma nullable_final_argument_target: forall f v o Y V s, in_fragment env V = true -> in_fragment env Y = true ->
-    unify env f (rewrap_nullable (final_argument (TypeArgument v o Y))) V (Ongoing s) = Some (Ongoing s) ->
-    exists f', unify env f' (rewrap_nullable (TypeArgument v o Y)) V (Ongoing s) = Some (Ongoing s).
+Lemma nullable_final_argument_target: forall n v o y V s, in_fragment env V = true -> in_fragment env y = true ->
+    unify env n (rewrap_nullable (final_argument (TypeArgument v o y))) V (Ongoing s) = Some (Ongoing s) ->
+    exists n', unify env n' (rewrap_nullable (TypeArgument v o y)) V (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros f v o Y V s HV HY H. unfold final_argument in H. rewrite (fragment_not_nesting Y HY), orb_false_r in H.
-    destruct (is_loose (TypeArgument v o Y)) eqn:El; [exists f; exact H|].
+    intros n v o y V s HV HY H. unfold final_argument in H. rewrite (fragment_not_nesting y HY), orb_false_r in H.
+    destruct (is_loose (TypeArgument v o y)) eqn:El; [exists n; exact H|].
     assert (Hv: v = Model.invariant) by (destruct v; first [reflexivity|discriminate El]). subst v.
-    destruct f as [|f]; [discriminate H|]. exists (S (S (S f))). cbn [rewrap_nullable].
-    destruct (fragment_cases env Y HY) as [[my [cy [ay ->]]]|[my [cy [ay [-> HY0]]]]];
+    destruct n as [|n]; [discriminate H|]. exists (S (S (S n))). cbn [rewrap_nullable].
+    destruct (fragment_cases env y HY) as [[my [cy [ay ->]]]|[my [cy [ay [-> HY0]]]]];
     destruct (fragment_cases env V HV) as [[mv [cv [av ->]]]|[mv [cv [av [-> HV0]]]]]; cbn [rewrap_nullable] in H.
     - rewrite unify_nullable_class in H |- *. rewrite (unify_argument_value _ Model.invariant o _ _ s HV).
-      apply (unify_fuel_monotone env f); [lia|exact H].
+      apply (unify_fuel_monotone env n); [lia|exact H].
     - rewrite unify_nullable_nullable in H |- *. rewrite (unify_argument_value _ Model.invariant o _ _ s HV0).
-      apply (unify_fuel_monotone env f); [lia|exact H].
+      apply (unify_fuel_monotone env n); [lia|exact H].
     - rewrite unify_nullable_class in H |- *. rewrite (unify_argument_value _ Model.invariant o _ _ s HV).
-      rewrite unify_nullable_class. apply (unify_fuel_monotone env f); [lia|exact H].
+      rewrite unify_nullable_class. apply (unify_fuel_monotone env n); [lia|exact H].
     - rewrite unify_nullable_nullable in H |- *. rewrite (unify_argument_value _ Model.invariant o _ _ s HV0).
-      rewrite unify_nullable_class. apply (unify_fuel_monotone env f); [lia|exact H].
+      rewrite unify_nullable_class. apply (unify_fuel_monotone env n); [lia|exact H].
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* Nullable types                                                                                  *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma rewrap_in_fragment: forall X, in_fragment env X = true -> in_fragment env (rewrap_nullable X) = true.
+Lemma rewrap_in_fragment: forall x, in_fragment env x = true -> in_fragment env (rewrap_nullable x) = true.
 Proof.
-    intros X HX. destruct (fragment_cases env X HX) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact HX.
+    intros x HX. destruct (fragment_cases env x HX) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact HX.
 Qed.
 
 Lemma rewrap_is_nullable: forall t, is_nullable env (rewrap_nullable t) = true.
 Proof. intros [| | | | | |]; reflexivity. Qed.
 
 (* Where Y is above X, so is Y? above X? *)
-Lemma rewrap_mono: forall f X Y s, in_fragment env X = true -> in_fragment env Y = true ->
-    unify env f Y X (Ongoing s) = Some (Ongoing s) ->
-    unify env (S f) (rewrap_nullable Y) (rewrap_nullable X) (Ongoing s) = Some (Ongoing s).
+Lemma rewrap_mono: forall n x y s, in_fragment env x = true -> in_fragment env y = true ->
+    unify env n y x (Ongoing s) = Some (Ongoing s) ->
+    unify env (S n) (rewrap_nullable y) (rewrap_nullable x) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros f X Y s HX HY H.
-    destruct (fragment_cases env X HX) as [[mx [cx [xargs ->]]]|[mx [cx [xargs [-> _]]]]];
-        destruct (fragment_cases env Y HY) as [[my [cy [yargs ->]]]|[my [cy [yargs [-> _]]]]]; cbn [rewrap_nullable].
+    intros n x y s HX HY H.
+    destruct (fragment_cases env x HX) as [[mx [cx [xargs ->]]]|[mx [cx [xargs [-> _]]]]];
+        destruct (fragment_cases env y HY) as [[my [cy [yargs ->]]]|[my [cy [yargs [-> _]]]]]; cbn [rewrap_nullable].
     - rewrite unify_nullable_nullable. exact H.
-    - rewrite unify_nullable_nullable. destruct f as [|f]; [discriminate H|]. rewrite unify_nullable_class in H.
-      apply (unify_fuel_monotone env f); [lia|exact H].
-    - destruct f as [|f]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
-    - apply (unify_fuel_monotone env f); [lia|exact H].
+    - rewrite unify_nullable_nullable. destruct n as [|n]; [discriminate H|]. rewrite unify_nullable_class in H.
+      apply (unify_fuel_monotone env n); [lia|exact H].
+    - destruct n as [|n]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
+    - apply (unify_fuel_monotone env n); [lia|exact H].
 Qed.
 
 (* Where X is above V, so is X? *)
-Lemma rewrap_above: forall f X V s, in_fragment env X = true -> in_fragment env V = true ->
-    unify env f X V (Ongoing s) = Some (Ongoing s) ->
-    unify env (S f) (rewrap_nullable X) V (Ongoing s) = Some (Ongoing s).
+Lemma rewrap_above: forall n x V s, in_fragment env x = true -> in_fragment env V = true ->
+    unify env n x V (Ongoing s) = Some (Ongoing s) ->
+    unify env (S n) (rewrap_nullable x) V (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros f X V s HX HV H.
-    destruct (fragment_cases env X HX) as [[mx [cx [xargs ->]]]|[mx [cx [xargs [-> _]]]]]; cbn [rewrap_nullable].
+    intros n x V s HX HV H.
+    destruct (fragment_cases env x HX) as [[mx [cx [xargs ->]]]|[mx [cx [xargs [-> _]]]]]; cbn [rewrap_nullable].
     - destruct (fragment_cases env V HV) as [[mv [cv [vargs ->]]]|[mv [cv [vargs [-> _]]]]].
       + rewrite unify_nullable_class. exact H.
-      + destruct f as [|f]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
-    - apply (unify_fuel_monotone env f); [lia|exact H].
+      + destruct n as [|n]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
+    - apply (unify_fuel_monotone env n); [lia|exact H].
 Qed.
 
 (* `exclusive Nothing` is assignable to every type of the fragment *)
-Lemma bottom_below: forall t f s, in_fragment env t = true -> 2 <= f -> unify env f t bottom_type (Ongoing s) = Some (Ongoing s).
-Proof. intros t f s Ht Hf. exact (nothing_below env wf _ t f s Ht Hf). Qed.
+Lemma bottom_below: forall t n s, in_fragment env t = true -> 2 <= n -> unify env n t bottom_type (Ongoing s) = Some (Ongoing s).
+Proof. intros t n s Ht Hf. exact (nothing_below env wf _ t n s Ht Hf). Qed.
 
 (* Every type of the fragment is assignable to `read Any?` *)
-Lemma top_above: forall t f s, in_fragment env t = true -> 2 <= f -> unify env f top_type t (Ongoing s) = Some (Ongoing s).
+Lemma top_above: forall t n s, in_fragment env t = true -> 2 <= n -> unify env n top_type t (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros t f s Ht Hf. apply (above_top env wf 2 top_type s (top_in_fragment env wf)); [|exact Ht|exact Hf].
+    intros t n s Ht Hf. apply (above_top env wf 2 top_type s (top_in_fragment env wf)); [|exact Ht|exact Hf].
     apply (proj1 (reflexivity_with_arguments env 2)); [exact (top_in_fragment env wf)|simpl; lia].
 Qed.
 
 (* Kotlin keeps the type argument a member of type T or T? is instantiated to, and unify reads it
    when it is assigned: as read_member has it *)
-Lemma read_member_faithful: forall b f D fuel s, in_fragment env D = true ->
-    unify env fuel D (instantiate env b f) (Ongoing s) = Some (Ongoing s) ->
-    exists fuel', unify env fuel' D (read_member b f) (Ongoing s) = Some (Ongoing s).
+Lemma read_member_faithful: forall b V t fuel s, in_fragment env t = true ->
+    unify env fuel t (instantiate env b V) (Ongoing s) = Some (Ongoing s) ->
+    exists fuel', unify env fuel' t (read_member b V) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros b f D fuel s HD H. unfold read_member.
-    destruct (instantiate env b f) as [| [| | | |v o x| |] | | |v o x| |]; try (exists fuel; exact H).
+    intros b V t fuel s HD H. unfold read_member.
+    destruct (instantiate env b V) as [| [| | | |v o x| |] | | |v o x| |]; try (exists fuel; exact H).
     - (* T? *)
       destruct fuel as [|fuel]; [discriminate H|].
-      destruct (fragment_cases env D HD) as [[md [cd [dargs ->]]]|[md [cd [dargs [-> _]]]]];
+      destruct (fragment_cases env t HD) as [[md [cd [dargs ->]]]|[md [cd [dargs [-> _]]]]];
           [rewrite unify_class_nullable in H; discriminate H|].
       rewrite unify_nullable_nullable in H. destruct fuel as [|fuel]; [discriminate H|].
       rewrite unify_step_once in H. unfold unify_step, unify_root_resolved in H.
@@ -409,7 +409,7 @@ Proof.
       destruct fuel as [|fuel]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
     - (* T *)
       destruct fuel as [|fuel]; [discriminate H|]. exists fuel.
-      destruct (fragment_cases env D HD) as [[md [cd [dargs ->]]]|[md [cd [dargs [-> _]]]]];
+      destruct (fragment_cases env t HD) as [[md [cd [dargs ->]]]|[md [cd [dargs [-> _]]]]];
           rewrite unify_step_once in H; exact H.
 Qed.
 
@@ -417,19 +417,19 @@ Qed.
 (* Members typed as a class type                                                                  *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma member_root: forall c m d arguments, member_template c (RootResolved m d arguments) = true ->
-    length arguments = length (parameter_ids env d) /\ forall a, In a arguments -> member_argument c a = true.
+Lemma member_root: forall c m c' arguments, member_template c (RootResolved m c' arguments) = true ->
+    length arguments = length (parameter_ids env c') /\ forall a, In a arguments -> member_argument c a = true.
 Proof.
-    intros c m d arguments H.
-    change (Nat.eqb (length arguments) (length (parameter_ids env d)) && forallb (member_argument c) arguments = true) in H.
+    intros c m c' arguments H.
+    change (Nat.eqb (length arguments) (length (parameter_ids env c')) && forallb (member_argument c) arguments = true) in H.
     apply andb_true_iff in H. destruct H as [Hl Ha]. split; [apply Nat.eqb_eq, Hl|apply forallb_forall, Ha].
 Qed.
 
 Lemma member_cases: forall c t, member_template c t = true ->
-    (exists m d arguments, t = RootResolved m d arguments) \/
-    (exists m d arguments, t = Nullable (RootResolved m d arguments) /\ member_template c (RootResolved m d arguments) = true).
+    (exists m c' arguments, t = RootResolved m c' arguments) \/
+    (exists m c' arguments, t = Nullable (RootResolved m c' arguments) /\ member_template c (RootResolved m c' arguments) = true).
 Proof.
-    intros c [m d arguments|[m d arguments| | | | | |]| | | | |] H; simpl in H; try discriminate H.
+    intros c [m c' arguments|[m c' arguments| | | | | |]| | | | |] H; simpl in H; try discriminate H.
     - left. eauto.
     - right. eauto.
 Qed.
@@ -447,12 +447,12 @@ Proof.
 Qed.
 
 Lemma member_argument_kind: forall c a, member_argument c a = true ->
-    exists w o n, a = TypeArgument w o n /\
-        ((exists p, leaf_parameter n = Some p /\ existsb (param_eqb p) (parameter_ids env c) = true /\ own_ownership o p = true)
-         \/ (leaf_parameter n = None /\ is_parameter_ownership o = false /\ member_template c n = true)).
+    exists v o x, a = TypeArgument v o x /\
+        ((exists p, leaf_parameter x = Some p /\ existsb (param_eqb p) (parameter_ids env c) = true /\ own_ownership o p = true)
+         \/ (leaf_parameter x = None /\ is_parameter_ownership o = false /\ member_template c x = true)).
 Proof.
-    intros c [| | | |w o n| |] H; unfold member_argument in H; try discriminate H. exists w, o, n. split; [reflexivity|].
-    destruct (leaf_parameter n) as [p|] eqn:E; apply andb_true_iff in H; destruct H as [H1 H2].
+    intros c [| | | |v o x| |] H; unfold member_argument in H; try discriminate H. exists v, o, x. split; [reflexivity|].
+    destruct (leaf_parameter x) as [p|] eqn:E; apply andb_true_iff in H; destruct H as [H1 H2].
     - left. exists p. auto.
     - right. split; [reflexivity|]. split; [|exact H2]. destruct o; auto; discriminate H1.
 Qed.
@@ -460,7 +460,7 @@ Qed.
 (* The type parameter of a leaf, as it is or nullable *)
 Definition wrap_leaf (nullable: bool) (n: EType): EType := if nullable then Nullable n else n.
 
-Lemma leaf_cases: forall n p, leaf_parameter n = Some p -> exists g nl, n = wrap_leaf nl (Generic g) /\ param_of g = p.
+Lemma leaf_cases: forall x p, leaf_parameter x = Some p -> exists g nl, x = wrap_leaf nl (Generic g) /\ param_of g = p.
 Proof.
     intros [|[| |[gm nn q bq]| | | |]|[gm nn q bq]| | | |] p H; simpl in H; try discriminate H; injection H as <-.
     - exists (mkGenericRef gm nn q bq), true. split; reflexivity.
@@ -469,30 +469,30 @@ Qed.
 
 Definition wrap (nullable: bool) (X: EType): EType := if nullable then rewrap_nullable X else X.
 
-Lemma wrap_in_fragment: forall nl X, in_fragment env X = true -> in_fragment env (wrap nl X) = true.
-Proof. intros [] X HX; [apply rewrap_in_fragment|]; exact HX. Qed.
+Lemma wrap_in_fragment: forall nl x, in_fragment env x = true -> in_fragment env (wrap nl x) = true.
+Proof. intros [] x HX; [apply rewrap_in_fragment|]; exact HX. Qed.
 
-Lemma wrap_mono: forall nl f X Y s, in_fragment env X = true -> in_fragment env Y = true ->
-    unify env f Y X (Ongoing s) = Some (Ongoing s) ->
-    unify env (S f) (wrap nl Y) (wrap nl X) (Ongoing s) = Some (Ongoing s).
+Lemma wrap_mono: forall nl n x y s, in_fragment env x = true -> in_fragment env y = true ->
+    unify env n y x (Ongoing s) = Some (Ongoing s) ->
+    unify env (S n) (wrap nl y) (wrap nl x) (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros [] f X Y s HX HY H; [apply rewrap_mono; assumption|]. apply (unify_fuel_monotone env f); [lia|exact H].
+    intros [] n x y s HX HY H; [apply rewrap_mono; assumption|]. apply (unify_fuel_monotone env n); [lia|exact H].
 Qed.
 
 (* `out T`, `in mut T?` and the like: the variances merge (see Subtyping.instantiate) *)
-Lemma instantiate_leaf: forall b w o g nl v oa A,
-    lookup_binding b (param_of g) = Some (TypeArgument v oa A) -> in_fragment env A = true ->
-    instantiate env b (TypeArgument w o (wrap_leaf nl (Generic g))) =
-    if Variance_beq v Model.invariant || Variance_beq w Model.invariant || Variance_beq v w
-    then TypeArgument (if Variance_beq v Model.invariant then w else v) (instantiate_ownership b o) (wrap nl (inst_ref env g A))
-    else match w with
+Lemma instantiate_leaf: forall b v0 o g nl v1 oa A,
+    lookup_binding b (param_of g) = Some (TypeArgument v1 oa A) -> in_fragment env A = true ->
+    instantiate env b (TypeArgument v0 o (wrap_leaf nl (Generic g))) =
+    if Variance_beq v1 Model.invariant || Variance_beq v0 Model.invariant || Variance_beq v1 v0
+    then TypeArgument (if Variance_beq v1 Model.invariant then v0 else v1) (instantiate_ownership b o) (wrap nl (inst_ref env g A))
+    else match v0 with
          | output => TypeArgument output (instantiate_ownership b o) top_type
          | _ => TypeArgument input (instantiate_ownership b o) bottom_type
          end.
 Proof.
-    intros b w o [gm nn p bp] nl v oa A Hb HA. cbn [param_of] in Hb.
+    intros b v0 o [gm nn p bp] nl v1 oa A Hb HA. cbn [param_of] in Hb.
     destruct (fragment_cases env A HA) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
-        destruct nl; simpl; rewrite Hb; destruct v, oa, w, gm, nn; reflexivity.
+        destruct nl; simpl; rewrite Hb; destruct v1, oa, v0, gm, nn; reflexivity.
 Qed.
 
 Lemma ownership_refl: forall o, ownership_is_assignable_to o o = true.
@@ -507,18 +507,18 @@ Definition compares (frag: EType -> bool) (s: VariableStates) (ix iy: EType) (wi
     /\ (widened = false -> exists f, unify env f ix iy (Ongoing s) = Some (Ongoing s)).
 
 (* `T`, `out T?` and the like, in a member type *)
-Lemma leaf_member: forall n' s c xs ys w o n p,
+Lemma leaf_member: forall n' s c xs ys v o z p,
     length xs = length (parameter_ids env c) -> length ys = length (parameter_ids env c) ->
     (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
     Forall2 (fun x y => unify env n' y x (Ongoing s) = Some (Ongoing s)) xs ys ->
-    leaf_parameter n = Some p -> existsb (param_eqb p) (parameter_ids env c) = true -> own_ownership o p = true ->
+    leaf_parameter z = Some p -> existsb (param_eqb p) (parameter_ids env c) = true -> own_ownership o p = true ->
     compares (argument_in_fragment env) s
-        (instantiate env (bindings_of env c xs) (TypeArgument w o n)) (instantiate env (bindings_of env c ys) (TypeArgument w o n))
-        (mentions_loosely_bound (bindings_of env c ys) (TypeArgument w o n))
-    /\ mentions_loosely_bound (bindings_of env c xs) (TypeArgument w o n) = false.
+        (instantiate env (bindings_of env c xs) (TypeArgument v o z)) (instantiate env (bindings_of env c ys) (TypeArgument v o z))
+        (mentions_loosely_bound (bindings_of env c ys) (TypeArgument v o z))
+    /\ mentions_loosely_bound (bindings_of env c xs) (TypeArgument v o z) = false.
 Proof.
-    intros n' s c xs ys w o n p Hlx Hly Hxs Hys H Hn Hp Ho.
-    destruct (leaf_cases n p Hn) as [g [nl [-> <-]]].
+    intros n' s c xs ys v o z p Hlx Hly Hxs Hys H Hn Hp Ho.
+    destruct (leaf_cases z p Hn) as [g [nl [-> <-]]].
     destruct (member_parameter c (param_of g) Hp) as [i Hi].
     destruct (nth_error_same_length _ xs i _ (eq_sym Hlx) Hi) as [x Ex].
     destruct (nth_error_same_length _ ys i _ (eq_sym Hly) Hi) as [y Ey].
@@ -534,10 +534,10 @@ Proof.
     pose proof (lookup_parameter env wf c xs i (param_of g) _ Hi Ex) as Lx.
     pose proof (lookup_parameter env wf c ys i (param_of g) _ Hi Ey) as Ly.
     assert (Hm: forall b a, lookup_binding b (param_of g) = Some a ->
-        mentions_loosely_bound b (TypeArgument w o (wrap_leaf nl (Generic g))) = is_loose a).
+        mentions_loosely_bound b (TypeArgument v o (wrap_leaf nl (Generic g))) = is_loose a).
     { intros b a Hb. destruct g as [gm nn q bq]. destruct nl; simpl in Hb |- *; rewrite Hb; reflexivity. }
     rewrite (Hm _ _ Lx), (Hm _ _ Ly).
-    rewrite (instantiate_leaf _ w o g nl _ _ _ Lx HX), (instantiate_leaf _ w o g nl _ _ _ Ly Hy).
+    rewrite (instantiate_leaf _ v o g nl _ _ _ Lx HX), (instantiate_leaf _ v o g nl _ _ _ Ly Hy).
     split; [|simpl; destruct Hox as [-> | ->]; reflexivity].
     (* the ownerships *)
     assert (Hown: ownership_is_assignable_to (instantiate_ownership (bindings_of env c xs) o)
@@ -576,7 +576,7 @@ Proof.
       destruct E as [E1 E2].
       pose proof (Hwm X Y HX Hy E1) as FYX. pose proof (Hwm Y X Hy HX E2) as FXY. fold wX wY in FYX, FXY.
       clearbody wX wY ox' oy' F.
-      destruct w; cbn [Variance_beq orb]; unfold compares;
+      destruct v; cbn [Variance_beq orb]; unfold compares;
           (split; [exact HwX|]); (split; [first [exact HwY|exact (top_in_fragment env wf)|exact (bottom_in_fragment env wf)]|]);
           (split; [exists (S F); rewrite unify_type_arguments by (first [reflexivity|apply (fragment_not_variable env); assumption]);
                    rewrite Hown; cbn [compare_variances]; first [exact FYX|exact FXY|rewrite FYX; exact FXY]|]);
@@ -585,7 +585,7 @@ Proof.
     - (* an in-variant type argument *)
       pose proof (Hwm Y X Hy HX E) as FXY. fold wX wY in FXY.
       clearbody wX wY ox' oy' F.
-      destruct w; cbn [Variance_beq orb]; unfold compares;
+      destruct v; cbn [Variance_beq orb]; unfold compares;
           (split; [exact HwX|]); (split; [first [exact HwY|exact (top_in_fragment env wf)|exact (bottom_in_fragment env wf)]|]);
           (split; [exists (S F); rewrite unify_type_arguments by (first [reflexivity|apply (fragment_not_variable env); assumption]);
                    rewrite Hown; cbn [compare_variances]; first [exact FXY|exact Ftop|exact Fbot]|]);
@@ -593,7 +593,7 @@ Proof.
     - (* an out-variant type argument *)
       pose proof (Hwm X Y HX Hy E) as FYX. fold wX wY in FYX.
       clearbody wX wY ox' oy' F.
-      destruct w; cbn [Variance_beq orb]; unfold compares;
+      destruct v; cbn [Variance_beq orb]; unfold compares;
           (split; [exact HwX|]); (split; [first [exact HwY|exact (top_in_fragment env wf)|exact (bottom_in_fragment env wf)]|]);
           (split; [exists (S F); rewrite unify_type_arguments by (first [reflexivity|apply (fragment_not_variable env); assumption]);
                    rewrite Hown; cbn [compare_variances]; first [exact FYX|exact Ftop|exact Fbot]|]);
@@ -714,10 +714,10 @@ Proof.
     intros b t Hs. unfold read_member. destruct Hs as [[m [c [args E]]]|[m [c [args E]]]]; rewrite E; reflexivity.
 Qed.
 
-Lemma mentions_member: forall c b f, member_template c f = true ->
-    mentions_loosely_bound_in_arguments b f = mentions_loosely_bound b f.
+Lemma mentions_member: forall c b V, member_template c V = true ->
+    mentions_loosely_bound_in_arguments b V = mentions_loosely_bound b V.
 Proof.
-    intros c b f Ht. destruct (member_cases c f Ht) as [[m [d [args ->]]]|[m [d [args [-> _]]]]]; reflexivity.
+    intros c b V Ht. destruct (member_cases c V Ht) as [[m [d [args ->]]]|[m [d [args [-> _]]]]]; reflexivity.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -745,13 +745,13 @@ Lemma component_instances: forall n' s c xs ys C,
     /\ not_argument (instantiate env (bindings_of env c xs) C) = true
     /\ ((in_fragment env (instantiate env (bindings_of env c ys) C) = true
          /\ not_argument (instantiate env (bindings_of env c ys) C) = true
-         /\ (exists f, unify env f (instantiate env (bindings_of env c ys) C) (instantiate env (bindings_of env c xs) C) (Ongoing s)
+         /\ (exists n, unify env n (instantiate env (bindings_of env c ys) C) (instantiate env (bindings_of env c xs) C) (Ongoing s)
                 = Some (Ongoing s))
          /\ (mentions_loosely_bound_in_arguments (bindings_of env c ys) C = false ->
-             exists f, unify env f (instantiate env (bindings_of env c xs) C) (instantiate env (bindings_of env c ys) C) (Ongoing s)
+             exists n, unify env n (instantiate env (bindings_of env c xs) C) (instantiate env (bindings_of env c ys) C) (Ongoing s)
                 = Some (Ongoing s)))
-        \/ exists v o Y, instantiate env (bindings_of env c ys) C = TypeArgument v o Y /\ in_fragment env Y = true
-            /\ related s v (instantiate env (bindings_of env c xs) C) Y).
+        \/ exists v o z, instantiate env (bindings_of env c ys) C = TypeArgument v o z /\ in_fragment env z = true
+            /\ related s v (instantiate env (bindings_of env c xs) C) z).
 Proof.
     intros n' s c xs ys C Hlx Hly Hxs Hys H HC.
     assert (Hna: forall t, in_fragment env t = true -> not_argument t = true)
@@ -770,21 +770,21 @@ Proof.
     pose proof (Hxs x (nth_error_In _ _ Ex)) as Hex.
     destruct (exact_argument_facts x Hex) as [ox [X [-> [HX [_ Hlx']]]]].
     pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
-    destruct y as [| | | |vy oy Y| |]; simpl in Hy; try discriminate Hy.
+    destruct y as [| | | |vy oy z| |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
     rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
     destruct (ownership_is_assignable_to ox oy); [|discriminate E].
     pose proof (lookup_parameter env wf c xs i (param_of g) _ Hi Ex) as Lx.
     pose proof (lookup_parameter env wf c ys i (param_of g) _ Hi Ey) as Ly.
-    pose proof (related_inst_ref g s vy X Y HX Hy (related_of_compare n'' s vy X Y HX Hy E)) as Hrel.
-    pose proof (inst_ref_in_fragment env g X HX) as HX'. pose proof (inst_ref_in_fragment env g Y Hy) as HY'.
+    pose proof (related_inst_ref g s vy X z HX Hy (related_of_compare n'' s vy X z HX Hy E)) as Hrel.
+    pose proof (inst_ref_in_fragment env g X HX) as HX'. pose proof (inst_ref_in_fragment env g z Hy) as HY'.
     rewrite (instantiate_bound_reference _ g _ _ _ Lx HX), (instantiate_bound_reference _ g _ _ _ Ly Hy).
     unfold final_argument. rewrite (fragment_not_nesting _ HX'), (fragment_not_nesting _ HY'), !orb_false_r.
     change (is_loose (TypeArgument Model.invariant ox (inst_ref env g X))) with (is_loose (TypeArgument Model.invariant ox X)).
     rewrite Hlx'. split; [exact HX'|]. split; [exact (Hna _ HX')|].
-    destruct (is_loose (TypeArgument vy oy (inst_ref env g Y))) eqn:El.
-    - right. exists vy, oy, (inst_ref env g Y). split; [reflexivity|]. split; [exact HY'|exact Hrel].
+    destruct (is_loose (TypeArgument vy oy (inst_ref env g z))) eqn:El.
+    - right. exists vy, oy, (inst_ref env g z). split; [reflexivity|]. split; [exact HY'|exact Hrel].
     - left. assert (Hv: vy = Model.invariant) by (destruct vy; first [reflexivity|discriminate El]). subst vy.
       destruct Hrel as [Hup Hdown]. split; [exact HY'|]. split; [exact (Hna _ HY')|].
       split; [exact (Hup ltac:(discriminate))|intros _; exact (Hdown ltac:(discriminate))].
@@ -795,23 +795,23 @@ Qed.
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* The type of the member of the object can be read as the type through the reference *)
-Lemma member_read: forall n s m c xs m' ys f,
+Lemma member_read: forall n s m c xs m' ys V,
     c <> nothing ->
     length xs = length (parameter_ids env c) -> length ys = length (parameter_ids env c) ->
     (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
     unify env n (RootResolved m' c ys) (RootResolved m c xs) (Ongoing s) = Some (Ongoing s) ->
-    member_type c f = true ->
-    in_fragment env (read_member (bindings_of env c xs) f) = true
-    /\ in_fragment env (read_member (bindings_of env c ys) f) = true
-    /\ exists fuel, unify env fuel (read_member (bindings_of env c ys) f) (read_member (bindings_of env c xs) f) (Ongoing s)
+    member_type c V = true ->
+    in_fragment env (read_member (bindings_of env c xs) V) = true
+    /\ in_fragment env (read_member (bindings_of env c ys) V) = true
+    /\ exists fuel, unify env fuel (read_member (bindings_of env c ys) V) (read_member (bindings_of env c xs) V) (Ongoing s)
         = Some (Ongoing s).
 Proof.
-    intros n s m c xs m' ys f Hc Hlx Hly Hxs Hys H Hf.
+    intros n s m c xs m' ys V Hc Hlx Hly Hxs Hys H Hf.
     assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true)
         by (intros x Hx; destruct (exact_argument_facts x (Hxs x Hx)) as [? [? [_ [_ [? _]]]]]; assumption).
     destruct (receiver_arguments n s m c xs m' ys Hc ltac:(lia) Hfxs Hys H) as [n' [-> Hpairs]].
-    unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
-    - destruct (leaf_cases f p Hleaf) as [g [nl [-> <-]]].
+    unfold member_type in Hf. destruct (leaf_parameter V) as [p|] eqn:Hleaf.
+    - destruct (leaf_cases V p Hleaf) as [g [nl [-> <-]]].
       destruct (parameter_member n' s c xs ys (param_of g) Hlx Hly Hxs Hys Hpairs Hf)
           as [o [X [v [oy [Y [n'' [Ex [Ey [HX [HY [-> Hcmp]]]]]]]]]]].
       destruct (related_inst_ref g s v X Y HX HY (related_of_compare n'' s v X Y HX HY Hcmp)) as [Hup Hdown].
@@ -836,7 +836,7 @@ Proof.
         * split; [exact HX'|]. split; [exact HY'|]. exact (Hup ltac:(discriminate)).
     - (* a class type *)
       rewrite !read_class_shaped by (apply (member_instance_shape c); exact Hf).
-      destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys Hpairs (depth f)) f (le_n _) Hf)
+      destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys Hpairs (depth V)) V (le_n _) Hf)
           as [[Hfx [Hfy [Hfw _]]] _].
       split; [exact Hfx|]. split; [exact Hfy|]. exact Hfw.
 Qed.
@@ -845,44 +845,44 @@ Qed.
  * Reading a member through a reference is sound: what the member of the object holds is assignable
  * to what is read through the reference.
  *)
-Theorem member_read_sound: forall n s m c xs m' ys f V fuel,
+Theorem member_read_sound: forall n s m c xs m' ys z V fuel,
     c <> nothing ->
     length xs = length (parameter_ids env c) -> length ys = length (parameter_ids env c) ->
     (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
     unify env n (RootResolved m' c ys) (RootResolved m c xs) (Ongoing s) = Some (Ongoing s) ->
-    member_type c f = true ->
+    member_type c z = true ->
     in_fragment env V = true ->
-    unify env fuel (read_member (bindings_of env c xs) f) V (Ongoing s) = Some (Ongoing s) ->
-    exists fuel', unify env fuel' (read_member (bindings_of env c ys) f) V (Ongoing s) = Some (Ongoing s).
+    unify env fuel (read_member (bindings_of env c xs) z) V (Ongoing s) = Some (Ongoing s) ->
+    exists fuel', unify env fuel' (read_member (bindings_of env c ys) z) V (Ongoing s) = Some (Ongoing s).
 Proof.
-    intros n s m c xs m' ys f V fuel Hc Hlx Hly Hxs Hys H Hf HV HVx.
-    destruct (member_read n s m c xs m' ys f Hc Hlx Hly Hxs Hys H Hf) as [Hfx [Hfy [k Hk]]].
+    intros n s m c xs m' ys z V fuel Hc Hlx Hly Hxs Hys H Hf HV HVx.
+    destruct (member_read n s m c xs m' ys z Hc Hlx Hly Hxs Hys H Hf) as [Hfx [Hfy [k Hk]]].
     exists (fuel + k).
-    apply (proj1 (transitivity_with_arguments env wf (fuel + k)) V (read_member (bindings_of env c xs) f)
-        (read_member (bindings_of env c ys) f) fuel k s); auto.
+    apply (proj1 (transitivity_with_arguments env wf (fuel + k)) V (read_member (bindings_of env c xs) z)
+        (read_member (bindings_of env c ys) z) fuel k s); auto.
 Qed.
 
 (*
  * Writing a member through a reference is sound: what is assignable to the member through the
  * reference is assignable to the member of the object; or null, to a nullable member.
  *)
-Theorem member_write_sound: forall n s m c xs m' ys f V fuel,
+Theorem member_write_sound: forall n s m c xs m' ys z V fuel,
     c <> nothing ->
     length xs = length (parameter_ids env c) -> length ys = length (parameter_ids env c) ->
     (forall x, In x xs -> is_exact_argument x = true) -> (forall y, In y ys -> argument_in_fragment env y = true) ->
     unify env n (RootResolved m' c ys) (RootResolved m c xs) (Ongoing s) = Some (Ongoing s) ->
-    member_type c f = true ->
+    member_type c z = true ->
     in_fragment env V = true -> is_non_nullable_nothing env V = false ->
-    unify env fuel (write_member (bindings_of env c ys) f) V (Ongoing s) = Some (Ongoing s) ->
-    (exists fuel', unify env fuel' (read_member (bindings_of env c xs) f) V (Ongoing s) = Some (Ongoing s))
-    \/ (holds_only_null V = true /\ is_nullable env (read_member (bindings_of env c xs) f) = true).
+    unify env fuel (write_member (bindings_of env c ys) z) V (Ongoing s) = Some (Ongoing s) ->
+    (exists fuel', unify env fuel' (read_member (bindings_of env c xs) z) V (Ongoing s) = Some (Ongoing s))
+    \/ (holds_only_null V = true /\ is_nullable env (read_member (bindings_of env c xs) z) = true).
 Proof.
-    intros n s m c xs m' ys f V fuel Hc Hlx Hly Hxs Hys H Hf HV HVn HW.
+    intros n s m c xs m' ys z V fuel Hc Hlx Hly Hxs Hys H Hf HV HVn HW.
     assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true)
         by (intros x Hx; destruct (exact_argument_facts x (Hxs x Hx)) as [? [? [_ [_ [? _]]]]]; assumption).
     destruct (receiver_arguments n s m c xs m' ys Hc ltac:(lia) Hfxs Hys H) as [n' [-> Hpairs]].
-    unfold member_type in Hf. destruct (leaf_parameter f) as [p|] eqn:Hleaf.
-    - destruct (leaf_cases f p Hleaf) as [g [nl [-> <-]]].
+    unfold member_type in Hf. destruct (leaf_parameter z) as [p|] eqn:Hleaf.
+    - destruct (leaf_cases z p Hleaf) as [g [nl [-> <-]]].
       destruct (parameter_member n' s c xs ys (param_of g) Hlx Hly Hxs Hys Hpairs Hf)
           as [o [X [v [oy [Y [n'' [Ex [Ey [HX [HY [-> Hcmp]]]]]]]]]]].
       destruct (related_inst_ref g s v X Y HX HY (related_of_compare n'' s v X Y HX HY Hcmp)) as [_ Hdown].
@@ -927,11 +927,11 @@ Proof.
         exists (fuel + k). apply (proj1 (transitivity_with_arguments env wf (fuel + k)) V (inst_ref env g Y) _ fuel k s); auto.
     - (* a class type *)
       left. rewrite read_class_shaped by (apply (member_instance_shape c); exact Hf).
-      destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys Hpairs (depth f)) f (le_n _) Hf)
+      destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys Hpairs (depth z)) z (le_n _) Hf)
           as [[Hfx [Hfy [_ Hback]]] _].
       unfold write_member in HW. rewrite (mentions_member c _ _ Hf) in HW.
-      destruct (mentions_loosely_bound (bindings_of env c ys) f) eqn:Em.
-      + destruct (member_cases c f Hf) as [[m0 [d0 [a0 ->]]]|[m0 [d0 [a0 [-> _]]]]].
+      destruct (mentions_loosely_bound (bindings_of env c ys) z) eqn:Em.
+      + destruct (member_cases c z Hf) as [[m0 [d0 [a0 ->]]]|[m0 [d0 [a0 [-> _]]]]].
         * (* a class type: takes nothing but Nothing, which is assignable to the member of the object *)
           exists (fuel + 2).
           exact (proj1 (transitivity_with_arguments env wf (fuel + 2)) V bottom_type _ fuel 2 s (le_n _)
@@ -948,7 +948,7 @@ Proof.
           apply (proj1 (transitivity_with_arguments env wf (fuel + 3)) V (Nullable bottom_type) _ fuel 3 s (le_n _) HV HN Hfx HW).
           rewrite unify_nullable_nullable. apply bottom_below; [exact Hfx'|lia].
       + destruct (Hback eq_refl) as [k Hk]. exists (fuel + k).
-        apply (proj1 (transitivity_with_arguments env wf (fuel + k)) V (instantiate env (bindings_of env c ys) f) _ fuel k s);
+        apply (proj1 (transitivity_with_arguments env wf (fuel + k)) V (instantiate env (bindings_of env c ys) z) _ fuel k s);
             auto.
 Qed.
 

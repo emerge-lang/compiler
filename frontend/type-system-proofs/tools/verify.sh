@@ -107,6 +107,25 @@ do_check_unproven() {
   echo "> no unproven assumptions in $(printf '%s\n' "$files" | wc -l | tr -d ' ') file(s)"
 }
 
+# The names of the binders in the statements follow the scheme in the readme ("Names of binders"). Rocq prints
+# every statement with the type of each binder, also where the source leaves it to inference, and
+# binder_names.py checks those. Generated/ and OracleGrid.v state no lemmas of their own worth naming.
+do_check_names() {
+  scratch="$BUILD_DIR/.names"
+  name=$(theory_name)
+  mkdir -p "$scratch"
+  {
+    echo "Set Printing Width 100000."
+    find "$THEORIES" -maxdepth 1 -type f -name '*.v' ! -name OracleGrid.v | LC_ALL=C sort | while IFS= read -r file; do
+      module=$(basename "$file" .v)
+      echo "From $name Require $module."
+      echo "Print Module $module."
+    done
+  } > "$scratch/PrintAll.v"
+  (cd "$scratch" && rocq compile -Q "$PWD/.." "$name" PrintAll.v) > "$scratch/printed.txt"
+  python3 tools/binder_names.py "$scratch/printed.txt"
+}
+
 do_clean() {
   # `dune clean` fails on a Docker Desktop bind mount (ftruncate on its own lock file), so the
   # build directory goes the blunt way
@@ -124,11 +143,13 @@ case "$command" in
   check)
     do_validate
     do_check_unproven
+    do_check_names
     ;;
   verify)
     do_build
     do_validate
     do_check_unproven
+    do_check_names
     ;;
   clean) do_clean ;;
   repl)

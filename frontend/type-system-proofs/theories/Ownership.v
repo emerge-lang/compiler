@@ -94,13 +94,13 @@ Proof. intros holder value. split; [reflexivity|]. unfold can_store. reflexivity
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* All other references to a block with an exclusive owner are readonly *)
-Lemma exclusively_owned_block_has_only_readonly_references: forall s,
-    reachable s -> owner s = alive ->
-    forall a, In a (aliases s) -> alias_mutability a = readonly.
+Lemma exclusively_owned_block_has_only_readonly_references: forall rs,
+    reachable rs -> owner rs = alive ->
+    forall r, In r (aliases rs) -> alias_mutability r = readonly.
 Proof.
-    intros s Hs Ho a Ha.
-    pose proof (alias_coexists_with_owner s a (references_are_conflict_free s Hs) Ha) as H.
-    rewrite Ho in H. change (may_coexist exclusive (alias_mutability a) = true) in H.
+    intros rs Hs Ho r Ha.
+    pose proof (alias_coexists_with_owner rs r (references_are_conflict_free rs Hs) Ha) as H.
+    rewrite Ho in H. change (may_coexist exclusive (alias_mutability r) = true) in H.
     apply may_coexist_exclusive, H.
 Qed.
 
@@ -119,9 +119,9 @@ Qed.
 
 (* Taking an owned part out of an exclusively owned block, as exclusive: the rest of the block gives
    up its owner, and the part becomes a block of its own, with an exclusive owner. *)
-Theorem extracting_an_owned_part: forall s,
-    reachable s -> owner s = alive ->
-    transition s (mkAliasing dead (aliases s)) /\ initial (mkAliasing alive (aliases s)).
+Theorem extracting_an_owned_part: forall rs,
+    reachable rs -> owner rs = alive ->
+    transition rs (mkAliasing dead (aliases rs)) /\ initial (mkAliasing alive (aliases rs)).
 Proof.
     intros [o l] Hs Ho. simpl in Ho |- *. subst o. split.
     - apply give_up_owner.
@@ -140,18 +140,18 @@ Qed.
 
 (* Once there is a const reference to a block, e.g. because its exclusive owner was captured as
    const, no reference to any of its objects allows mutating it. *)
-Theorem frozen_block_is_immutable: forall s,
-    reachable s -> In (captured immutable) (aliases s) ->
-    mutability_allows_mutation (owner_mutability (owner s)) = false
-    /\ forall a, In a (aliases s) -> mutability_allows_mutation (alias_mutability a) = false.
+Theorem frozen_block_is_immutable: forall rs,
+    reachable rs -> In (captured immutable) (aliases rs) ->
+    mutability_allows_mutation (owner_mutability (owner rs)) = false
+    /\ forall r, In r (aliases rs) -> mutability_allows_mutation (alias_mutability r) = false.
 Proof.
-    intros s Hs Hin. pose proof (references_are_conflict_free s Hs) as Hfree. split.
-    - pose proof (alias_coexists_with_owner s _ Hfree Hin) as H. simpl in H.
-      destruct (owner s); simpl in *; congruence.
-    - intros a Ha. apply in_split in Hin. destruct Hin as [l1 [l2 Hl]].
-      pose proof (aliases_coexist s Hfree) as Hpairs. rewrite Hl in Hpairs, Ha.
+    intros rs Hs Hin. pose proof (references_are_conflict_free rs Hs) as Hfree. split.
+    - pose proof (alias_coexists_with_owner rs _ Hfree Hin) as H. simpl in H.
+      destruct (owner rs); simpl in *; congruence.
+    - intros r Ha. apply in_split in Hin. destruct Hin as [l1 [l2 Hl]].
+      pose proof (aliases_coexist rs Hfree) as Hpairs. rewrite Hl in Hpairs, Ha.
       assert (Hc: forall b, In b (l1 ++ l2) -> may_coexist immutable (alias_mutability b) = true).
-      { apply (pairwise_middle (fun a b => may_coexist (alias_mutability a) (alias_mutability b)) l1 (captured immutable) l2);
+      { apply (pairwise_middle (fun r b => may_coexist (alias_mutability r) (alias_mutability b)) l1 (captured immutable) l2);
             [intros; apply may_coexist_sym|exact Hpairs]. }
       assert (Hmut: forall b, In b (l1 ++ l2) -> mutability_allows_mutation (alias_mutability b) = false).
       { intros b Hb. specialize (Hc b Hb). destruct (alias_mutability b); simpl in Hc |- *; congruence. }
@@ -162,14 +162,14 @@ Proof.
 Qed.
 
 (* So no slot in a frozen block can be written *)
-Corollary frozen_block_cannot_be_written: forall s o m value,
-    reachable s -> In (captured immutable) (aliases s) ->
-    can_store (owner_mutability (owner s)) o m value = false
-    /\ forall a, In a (aliases s) -> can_store (alias_mutability a) o m value = false.
+Corollary frozen_block_cannot_be_written: forall rs o m value,
+    reachable rs -> In (captured immutable) (aliases rs) ->
+    can_store (owner_mutability (owner rs)) o m value = false
+    /\ forall r, In r (aliases rs) -> can_store (alias_mutability r) o m value = false.
 Proof.
-    intros s o m value Hs Hin. destruct (frozen_block_is_immutable s Hs Hin) as [Ho Ha]. split.
+    intros rs o m value Hs Hin. destruct (frozen_block_is_immutable rs Hs Hin) as [Ho Ha]. split.
     - unfold can_store. rewrite Ho. reflexivity.
-    - intros a Hain. unfold can_store. rewrite (Ha a Hain). reflexivity.
+    - intros r Hain. unfold can_store. rewrite (Ha r Hain). reflexivity.
 Qed.
 
 (* Freezing is deep across owned slots only: what a ref slot refers to keeps its own mutability *)
@@ -183,18 +183,18 @@ Proof. reflexivity. Qed.
 (* Any ownership is the weakest of all                                                             *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Lemma union_left: forall a b, is_subtype_of a (union a b) = true.
+Lemma union_left: forall m0 m1, is_subtype_of m0 (union m0 m1) = true.
 Proof. intros [] []; reflexivity. Qed.
 
-Lemma union_right: forall a b, is_subtype_of b (union a b) = true.
+Lemma union_right: forall m0 m1, is_subtype_of m1 (union m0 m1) = true.
 Proof. intros [] []; reflexivity. Qed.
 
-Lemma union_least: forall a b x,
-    is_subtype_of a x = true -> is_subtype_of b x = true -> is_subtype_of (union a b) x = true.
+Lemma union_least: forall m0 m1 m2,
+    is_subtype_of m0 m2 = true -> is_subtype_of m1 m2 = true -> is_subtype_of (union m0 m1) m2 = true.
 Proof. intros [] [] []; simpl; congruence. Qed.
 
-Lemma union_monotone: forall a b b',
-    is_subtype_of b b' = true -> is_subtype_of (union a b) (union a b') = true.
+Lemma union_monotone: forall m0 m1 m2,
+    is_subtype_of m1 m2 = true -> is_subtype_of (union m0 m1) (union m0 m2) = true.
 Proof. intros [] [] []; simpl; congruence. Qed.
 
 Lemma param_eqb_eq: forall p p', param_eqb p p' = true -> p = p'.
@@ -244,11 +244,11 @@ Proof. intros. apply no_conflicts_through_a_supertype. reflexivity. Qed.
 (* And any ownership is no weaker than it has to be: reading gives exactly what reading both owned
    and ref slots gives. Writing, it takes exactly what both take for mutable types; for the others it
    is stricter than they are (see stored_mutability). *)
-Theorem any_ownership_reads_the_least_upper_bound: forall holder m x,
-    is_subtype_of (element_mutability holder owned m) x = true ->
-    is_subtype_of (element_mutability holder ref m) x = true ->
-    is_subtype_of (element_mutability holder any_ownership m) x = true.
-Proof. intros holder m x Howned Href. apply union_least; assumption. Qed.
+Theorem any_ownership_reads_the_least_upper_bound: forall holder m0 m1,
+    is_subtype_of (element_mutability holder owned m0) m1 = true ->
+    is_subtype_of (element_mutability holder ref m0) m1 = true ->
+    is_subtype_of (element_mutability holder any_ownership m0) m1 = true.
+Proof. intros holder m0 m1 Howned Href. apply union_least; assumption. Qed.
 
 Theorem any_ownership_takes_what_both_take: forall holder value,
     can_store holder any_ownership mutable value = can_store holder owned mutable value && can_store holder ref mutable value.
@@ -315,12 +315,12 @@ Qed.
 
 (* Plain values in slots with T's ownership are right for every instantiation, too: those slots take
    only exclusive ones, which all slots take *)
-Theorem plain_values_fit_under_every_instantiation: forall holder p m v o_inst m_inst,
-    can_store holder (parameter_ownership p) m (plain v) = true ->
-    can_store holder o_inst m_inst (plain v) = true.
+Theorem plain_values_fit_under_every_instantiation: forall holder p m0 m1 o_inst m_inst,
+    can_store holder (parameter_ownership p) m0 (plain m1) = true ->
+    can_store holder o_inst m_inst (plain m1) = true.
 Proof.
-    intros holder p m v o_inst m_inst H. unfold can_store in *. apply andb_true_iff in H.
-    destruct H as [Hh Hv]. rewrite Hh. simpl in *. destruct v; try discriminate Hv. reflexivity.
+    intros holder p m0 m1 o_inst m_inst H. unfold can_store in *. apply andb_true_iff in H.
+    destruct H as [Hh Hv]. rewrite Hh. simpl in *. destruct m1; try discriminate Hv. reflexivity.
 Qed.
 
 (* Why a value of type T can't go into a slot of any ownership: with T instantiated as `ref mut X`,
@@ -343,8 +343,8 @@ Proof. split; reflexivity. Qed.
    An in-variant type argument can stand in for an out-variant one, and vice versa, only where the
    latter takes all types (see unify_crosses_variances), which every actual slot conforms to (see
    every_slot_conforms_to_the_top_views). *)
-Definition variance_is_assignable_to (sub super: Variance): bool :=
-    match super, sub with
+Definition variance_is_assignable_to (va vt: Variance): bool :=
+    match vt, va with
     | Model.invariant, Model.invariant => true
     | output, (output | Model.invariant) => true
     | input, (input | Model.invariant) => true
@@ -377,7 +377,7 @@ Definition can_store_through (v: Variance) (holder: Mutability) (o: Ownership) (
     | Model.invariant | input => can_store holder o m value
     end.
 
-Lemma mutability_beq_eq: forall a b, Mutability_beq a b = true -> a = b.
+Lemma mutability_beq_eq: forall m0 m1, Mutability_beq m0 m1 = true -> m0 = m1.
 Proof. intros [] [] H; simpl in H; congruence. Qed.
 
 (*
@@ -627,37 +627,37 @@ Proof.
     apply param_eqb_eq in H. subst. apply ownership_is_assignable_to_itself.
 Qed.
 
-Lemma class_eqb_false: forall a b, a <> b -> class_eqb a b = false.
-Proof. intros a b H. unfold class_eqb. destruct (Class_eq_dec a b); [contradiction|reflexivity]. Qed.
+Lemma class_eqb_false: forall c0 c1, c0 <> c1 -> class_eqb c0 c1 = false.
+Proof. intros c0 c1 H. unfold class_eqb. destruct (Class_eq_dec c0 c1); [contradiction|reflexivity]. Qed.
 
 (* A class `sub` with the type parameter T only, which has `super<os T>` as a supertype: as a
    supertype of `sub<o X>` (X a class without type arguments), that is `super<os' X>`, os' being os
    instantiated with T bound to `o X` *)
-Lemma supertype_arguments_of_a_single_parameter_class: forall sub super T bound ms os o mt ct,
-    map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant os (Generic (mkGenericRef None false T bound))] ->
+Lemma supertype_arguments_of_a_single_parameter_class: forall sub super p bound msuper osuper o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [p] ->
+    parameterized_supertype env sub super = RootResolved msuper super [TypeArgument Model.invariant osuper (Generic (mkGenericRef None false p bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant
-        (instantiate_ownership [(T, TypeArgument Model.invariant o (RootResolved mt ct []))] os)
+        (instantiate_ownership [(p, TypeArgument Model.invariant o (RootResolved mt ct []))] osuper)
         (RootResolved mt ct [])].
 Proof.
-    intros sub super T bound ms os o mt ct Hparams Hsuper.
+    intros sub super p bound msuper osuper o mt ct Hparams Hsuper.
     unfold parameterized_supertype_arguments, bindings_of. rewrite Hsuper, Hparams. simpl.
     rewrite param_eqb_refl. destruct o; reflexivity.
 Qed.
 
 (* `class OwnedList<T> : List<owned T>`: ownership declared explicitly in the supertype stays *)
-Corollary explicit_ownership_of_supertype_arguments_stays: forall sub super T bound ms o mt ct,
-    map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant owned (Generic (mkGenericRef None false T bound))] ->
+Corollary explicit_ownership_of_supertype_arguments_stays: forall sub super p bound msuper o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [p] ->
+    parameterized_supertype env sub super = RootResolved msuper super [TypeArgument Model.invariant owned (Generic (mkGenericRef None false p bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant owned (RootResolved mt ct [])].
 Proof. intros. erewrite supertype_arguments_of_a_single_parameter_class by eassumption. reflexivity. Qed.
 
 (* `class MyList<T> : List<T>`: the ownership of the type argument carries over *)
-Corollary ownership_of_type_arguments_carries_over_to_supertypes: forall sub super T bound ms o mt ct,
-    map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
+Corollary ownership_of_type_arguments_carries_over_to_supertypes: forall sub super p bound msuper o mt ct,
+    map param_id (type_parameters (declaration_of env sub)) = [p] ->
+    parameterized_supertype env sub super = RootResolved msuper super [TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bound))] ->
     parameterized_supertype_arguments env sub [TypeArgument Model.invariant o (RootResolved mt ct [])] super
     = [TypeArgument Model.invariant o (RootResolved mt ct [])].
 Proof.
@@ -685,48 +685,48 @@ Proof. reflexivity. Qed.
 
 (* End to end: with `class MyList<T> : List<T>`, `MyList<o X>` is assignable to `List<o X>`, for every
    ownership o *)
-Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super T bound ms o mt ct,
+Theorem subclass_is_assignable_with_the_same_ownership: forall fuel m sub super p bound msuper o mt ct,
     3 <= fuel -> sub <> super -> sub <> nothing ->
     base_type_is_subtype_of env sub super = true ->
     is_const (declaration_of env sub) = is_const (declaration_of env super) ->
-    map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
+    map param_id (type_parameters (declaration_of env sub)) = [p] ->
+    parameterized_supertype env sub super = RootResolved msuper super [TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bound))] ->
     is_assignable_to env fuel
         (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])
         (RootResolved m super [TypeArgument Model.invariant o (RootResolved mt ct [])])
     = Some true.
 Proof.
-    intros fuel m sub super T bound ms o mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper.
+    intros fuel m sub super p bound msuper o mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper.
     destruct fuel as [|[|[|fuel]]]; try lia.
     unfold is_assignable_to, empty_unification. rewrite unify_step_once.
     unfold unify_step, unify_root_resolved. cbn beta iota.
     rewrite Hsub. cbn [assignment_mutability]. rewrite Hconst, mutability_is_subtype_of_refl. cbn [negb].
     rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
-    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
+    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super p bound msuper o mt ct Hparams Hsuper).
     unfold unify_arguments. cbn [fold_unify combine].
     rewrite class_type_argument_unifies_with_itself. reflexivity.
 Qed.
 
 (* ... and not to `List<o' X>` for an ownership o' that o isn't assignable to *)
-Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super T bound ms o o' mt ct,
+Theorem subclass_keeps_the_ownership_apart: forall fuel m sub super p bound msuper o o' mt ct,
     3 <= fuel -> sub <> super -> sub <> nothing ->
     base_type_is_subtype_of env sub super = true ->
     is_const (declaration_of env sub) = is_const (declaration_of env super) ->
-    map param_id (type_parameters (declaration_of env sub)) = [T] ->
-    parameterized_supertype env sub super = RootResolved ms super [TypeArgument Model.invariant (parameter_ownership T) (Generic (mkGenericRef None false T bound))] ->
+    map param_id (type_parameters (declaration_of env sub)) = [p] ->
+    parameterized_supertype env sub super = RootResolved msuper super [TypeArgument Model.invariant (parameter_ownership p) (Generic (mkGenericRef None false p bound))] ->
     ownership_is_assignable_to o o' = false ->
     is_assignable_to env fuel
         (RootResolved m sub [TypeArgument Model.invariant o (RootResolved mt ct [])])
         (RootResolved m super [TypeArgument Model.invariant o' (RootResolved mt ct [])])
     = Some false.
 Proof.
-    intros fuel m sub super T bound ms o o' mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper Ho.
+    intros fuel m sub super p bound msuper o o' mt ct Hfuel Hne Hnothing Hsub Hconst Hparams Hsuper Ho.
     destruct fuel as [|[|[|fuel]]]; try lia.
     unfold is_assignable_to, empty_unification. rewrite unify_step_once.
     unfold unify_step, unify_root_resolved. cbn beta iota.
     rewrite Hsub. cbn [assignment_mutability]. rewrite Hconst, mutability_is_subtype_of_refl. cbn [negb].
     rewrite (class_eqb_false _ _ Hnothing), (class_eqb_false _ _ Hne).
-    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super T bound ms o mt ct Hparams Hsuper).
+    rewrite (ownership_of_type_arguments_carries_over_to_supertypes sub super p bound msuper o mt ct Hparams Hsuper).
     unfold unify_arguments. cbn [fold_unify combine].
     rewrite unify_rejects_unassignable_ownership by exact Ho. reflexivity.
 Qed.

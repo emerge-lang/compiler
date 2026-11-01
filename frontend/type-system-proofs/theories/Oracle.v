@@ -24,29 +24,29 @@ Local Open Scope string_scope.
 (* The Environment, from tables                                                                    *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Definition class_decl (k: ClassKind) (c: bool) (ps: list TypeParameterId) (sts: list EType): ClassDecl :=
-    {| kind := k; is_const := c; type_parameters := map (fun p => {| param_id := p; prescribed_ownership := None |}) ps;
-       supertypes := sts; fields := [] |}.
+Definition class_decl (kd: ClassKind) (is_const_class: bool) (ps: list TypeParameterId) (sups: list EType): ClassDecl :=
+    {| kind := kd; is_const := is_const_class; type_parameters := map (fun p => {| param_id := p; prescribed_ownership := None |}) ps;
+       supertypes := sups; fields := [] |}.
 
-Definition lookup {K V: Type} (eqb: K -> K -> bool) (default: V) (table: list (K * V)) (k: K): V :=
-    match find (fun e => eqb (fst e) k) table with Some (_, v) => v | None => default end.
+Definition lookup {T0 T1: Type} (R: T0 -> T0 -> bool) (default: T1) (table: list (T0 * T1)) (key: T0): T1 :=
+    match find (fun e => R (fst e) key) table with Some (_, v) => v | None => default end.
 
 (* class_eqb, without computing a proof of the equality *)
-Definition class_beq (a b: Class): bool :=
-    match a, b with
+Definition class_beq (c0 c1: Class): bool :=
+    match c0, c1 with
     | any, any | nothing, nothing => true
     | some_class x, some_class y => Nat.eqb x y
     | _, _ => false
     end.
 
-Fixpoint classes_beq (a b: list Class): bool :=
-    match a, b with
+Fixpoint classes_beq (l0 l1: list Class): bool :=
+    match l0, l1 with
     | [], [] => true
     | x :: a', y :: b' => class_beq x y && classes_beq a' b'
     | _, _ => false
     end.
 
-Definition class_pair_beq (a b: Class * Class): bool := class_beq (fst a) (fst b) && class_beq (snd a) (snd b).
+Definition class_pair_beq (left right: Class * Class): bool := class_beq (fst left) (fst right) && class_beq (snd left) (snd right).
 
 (* A total order on types, for finding one among many in a search tree *)
 Definition mutability_rank (m: option Mutability): nat :=
@@ -61,18 +61,18 @@ Definition constructor_rank (t: EType): nat :=
     | TypeVariable _ => 5 | Intersection _ => 6
     end.
 
-Definition then_compare (c: comparison) (d: comparison): comparison := match c with Eq => d | _ => c end.
+Definition then_compare (e0: comparison) (e1: comparison): comparison := match e0 with Eq => e1 | _ => e0 end.
 
-Fixpoint nats_compare (a b: list nat): comparison :=
-    match a, b with
+Fixpoint nats_compare (l0 l1: list nat): comparison :=
+    match l0, l1 with
     | [], [] => Eq
     | [], _ => Lt
     | _, [] => Gt
     | x :: a', y :: b' => then_compare (Nat.compare x y) (nats_compare a' b')
     end.
 
-Definition generic_compare (g h: GenericRef): comparison :=
-    match g, h with mkGenericRef m nn p vs, mkGenericRef m' nn' p' vs' =>
+Definition generic_compare (g0 g1: GenericRef): comparison :=
+    match g0, g1 with mkGenericRef m nn p vs, mkGenericRef m' nn' p' vs' =>
         then_compare (Nat.compare (mutability_rank m) (mutability_rank m'))
             (then_compare (Bool.compare nn nn') (then_compare (Nat.compare p p') (nats_compare vs vs')))
     end.
@@ -85,8 +85,8 @@ Fixpoint list_compare_with (f: EType -> EType -> comparison) (l l': list EType):
     | x :: r, y :: r' => match f x y with Eq => list_compare_with f r r' | c => c end
     end.
 
-Fixpoint ety_compare (a b: EType): comparison :=
-    match a, b with
+Fixpoint ety_compare (y z: EType): comparison :=
+    match y, z with
     | RootResolved m c args, RootResolved m' c' args' =>
         match then_compare (Nat.compare (mutability_rank m) (mutability_rank m')) (Nat.compare (class_rank c) (class_rank c')) with
         | Eq => list_compare_with ety_compare args args'
@@ -101,37 +101,37 @@ Fixpoint ety_compare (a b: EType): comparison :=
         | x => x
         end
     | Intersection cs, Intersection cs' => list_compare_with ety_compare cs cs'
-    | _, _ => Nat.compare (constructor_rank a) (constructor_rank b)
+    | _, _ => Nat.compare (constructor_rank y) (constructor_rank z)
     end.
 
-Definition same (a b: EType): bool := match ety_compare a b with Eq => true | _ => false end.
+Definition same (x y: EType): bool := match ety_compare x y with Eq => true | _ => false end.
 
 (* The position of each of a list of types, the first where a type is there twice *)
 Inductive Index := leaf | node (left: Index) (key: EType) (position: nat) (right: Index).
 
-Fixpoint index_insert (k: EType) (v: nat) (t: Index): Index :=
-    match t with
-    | leaf => node leaf k v leaf
+Fixpoint index_insert (x: EType) (i: nat) (tree: Index): Index :=
+    match tree with
+    | leaf => node leaf x i leaf
     | node l k' v' r =>
-        match ety_compare k k' with
-        | Lt => node (index_insert k v l) k' v' r
-        | Gt => node l k' v' (index_insert k v r)
-        | Eq => t
+        match ety_compare x k' with
+        | Lt => node (index_insert x i l) k' v' r
+        | Gt => node l k' v' (index_insert x i r)
+        | Eq => tree
         end
     end.
 
-Fixpoint index_find (k: EType) (t: Index): option nat :=
+Fixpoint index_find (x: EType) (t: Index): option nat :=
     match t with
     | leaf => None
-    | node l k' v r => match ety_compare k k' with Lt => index_find k l | Gt => index_find k r | Eq => Some v end
+    | node l k' v r => match ety_compare x k' with Lt => index_find x l | Gt => index_find x r | Eq => Some v end
     end.
 
 Definition index_of_all (types: list EType): Index :=
     fst (fold_left (fun acc k => (index_insert k (snd acc) (fst acc), S (snd acc))) types (leaf, 0)).
 
 (* rows.(i).(j), for the i-th and the j-th of the types indexed *)
-Definition lookup_pair (index: Index) (rows: list (list EType)) (default: EType) (a b: EType): EType :=
-    match index_find a index, index_find b index with
+Definition lookup_pair (index: Index) (rows: list (list EType)) (default: EType) (x y: EType): EType :=
+    match index_find x index, index_find y index with
     | Some i, Some j => nth j (nth i rows []) default
     | _, _ => default
     end.
@@ -245,35 +245,35 @@ Definition ownership_in (ps: list TypeParameterId) (o: Ownership): bool :=
 
 Definition without_variables (g: GenericRef): bool := match variables_of g with [] => true | _ => false end.
 
-Fixpoint mentions_only_hb (ps: list TypeParameterId) (bm: TypeParameterId -> bool) (t: EType): bool :=
+Fixpoint mentions_only_hb (ps: list TypeParameterId) (Q: TypeParameterId -> bool) (t: EType): bool :=
     match t with
-    | RootResolved _ _ arguments => forallb (mentions_only_hb ps bm) arguments
-    | Nullable n => mentions_only_hb ps bm n
-    | Generic g => mem (param_of g) ps && without_variables g && bm (param_of g)
-    | TypeArgument _ o n => ownership_in ps o && mentions_only_hb ps bm n
-    | Intersection cs => forallb (mentions_only_hb ps bm) cs
+    | RootResolved _ _ arguments => forallb (mentions_only_hb ps Q) arguments
+    | Nullable n => mentions_only_hb ps Q n
+    | Generic g => mem (param_of g) ps && without_variables g && Q (param_of g)
+    | TypeArgument _ o n => ownership_in ps o && mentions_only_hb ps Q n
+    | Intersection cs => forallb (mentions_only_hb ps Q) cs
     | _ => true
     end.
 
 Definition mentions_only_b (ps: list TypeParameterId) (t: EType): bool :=
     mentions_only_hb ps (through_param env (mentions_only_hb ps) true) t.
 
-Fixpoint mentioned_h (bm: TypeParameterId -> list TypeParameterId) (t: EType): list TypeParameterId :=
+Fixpoint mentioned_h (f: TypeParameterId -> list TypeParameterId) (t: EType): list TypeParameterId :=
     match t with
-    | RootResolved _ _ arguments => flat_map (mentioned_h bm) arguments
-    | Nullable n => mentioned_h bm n
-    | Generic g => param_of g :: bm (param_of g)
-    | TypeArgument _ o n => match o with parameter_ownership q => q :: mentioned_h bm n | _ => mentioned_h bm n end
-    | Intersection cs => flat_map (mentioned_h bm) cs
+    | RootResolved _ _ arguments => flat_map (mentioned_h f) arguments
+    | Nullable n => mentioned_h f n
+    | Generic g => param_of g :: f (param_of g)
+    | TypeArgument _ o n => match o with parameter_ownership q => q :: mentioned_h f n | _ => mentioned_h f n end
+    | Intersection cs => flat_map (mentioned_h f) cs
     | _ => []
     end.
 
 Definition mentioned (t: EType): list TypeParameterId := mentioned_h (through_param env mentioned_h []) t.
 
-Lemma mentions_only_hb_iff: forall ps bm BM, (forall q, bm q = true <-> BM q) ->
-    forall t, mentions_only_hb ps bm t = true <-> mentions_only_h ps BM t.
+Lemma mentions_only_hb_iff: forall ps Q0 Q1, (forall q, Q0 q = true <-> Q1 q) ->
+    forall t, mentions_only_hb ps Q0 t = true <-> mentions_only_h ps Q1 t.
 Proof.
-    intros ps bm BM HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs]; cbn [mentions_only_hb mentions_only_h].
+    intros ps Q0 Q1 HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs]; cbn [mentions_only_hb mentions_only_h].
     - induction args as [|a args IHa]; cbn [forallb fold_right]; [tauto|]. rewrite andb_true_iff, (IH a), IHa. tauto.
     - exact (IH n).
     - cbn [param_of]. unfold without_variables. cbn [variables_of]. rewrite !andb_true_iff, mem_In, HB.
@@ -296,10 +296,10 @@ Proof.
     apply mentions_only_hb_iff. intros q'. destruct (param_eqb q' q); [tauto|apply IHk].
 Qed.
 
-Lemma mentions_only_hb_mono: forall ps ps', incl ps ps' -> forall bm bm', (forall q, bm q = true -> bm' q = true) ->
-    forall t, mentions_only_hb ps bm t = true -> mentions_only_hb ps' bm' t = true.
+Lemma mentions_only_hb_mono: forall ps ps', incl ps ps' -> forall Q Q', (forall q, Q q = true -> Q' q = true) ->
+    forall t, mentions_only_hb ps Q t = true -> mentions_only_hb ps' Q' t = true.
 Proof.
-    intros ps ps' Hps bm bm' HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [mentions_only_hb] in H |- *;
+    intros ps ps' Hps Q Q' HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [mentions_only_hb] in H |- *;
         try reflexivity.
     - induction args as [|a args IHa]; [reflexivity|]. cbn [forallb] in H |- *. apply andb_true_iff in H.
       rewrite (IH a (proj1 H)), (IHa (proj2 H)). reflexivity.
@@ -320,15 +320,15 @@ Proof.
     apply (mentions_only_hb_mono ps ps' Hps). intros q'. destruct (param_eqb q' q); [tauto|apply IHk].
 Qed.
 
-Lemma incl_flat_map: forall {A B: Type} (f: A -> list B) l ps, (forall x, In x l -> incl (f x) ps) -> incl (flat_map f l) ps.
+Lemma incl_flat_map: forall {T0 T1: Type} (f: T0 -> list T1) l ps, (forall x, In x l -> incl (f x) ps) -> incl (flat_map f l) ps.
 Proof.
-    intros A B f l ps H y Hy. apply in_flat_map in Hy. destruct Hy as [x [Hx Hy]]. exact (H x Hx y Hy).
+    intros T0 T1 f l ps H y Hy. apply in_flat_map in Hy. destruct Hy as [x [Hx Hy]]. exact (H x Hx y Hy).
 Qed.
 
-Lemma mentioned_h_incl: forall ps bm men, (forall q, bm q = true -> incl (men q) ps) ->
-    forall t, mentions_only_hb ps bm t = true -> incl (mentioned_h men t) ps.
+Lemma mentioned_h_incl: forall ps Q f, (forall q, Q q = true -> incl (f q) ps) ->
+    forall t, mentions_only_hb ps Q t = true -> incl (mentioned_h f t) ps.
 Proof.
-    intros ps bm men HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [mentions_only_hb mentioned_h] in H |- *;
+    intros ps Q f HB. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [mentions_only_hb mentioned_h] in H |- *;
         try (intros y Hy; contradiction Hy).
     - induction args as [|a args IHa]; [intros y []|]. cbn [forallb flat_map] in H |- *. apply andb_true_iff in H.
       intros y Hy. apply in_app_or in Hy. destruct Hy as [Hy|Hy]; [exact (IH a (proj1 H) y Hy)|exact (IHa (proj2 H) y Hy)].
@@ -381,14 +381,14 @@ Record Disagreement := disagreement { assignee: string; target: string; model: o
    has the other *)
 Definition Excuse := (string * (EType -> EType -> option bool -> bool -> bool))%type.
 
-Fixpoint bits (s: string): list bool :=
-    match s with
+Fixpoint bits (str: string): list bool :=
+    match str with
     | EmptyString => []
     | String c rest => Ascii.eqb c "1"%char :: bits rest
     end.
 
-Definition option_bool_eqb (a b: option bool): bool :=
-    match a, b with Some x, Some y => Bool.eqb x y | None, None => true | _, _ => false end.
+Definition option_bool_eqb (e0 e1: option bool): bool :=
+    match e0, e1 with Some x, Some y => Bool.eqb x y | None, None => true | _, _ => false end.
 
 (* Every pair the answers differ on, with the names of the excuses that explain it *)
 Definition explain (excuses: list Excuse) (answers: list string): list (Disagreement * list string) :=
@@ -425,7 +425,7 @@ Definition tables_found (intersections common_supertypes: list (list EType)): bo
    encoding of a type lost something the frontend takes into account, these are likely to differ *)
 Definition mutability_letter (m: Mutability): ascii :=
     match m with mutable => "m"%char | readonly => "r"%char | immutable => "i"%char | exclusive => "e"%char end.
-Definition bool_letter (b: bool): ascii := if b then "1"%char else "0"%char.
+Definition bool_letter (e: bool): ascii := if e then "1"%char else "0"%char.
 Definition class_letter (c: Class): ascii :=
     match c with
     | any => "a"%char
@@ -494,22 +494,22 @@ Definition report (checks: list Check): list Violation * list (string * string) 
             (filter (fun e => negb (existsb (fun v => String.eqb (of_conjecture v) (conjecture c) && existsb (String.eqb (fst e)) (excused_by v)) vs))
                 (excuses c))) checks).
 
-Definition excused (c: Check) (a b: EType): bool :=
-    existsb (fun e => snd e a b (intersect env a b) (closest_common_supertype_with env a b)) (excuses c).
+Definition excused (chk: Check) (x y: EType): bool :=
+    existsb (fun e => snd e x y (intersect env x y) (closest_common_supertype_with env x y)) (excuses chk).
 
 Lemma report_sound: forall checks, fst (report checks) = [] ->
-    forall c, In c checks -> forall a b, In a grid_types -> In b grid_types -> excused c a b = false ->
-    run c a b (intersect env a b) (closest_common_supertype_with env a b) = None.
+    forall chk, In chk checks -> forall z y0, In z grid_types -> In y0 grid_types -> excused chk z y0 = false ->
+    run chk z y0 (intersect env z y0) (closest_common_supertype_with env z y0) = None.
 Proof.
-    intros checks H c Hc a b Ha Hb He. unfold excused in He.
-    destruct (run c a b (intersect env a b) (closest_common_supertype_with env a b)) as [why|] eqn:E; [exfalso|reflexivity].
+    intros checks H chk Hc z y0 Ha Hb He. unfold excused in He.
+    destruct (run chk z y0 (intersect env z y0) (closest_common_supertype_with env z y0)) as [why|] eqn:E; [exfalso|reflexivity].
     apply in_map_iff in Ha. destruct Ha as [x [Ex Hx]]. apply in_map_iff in Hb. destruct Hb as [y [Ey Hy]].
-    set (v := violation (conjecture c) (fst x) (fst y) why []).
+    set (v := violation (conjecture chk) (fst x) (fst y) why []).
     assert (Hv: In v (all_violations checks)).
     { unfold all_violations. apply in_flat_map. exists x. split; [exact Hx|]. apply in_flat_map. exists y. split; [exact Hy|].
-      apply in_flat_map. exists c. split; [exact Hc|]. rewrite Ex, Ey, E. left. unfold v. f_equal.
-      destruct (filter _ (excuses c)) as [|e es] eqn:F; [reflexivity|]. exfalso.
-      assert (He': In e (filter (fun e => snd e a b (intersect env a b) (closest_common_supertype_with env a b)) (excuses c)))
+      apply in_flat_map. exists chk. split; [exact Hc|]. rewrite Ex, Ey, E. left. unfold v. f_equal.
+      destruct (filter _ (excuses chk)) as [|e es] eqn:F; [reflexivity|]. exfalso.
+      assert (He': In e (filter (fun e => snd e z y0 (intersect env z y0) (closest_common_supertype_with env z y0)) (excuses chk)))
           by (rewrite F; left; reflexivity).
       apply filter_In in He'. destruct He' as [He1 He2].
       rewrite (proj2 (existsb_exists _ _) (ex_intro _ e (conj He1 He2))) in He. discriminate He. }
@@ -520,12 +520,12 @@ Proof.
 Qed.
 
 (* A conjecture of pairs, of every pair of the grid an excuse of the check doesn't take out *)
-Definition on_grid (c: Check) (P: EType -> EType -> Prop): Prop :=
-    forall a b, In a grid_types -> In b grid_types -> excused c a b = false -> P a b.
+Definition on_grid (c: Check) (Q: EType -> EType -> Prop): Prop :=
+    forall a b, In a grid_types -> In b grid_types -> excused c a b = false -> Q a b.
 
-Lemma checked: forall checks c (P: EType -> EType -> Prop), fst (report checks) = [] -> In c checks ->
-    (forall a b, run c a b (intersect env a b) (closest_common_supertype_with env a b) = None -> P a b) -> on_grid c P.
-Proof. intros checks c P H Hc HP a b Ha Hb He. exact (HP a b (report_sound checks H c Hc a b Ha Hb He)). Qed.
+Lemma checked: forall checks chk (Q: EType -> EType -> Prop), fst (report checks) = [] -> In chk checks ->
+    (forall x y, run chk x y (intersect env x y) (closest_common_supertype_with env x y) = None -> Q x y) -> on_grid chk Q.
+Proof. intros checks chk Q H Hc HP x y Ha Hb He. exact (HP x y (report_sound checks H chk Hc x y Ha Hb He)). Qed.
 
 Definition why_not_below (what: string) (x y: EType): option string :=
     match is_assignable_to env fuel x y with
@@ -540,10 +540,10 @@ Proof.
     destruct (is_assignable_to env fuel x y) as [[]|]; [reflexivity|discriminate H|discriminate H].
 Qed.
 
-Definition first_failure (a b: option string): option string := match a with Some _ => a | None => b end.
+Definition first_failure (first second: option string): option string := match first with Some _ => first | None => second end.
 
-Lemma first_failure_none: forall a b, first_failure a b = None -> a = None /\ b = None.
-Proof. intros [a|] b H; [discriminate H|split; [reflexivity|exact H]]. Qed.
+Lemma first_failure_none: forall first second, first_failure first second = None -> first = None /\ second = None.
+Proof. intros [first|] second H; [discriminate H|split; [reflexivity|exact H]]. Qed.
 
 Definition unless (holds: bool) (why: string): option string := if holds then None else Some why.
 
@@ -553,127 +553,127 @@ Proof. intros [] why H; [reflexivity|discriminate H]. Qed.
 Definition result_named (what: string) (t: EType): string := what ++ name_of t.
 
 (* Conjectures.intersect_stays_in_fragment *)
-Definition intersect_in_fragment_check (a b i _: EType): option string :=
-    if gfrag env a && gfrag env b && negb (keeps_nullability env a b)
-    then unless (gfrag env i) (result_named "not of gfrag: " i)
+Definition intersect_in_fragment_check (x y z _: EType): option string :=
+    if gfrag env x && gfrag env y && negb (keeps_nullability env x y)
+    then unless (gfrag env z) (result_named "not of gfrag: " z)
     else None.
 
-Definition intersect_in_fragment_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    keeps_nullability env a b = false -> gfrag env (intersect env a b) = true /\ refs_wf env declared (intersect env a b).
+Definition intersect_in_fragment_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    keeps_nullability env x y = false -> gfrag env (intersect env x y) = true /\ refs_wf env declared (intersect env x y).
 
-Lemma intersect_in_fragment_checked: forall a b,
-    intersect_in_fragment_check a b (intersect env a b) (closest_common_supertype_with env a b) = None -> intersect_in_fragment_on a b.
+Lemma intersect_in_fragment_checked: forall x y,
+    intersect_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> intersect_in_fragment_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _] Hk. unfold intersect_in_fragment_check in H. rewrite Ha, Hb, Hk in H. cbn in H.
+    intros x y H [Ha _] [Hb _] Hk. unfold intersect_in_fragment_check in H. rewrite Ha, Hb, Hk in H. cbn in H.
     split; [exact (unless_none _ _ H)|exact I].
 Qed.
 
 (* Conjectures.intersect_always_stays_in_fragment *)
-Definition intersect_always_in_fragment_check (a b i _: EType): option string :=
-    if gfrag env a && gfrag env b then unless (gfrag env i) (result_named "not of gfrag: " i) else None.
+Definition intersect_always_in_fragment_check (x y z _: EType): option string :=
+    if gfrag env x && gfrag env y then unless (gfrag env z) (result_named "not of gfrag: " z) else None.
 
-Definition intersect_always_in_fragment_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    gfrag env (intersect env a b) = true /\ refs_wf env declared (intersect env a b).
+Definition intersect_always_in_fragment_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    gfrag env (intersect env x y) = true /\ refs_wf env declared (intersect env x y).
 
-Lemma intersect_always_in_fragment_checked: forall a b,
-    intersect_always_in_fragment_check a b (intersect env a b) (closest_common_supertype_with env a b) = None ->
-    intersect_always_in_fragment_on a b.
+Lemma intersect_always_in_fragment_checked: forall x y,
+    intersect_always_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
+    intersect_always_in_fragment_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _]. unfold intersect_always_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
+    intros x y H [Ha _] [Hb _]. unfold intersect_always_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
     split; [exact (unless_none _ _ H)|exact I].
 Qed.
 
 (* Conjectures.intersect_makes_no_bare_nullable *)
-Definition intersect_no_bare_nullable_check (a b i _: EType): option string :=
-    if gfrag env a && gfrag env b && negb (bare_nullable env a) && negb (bare_nullable env b)
-    then unless (negb (bare_nullable env i)) (result_named "bare nullable: " i)
+Definition intersect_no_bare_nullable_check (x y z _: EType): option string :=
+    if gfrag env x && gfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
+    then unless (negb (bare_nullable env z)) (result_named "bare nullable: " z)
     else None.
 
-Definition intersect_no_bare_nullable_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    bare_nullable env a = false -> bare_nullable env b = false -> bare_nullable env (intersect env a b) = false.
+Definition intersect_no_bare_nullable_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    bare_nullable env x = false -> bare_nullable env y = false -> bare_nullable env (intersect env x y) = false.
 
-Lemma intersect_no_bare_nullable_checked: forall a b,
-    intersect_no_bare_nullable_check a b (intersect env a b) (closest_common_supertype_with env a b) = None ->
-    intersect_no_bare_nullable_on a b.
+Lemma intersect_no_bare_nullable_checked: forall x y,
+    intersect_no_bare_nullable_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
+    intersect_no_bare_nullable_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _] Hna Hnb. unfold intersect_no_bare_nullable_check in H. rewrite Ha, Hb, Hna, Hnb in H. cbn in H.
+    intros x y H [Ha _] [Hb _] Hna Hnb. unfold intersect_no_bare_nullable_check in H. rewrite Ha, Hb, Hna, Hnb in H. cbn in H.
     apply negb_true_iff. exact (unless_none _ _ H).
 Qed.
 
 (* Conjectures.closest_common_supertype_makes_no_bare_nullable *)
-Definition supertype_no_bare_nullable_check (a b _ s: EType): option string :=
-    if gfrag env a && gfrag env b && negb (bare_nullable env a) && negb (bare_nullable env b)
-    then unless (negb (bare_nullable env s)) (result_named "bare nullable: " s)
+Definition supertype_no_bare_nullable_check (x y _ z: EType): option string :=
+    if gfrag env x && gfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
+    then unless (negb (bare_nullable env z)) (result_named "bare nullable: " z)
     else None.
 
-Definition supertype_no_bare_nullable_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    bare_nullable env a = false -> bare_nullable env b = false -> bare_nullable env (closest_common_supertype_with env a b) = false.
+Definition supertype_no_bare_nullable_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    bare_nullable env x = false -> bare_nullable env y = false -> bare_nullable env (closest_common_supertype_with env x y) = false.
 
-Lemma supertype_no_bare_nullable_checked: forall a b,
-    supertype_no_bare_nullable_check a b (intersect env a b) (closest_common_supertype_with env a b) = None ->
-    supertype_no_bare_nullable_on a b.
+Lemma supertype_no_bare_nullable_checked: forall x y,
+    supertype_no_bare_nullable_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
+    supertype_no_bare_nullable_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _] Hna Hnb. unfold supertype_no_bare_nullable_check in H. rewrite Ha, Hb, Hna, Hnb in H. cbn in H.
+    intros x y H [Ha _] [Hb _] Hna Hnb. unfold supertype_no_bare_nullable_check in H. rewrite Ha, Hb, Hna, Hnb in H. cbn in H.
     apply negb_true_iff. exact (unless_none _ _ H).
 Qed.
 
 (* Conjectures.closest_common_supertype_stays_in_fragment *)
-Definition supertype_in_fragment_check (a b _ s: EType): option string :=
-    if gfrag env a && gfrag env b then unless (gfrag env s) (result_named "not of gfrag: " s) else None.
+Definition supertype_in_fragment_check (x y _ z: EType): option string :=
+    if gfrag env x && gfrag env y then unless (gfrag env z) (result_named "not of gfrag: " z) else None.
 
-Definition supertype_in_fragment_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    gfrag env (closest_common_supertype_with env a b) = true /\ refs_wf env declared (closest_common_supertype_with env a b).
+Definition supertype_in_fragment_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    gfrag env (closest_common_supertype_with env x y) = true /\ refs_wf env declared (closest_common_supertype_with env x y).
 
-Lemma supertype_in_fragment_checked: forall a b,
-    supertype_in_fragment_check a b (intersect env a b) (closest_common_supertype_with env a b) = None ->
-    supertype_in_fragment_on a b.
+Lemma supertype_in_fragment_checked: forall x y,
+    supertype_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
+    supertype_in_fragment_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _]. unfold supertype_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
+    intros x y H [Ha _] [Hb _]. unfold supertype_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
     split; [exact (unless_none _ _ H)|exact I].
 Qed.
 
 (* Conjectures.intersect_is_below_both *)
-Definition intersect_below_check (a b i _: EType): option string :=
-    if gfrag env a && gfrag env b
+Definition intersect_below_check (x y z _: EType): option string :=
+    if gfrag env x && gfrag env y
     then first_failure
-        (why_not_below (result_named "not below the first: " i) i a)
-        (why_not_below (result_named "not below the second: " i) i b)
+        (why_not_below (result_named "not below the first: " z) z x)
+        (why_not_below (result_named "not below the second: " z) z y)
     else None.
 
-Definition intersect_below_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    (exists n, is_assignable_to env n (intersect env a b) a = Some true)
-    /\ (exists n, is_assignable_to env n (intersect env a b) b = Some true).
+Definition intersect_below_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    (exists n, is_assignable_to env n (intersect env x y) x = Some true)
+    /\ (exists n, is_assignable_to env n (intersect env x y) y = Some true).
 
-Lemma intersect_below_checked: forall a b,
-    intersect_below_check a b (intersect env a b) (closest_common_supertype_with env a b) = None -> intersect_below_on a b.
+Lemma intersect_below_checked: forall x y,
+    intersect_below_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> intersect_below_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _]. unfold intersect_below_check in H. rewrite Ha, Hb in H. cbn in H.
+    intros x y H [Ha _] [Hb _]. unfold intersect_below_check in H. rewrite Ha, Hb in H. cbn in H.
     destruct (first_failure_none _ _ H) as [H1 H2]. split; [exact (why_not_below_none _ _ _ H1)|exact (why_not_below_none _ _ _ H2)].
 Qed.
 
 (* Conjectures.closest_common_supertype_is_above_both *)
-Definition supertype_above_check (a b _ s: EType): option string :=
-    if gfrag env a && gfrag env b
+Definition supertype_above_check (x y _ z: EType): option string :=
+    if gfrag env x && gfrag env y
     then first_failure
-        (why_not_below (result_named "not above the first: " s) a s)
-        (why_not_below (result_named "not above the second: " s) b s)
+        (why_not_below (result_named "not above the first: " z) x z)
+        (why_not_below (result_named "not above the second: " z) y z)
     else None.
 
-Definition supertype_above_on (a b: EType): Prop :=
-    gfrag env a = true /\ refs_wf env declared a -> gfrag env b = true /\ refs_wf env declared b ->
-    (exists n, is_assignable_to env n a (closest_common_supertype_with env a b) = Some true)
-    /\ (exists n, is_assignable_to env n b (closest_common_supertype_with env a b) = Some true).
+Definition supertype_above_on (x y: EType): Prop :=
+    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    (exists n, is_assignable_to env n x (closest_common_supertype_with env x y) = Some true)
+    /\ (exists n, is_assignable_to env n y (closest_common_supertype_with env x y) = Some true).
 
-Lemma supertype_above_checked: forall a b,
-    supertype_above_check a b (intersect env a b) (closest_common_supertype_with env a b) = None -> supertype_above_on a b.
+Lemma supertype_above_checked: forall x y,
+    supertype_above_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> supertype_above_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _]. unfold supertype_above_check in H. rewrite Ha, Hb in H. cbn in H.
+    intros x y H [Ha _] [Hb _]. unfold supertype_above_check in H. rewrite Ha, Hb in H. cbn in H.
     destruct (first_failure_none _ _ H) as [H1 H2]. split; [exact (why_not_below_none _ _ _ H1)|exact (why_not_below_none _ _ _ H2)].
 Qed.
 
@@ -681,64 +681,64 @@ Qed.
    every list of type parameters of the caller. A type mentions only those of a list where it mentions
    only those it mentions (mentions_only_mentioned), so the check takes the least such list, that of
    both types, and covers the others by monotonicity *)
-Definition in_generic_code (a b r: EType): option string :=
-    let ps := (mentioned env a ++ mentioned env b)%list in
-    if gfrag env a && gfrag env b && ktfrag env a && ktfrag env b
-    then unless (ktfrag env r && mentions_only_b env ps r) (result_named "not of the generic code of both: " r)
+Definition in_generic_code (y z x: EType): option string :=
+    let ps := (mentioned env y ++ mentioned env z)%list in
+    if gfrag env y && gfrag env z && ktfrag env y && ktfrag env z
+    then unless (ktfrag env x && mentions_only_b env ps x) (result_named "not of the generic code of both: " x)
     else None.
 
-Definition in_generic_code_on (f: EType -> EType -> EType) (a b: EType): Prop :=
-    forall ps, of_fragment env declared a -> of_fragment env declared b ->
-    caller_type env declared ps a -> caller_type env declared ps b -> caller_type env declared ps (f a b).
+Definition in_generic_code_on (f: EType -> EType -> EType) (x y: EType): Prop :=
+    forall ps, of_fragment env declared x -> of_fragment env declared y ->
+    caller_type env declared ps x -> caller_type env declared ps y -> caller_type env declared ps (f x y).
 
-Lemma in_generic_code_checked: forall f a b, in_generic_code a b (f a b) = None -> in_generic_code_on f a b.
+Lemma in_generic_code_checked: forall f x y, in_generic_code x y (f x y) = None -> in_generic_code_on f x y.
 Proof.
-    intros f a b H ps [Ha _] [Hb _] [Hka [_ Hma]] [Hkb [_ Hmb]]. unfold in_generic_code in H. rewrite Ha, Hb, Hka, Hkb in H.
+    intros f x y H ps [Ha _] [Hb _] [Hka [_ Hma]] [Hkb [_ Hmb]]. unfold in_generic_code in H. rewrite Ha, Hb, Hka, Hkb in H.
     cbn in H. apply unless_none, andb_true_iff in H. destruct H as [Hk Hm].
     split; [exact Hk|split; [exact I|]]. apply mentions_only_b_iff.
-    apply (mentions_only_b_mono env (mentioned env a ++ mentioned env b)%list); [|exact Hm].
+    apply (mentions_only_b_mono env (mentioned env x ++ mentioned env y)%list); [|exact Hm].
     intros q Hq. apply in_app_or in Hq. destruct Hq as [Hq|Hq].
-    - exact (mentions_only_mentioned env ps a (proj2 (mentions_only_b_iff env ps a) Hma) q Hq).
-    - exact (mentions_only_mentioned env ps b (proj2 (mentions_only_b_iff env ps b) Hmb) q Hq).
+    - exact (mentions_only_mentioned env ps x (proj2 (mentions_only_b_iff env ps x) Hma) q Hq).
+    - exact (mentions_only_mentioned env ps y (proj2 (mentions_only_b_iff env ps y) Hmb) q Hq).
 Qed.
 
-Definition intersect_in_generic_code_check (a b i _: EType): option string := in_generic_code a b i.
-Definition supertype_in_generic_code_check (a b _ s: EType): option string := in_generic_code a b s.
+Definition intersect_in_generic_code_check (x y z _: EType): option string := in_generic_code x y z.
+Definition supertype_in_generic_code_check (x y _ z: EType): option string := in_generic_code x y z.
 
 (* GenericArguments.closest_common_supertype_keeps_bottom_only *)
-Definition bottom_only_check (a b _ s: EType): option string :=
-    if gfrag env a && gfrag env b && bottom_only env a && bottom_only env b
-    then unless (bottom_only env s) (result_named "not bottom_only: " s)
+Definition bottom_only_check (x y _ z: EType): option string :=
+    if gfrag env x && gfrag env y && bottom_only env x && bottom_only env y
+    then unless (bottom_only env z) (result_named "not bottom_only: " z)
     else None.
 
-Definition bottom_only_on (a b: EType): Prop :=
-    of_fragment env declared a -> of_fragment env declared b -> bottom_only env a = true -> bottom_only env b = true ->
-    bottom_only env (closest_common_supertype_with env a b) = true.
+Definition bottom_only_on (x y: EType): Prop :=
+    of_fragment env declared x -> of_fragment env declared y -> bottom_only env x = true -> bottom_only env y = true ->
+    bottom_only env (closest_common_supertype_with env x y) = true.
 
-Lemma bottom_only_checked: forall a b,
-    bottom_only_check a b (intersect env a b) (closest_common_supertype_with env a b) = None -> bottom_only_on a b.
+Lemma bottom_only_checked: forall x y,
+    bottom_only_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> bottom_only_on x y.
 Proof.
-    intros a b H [Ha _] [Hb _] Hoa Hob. unfold bottom_only_check in H. rewrite Ha, Hb, Hoa, Hob in H. cbn in H.
+    intros x y H [Ha _] [Hb _] Hoa Hob. unfold bottom_only_check in H. rewrite Ha, Hb, Hoa, Hob in H. cbn in H.
     exact (unless_none _ _ H).
 Qed.
 
 (* Constraints.closest_common_supertype_of_classes: of class types without contravariance *)
-Definition of_classes_check (a b _ s: EType): option string :=
-    if afrag env a && closed a && without_contravariance a && afrag env b && closed b && without_contravariance b
-    then unless (afrag env s && closed s && without_contravariance s)
-        (result_named "not a class type without contravariance: " s)
+Definition of_classes_check (x y _ z: EType): option string :=
+    if afrag env x && closed x && without_contravariance x && afrag env y && closed y && without_contravariance y
+    then unless (afrag env z && closed z && without_contravariance z)
+        (result_named "not a class type without contravariance: " z)
     else None.
 
-Definition of_classes_on (a b: EType): Prop :=
-    afrag env a = true -> closed a = true -> without_contravariance a = true ->
-    afrag env b = true -> closed b = true -> without_contravariance b = true ->
-    afrag env (closest_common_supertype_with env a b) = true /\ closed (closest_common_supertype_with env a b) = true
-    /\ without_contravariance (closest_common_supertype_with env a b) = true.
+Definition of_classes_on (x y: EType): Prop :=
+    afrag env x = true -> closed x = true -> without_contravariance x = true ->
+    afrag env y = true -> closed y = true -> without_contravariance y = true ->
+    afrag env (closest_common_supertype_with env x y) = true /\ closed (closest_common_supertype_with env x y) = true
+    /\ without_contravariance (closest_common_supertype_with env x y) = true.
 
-Lemma of_classes_checked: forall a b,
-    of_classes_check a b (intersect env a b) (closest_common_supertype_with env a b) = None -> of_classes_on a b.
+Lemma of_classes_checked: forall x y,
+    of_classes_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> of_classes_on x y.
 Proof.
-    intros a b H Ha Hca Hwa Hb Hcb Hwb. unfold of_classes_check in H. rewrite Ha, Hca, Hwa, Hb, Hcb, Hwb in H. cbn in H.
+    intros x y H Ha Hca Hwa Hb Hcb Hwb. unfold of_classes_check in H. rewrite Ha, Hca, Hwa, Hb, Hcb, Hwb in H. cbn in H.
     apply unless_none in H. apply andb_true_iff in H. destruct H as [H Hw]. apply andb_true_iff in H. destruct H as [Hf Hc].
     split; [exact Hf|split; [exact Hc|exact Hw]].
 Qed.

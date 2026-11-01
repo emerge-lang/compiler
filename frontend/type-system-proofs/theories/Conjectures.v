@@ -44,8 +44,8 @@ Definition bare_nullable (t: EType): bool :=
 
 (* Whether ofComponents may make, of a and b, an intersection whose components keep their nullability
    (`A? & P` of `A?` and `P : Any?`, coverage #15): both may be null, and one is such a reference *)
-Definition keeps_nullability (a b: EType): bool :=
-    is_nullable env a && is_nullable env b && (bare_nullable a || bare_nullable b).
+Definition keeps_nullability (x y: EType): bool :=
+    is_nullable env x && is_nullable env y && (bare_nullable x || bare_nullable y).
 
 (* BoundIntersectionTypeReference.intersect builds types of the fragment: it flattens intersections,
    nullable ones too, and makes them with ofComponents. Claimed here of operands that don't keep their
@@ -112,29 +112,29 @@ Let transitive := transitivity_never_fails env wf declared declared_wf.
 (* What is assignable to the intersection of two types, unify never rejects for each of them *)
 Theorem below_intersection_never_fails:
     intersect_stays_in_fragment env declared -> intersect_is_below_both env declared ->
-    forall a b x n, in_gfrag a -> in_gfrag b -> in_gfrag x -> keeps_nullability env a b = false ->
-        is_assignable_to env n x (intersect env a b) = Some true ->
-        forall f, is_assignable_to env f x a <> Some false /\ is_assignable_to env f x b <> Some false.
+    forall y z x n, in_gfrag y -> in_gfrag z -> in_gfrag x -> keeps_nullability env y z = false ->
+        is_assignable_to env n x (intersect env y z) = Some true ->
+        forall n', is_assignable_to env n' x y <> Some false /\ is_assignable_to env n' x z <> Some false.
 Proof.
-    intros Hfrag Hbelow a b x n Ha Hb Hx Hk H f.
-    destruct (Hfrag a b Ha Hb Hk) as [Hi Hri]. destruct (Hbelow a b Ha Hb) as [[na Hna] [nb Hnb]].
+    intros Hfrag Hbelow y z x n Ha Hb Hx Hk H n'.
+    destruct (Hfrag y z Ha Hb Hk) as [Hi Hri]. destruct (Hbelow y z Ha Hb) as [[na Hna] [nb Hnb]].
     split.
-    - exact (transitive n na x _ a (proj1 Hx) Hi (proj1 Ha) (proj2 Hx) Hri (proj2 Ha) H Hna f).
-    - exact (transitive n nb x _ b (proj1 Hx) Hi (proj1 Hb) (proj2 Hx) Hri (proj2 Hb) H Hnb f).
+    - exact (transitive n na x _ y (proj1 Hx) Hi (proj1 Ha) (proj2 Hx) Hri (proj2 Ha) H Hna n').
+    - exact (transitive n nb x _ z (proj1 Hx) Hi (proj1 Hb) (proj2 Hx) Hri (proj2 Hb) H Hnb n').
 Qed.
 
 (* What the closest common supertype of two types is assignable to, unify never rejects for each of them *)
 Theorem above_closest_common_supertype_never_fails:
     closest_common_supertype_stays_in_fragment env declared -> closest_common_supertype_is_above_both env declared ->
-    forall a b x n, in_gfrag a -> in_gfrag b -> in_gfrag x ->
-        is_assignable_to env n (closest_common_supertype_with env a b) x = Some true ->
-        forall f, is_assignable_to env f a x <> Some false /\ is_assignable_to env f b x <> Some false.
+    forall y z x n, in_gfrag y -> in_gfrag z -> in_gfrag x ->
+        is_assignable_to env n (closest_common_supertype_with env y z) x = Some true ->
+        forall n', is_assignable_to env n' y x <> Some false /\ is_assignable_to env n' z x <> Some false.
 Proof.
-    intros Hfrag Habove a b x n Ha Hb Hx H f.
-    destruct (Hfrag a b Ha Hb) as [Hs Hrs]. destruct (Habove a b Ha Hb) as [[na Hna] [nb Hnb]].
+    intros Hfrag Habove y z x n Ha Hb Hx H n'.
+    destruct (Hfrag y z Ha Hb) as [Hs Hrs]. destruct (Habove y z Ha Hb) as [[na Hna] [nb Hnb]].
     split.
-    - exact (transitive na n a _ x (proj1 Ha) Hs (proj1 Hx) (proj2 Ha) Hrs (proj2 Hx) Hna H f).
-    - exact (transitive nb n b _ x (proj1 Hb) Hs (proj1 Hx) (proj2 Hb) Hrs (proj2 Hx) Hnb H f).
+    - exact (transitive na n y _ x (proj1 Ha) Hs (proj1 Hx) (proj2 Ha) Hrs (proj2 Hx) Hna H n').
+    - exact (transitive nb n z _ x (proj1 Hb) Hs (proj1 Hx) (proj2 Hb) Hrs (proj2 Hx) Hnb H n').
 Qed.
 
 End Bounds.
@@ -269,14 +269,14 @@ Theorem transitivity_terminating: forall n1 n2 x y z,
     gfrag env x = true -> gfrag env y = true -> gfrag env z = true ->
     refs_wf env declared x -> refs_wf env declared y -> refs_wf env declared z ->
     is_assignable_to env n1 x y = Some true -> is_assignable_to env n2 y z = Some true ->
-    exists f, is_assignable_to env f x z = Some true.
+    exists n, is_assignable_to env n x z = Some true.
 Proof.
     intros n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2.
-    destruct (terminates wf declared_wf z x [] Hz Hx Hrz Hrx) as [f Hf].
-    exists f. pose proof (transitivity_never_fails env wf declared declared_wf
-        n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 f) as Hnf.
+    destruct (terminates wf declared_wf z x [] Hz Hx Hrz Hrx) as [n Hf].
+    exists n. pose proof (transitivity_never_fails env wf declared declared_wf
+        n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 n) as Hnf.
     unfold is_assignable_to, empty_unification in *.
-    destruct (unify env f z x (Ongoing [])) as [[u|]|]; simpl in *; [reflexivity|contradiction Hnf; reflexivity|contradiction Hf; reflexivity].
+    destruct (unify env n z x (Ongoing [])) as [[u|]|]; simpl in *; [reflexivity|contradiction Hnf; reflexivity|contradiction Hf; reflexivity].
 Qed.
 
 End Terminating.

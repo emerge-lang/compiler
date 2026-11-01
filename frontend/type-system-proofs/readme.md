@@ -120,6 +120,60 @@ program.
 
 What the proofs cover and what they don't, area by area, is in [`coverage.md`](coverage.md).
 
+### Names of binders
+
+Binders are short, as is usual in proofs, and a short name always stands for the same kind of thing, in every
+file: `n` is fuel wherever it occurs. `./rocq.sh` checks the statements of all lemmas against this table
+(`tools/binder_names.py`, from what Rocq prints of them, so binders whose type the source leaves to inference
+are checked too). Where nothing fits, a descriptive name of four letters or more is always allowed (`arguments`,
+`targs`, `sigma`).
+
+| name                         | stands for                                                                  |
+|------------------------------|-----------------------------------------------------------------------------|
+| `n`                          | fuel                                                                        |
+| `d`                          | depth, or fuel added to another (`fuel * S (S d0) + d1`)                    |
+| `k`                          | rank (`parameter_rank`)                                                     |
+| `i`, `j`                     | index into a list                                                           |
+| `t`, `a`                     | the target and the assignee of `unify`; an argument of a call is its assignee |
+| `x`, `y`, `z`                | other types, in order: `x` below `y` below `z`, the operands of `intersect` |
+| `C`                          | a component of an intersection                                              |
+| `P`, `A`                     | a parameter type and an argument type of a call                             |
+| `B`                          | a bound                                                                     |
+| `V`                          | the declared type of a member                                               |
+| `xs`, `ys`, `zs`, `cs`       | lists of types; `cs` the components of an intersection                      |
+| `Ps`, `As`                   | the parameter types and the argument types of a call                        |
+| `ps`, `vs`                   | lists of type parameters; `vs` the type variables of a `GenericRef`         |
+| `c`, `sub`                   | a class; `sub` one below another                                            |
+| `m`, `ms`                    | a mutability, given or not (`option Mutability`); a list of them            |
+| `o`, `v`                     | an ownership, a variance                                                    |
+| `g`, and `gm nn p vs`        | a `GenericRef`, and its fields: given mutability, narrowed, parameter, variables |
+| `p`, `q`                     | type parameters                                                             |
+| `b`                          | bindings                                                                    |
+| `s`, `st`                    | variable states; one variable state                                         |
+| `u`, `uf`                    | a `Unification`; a `UnifyFn`                                                |
+| `f`                          | a function                                                                  |
+| `Q`, `R`, `W`                | a predicate on types or type parameters, a relation, a predicate on states  |
+| `r`, `rs`                    | an alias, an aliasing (`Ops.v`)                                             |
+| `T`, `l`                     | the `Type` and a list of a polymorphic lemma (its elements `x`, `y`)        |
+| `env`, `declared`            | the environment, the declared bounds                                        |
+
+Kept on purpose: `x y z` for types in order rather than longer names, and the one-letter predicates `Q R W`.
+
+On top of the table:
+
+- **digits** tell apart values of the same stage: `n0 n1`, `s0 s1`, `m0 m1` (`union m0 m1 = union m1 m0`);
+- **primes** mark a value derived from another: `n'` is fuel found from `n`, `s'` the states `unify` makes of `s`,
+  `s''` those made of `s'`;
+- a concept letter followed by a **role letter** is that concept of the role: `ma`, `mt` the mutabilities of the
+  assignee and the target, `ct` the class of the target, `vb`, `ob` the variance and ownership of a bound, `mx`
+  the mutability of `x`, `Qa`, `Qb` predicates on assignees and on bounds. Concepts are `m c v o g Q`, roles `t`
+  (target), `a` (assignee), `r` (receiver), `b` (bound) and `x y z`.
+
+Hypotheses are named after what they are about: `H<name>` is a fact about `<name>` (`Hx: in_fragment env x =
+true`), `E<name>` an equation, mostly from `destruct ... eqn:` (`Ex: lookup_binding b p = Some x`), `IH` an
+induction hypothesis. The check doesn't look inside proofs: names a tactic chooses, and those a proof gives to
+what it takes apart, are as the proof needs them.
+
 ## The model as an oracle
 
 The proofs are about the model; that the model is the frontend is review. To check that by
@@ -233,6 +287,10 @@ report above it is worth reading — but it reads our own sources rather than Ro
 so it cannot quietly stop working when a future Rocq rephrases a message. (`Parameter`,
 `Hypothesis` and `Variable` are deliberately not flagged: inside sections and module types they are
 discharged rather than assumed.)
+
+**The names of binders**, last: `check` has Rocq print every statement (`Print Module`, which spells out the
+type of each binder) and `tools/binder_names.py` fails on a short binder name used for something the
+[scheme](#names-of-binders) gives another name.
 
 `rocqchk` re-checks the whole dependency closure including the parts of the standard library in
 use, so `check` is noticeably slower than `build` and gets slower as the proofs grow. That is the

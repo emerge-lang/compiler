@@ -169,19 +169,19 @@ Definition penv: Environment := {|
     parameter_rank := rank;
 |}.
 
-Lemma opt_mut_eqb_eq: forall a b, opt_mut_eqb a b = true -> a = b.
-Proof. intros [a|] [b|] H; try discriminate H; [f_equal; exact (internal_Mutability_dec_bl a b H)|reflexivity]. Qed.
+Lemma opt_mut_eqb_eq: forall m0 m1, opt_mut_eqb m0 m1 = true -> m0 = m1.
+Proof. intros [m0|] [m1|] H; try discriminate H; [f_equal; exact (internal_Mutability_dec_bl m0 m1 H)|reflexivity]. Qed.
 
-Lemma own_eqb_eq: forall a b, own_eqb a b = true -> a = b.
+Lemma own_eqb_eq: forall o0 o1, own_eqb o0 o1 = true -> o0 = o1.
 Proof. intros [| | |p] [| | |q] H; try discriminate H; try reflexivity. f_equal. apply Nat.eqb_eq, H. Qed.
 
-Lemma nats_eqb_eq: forall a b, nats_eqb a b = true -> a = b.
+Lemma nats_eqb_eq: forall l0 l1, nats_eqb l0 l1 = true -> l0 = l1.
 Proof.
-    induction a as [|x a IH]; intros [|y b] H; try discriminate H; [reflexivity|].
-    cbn in H. apply andb_true_iff in H. destruct H as [Hx H]. apply Nat.eqb_eq in Hx. subst y. f_equal. exact (IH b H).
+    induction l0 as [|x l0 IH]; intros [|y l1] H; try discriminate H; [reflexivity|].
+    cbn in H. apply andb_true_iff in H. destruct H as [Hx H]. apply Nat.eqb_eq in Hx. subst y. f_equal. exact (IH l1 H).
 Qed.
 
-Lemma gref_eqb_eq: forall g h, gref_eqb g h = true -> g = h.
+Lemma gref_eqb_eq: forall g0 g1, gref_eqb g0 g1 = true -> g0 = g1.
 Proof.
     intros [m n p vs] [m' n' p' vs'] H. cbn in H. apply andb_true_iff in H. destruct H as [H Hvs].
     apply andb_true_iff in H. destruct H as [H Hp]. apply andb_true_iff in H. destruct H as [Hm Hn].
@@ -189,7 +189,7 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma ety_eqb_eq: forall a b, ety_eqb a b = true -> a = b.
+Lemma ety_eqb_eq: forall z y0, ety_eqb z y0 = true -> z = y0.
 Proof.
     fix IH 1. intros [m c args|n|g|m msg|v o n|g|cs] [m' c' args'|n'|g'|mm msg'|v' o' n'|g'|cs'] H;
         cbn [ety_eqb] in H; try discriminate H.
@@ -218,28 +218,28 @@ Proof.
     destruct m as [[]|], c, args; try discriminate H; reflexivity.
 Qed.
 
-Lemma meet_cases: forall a b, (meet a b = b /\ a = top_type) \/ (meet a b = a /\ b = top_type)
-    \/ (meet a b = a /\ a = b) \/ meet a b = bottom_type.
+Lemma meet_cases: forall x y, (meet x y = y /\ x = top_type) \/ (meet x y = x /\ y = top_type)
+    \/ (meet x y = x /\ x = y) \/ meet x y = bottom_type.
 Proof.
-    intros a b. unfold meet. destruct (is_top a) eqn:Ea; [left; split; [reflexivity|exact (is_top_eq a Ea)]|].
-    destruct (is_top b) eqn:Eb; [right; left; split; [reflexivity|exact (is_top_eq b Eb)]|].
-    destruct (ety_eqb a b) eqn:Eab; [right; right; left; split; [reflexivity|exact (ety_eqb_eq a b Eab)]|right; right; right; reflexivity].
+    intros x y. unfold meet. destruct (is_top x) eqn:Ea; [left; split; [reflexivity|exact (is_top_eq x Ea)]|].
+    destruct (is_top y) eqn:Eb; [right; left; split; [reflexivity|exact (is_top_eq y Eb)]|].
+    destruct (ety_eqb x y) eqn:Eab; [right; right; left; split; [reflexivity|exact (ety_eqb_eq x y Eab)]|right; right; right; reflexivity].
 Qed.
 
-Lemma join_cases: forall a b, (join a b = b /\ a = bottom_type) \/ (join a b = a /\ b = bottom_type)
-    \/ (join a b = a /\ a = b) \/ join a b = top_type.
+Lemma join_cases: forall x y, (join x y = y /\ x = bottom_type) \/ (join x y = x /\ y = bottom_type)
+    \/ (join x y = x /\ x = y) \/ join x y = top_type.
 Proof.
-    intros a b. unfold join. destruct (is_bottom a) eqn:Ea; [left; split; [reflexivity|exact (is_bottom_eq a Ea)]|].
-    destruct (is_bottom b) eqn:Eb; [right; left; split; [reflexivity|exact (is_bottom_eq b Eb)]|].
-    destruct (ety_eqb a b) eqn:Eab; [right; right; left; split; [reflexivity|exact (ety_eqb_eq a b Eab)]|right; right; right; reflexivity].
+    intros x y. unfold join. destruct (is_bottom x) eqn:Ea; [left; split; [reflexivity|exact (is_bottom_eq x Ea)]|].
+    destruct (is_bottom y) eqn:Eb; [right; left; split; [reflexivity|exact (is_bottom_eq y Eb)]|].
+    destruct (ety_eqb x y) eqn:Eab; [right; right; left; split; [reflexivity|exact (ety_eqb_eq x y Eab)]|right; right; right; reflexivity].
 Qed.
 
 (* What either function makes of two types: one of them, or the bottom or the top type *)
-Lemma meet_is: forall a b, meet a b = a \/ meet a b = b \/ meet a b = bottom_type.
-Proof. intros a b. destruct (meet_cases a b) as [[E _]|[[E _]|[[E _]|E]]]; auto. Qed.
+Lemma meet_is: forall x y, meet x y = x \/ meet x y = y \/ meet x y = bottom_type.
+Proof. intros x y. destruct (meet_cases x y) as [[E _]|[[E _]|[[E _]|E]]]; auto. Qed.
 
-Lemma join_is: forall a b, join a b = a \/ join a b = b \/ join a b = top_type.
-Proof. intros a b. destruct (join_cases a b) as [[E _]|[[E _]|[[E _]|E]]]; auto. Qed.
+Lemma join_is: forall x y, join x y = x \/ join x y = y \/ join x y = top_type.
+Proof. intros x y. destruct (join_cases x y) as [[E _]|[[E _]|[[E _]|E]]]; auto. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
 (* The program is well-formed                                                                      *)
@@ -248,12 +248,12 @@ Proof. intros a b. destruct (join_cases a b) as [[E _]|[[E _]|[[E _]|E]]]; auto.
 (* The classes declared, and one for all others: some_class of 6 or more *)
 Ltac classes c := destruct c as [|[|[|[|[|[|[|?]]]]]]|].
 
-Lemma sub_cases: forall a b, base_type_is_subtype_of penv a b = true ->
-    a = b \/ b = any \/ a = nothing \/ (a = CInt /\ b = CNumber) \/ (a = CArrayList /\ b = CList).
+Lemma sub_cases: forall c0 c1, base_type_is_subtype_of penv c0 c1 = true ->
+    c0 = c1 \/ c1 = any \/ c0 = nothing \/ (c0 = CInt /\ c1 = CNumber) \/ (c0 = CArrayList /\ c1 = CList).
 Proof.
-    intros a b H. unfold base_type_is_subtype_of in H. unfold class_eqb at 1 in H.
-    destruct (Class_eq_dec b a) as [<-|Hne]; [left; reflexivity|].
-    classes a; classes b; cbn in H; try discriminate H;
+    intros c0 c1 H. unfold base_type_is_subtype_of in H. unfold class_eqb at 1 in H.
+    destruct (Class_eq_dec c1 c0) as [<-|Hne]; [left; reflexivity|].
+    classes c0; classes c1; cbn in H; try discriminate H;
         solve [left; reflexivity | right; left; reflexivity | right; right; left; reflexivity
               | right; right; right; left; split; reflexivity | right; right; right; right; split; reflexivity].
 Qed.
@@ -324,8 +324,8 @@ Definition b2: Bindings := [(pU, arg invariant ref tInt); (pT, arg invariant ref
 Definition t2: EType := RootResolved None CList [arg output ref tNumber].
 Definition a2: EType := gref pT.
 
-Example substitution_instance: exists f,
-    is_assignable_to penv f (RootResolved None CArrayList [arg invariant ref tInt]) (RootResolved None CList [arg output ref tNumber])
+Example substitution_instance: exists n,
+    is_assignable_to penv n (RootResolved None CArrayList [arg invariant ref tInt]) (RootResolved None CList [arg output ref tNumber])
     = Some true.
 Proof.
     eexists.
@@ -466,9 +466,9 @@ Proof.
 Qed.
 
 Example invocation_instance:
-    (exists f, is_assignable_to penv f (RootResolved None CArrayList [arg invariant ref tInt])
+    (exists n, is_assignable_to penv n (RootResolved None CArrayList [arg invariant ref tInt])
         (RootResolved None CList [arg output any_ownership tNumber]) = Some true)
-    /\ (exists f, is_assignable_to penv f (RootResolved None CBox [arg invariant ref tNumber])
+    /\ (exists n, is_assignable_to penv n (RootResolved None CBox [arg invariant ref tNumber])
         (RootResolved None CBox [arg input any_ownership tNumber]) = Some true).
 Proof.
     destruct (invocation_sound penv wf xf xf types supertype_of_classes true (fun _ => supertypes_wc) 20 Ps4 As4 s4 u4 s4_wf
@@ -496,11 +496,11 @@ Proof.
     constructor; [reflexivity|]. intros p. do 15 (destruct p as [|p]; [vm_compute; reflexivity|]). vm_compute. reflexivity.
 Qed.
 
-Lemma intersect_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (intersect penv a b) = true.
-Proof. intros a b Ha Hb. change (intersect penv a b) with (meet a b). destruct (meet_is a b) as [->|[->| ->]]; auto. Qed.
+Lemma intersect_no_vars: forall x y, no_vars x = true -> no_vars y = true -> no_vars (intersect penv x y) = true.
+Proof. intros x y Ha Hb. change (intersect penv x y) with (meet x y). destruct (meet_is x y) as [->|[->| ->]]; auto. Qed.
 
-Lemma supertype_no_vars: forall a b, no_vars a = true -> no_vars b = true -> no_vars (closest_common_supertype_with penv a b) = true.
-Proof. intros a b Ha Hb. change (closest_common_supertype_with penv a b) with (join a b). destruct (join_is a b) as [->|[->| ->]]; auto. Qed.
+Lemma supertype_no_vars: forall x y, no_vars x = true -> no_vars y = true -> no_vars (closest_common_supertype_with penv x y) = true.
+Proof. intros x y Ha Hb. change (closest_common_supertype_with penv x y) with (join x y). destruct (join_is x y) as [->|[->| ->]]; auto. Qed.
 
 (* Only ArrayList has supertypes with type arguments *)
 Lemma finite: finitely_many_templates penv.
@@ -626,8 +626,8 @@ Definition U5: VariableStates :=
 Definition b5: Bindings := bindings_of penv CList zs5 ++ map (fun v => (fst v, TypeArgument invariant ref (final_value_of penv U5 (fst v)))) ovars5.
 
 Example member_call_in_generic_code_instance: unify_terminates_on penv bound ->
-    (exists f, is_assignable_to penv f (gref pW) tNumber = Some true)
-    /\ (exists f, is_assignable_to penv f (RootResolved None CBox [arg output ref (gref pW)])
+    (exists n, is_assignable_to penv n (gref pW) tNumber = Some true)
+    /\ (exists n, is_assignable_to penv n (RootResolved None CBox [arg output ref (gref pW)])
         (RootResolved None CBox [arg output any_ownership (gref pW)]) = Some true).
 Proof.
     intros terminates.
@@ -693,13 +693,13 @@ Definition fv6 (p: TypeParameterId): EType := final_value_of penv U6 p.
 Example generic_member_call_instance: unify_terminates_on penv bound ->
     (* the final values, instantiated, within the bounds so instantiated: Int below Number, and
        ArrayList<Int> below List<out Int> *)
-    (exists f, is_assignable_to penv f tInt tNumber = Some true)
-    /\ (exists f, is_assignable_to penv f (RootResolved None CArrayList [arg invariant ref tInt])
+    (exists n, is_assignable_to penv n tInt tNumber = Some true)
+    /\ (exists n, is_assignable_to penv n (RootResolved None CArrayList [arg invariant ref tInt])
         (RootResolved None CList [arg output ref tInt]) = Some true)
     (* the arguments, instantiated, fit the parameters so instantiated *)
-    /\ (exists f, is_assignable_to penv f tInt tNumber = Some true)
-    /\ (exists f, is_assignable_to penv f tInt tInt = Some true)
-    /\ (exists f, is_assignable_to penv f (RootResolved None CArrayList [arg invariant ref tInt])
+    /\ (exists n, is_assignable_to penv n tInt tNumber = Some true)
+    /\ (exists n, is_assignable_to penv n tInt tInt = Some true)
+    /\ (exists n, is_assignable_to penv n (RootResolved None CArrayList [arg invariant ref tInt])
         (RootResolved None CArrayList [arg invariant ref tInt]) = Some true).
 Proof.
     intros terminates.

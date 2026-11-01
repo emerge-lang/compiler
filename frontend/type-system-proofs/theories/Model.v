@@ -11,8 +11,8 @@ Inductive Mutability :=
 
 Scheme Equality for Mutability.
 
-Definition is_subtype_of (src tgt: Mutability): bool :=
-    match src, tgt with
+Definition is_subtype_of (ma mt: Mutability): bool :=
+    match ma, mt with
     | exclusive, _ => true
     | immutable, immutable => true
     | immutable, readonly => true
@@ -22,25 +22,25 @@ Definition is_subtype_of (src tgt: Mutability): bool :=
     | _, _ => false
     end.
 
-Definition union (a b: Mutability): Mutability :=
-    if Mutability_beq a b then a else
-    if Mutability_beq a exclusive then b else
-    if Mutability_beq b exclusive then a else
+Definition union (m0 m1: Mutability): Mutability :=
+    if Mutability_beq m0 m1 then m0 else
+    if Mutability_beq m0 exclusive then m1 else
+    if Mutability_beq m1 exclusive then m0 else
     readonly
     .
 
-Theorem union_comm: forall a b: Mutability, union a b = union b a.
+Theorem union_comm: forall m0 m1: Mutability, union m0 m1 = union m1 m0.
 Proof.
     intros [] []; reflexivity.
 Qed.
 
-Theorem union_assoc: forall a b c: Mutability, union (union a b) c = union a (union b c).
+Theorem union_assoc: forall m0 m1 m2: Mutability, union (union m0 m1) m2 = union m0 (union m1 m2).
 Proof.
     intros [] [] []; reflexivity.
 Qed.
 
-Definition intersect_mutability (a b: Mutability): Mutability :=
-    match a, b with
+Definition intersect_mutability (m0 m1: Mutability): Mutability :=
+    match m0, m1 with
     | mutable, mutable => mutable
     | mutable, readonly => mutable
     | mutable, immutable => exclusive
@@ -56,12 +56,12 @@ Definition intersect_mutability (a b: Mutability): Mutability :=
     | exclusive, _ => exclusive
     end.
 
-Theorem intersect_mutability_comm: forall a b: Mutability, intersect_mutability a b = intersect_mutability b a.
+Theorem intersect_mutability_comm: forall m0 m1: Mutability, intersect_mutability m0 m1 = intersect_mutability m1 m0.
 Proof.
     intros [] []; reflexivity.
 Qed.
 
-Theorem intersect_mutability_assoc: forall a b c: Mutability, intersect_mutability (intersect_mutability a b) c = intersect_mutability a (intersect_mutability b c).
+Theorem intersect_mutability_assoc: forall m0 m1 m2: Mutability, intersect_mutability (intersect_mutability m0 m1) m2 = intersect_mutability m0 (intersect_mutability m1 m2).
 Proof.
     intros [] [] []; reflexivity.
 Qed.
@@ -116,15 +116,15 @@ Inductive Variance :=
 
 Scheme Equality for Variance.
 
-Definition intersect_variance (a b: Variance): Variance :=
-    if Variance_beq a b then a else invariant.
+Definition intersect_variance (v0 v1: Variance): Variance :=
+    if Variance_beq v0 v1 then v0 else invariant.
 
-Theorem intersect_variance_comm: forall a b: Variance, intersect_variance a b = intersect_variance b a.
+Theorem intersect_variance_comm: forall v0 v1: Variance, intersect_variance v0 v1 = intersect_variance v1 v0.
 Proof.
     intros [] []; reflexivity.
 Qed.
 
-Theorem intersect_variance_assoc: forall a b c: Variance, intersect_variance (intersect_variance a b) c = intersect_variance a (intersect_variance b c).
+Theorem intersect_variance_assoc: forall v0 v1 v2: Variance, intersect_variance (intersect_variance v0 v1) v2 = intersect_variance v0 (intersect_variance v1 v2).
 Proof.
     intros [] [] []; reflexivity.
 Qed.
