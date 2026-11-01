@@ -8,6 +8,13 @@ system implemented in `../src/main/kotlin/compiler/binding/type` is supposed to 
 machine instead of by review. The model is also the executable specification the frontend is checked
 against, by computation, over a grid of types: see [the model as an oracle](#the-model-as-an-oracle).
 
+That makes the proofs a regression harness of the type checker. Every change to unify, intersections,
+inference or overrides, in the frontend or the model, keeps `./rocq.sh` green and the oracle agreeing:
+after a change to the frontend's type system or to `TypeGrid`, run `RocqOracleTests` once, then
+`./rocq.sh`, and commit `theories/Generated/Grid.v` with the change. Known divergences are allowed only
+through the allowlist in `OracleGrid.v` (`unify_excuses`, and the excuses of each check), each owned by an
+item of [`coverage.md`](coverage.md).
+
 ## The proofs
 
 The model (`Model.v`, `Subtyping.v`) translates the Kotlin type references and

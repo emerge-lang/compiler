@@ -344,6 +344,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 40. the compiler crashes (`IllegalStateException`: this should have been prevented in ofComponents, from
     `BoundIntersectionTypeReference.validate` through `asRootResolved`) on an intersection of a type parameter bounded
     by an intersection with another type: `fn f<T : A & B, Q : A>(x: T & Q)`, `fn f<T : A & B>(x: T & C)`
+41. model the frontend's rule that an intersection of disjoint classes (`N & M`, `N & Box<A>`) is below every type, as
+    the bottom type it simplifies to (`BoundIntersectionTypeReference.flippedUnify`, coverage step 14): in the model,
+    `Subtyping.intersection_flipped_unify` returning the carry where `is_effectively_bottom_type` holds of the
+    components. It is the one entry of `OracleGrid.unify_excuses` (1049 pairs of `TypeGrid`) and the excuse of
+    `closest_common_supertype_is_above_both`, and widening `GenericArguments.bottom_only` for #18 rests on it.
+    Transitivity needs a lemma that what an effectively-bottom intersection accepts is below every type; the lemmas
+    that take a component of an accepted intersection hold only of the other intersections then:
+    `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
+    ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
+    intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
 -----
 
 ## Future features

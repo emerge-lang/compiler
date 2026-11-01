@@ -90,7 +90,8 @@ mentions only type parameters of the function and is a class type or a type vari
 columns, only for arguments and explicit type arguments without in-variant type arguments, nested ones included, in programs
 whose supertype declarations have none nested (#17).
 † only when the final values are class types.
-◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, and `unify_terminates_on`; in generic code
+◐ assumes the conjectures about `intersect` and `closestCommonSupertypeWith`, of which `OracleGrid.v` finds
+`closest_common_supertype_keeps_bottom_only` false of the frontend (#18), and `unify_terminates_on` (#16); in generic code
 also that the types of the arguments are Nothing only as `Nothing` (#13), and none of the callee's type
 parameters as an ownership. Of an intersection bound, the final value is shown within each component (`bound_components`).
 
@@ -197,8 +198,8 @@ Tests, of the Kotlin code:
    of `CommonTypesTests`, now `TypeGrid`: reflexivity, transitivity, and that bindings within the bounds keep
    assignability when instantiated, all of which hold; and that unify finishes, on class tables with F-bounds and
    recursion through type arguments. It didn't on Kennedy and Pierce's example, `class K : Cn<Cn<in K>>`, the
-   frontend overflowing its stack: `unify_terminates` was false. The frontend now fails a goal that comes up again
-   while it is decided, and the conjecture takes supertypes without contravariance (#16))
+   frontend overflowing its stack. The frontend now fails a goal that comes up again while it is decided; the
+   model doesn't, and its termination is a premise about the program, `unify_terminates_on`, open (step 11, #16))
 6. ~~End-to-end probes of the blind spots and of what is outside the model~~ (done: some 250 programs, each
    putting a value where its type says it can't be, of #15, #11, members typed `m T`, `T!`, `A & T`, overrides,
    #9, #4, #5, #3, #13, exclusive references and object initialization; regression tests in `TypeErrors`. Found,
@@ -325,8 +326,6 @@ Proofs:
     whether `P` is narrowed, in some 300 places; requiring the final values to be of `gfrag`, which leaves
     `(A? & P)?` out, is the smaller way; members and overrides typed as
     intersections in generic code (#11).
-13. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
-    of types.
 13. ~~Concrete instances of the headline theorems~~ (done, 2026-10-31: `Examples.v` instantiates `transitivity`,
     `substitution_lemma`, `member_read_sound`, `member_write_sound`, `invocation_sound`, `override_parameter`,
     `member_call_in_generic_code_sound` and `generic_member_call_with_bounded_variables_instantiated` on one program,
@@ -358,3 +357,5 @@ Proofs:
     so calls without such bounds are covered in any program; `MemberCalls.v`, `FinalValues.v` and
     the states of generic code leave it unset and take nothing new; `Examples.invocation_instance` sets it. #17 is now
     the blind spot of the calls left out, not a false premise. Open: #18)
+17. Exclusive references, lifetimes and object initialization: these need a semantics of statements, not just
+    of types.
