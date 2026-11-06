@@ -9,7 +9,7 @@ class ExpansiveInheritanceDiagnostic(
     involvingSupertype: BoundSupertypeDeclaration,
 ) : Diagnostic(
     Severity.ERROR,
-    "Type ${onType.name.quote()} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName.quote()} makes for expansive inheritance: a type parameter recurs, nested deeper, in its own supertypes. That is not allowed, as checking subtyping could go on forever.",
+    "Type ${onType.name.quote()} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName.quote()} makes for expansive inheritance: a type parameter recurs, nested deeper, in its own supertypes. That is not allowed because it could make typechecks run forever.",
     involvingSupertype.astNode.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
