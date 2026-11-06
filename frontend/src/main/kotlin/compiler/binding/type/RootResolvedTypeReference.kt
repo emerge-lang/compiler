@@ -11,6 +11,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.hiddenTypeExposed
@@ -288,9 +289,7 @@ class RootResolvedTypeReference private constructor(
                 val goal = Triple(this, assigneeType, carry.stateOfVariables)
                 val inProgress = goalsInProgress.get()
                 if (!inProgress.add(goal)) {
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a subtype of ${this.baseType.simpleName} only if it already is", assignmentLocation)
-                    )
+                    return carry.plusDiagnostic(CyclicSubtypeCheckDiagnostic(this, assigneeType, assignmentLocation))
                 }
                 try {
                     val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)

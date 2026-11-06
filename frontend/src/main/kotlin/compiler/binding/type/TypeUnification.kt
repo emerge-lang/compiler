@@ -4,6 +4,7 @@ import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
@@ -152,6 +153,9 @@ class TypeUnification private constructor(
         val errorWithUpperBound = unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<ValueNotAssignableDiagnostic>().firstOrNull()
         if (errorWithUpperBound != null) {
             return this.plusDiagnostic(TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, binding, errorWithUpperBound.reason))
+        }
+        unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<CyclicSubtypeCheckDiagnostic>().firstOrNull()?.let {
+            return this.plusDiagnostic(it)
         }
 
         val unificationWithLowerBound = binding.unify(stateBefore.lowerBound, assignmentLocation, this)

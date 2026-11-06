@@ -2,10 +2,12 @@ package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
@@ -14,12 +16,12 @@ import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
-import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TypeErrors : FreeSpec({
@@ -1446,7 +1448,21 @@ class TypeErrors : FreeSpec({
                     x: Cn<in K> = k
                 }
             """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic>()
+                .shouldFind<CyclicSubtypeCheckDiagnostic>()
+                .shouldNotFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a supertype check that comes back to itself through an F-bound fails, rather than not finishing" {
+            validateModule("""
+                interface Cn<T> {}
+                fn test<T : Cn<Cn<in T>>>(t: T) {
+                    x: Cn<in T> = t
+                }
+            """.trimIndent())
+                .shouldFind<CyclicSubtypeCheckDiagnostic>() {
+                    it shouldNotBe null
+                }
+                .shouldNotFind<ValueNotAssignableDiagnostic>()
         }
 
         "intersections whose components keep their nullability" - {

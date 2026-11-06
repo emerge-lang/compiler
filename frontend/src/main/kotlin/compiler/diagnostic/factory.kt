@@ -579,12 +579,12 @@ fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, supe
     add(ExtendingOwnershipOverrideDiagnostic(override, superParameter))
 }
 
-fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: ValueNotAssignableDiagnostic) {
-    add(NarrowingParameterTypeOverrideDiagnostic(override, superParameter, assignabilityDiagnostic))
+fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: Diagnostic) {
+    add(assignabilityDiagnostic.wrapIfMismatch { NarrowingParameterTypeOverrideDiagnostic(override, superParameter, it) })
 }
 
-fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: ValueNotAssignableDiagnostic) {
-    add(IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, error))
+fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: Diagnostic) {
+    add(error.wrapIfMismatch { IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, it) })
 }
 
 fun Diagnosis.nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

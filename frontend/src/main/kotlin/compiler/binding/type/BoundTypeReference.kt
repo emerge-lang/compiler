@@ -113,9 +113,9 @@ sealed interface BoundTypeReference {
      * @return `null` if the assignment is allowed, a diagnostic of severity [Diagnostic.Severity.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
+    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): Diagnostic? {
         val unification = targetType.unify(this, assignmentLocation, TypeUnification.EMPTY)
-        return unification.diagnostics.firstOrNull { it.severity >= Diagnostic.Severity.ERROR } as ValueNotAssignableDiagnostic?
+        return unification.diagnostics.firstOrNull { it.severity >= Diagnostic.Severity.ERROR }
     }
 
     /**

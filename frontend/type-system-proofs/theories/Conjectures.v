@@ -219,7 +219,7 @@ End Expansive.
  * below `Cn<in T>` unfolds the bound and, at the in-variant type argument, swaps target and assignee,
  * asking the same question again (Examples.Counterexample). Inheritance is no part of it; the F-bound
  * brings the contravariance in. The frontend fails a goal that comes up again while it is being
- * decided (RootResolvedTypeReference.unify: "X is a subtype of Y only if it already is"), so it
+ * decided (RootResolvedTypeReference.unify, reporting CyclicSubtypeCheckDiagnostic), so it
  * finishes; the model doesn't have that cut, and modelling it is open (roadmap.md).
  *
  * What is known about the environments it holds for: Kennedy and Pierce show the goals reachable

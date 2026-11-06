@@ -86,7 +86,7 @@ internal fun List<String>.shouldBeNone(shown: Int = 100) {
 internal fun beAssignableTo(target: BoundTypeReference) = object : Matcher<BoundTypeReference> {
     override fun test(value: BoundTypeReference): MatcherResult {
         val result = value.evaluateAssignabilityTo(target, Span.UNKNOWN)
-        val reasonPart = result?.reason ?: "no reason available"
+        val reasonPart = result?.message ?: "no reason available"
         return object : MatcherResult {
             override fun passed() = result == null
             override fun failureMessage() = "$value should be assignable to $target, but isn't; $reasonPart"

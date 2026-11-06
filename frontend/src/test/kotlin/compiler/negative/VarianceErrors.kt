@@ -40,7 +40,7 @@ class VarianceErrors : FreeSpec({
             val targetType = arrayOf(target)
             val error = sourceType.evaluateAssignabilityTo(targetType, Span.UNKNOWN)
             return object : MatcherResult {
-                override fun failureMessage() = "$sourceType should be assignable to $targetType, but its not: ${error?.reason}"
+                override fun failureMessage() = "$sourceType should be assignable to $targetType, but its not: ${error?.message}"
                 override fun negatedFailureMessage() = "$sourceType should not be assignable to $targetType, but it is"
                 override fun passed() = error == null
             }
