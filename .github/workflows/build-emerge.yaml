@@ -139,6 +139,23 @@ jobs:
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B clean verify
+  type-system-proofs:
+    name: verify type system proofs
+    runs-on: ubuntu-latest
+    # the maven tests check that the checked-in theories/Generated/Grid.v is what RocqOracleTests writes;
+    # proving a stale one would check the model against answers the frontend no longer gives
+    needs:
+      - emerge-toolchain-maven
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ inputs.kotlin-ref || github.sha }}"
+      # runs Rocq from the rocq/rocq-prover docker image, which the script pulls itself; nothing
+      # needs to be installed on the runner beyond the docker it already has. This is the very
+      # same script developers run locally, see frontend/type-system-proofs/readme.md
+      - name: verify type system proofs
+        run: frontend/type-system-proofs/rocq.sh verify
   llvm-build-for-linux:
     uses: ./.github/workflows/build-llvm-linux.yaml
   linux-distributables:

@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -14,7 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * A generic type in the process of being inferred. To understand the difference between [TypeVariable]
  * and [GenericTypeReference], consider this function:
  *
- *     n <T> forEach(elements: List<out T>, action: (T) -> Unit) {
+ *     fn forEach<T>(elements: List<out T>, action: (T) -> Unit) {
  *
  *     }
  *
@@ -100,11 +101,27 @@ class TypeVariable private constructor(
         assignmentLocation: Span,
         carry: TypeUnification
     ): TypeUnification {
+        val givenMutability = asGeneric.givenMutability
+        if (givenMutability != null && assigneeType !is TypeVariable && assigneeType !is ErroneousType) {
+            val assigneeMutability = if (assigneeType is BoundTypeArgument && assigneeType.variance == TypeVariance.IN) TypeMutability.READONLY else assigneeType.assignmentMutability
+            if (!assigneeMutability.isAssignableTo(givenMutability)) {
+                return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a $assigneeMutability value to a $givenMutability reference", assignmentLocation))
+            }
+        }
+
         return when (assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
             is BoundIntersectionTypeReference,
             is BoundTypeArgument, -> {
+                if (!isNullable && assigneeType.isNullable) {
+                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                        this,
+                        assigneeType,
+                        "Cannot assign a possibly null value to a non-nullable reference",
+                        assignmentLocation,
+                    ))
+                }
                 return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
             }
             is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
@@ -130,7 +147,21 @@ class TypeVariable private constructor(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.getFinalValueFor(this.parameter)
+        if (!context.binds(this.parameter)) {
+            // a variable of another inference, e.g. in the type arguments of a type whose supertype is being
+            // instantiated; it stays, so that the other inference can bind it
+            return this
+        }
+
+        // as GenericTypeReference.instantiateAllParameters: the mutability given to the variable, and `!`, apply
+        var instantiated = context.getFinalTypeFor(this.parameter)
+        asGeneric.givenMutability?.let { givenMutability ->
+            instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
+        }
+        if (asGeneric.isNarrowed) {
+            instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        }
+        return instantiated
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

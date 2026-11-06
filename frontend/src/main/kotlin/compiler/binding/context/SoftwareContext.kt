@@ -22,7 +22,9 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.basetype.findExpansiveSupertypes
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.expansiveInheritance
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -98,6 +100,10 @@ class SoftwareContext {
 
         modules.forEach { it.semanticAnalysisPhase1(diagnosis) }
         packages.values.forEach() { it.semanticAnalysisPhase1(diagnosis) }
+        val baseTypes = packages.values.flatMap { it.types }
+        findExpansiveSupertypes(baseTypes).forEach { supertype ->
+            diagnosis.expansiveInheritance(baseTypes.first { supertype in it.superTypes.clauses }, supertype)
+        }
         modules.forEach { it.semanticAnalysisPhase2(diagnosis) }
         packages.values.forEach() { it.semanticAnalysisPhase2(diagnosis) }
         modules.forEach { it.semanticAnalysisPhase3(diagnosis) }
@@ -177,8 +183,7 @@ class SoftwareContext {
     val iterable by lazyBaseTypeFromSource(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
 
     /**
-     * @return the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because
-     * it has `read` mutability, so it's neither a subtype of `const Any` nor of `mut Any`
+     * @return the absolute bottom type, `Nothing`: it is const, so of any mutability it is a subtype of every type
      */
     fun getBottomType(span: Span) = nothing
         .getBoundReferenceAssertNoTypeParameters(span)

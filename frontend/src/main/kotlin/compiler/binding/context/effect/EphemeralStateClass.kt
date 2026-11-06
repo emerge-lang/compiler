@@ -41,6 +41,16 @@ interface EphemeralStateClass<Subject : Any, State, Effect : SideEffect<Subject>
      * or constraint relieves are only retained if present in both states.
      */
     fun combineExclusiveBranches(stateOne: State, stateTwo: State): State
+
+    /**
+     * Given the state [beforeInvocation] from right before an invocation starts evaluating its arguments, and the state
+     * [afterArguments] after all arguments have been evaluated, returns the state after the invoked function has
+     * returned.
+     *
+     * Simplistically: information that is only valid for the duration of the invocation (e.g. borrows of the arguments)
+     * is reverted to [beforeInvocation], everything else is retained from [afterArguments].
+     */
+    fun endInvocation(beforeInvocation: State, afterArguments: State): State = afterArguments
 }
 
 abstract class SingletonEphemeralStateClass<State, Effect : SingletonEphemeralStateClass.SingletonEffect> :

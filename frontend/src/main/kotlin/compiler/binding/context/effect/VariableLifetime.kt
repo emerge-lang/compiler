@@ -42,17 +42,23 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     false,
                 )
                 is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusiveWithActiveBorrow(
-                    state.withMutability.union(effect.withMutability),
+                    state.withMutability.intersect(effect.withMutability),
                     state.borrowStartedAt,
                     false,
                 )
             }
-            is Effect.EndAllBorrows -> when (state) {
-                is State.Untracked,
-                is State.Dead -> state
-                is State.AliveExclusive -> state
-                is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusive
-            }
+        }
+    }
+
+    override fun endInvocation(beforeInvocation: State, afterArguments: State): State {
+        return when (afterArguments) {
+            // the borrows started for the arguments end when the invoked function returns; the ones from
+            // before the invocation remain active, as they may belong to an enclosing invocation
+            is State.AliveExclusive,
+            is State.AliveExclusiveWithActiveBorrow -> beforeInvocation as? State.AliveExclusiveWithActiveBorrow ?: State.AliveExclusive
+            // captures by the arguments remain in effect
+            is State.Dead,
+            is State.Untracked -> afterArguments
         }
     }
 
@@ -105,11 +111,32 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         }
     }
 
+    /**
+     * to be invoked by [BoundIdentifierExpression.ReferringVariable]; will verify whether the [usage] is
+     * semantically valid in the [stateBeforeUsage], and issue [compiler.diagnostic.Diagnostic]s as necessary.
+     * @see State.handleUsage
+     */
+    fun handleUsage(
+        stateBeforeUsage: State,
+        subject: BoundIdentifierExpression.ReferringVariable,
+        usage: ValueUsage,
+        repetition: ExecutionScopedCTContext.Repetition,
+        diagnosis: Diagnosis,
+    ): Effect? {
+        // a borrowed variable must never outlive the borrow, regardless of its mutability or lifetime state
+        if (subject.variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED && usage.usageOwnership == VariableOwnership.CAPTURED) {
+            diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
+            return null
+        }
+
+        return stateBeforeUsage.handleUsage(subject, usage, repetition, diagnosis)
+    }
+
     sealed interface State {
         fun maybe(): State = this
 
         /**
-         * to be invoked by [BoundIdentifierExpression.ReferringVariable]; will verify whether the [usage] is
+         * to be invoked by [VariableLifetime.handleUsage]; will verify whether the [usage] is
          * semantically valid in the current [State], and issue [compiler.diagnostic.Diagnostic]s as necessary.
          * @param repetition repetition of the usage relative to the variable declaration; see [compiler.binding.context.ExecutionScopedCTContext.getRepetitionBehaviorRelativeTo].
          * @return an effect that needs to be propagated to [compiler.binding.context.MutableExecutionScopedCTContext.trackSideEffect]
@@ -127,10 +154,6 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
          */
         data object Untracked : State {
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
-                if (subject.variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED && usage.usageOwnership != VariableOwnership.BORROWED) {
-                    diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
-                }
-
                 return null
             }
         }
@@ -162,7 +185,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                         diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
                         null
                     }
-                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.isAssignableTo(this.withMutability) || this.withMutability.isAssignableTo(usage.usedWithMutability)) {
+                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.mayBeAliasedWith(this.withMutability)) {
                         Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
                     } else {
                         diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, usage.usedWithMutability)
@@ -213,10 +236,6 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             override val subject: BoundVariable,
             val withMutability: TypeMutability,
             val borrowStartedAt: Span,
-        ) : Effect
-
-        data class EndAllBorrows(
-            override val subject: BoundVariable,
         ) : Effect
     }
 }

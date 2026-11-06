@@ -200,14 +200,7 @@ class BaseTypeMemberVariableDeclaration(
             if (needsCtorTypeParameter == false) {
                 return null
             }
-            val declaredType = variableDeclaration.type
-            val isGenericOnBaseType = declaredType is NamedTypeReference && typeRootContext.resolveTypeParameter(declaredType.simpleName) != null
-            if (isGenericOnBaseType) {
-                // already generic, there's no point to further parameterize this one
-                needsCtorTypeParameter = false
-                return null
-            }
-            val declaredTypeOrAny = declaredType ?: AstAbsoluteTypeReference(typeRootContext.swCtx.any.canonicalName, span = variableDeclaration.declaredAt)
+            val declaredTypeOrAny = variableDeclaration.type ?: AstAbsoluteTypeReference(typeRootContext.swCtx.any.canonicalName, span = variableDeclaration.declaredAt)
 
             val typeParamBound = declaredTypeOrAny.intersect(referenceToTypeParameterForDecoratorMutability.asAstReference())
             ctorTypeParameter = BoundTypeParameter(
@@ -219,6 +212,7 @@ class BaseTypeMemberVariableDeclaration(
                 ),
                 contextBeforeCtorFunctionRoot,
             )
+            needsCtorTypeParameter = true
             return ctorTypeParameter
         }
 

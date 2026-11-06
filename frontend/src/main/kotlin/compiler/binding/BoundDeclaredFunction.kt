@@ -28,6 +28,7 @@ import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
+import compiler.diagnostic.wrapIfMismatch
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -247,7 +248,7 @@ abstract class BoundDeclaredFunction(
                     expectedReturnType?.let { declaredReturnType ->
                         expression.type?.let { actualReturnType ->
                             actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
-                                ?.let(::ReturnTypeMismatchDiagnostic)
+                                ?.wrapIfMismatch(::ReturnTypeMismatchDiagnostic)
                                 ?.let(diagnosis::add)
                         }
                     }

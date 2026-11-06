@@ -1,0 +1,163 @@
+#!/bin/sh
+#
+# Compiles and verifies the proofs. Runs INSIDE the rocq/rocq-prover container; start it through
+# ../rocq.sh, which takes care of Docker. Plain POSIX sh on purpose - the container's /bin/sh is
+# dash.
+#
+# dune drives the build (see ../theories/dune), which keeps every artifact in ../_build and the
+# source tree clean. `check` then adds two things on top:
+#
+#   rocqchk    Rocq's separate - and much smaller, hence more trustworthy - proof checker
+#              re-verifies the compiled proofs and reports everything they assume rather than
+#              prove: axioms, type-in-type, unsafe fixpoints, assumed positivity. It only
+#              reports; it never fails over what it finds.
+#
+#   the gate   compiling proves less than it looks like: a theorem closed with `Admitted`
+#              compiles without complaint and merely turns into an axiom. So the theories are
+#              also grepped for the commands that introduce something unproven. Blunt, but it
+#              reads our own sources rather than Rocq's console output, so it cannot quietly
+#              stop working when a future Rocq rephrases a message.
+
+set -eu
+
+cd "$(dirname -- "$0")/.."
+
+THEORIES=theories
+DUNE_FILE="$THEORIES/dune"
+BUILD_DIR=_build/default/theories
+
+# Rocq commands that introduce something unproven. Deliberately conservative: Parameter,
+# Hypothesis and Variable are left out, as they are ordinary inside sections and module types,
+# where they get discharged instead of assumed.
+UNPROVEN='(^|[^[:alnum:]_])(Admitted[[:space:]]*\.|Axiom[[:space:]]|Conjecture[[:space:]]|admit[[:space:]]*[.;])'
+
+# opt-out marker for a line that is meant to introduce an axiom, e.g.
+#   Axiom subtyping_is_decidable : ... (* allow-axiom: see #123, proof in progress *)
+ALLOW_MARKER='allow-axiom'
+
+# the logical name of the theory, read from theories/dune so that renaming it there is enough
+theory_name() {
+  sed -n 's/^[[:space:]]*(name[[:space:]]\{1,\}\([A-Za-z0-9_.]\{1,\}\)).*/\1/p' "$DUNE_FILE" \
+    | head -n 1
+}
+
+v_files() {
+  find "$THEORIES" -type f -name '*.v' | LC_ALL=C sort
+}
+
+# An editor with a local Rocq compiles in place, next to the sources, and dune refuses to build
+# while any of its outputs also exists in the source tree. Deleting them is no option: the editor
+# only ever compiles the file that is open, never what that file requires, so they would stay
+# missing. dune builds a copy of the sources instead, one that holds nothing but what the build
+# reads, into the usual build directory, so that rebuilds stay incremental.
+dune_build() {
+  sources=$(mktemp -d)
+  trap 'rm -rf "$sources"' EXIT
+  cp dune-project "$sources/"
+  find "$THEORIES" -type f \( -name '*.v' -o -name dune \) | while IFS= read -r file; do
+    mkdir -p "$sources/$(dirname -- "$file")"
+    cp -p "$file" "$sources/$file"
+  done
+
+  if [ -n "${JOBS:-}" ]; then
+    set -- -j "$JOBS"
+  else
+    set --
+  fi
+  dune build --root "$sources" --build-dir "$PWD/_build" --no-print-directory "$@"
+
+  rm -rf "$sources"
+  trap - EXIT
+}
+
+do_build() {
+  echo "> compiling with $(rocq --version | head -n 1), into $BUILD_DIR"
+  dune_build
+}
+
+do_validate() {
+  vo_files=$(find "$BUILD_DIR" -type f -name '*.vo' 2> /dev/null | LC_ALL=C sort || true)
+  if [ -z "$vo_files" ]; then
+    echo "no compiled proofs in $BUILD_DIR; nothing to re-check"
+    return 0
+  fi
+  echo "> re-checking with rocqchk, and reporting what the proofs assume"
+  # word splitting intended: $vo_files is a newline separated list of paths without spaces
+  # shellcheck disable=SC2086
+  rocq check -silent -o -Q "$BUILD_DIR" "$(theory_name)" $vo_files
+}
+
+do_check_unproven() {
+  files=$(v_files)
+  if [ -z "$files" ]; then
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  hits=$(grep -nE "$UNPROVEN" $files | grep -v "$ALLOW_MARKER" || true)
+  if [ -n "$hits" ]; then
+    {
+      echo "ERROR: these lines state something instead of proving it:"
+      printf '%s\n' "$hits" | sed -e 's/^/  /'
+      echo "Prove it, or, if the assumption is deliberate, append a comment"
+      echo "  (* $ALLOW_MARKER: <why, ideally with an issue link> *)"
+      echo "to the line. Assumptions also show up in the rocqchk report above."
+    } >&2
+    return 1
+  fi
+  echo "> no unproven assumptions in $(printf '%s\n' "$files" | wc -l | tr -d ' ') file(s)"
+}
+
+# The names of the binders in the statements follow the scheme in the readme ("Names of binders"). Rocq prints
+# every statement with the type of each binder, also where the source leaves it to inference, and
+# binder_names.py checks those. Generated/ and OracleGrid.v state no lemmas of their own worth naming.
+do_check_names() {
+  scratch="$BUILD_DIR/.names"
+  name=$(theory_name)
+  mkdir -p "$scratch"
+  {
+    echo "Set Printing Width 100000."
+    find "$THEORIES" -maxdepth 1 -type f -name '*.v' ! -name OracleGrid.v | LC_ALL=C sort | while IFS= read -r file; do
+      module=$(basename "$file" .v)
+      echo "From $name Require $module."
+      echo "Print Module $module."
+    done
+  } > "$scratch/PrintAll.v"
+  (cd "$scratch" && rocq compile -Q "$PWD/.." "$name" PrintAll.v) > "$scratch/printed.txt"
+  python3 tools/binder_names.py "$scratch/printed.txt"
+}
+
+do_clean() {
+  # `dune clean` fails on a Docker Desktop bind mount (ftruncate on its own lock file), so the
+  # build directory goes the blunt way
+  rm -rf _build
+  echo "removed all build artifacts"
+}
+
+command=${1:-verify}
+if [ $# -gt 0 ]; then
+  shift
+fi
+
+case "$command" in
+  build) do_build ;;
+  check)
+    do_validate
+    do_check_unproven
+    do_check_names
+    ;;
+  verify)
+    do_build
+    do_validate
+    do_check_unproven
+    do_check_names
+    ;;
+  clean) do_clean ;;
+  repl)
+    dune_build
+    exec rocq repl -Q "$BUILD_DIR" "$(theory_name)" "$@"
+    ;;
+  *)
+    echo "verify.sh: unknown command '$command'" >&2
+    exit 2
+    ;;
+esac

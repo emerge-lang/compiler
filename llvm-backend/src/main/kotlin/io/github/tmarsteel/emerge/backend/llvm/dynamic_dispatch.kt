@@ -91,19 +91,33 @@ internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
 }
 
 private fun IrBaseType.toStringForSignature(): String = canonicalName.toString().lengthEncode()
-private fun IrType.toStringForSignature(): String = when(this) {
-    is IrGenericTypeReference -> effectiveBound.toStringForSignature()
+/**
+ * @param insideBound whether this is (part of) the bound of a type parameter; references to type parameters in there
+ * stand for the base types of their bounds, as the bound may mention the parameter itself (`T : Comparable<T>`).
+ */
+private fun IrType.toStringForSignature(insideBound: Boolean = false): String = when(this) {
+    is IrGenericTypeReference -> if (insideBound) effectiveBound.baseTypesForSignature() else effectiveBound.toStringForSignature(insideBound = true)
     is IrParameterizedType -> simpleType.toStringForSignature() + arguments.entries
         .sortedBy { (name, _) -> simpleType.baseType.parameters.indexOfFirst { it.name == name } }
         .joinToString(
             prefix = "<",
-            transform = { (_, arg) -> arg.variance.name.lowercase() + "$" + arg.type.toStringForSignature() },
+            transform = { (_, arg) -> arg.variance.name.lowercase() + "$" + arg.type.toStringForSignature(insideBound) },
             separator = ",",
             postfix = ">"
         )
     is IrSimpleType -> baseType.toStringForSignature()
     is IrIntersectionType -> components.joinToString(
-        transform = { it.toStringForSignature() },
+        transform = { it.toStringForSignature(insideBound) },
+        separator = "&",
+    )
+}
+
+private fun IrType.baseTypesForSignature(): String = when(this) {
+    is IrGenericTypeReference -> parameter.name.lengthEncode()
+    is IrParameterizedType -> simpleType.toStringForSignature()
+    is IrSimpleType -> baseType.toStringForSignature()
+    is IrIntersectionType -> components.joinToString(
+        transform = { it.baseTypesForSignature() },
         separator = "&",
     )
 }

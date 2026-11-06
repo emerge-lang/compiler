@@ -44,32 +44,25 @@ class InvocationExpression(
         candidateFilter: BoundInvocationExpression.CandidateFilter?,
         disambiguationBehavior: BoundInvocationExpression.DisambiguationBehavior = BoundInvocationExpression.DisambiguationBehavior.AllParametersDisambiguate,
     ): BoundInvocationExpression {
-        // bind all the parameters
-        val boundArguments = argumentExpressions.chain(context).toList()
-        val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: context
+        val boundReceiver = (targetExpression as? MemberAccessExpression)?.valueExpression?.bindTo(context)
+        val contextAfterReceiver = boundReceiver?.modifiedContext ?: context
+        val boundArguments = argumentExpressions.chain(contextAfterReceiver).toList()
+        val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: contextAfterReceiver
+        val functionNameToken = when (targetExpression) {
+            is MemberAccessExpression -> targetExpression.memberName
+            is IdentifierExpression -> targetExpression.identifier
+            else -> throw InternalCompilerError("What the heck is going on?? The parser should never have allowed this!")
+        }
 
-        if (targetExpression is MemberAccessExpression) {
-            return BoundInvocationExpression(
+        return BoundInvocationExpression(
                 contextAfterArguments,
-                this,
-                targetExpression.valueExpression.bindTo(context),
-                targetExpression.memberName,
-                boundArguments,
-                candidateFilter,
-                disambiguationBehavior,
-            )
-        }
-        else if (targetExpression is IdentifierExpression) {
-            return BoundInvocationExpression(
-                contextAfterArguments,
-                this,
-                null,
-                targetExpression.identifier,
-                boundArguments,
-                candidateFilter,
-                disambiguationBehavior,
-            )
-        }
-        else throw InternalCompilerError("What the heck is going on?? The parser should never have allowed this!")
+            context,
+            this,
+            boundReceiver,
+            functionNameToken,
+            boundArguments,
+            candidateFilter,
+            disambiguationBehavior,
+        )
     }
 }

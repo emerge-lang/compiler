@@ -38,6 +38,7 @@ import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.consecutive
 import compiler.diagnostic.missingReturnValue
+import compiler.diagnostic.wrapIfMismatch
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -98,7 +99,7 @@ class BoundReturnExpression(
 
         if (expressionType != null) {
             expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.span)
-                ?.let(::ReturnTypeMismatchDiagnostic)
+                ?.wrapIfMismatch(::ReturnTypeMismatchDiagnostic)
                 ?.let(diagnosis::add)
         }
 

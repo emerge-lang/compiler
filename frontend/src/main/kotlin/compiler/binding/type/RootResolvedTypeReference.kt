@@ -5,11 +5,13 @@ import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.hiddenTypeExposed
@@ -29,12 +31,13 @@ class RootResolvedTypeReference private constructor(
     override val context: CTContext,
     val original: AstSimpleTypeReference?,
     private val modifiedSinceOriginal: Boolean,
-    private val explicitMutability: TypeMutability?,
+    internal val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val isNullable = false
-    override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val mutability get() = if (baseType.isConst) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val assignmentMutability get() = if (baseType.isConst) TypeMutability.EXCLUSIVE else mutability
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
@@ -70,7 +73,7 @@ class RootResolvedTypeReference private constructor(
     )
 
     override fun withMutability(mutability: TypeMutability?): RootResolvedTypeReference {
-        val newMutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else mutability
+        val newMutability = if (baseType.isConst) TypeMutability.IMMUTABLE else mutability
         if (newMutability == this@RootResolvedTypeReference.mutability) {
             return this
         }
@@ -189,7 +192,11 @@ class RootResolvedTypeReference private constructor(
         return when (this.baseType) {
             superBaseType -> this
             context.swCtx.nothing -> superBaseType.getBoundReferenceAssertNoTypeParameters()
-            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(inherentTypeBindings)
+            // not inherentTypeBindings: checking the arguments against their bounds, as that does, is up to validate(),
+            // and fails where the arguments contain TypeVariables of an ongoing inference
+            else -> baseType.superTypes.getParameterizedSupertype(superBaseType).instantiateAllParameters(
+                TypeUnification.forSubstitution(baseType.typeParameters ?: emptyList(), arguments ?: emptyList())
+            )
         }
     }
 
@@ -198,10 +205,10 @@ class RootResolvedTypeReference private constructor(
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
                 if (this.baseType == this.baseType.context.swCtx.nothing) {
-                    return other.withMutability(this.mutability.union(other.mutability))
+                    return other.withMutability(this.assignmentMutability.union(other.mutability))
                 }
                 if (other.baseType == other.baseType.context.swCtx.nothing) {
-                    return this.withMutability(this.mutability.union(other.mutability))
+                    return this.withMutability(this.mutability.union(other.assignmentMutability))
                 }
                 if (this == other) {
                     return this
@@ -260,7 +267,7 @@ class RootResolvedTypeReference private constructor(
                 }
 
                 // the modifiers must be compatible
-                if (!(assigneeType.mutability isAssignableTo this.mutability)) {
+                if (!(assigneeType.assignmentMutability isAssignableTo this.assignmentMutability)) {
                     return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
@@ -274,22 +281,35 @@ class RootResolvedTypeReference private constructor(
                     return carry
                 }
 
-                val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
-                val selfArgs = this.arguments ?: emptyList()
-                val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
-                return selfArgs
-                    .zip(assigneeArgs)
-                    .fold(carry) { innerCarry, (targetArg, sourceArg) ->
-                        targetArg.unify(sourceArg, assignmentLocation, innerCarry)
-                    }
+                /*
+                deciding this can come back to deciding it again, through supertypes with `in` type arguments
+                (`class K : Cn<Cn<in K>>`, K to `Cn<in K>`), and would never finish. As Kennedy and Pierce do, the
+                goal fails then: what holds only by assuming it doesn't hold.
+                 */
+                val goal = Triple(this, assigneeType, carry.stateOfVariables)
+                val inProgress = goalsInProgress.get()
+                if (!inProgress.add(goal)) {
+                    return carry.plusDiagnostic(CyclicSubtypeCheckDiagnostic(this, assigneeType, assignmentLocation))
+                }
+                try {
+                    val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
+                    val selfArgs = this.arguments ?: emptyList()
+                    val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
+                    return selfArgs
+                        .zip(assigneeArgs)
+                        .fold(carry) { innerCarry, (targetArg, sourceArg) ->
+                            targetArg.unify(sourceArg, assignmentLocation, innerCarry)
+                        }
+                } finally {
+                    inProgress.remove(goal)
+                }
             }
             is ErroneousType -> return unify(assigneeType.asNothing, assignmentLocation, carry)
             is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
-            is BoundTypeArgument -> {
-                // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument
-                // in this case this is the bound and assigneeType is the argument
-                // variance is not important in that scenario because type arguments must be subtypes of the parameters bounds
-                return unify(assigneeType.type, assignmentLocation, carry)
+            is BoundTypeArgument -> return when (assigneeType.variance) {
+                TypeVariance.IN -> unify(context.swCtx.getTopType(assignmentLocation), assignmentLocation, carry)
+                TypeVariance.OUT,
+                TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is NullableTypeReference -> return carry.plusDiagnostic(
@@ -397,6 +417,10 @@ class RootResolvedTypeReference private constructor(
         result = 31 * result + arguments.hashCode()
         result = 31 * result + mutability.hashCode()
         return result
+    }
+
+    private companion object {
+        val goalsInProgress: ThreadLocal<MutableSet<Triple<RootResolvedTypeReference, RootResolvedTypeReference, Any>>> = ThreadLocal.withInitial { HashSet() }
     }
 }
 

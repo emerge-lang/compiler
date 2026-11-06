@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.TypeMutability
 import compiler.diagnostic.BorrowedVariableCapturedDiagnostic
 import compiler.diagnostic.ExtendingOwnershipOverrideDiagnostic
 import compiler.diagnostic.LifetimeEndingCaptureInLoopDiagnostic
@@ -263,6 +264,33 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     it.variable.name.value shouldBe "p2"
                 }
         }
+
+        enumValues<TypeMutability>().forEach { mutability ->
+            "capture of a borrowed $mutability parameter by passing to a capturing function parameter" {
+                validateModule("""
+                    class Test {}
+                    fn captureValue(p1: ${mutability.keyword.text} Test) {}
+                    fn test(borrow p2: ${mutability.keyword.text} Test) {
+                        captureValue(p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<BorrowedVariableCapturedDiagnostic> {
+                        it.variable.name.value shouldBe "p2"
+                    }
+            }
+
+            "capture of a borrowed $mutability parameter by initializing a variable" {
+                validateModule("""
+                    class Test {}
+                    fn test(borrow p2: ${mutability.keyword.text} Test) {
+                        p3: ${mutability.keyword.text} Test = p2
+                    }
+                """.trimIndent())
+                    .shouldFind<BorrowedVariableCapturedDiagnostic> {
+                        it.variable.name.value shouldBe "p2"
+                    }
+            }
+        }
     }
 
     "exclusive value can be borrowed both mutably and immutably" {
@@ -466,6 +494,54 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
 
+        "first exclusive, then mut borrow - ERROR" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: mut C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "first exclusive, then const borrow - ERROR" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: const C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "first exclusive, then read - OK" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger(borrow a: exclusive C, borrow b: read C) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "read mut read mut - OK" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c, c, c)
+                }
+                fn trigger(borrow a: read C, borrow b: mut C, borrow c: read C, borrow d: mut C) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
         "start and complete a const borrow, then start and complete a mut borrow - OK" {
             validateModule("""
                 class C {}
@@ -487,6 +563,44 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     trigger(p, p)
                 }
                 fn trigger(borrow a: mut C, borrow b: const C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "triple borrow: read, mut, const" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c, c)
+                }
+                fn trigger(borrow a: read C, borrow b: mut C, borrow c: const C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "nested incompatible borrow" {
+            validateModule("""
+                class C {}
+                intrinsic fn inner(borrow x: read C) -> S32
+                fn trigger(borrow a: mut C, n: S32, borrow b: const C) {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, inner(c), c)
+                }
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "incompatible borrow using receiver" {
+            validateModule("""
+                class C {
+                    intrinsic fn trigger(borrow self: mut _, borrow alias: const C)
+                }
+                fn test() {
+                    c: exclusive _ = C()
+                    c.trigger(c)
+                }
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }

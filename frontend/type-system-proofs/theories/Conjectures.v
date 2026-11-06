@@ -1,0 +1,282 @@
+From EmergeTypeSystem Require Import Model.
+From EmergeTypeSystem Require Import Subtyping.
+From EmergeTypeSystem Require Import Transitivity.
+From EmergeTypeSystem Require Import States.
+From EmergeTypeSystem Require Import Inference.
+From EmergeTypeSystem Require Import Constraints.
+From EmergeTypeSystem Require Import Fragment.
+From EmergeTypeSystem Require Import Generics.
+From Stdlib Require Import List Arith.
+Import ListNotations.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Conjectures about the Kotlin implementation                                                      *)
+(*                                                                                                *)
+(* The model takes some functions of the frontend as given, as fields of the Environment, rather    *)
+(* than defining them: BoundIntersectionTypeReference.intersect and closestCommonSupertypeWith       *)
+(* among them. What the proofs need of them is stated here, unproven: each conjecture is a property *)
+(* of an environment, and a theorem that needs one takes it as a premise.                           *)
+(*                                                                                                *)
+(* They can't be axioms. The functions being fields of Environment, Rocq lets them be anything, so   *)
+(* each conjecture is false of some environment; as an axiom over all environments, it would let     *)
+(* Rocq prove anything. They are claims about the one environment of the Kotlin implementation.     *)
+(*                                                                                                *)
+(* The types are those of Generics.v: of the fragment gfrag. A conjecture whose inputs are outside *)
+(* of it claims nothing about them.                                                               *)
+(*                                                                                                *)
+(* One premise is about the model alone: that unify terminates on the environment at hand          *)
+(* (unify_terminates_on, below). It was a claim about every environment whose inheritance is tame, *)
+(* and that claim is false (Examples.unify_always_terminates_is_false); so it is taken of the one  *)
+(* environment, like the conjectures about intersect and closestCommonSupertypeWith.              *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Section Conjectures.
+
+Variable env: Environment.
+Variable declared: TypeParameterId -> EType.
+
+Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
+
+(* A reference to a type parameter of a nullable bound, as it is: neither narrowed nor `T?`; or an
+   intersection that keeps the nullability of its components, nullable as such references among them *)
+Definition bare_nullable (t: EType): bool :=
+    match t with Generic _ | Intersection _ => is_nullable env t | _ => false end.
+
+(* Whether ofComponents may make, of a and b, an intersection whose components keep their nullability
+   (`A? & P` of `A?` and `P : Any?`, coverage #15): both may be null, and one is such a reference *)
+Definition keeps_nullability (x y: EType): bool :=
+    is_nullable env x && is_nullable env y && (bare_nullable x || bare_nullable y).
+
+(* BoundIntersectionTypeReference.intersect builds types of the fragment: it flattens intersections,
+   nullable ones too, and makes them with ofComponents. Claimed here of operands that don't keep their
+   nullability with each other, as those of non-generic code *)
+Definition intersect_stays_in_fragment: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> keeps_nullability a b = false -> in_gfrag (intersect env a b).
+
+(* That claimed of all types of the fragment, intersections whose components keep their nullability
+   among them (`A? & P`, coverage #15); the theorems of generic code take it *)
+Definition intersect_always_stays_in_fragment: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> in_gfrag (intersect env a b).
+
+(* Neither makes a reference to a type parameter of a nullable bound, as it is, of types that aren't *)
+Definition intersect_makes_no_bare_nullable: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (intersect env a b) = false.
+
+Definition closest_common_supertype_makes_no_bare_nullable: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (closest_common_supertype_with env a b) = false.
+
+(* closestCommonSupertypeWith builds types of the fragment: of class types, the common supertype
+   with the type arguments combined by BoundTypeArgument.intersect; of a reference to a type
+   parameter, that reference or the common supertype of its bound; of an intersection, the
+   intersection of the common supertypes of its components. *)
+Definition closest_common_supertype_stays_in_fragment: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b -> in_gfrag (closest_common_supertype_with env a b).
+
+(* The intersection of two types is assignable to each of them. Like all of unify, deciding that may
+   not terminate in general (see transitivity_never_fails in Generics.v); this claims it does. *)
+Definition intersect_is_below_both: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b ->
+        (exists n, is_assignable_to env n (intersect env a b) a = Some true)
+        /\ (exists n, is_assignable_to env n (intersect env a b) b = Some true).
+
+(* Each of two types is assignable to their closest common supertype; likewise. *)
+Definition closest_common_supertype_is_above_both: Prop :=
+    forall a b, in_gfrag a -> in_gfrag b ->
+        (exists n, is_assignable_to env n a (closest_common_supertype_with env a b) = Some true)
+        /\ (exists n, is_assignable_to env n b (closest_common_supertype_with env a b) = Some true).
+
+End Conjectures.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* What follows from them, by transitivity: the bounds of type variables are bounds. These are the  *)
+(* hypotheses intersect_is_below and supertype_is_above of Constraints.v, for the types of the      *)
+(* fragment of Generics.v, where transitivity is that unify never rejects.                         *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Section Bounds.
+
+Variable env: Environment.
+Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
+Variable declared: TypeParameterId -> EType.
+Hypothesis declared_wf: bounds_wellformed env declared.
+Let declared_gfrag := bw_gfrag env declared declared_wf.
+
+Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
+
+Let transitive := transitivity_never_fails env wf declared declared_wf.
+
+(* What is assignable to the intersection of two types, unify never rejects for each of them *)
+Theorem below_intersection_never_fails:
+    intersect_stays_in_fragment env declared -> intersect_is_below_both env declared ->
+    forall y z x n, in_gfrag y -> in_gfrag z -> in_gfrag x -> keeps_nullability env y z = false ->
+        is_assignable_to env n x (intersect env y z) = Some true ->
+        forall n', is_assignable_to env n' x y <> Some false /\ is_assignable_to env n' x z <> Some false.
+Proof.
+    intros Hfrag Hbelow y z x n Ha Hb Hx Hk H n'.
+    destruct (Hfrag y z Ha Hb Hk) as [Hi Hri]. destruct (Hbelow y z Ha Hb) as [[na Hna] [nb Hnb]].
+    split.
+    - exact (transitive n na x _ y (proj1 Hx) Hi (proj1 Ha) (proj2 Hx) Hri (proj2 Ha) H Hna n').
+    - exact (transitive n nb x _ z (proj1 Hx) Hi (proj1 Hb) (proj2 Hx) Hri (proj2 Hb) H Hnb n').
+Qed.
+
+(* What the closest common supertype of two types is assignable to, unify never rejects for each of them *)
+Theorem above_closest_common_supertype_never_fails:
+    closest_common_supertype_stays_in_fragment env declared -> closest_common_supertype_is_above_both env declared ->
+    forall y z x n, in_gfrag y -> in_gfrag z -> in_gfrag x ->
+        is_assignable_to env n (closest_common_supertype_with env y z) x = Some true ->
+        forall n', is_assignable_to env n' y x <> Some false /\ is_assignable_to env n' z x <> Some false.
+Proof.
+    intros Hfrag Habove y z x n Ha Hb Hx H n'.
+    destruct (Hfrag y z Ha Hb) as [Hs Hrs]. destruct (Habove y z Ha Hb) as [[na Hna] [nb Hnb]].
+    split.
+    - exact (transitive na n y _ x (proj1 Ha) Hs (proj1 Hx) (proj2 Ha) Hrs (proj2 Hx) Hna H n').
+    - exact (transitive nb n z _ x (proj1 Hb) Hs (proj1 Hx) (proj2 Hb) Hrs (proj2 Hx) Hnb H n').
+Qed.
+
+End Bounds.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Termination                                                                                    *)
+(*                                                                                                *)
+(* unify isn't known to terminate on all types: with expansive inheritance and contravariance, as *)
+(* in `interface N<Z> : C<in N<N<Z>>>`, checking subtyping can go on forever (Kennedy and Pierce, *)
+(* "On Decidability of Nominal Subtyping with Variance"). The frontend rejects expansive          *)
+(* inheritance (findExpansiveSupertypes, in compiler/binding/basetype/ExpansiveInheritance.kt).   *)
+(* Kennedy and Pierce show subtyping decidable without it. Whether unify terminates then is taken  *)
+(* of the environment at hand (unify_terminates_on), not conjectured of every one: F-bounds bring  *)
+(* contravariance in without inheritance (Examples.v).                                            *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* The type parameters a type mentions, each with whether nested in a type argument of a class type
+   in it; not those in the bounds of references *)
+Fixpoint parameter_occurrences (nested: bool) (t: EType): list (TypeParameterId * bool) :=
+    match t with
+    | Generic (mkGenericRef _ _ p _) => [(p, nested)]
+    | RootResolved _ _ arguments => flat_map (parameter_occurrences true) arguments
+    | TypeArgument _ _ n => parameter_occurrences nested n
+    | Nullable n => parameter_occurrences nested n
+    | Intersection components => flat_map (parameter_occurrences nested) components
+    | _ => []
+    end.
+
+(* The class types in a type, with their type arguments *)
+Fixpoint constructed_types (t: EType): list (Class * list EType) :=
+    match t with
+    | RootResolved _ c arguments => (c, arguments) :: flat_map constructed_types arguments
+    | TypeArgument _ _ n => constructed_types n
+    | Nullable n => constructed_types n
+    | Intersection components => flat_map constructed_types components
+    | _ => []
+    end.
+
+Section Expansive.
+
+Variable env: Environment.
+
+(* An edge from p to the j-th type parameter q of a class c, wherever p is in the j-th type argument of
+   c in a supertype of a class; expansive where p is nested deeper in it. Taken over all supertypes,
+   the templates of which compose those declared, this has a cycle with an expansive edge where the
+   one of findExpansiveSupertypes over the declared supertypes has. *)
+Definition inheritance_edge (p q: TypeParameterId) (expansive: bool): Prop :=
+    exists sub super c arguments j a,
+        sub <> super /\ sub <> nothing /\ base_type_is_subtype_of env sub super = true
+        /\ In (c, arguments) (constructed_types (RootResolved None super (supertype_arguments env sub super)))
+        /\ nth_error arguments j = Some a /\ nth_error (parameter_ids env c) j = Some q
+        /\ In (p, expansive) (parameter_occurrences false a).
+
+(* No cycle has an expansive edge: there is a rank that no edge increases and every expansive one
+   decreases *)
+Definition non_expansive: Prop :=
+    exists rank: TypeParameterId -> nat, forall p q expansive, inheritance_edge p q expansive ->
+        if expansive then rank q < rank p else rank q <= rank p.
+
+(* Finitely many classes have supertypes with type arguments *)
+Definition finitely_many_templates: Prop :=
+    exists classes: list Class, forall sub super, supertype_arguments env sub super <> [] -> In sub classes.
+
+(* The type arguments of supertypes are without contravariance (Inference.supertypes_without_contravariance).
+   With it, unify needn't terminate: with `class K : Cn<Cn<in K>>`, deciding K below `Cn<in K>` decides it
+   again, after K is normalized to `Cn<Cn<in K>>` and the in-variant type argument swaps target and
+   assignee (Kennedy and Pierce's example). The frontend fails such a goal (RootResolvedTypeReference.unify),
+   which the model doesn't. *)
+
+(* Inheritance unify is conjectured to terminate on *)
+Definition tame_inheritance: Prop := non_expansive /\ supertypes_without_contravariance env.
+
+End Expansive.
+
+(*
+ * unify terminates on the types of the fragment of Generics.v, in the environment at hand. This is a
+ * premise about one environment, like the conjectures above, not a claim about every one.
+ *
+ * It was one (unify_always_terminates, below): that unify terminates wherever inheritance isn't
+ * expansive, as ExpansiveInheritance.kt makes sure, and the type arguments of supertypes are without
+ * contravariance (tame_inheritance). That is false: with `fn f<T : Cn<Cn<in T>>>(t: T)`, deciding T
+ * below `Cn<in T>` unfolds the bound and, at the in-variant type argument, swaps target and assignee,
+ * asking the same question again (Examples.Counterexample). Inheritance is no part of it; the F-bound
+ * brings the contravariance in. The frontend fails a goal that comes up again while it is being
+ * decided (RootResolvedTypeReference.unify, reporting CyclicSubtypeCheckDiagnostic), so it
+ * finishes; the model doesn't have that cut, and modelling it is open (roadmap.md).
+ *
+ * What is known about the environments it holds for: Kennedy and Pierce show the goals reachable
+ * from a query finite where inheritance isn't expansive and there is no contravariance, for a much
+ * smaller calculus. Here no size of the types decreases: normalizing an assignee to a supertype grows
+ * its type arguments (`B<E> : A<Box<E>>`), and an in-variant type argument swaps target and assignee.
+ * A measure would have to come from the rank of non_expansive and bounds_deep_ranked, and cover
+ * effective bounds, intersections, nullability and Nothing as well. Programs without `in` anywhere
+ * are the plausible case; none is proven.
+ *
+ * What it would take if it didn't hold of a program: where the frontend runs unify, it fails a goal
+ * that comes up again, and so rejects the program, never accepts one. The theorems resting on it,
+ * though, are about unifications the frontend never runs: of the instances of generic code
+ * (SubstitutionTerminating.v, SubstitutionWide.v) and of the final values of inference
+ * (FinalValues.v). For those, unify never rejecting is proven without it (transitivity_never_fails,
+ * instances_never_fail); what rests on it is that unify also accepts. A unification that never fails
+ * and never finishes is accepted under a coinductive reading of subtyping, which Kennedy and Pierce
+ * discuss, and which suits nominal types; so this is a gap in the proof for such programs, not a
+ * known way for an unsound program to be accepted.
+ *)
+Definition unify_terminates_on (env: Environment) (declared: TypeParameterId -> EType): Prop :=
+    wellformed env -> bounds_wellformed env declared ->
+    forall t a s, gfrag env t = true -> gfrag env a = true -> refs_wf env declared t -> refs_wf env declared a ->
+        exists n, unify env n t a (Ongoing s) <> None.
+
+(* The former conjecture, kept to state its refutation (Examples.unify_always_terminates_is_false) *)
+Definition unify_always_terminates: Prop :=
+    forall env declared,
+        wellformed env ->
+        bounds_wellformed env declared ->
+        finitely_many_templates env -> tame_inheritance env ->
+        unify_terminates_on env declared.
+
+Section Terminating.
+
+Variable env: Environment.
+Hypothesis wf: wellformed env.
+Let ranked := wf_bounds_ranked env wf.
+Let supertypes_mention_no_variables := wf_supertypes_mention_no_variables env wf.
+Variable declared: TypeParameterId -> EType.
+Hypothesis declared_wf: bounds_wellformed env declared.
+Let declared_gfrag := bw_gfrag env declared declared_wf.
+Hypothesis terminates: unify_terminates_on env declared.
+
+(* Transitivity, as usual, where unify terminates *)
+Theorem transitivity_terminating: forall n1 n2 x y z,
+    gfrag env x = true -> gfrag env y = true -> gfrag env z = true ->
+    refs_wf env declared x -> refs_wf env declared y -> refs_wf env declared z ->
+    is_assignable_to env n1 x y = Some true -> is_assignable_to env n2 y z = Some true ->
+    exists n, is_assignable_to env n x z = Some true.
+Proof.
+    intros n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2.
+    destruct (terminates wf declared_wf z x [] Hz Hx Hrz Hrx) as [n Hf].
+    exists n. pose proof (transitivity_never_fails env wf declared declared_wf
+        n1 n2 x y z Hx Hy Hz Hrx Hry Hrz H1 H2 n) as Hnf.
+    unfold is_assignable_to, empty_unification in *.
+    destruct (unify env n z x (Ongoing [])) as [[u|]|]; simpl in *; [reflexivity|contradiction Hnf; reflexivity|contradiction Hf; reflexivity].
+Qed.
+
+End Terminating.

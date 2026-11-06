@@ -1,0 +1,1014 @@
+From EmergeTypeSystem Require Import Model.
+From EmergeTypeSystem Require Import Subtyping.
+From Stdlib Require Import Bool List Arith Lia.
+Import ListNotations.
+
+Section Ops.
+
+Variable env: Environment.
+Hypothesis ranked: bounds_ranked env.
+
+Definition can_reassign_fields_on (t: EType): bool :=
+    match (mutability_of env t) with
+    | exclusive => true
+    | mutable => true
+    | readonly => false
+    | immutable => false
+    end.
+
+Definition can_assume_immutable (t: EType): bool :=
+    match mutability_of env t with
+    | immutable => true
+    | _ => false
+    end.
+
+Lemma negb_inj: forall e0 e1: bool, negb e0 = negb e1 -> e0 = e1.
+Proof.
+    intros [] [] H.
+    - reflexivity.
+    - discriminate.
+    - discriminate.
+    - reflexivity.
+Qed.
+
+Lemma immutability_precludes_reassignment: forall t: EType,
+    can_assume_immutable t = true ->
+    can_reassign_fields_on t = false.
+Proof.
+    intros t H.
+    unfold can_assume_immutable in H.
+    unfold can_reassign_fields_on.
+    remember (mutability_of env t) as m.
+    destruct m.
+    - discriminate H.
+    - reflexivity.
+    - reflexivity.
+    - discriminate H.
+Qed.
+
+(* Assigning a value doesn't preserve immutability: `immutable Any` is assignable to `readonly Any`.
+   The reference assigned to promises less, which is fine; see may_coexist below for what matters. *)
+Lemma immutability_is_affected_by_reassignment:
+    is_const (declaration_of env any) = false ->
+    ~ (forall x y: EType, forall fuel: nat,
+        is_assignable_to env fuel x y = Some true ->
+        can_assume_immutable x = true ->
+        can_assume_immutable y = true).
+Proof.
+    intros Hany H.
+    pose (x := RootResolved (Some immutable) any nil).
+    pose (y := RootResolved (Some readonly) any nil).
+    assert (Hassignable: is_assignable_to env 1 x y = Some true).
+    { unfold is_assignable_to, x, y. simpl. rewrite Hany. reflexivity. }
+    assert (Ha: can_assume_immutable x = true).
+    { unfold can_assume_immutable, x. simpl. destruct (is_const _); reflexivity. }
+    assert (Hb: can_assume_immutable y = false).
+    { unfold can_assume_immutable, y. simpl. rewrite Hany. reflexivity. }
+    rewrite (H x y 1 Hassignable Ha) in Hb. discriminate Hb.
+Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* Facts about mutabilities                                                                        *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Lemma mutability_subtype_trans: forall m0 m1 m2: Mutability,
+    is_subtype_of m0 m1 = true -> is_subtype_of m1 m2 = true -> is_subtype_of m0 m2 = true.
+Proof. intros [] [] []; simpl; congruence. Qed.
+
+Lemma mutability_subtype_of_readonly: forall m, is_subtype_of m readonly = true.
+Proof. intros []; reflexivity. Qed.
+
+Lemma mutability_subtype_of_exclusive: forall m, is_subtype_of m exclusive = true -> m = exclusive.
+Proof. intros []; simpl; congruence. Qed.
+
+Lemma intersect_mutability_left: forall m0 m1, is_subtype_of (intersect_mutability m0 m1) m0 = true.
+Proof. intros [] []; reflexivity. Qed.
+
+Lemma intersect_mutability_right: forall m0 m1, is_subtype_of (intersect_mutability m0 m1) m1 = true.
+Proof. intros [] []; reflexivity. Qed.
+
+(* intersect_mutability is the greatest lower bound *)
+Lemma intersect_mutability_greatest: forall m2 m0 m1,
+    is_subtype_of m2 m0 = true -> is_subtype_of m2 m1 = true -> is_subtype_of m2 (intersect_mutability m0 m1) = true.
+Proof. intros [] [] []; simpl; congruence. Qed.
+
+(*
+ * Whether two references to the same object can exist at the same time without one breaking the
+ * promises of the other: a readonly reference promises nothing and allows nothing, mutable
+ * references allow each other's mutations, immutable references can't mutate. An exclusive
+ * reference promises that it is the only one that can mutate or rely on immutability.
+ * This is assured by the subtyping rules on assignment, and variable lifetime rules:
+ * * copying an exclusive reference into a non-readonly reference ends the lifetime of the exclusive reference
+ * * while an exclusive reference is borrowed, it can only be borrowed again by references that may
+ *   coexist with all active borrows. The borrows end when the invocation they were created for returns.
+ *)
+Definition may_coexist (a b: Mutability): bool :=
+    match a, b with
+    | readonly, _ | _, readonly => true
+    | mutable, mutable | immutable, immutable => true
+    | _, _ => false
+    end.
+
+(* the kotlin implementation of may_coexist *)
+Definition kotlin_may_be_aliased_with (a b: Mutability): bool :=
+    if Mutability_beq a readonly || Mutability_beq b readonly then true
+    else if (Mutability_beq a immutable || Mutability_beq a mutable) && Mutability_beq a b then true
+    else false.
+
+Lemma may_coexist_in_kotlin_is_correct: forall m0 m1, (may_coexist m0 m1) = (kotlin_may_be_aliased_with m0 m1).
+Proof. intros [] []; reflexivity. Qed.
+
+Lemma may_coexist_sym: forall m0 m1, may_coexist m0 m1 = may_coexist m1 m0.
+Proof. intros [] []; reflexivity. Qed.
+
+(* A reference with fewer promises coexists with whatever its subtype coexists with. *)
+Lemma may_coexist_supertype: forall m0 m1 m1',
+    may_coexist m0 m1 = true -> is_subtype_of m1 m1' = true -> may_coexist m0 m1' = true.
+Proof. intros [] [] []; simpl; congruence. Qed.
+
+(* A reference coexists with the one it was created from, unless that is exclusive. *)
+Lemma may_coexist_with_source: forall m m',
+    m <> exclusive -> is_subtype_of m m' = true -> may_coexist m m' = true.
+Proof. intros [] [] H; simpl; congruence. Qed.
+
+Lemma may_coexist_exclusive: forall m, may_coexist exclusive m = true -> m = readonly.
+Proof. intros []; simpl; congruence. Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* (a) The references to one block: no two of them can make conflicting promises                  *)
+(*                                                                                                *)
+(* This models the lifetime rules of compiler.binding.context.effect.VariableLifetime for a single *)
+(* block of objects, from its creation on. A block is an object together with all the objects it   *)
+(* owns, transitively (the elements of `owned` slots). An owned object has no mutability of its    *)
+(* own, it is accessed with the mutability of the reference to its holder; so a reference to any   *)
+(* object of a block counts as a reference to the whole block. In particular, a reference derived *)
+(* from an owned slot is a use of the holder in the same way: borrowing an owned part borrows the   *)
+(* holder, capturing it captures the holder.                                                       *)
+(* A `ref` slot, on the other hand, is a reference of its own to another block: one captured with  *)
+(* the slot's mutability, which never is exclusive.                                                *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* The variable holding the exclusive reference, as long as there is one *)
+Inductive Owner :=
+    (* VariableLifetime.State.AliveExclusive *)
+    | alive
+    (* VariableLifetime.State.AliveExclusiveWithActiveBorrow; tracked is its withMutability *)
+    | borrowed (tracked: Mutability)
+    (* VariableLifetime.State.Dead: the exclusive reference has been given up *)
+    | dead
+    .
+
+(* The other references to the object *)
+Inductive Alias :=
+    (* a reference that has been captured: assigned to a variable or member, passed to a
+       capturing parameter, returned, ... *)
+    | captured (mutability: Mutability)
+    (* a borrowed parameter that refers to the object; it lives until the call returns *)
+    | borrow (mutability: Mutability)
+    .
+
+Record Aliasing := mkAliasing {
+    owner: Owner;
+    aliases: list Alias;
+}.
+
+(* While the owner is borrowed it can do nothing but lend itself out again, so it acts as readonly *)
+Definition owner_mutability (o: Owner): Mutability :=
+    match o with
+    | alive => exclusive
+    | borrowed _ | dead => readonly
+    end.
+
+Definition alias_mutability (a: Alias): Mutability :=
+    match a with captured m | borrow m => m end.
+
+Definition is_captured (a: Alias): bool :=
+    match a with captured _ => true | borrow _ => false end.
+
+(* whether `R` holds for every two distinct elements of `l` *)
+Fixpoint pairwise {A: Type} (R: A -> A -> bool) (l: list A): bool :=
+    match l with
+    | [] => true
+    | x :: rest => forallb (R x) rest && pairwise R rest
+    end.
+
+(* Every two references to the object may coexist, the owner being one of them. *)
+Definition conflict_free (s: Aliasing): bool :=
+    forallb (fun a => may_coexist (owner_mutability (owner s)) (alias_mutability a)) (aliases s)
+    && pairwise (fun a b => may_coexist (alias_mutability a) (alias_mutability b)) (aliases s).
+
+Definition is_borrowed (o: Owner): bool :=
+    match o with borrowed _ => true | _ => false end.
+
+(* The things that can happen to the references within an invocation's arguments or in between invocations *)
+Inductive transition: Aliasing -> Aliasing -> Prop :=
+    (* the owner is captured as readonly: its lifetime goes on *)
+    | capture_owner_as_readonly: forall l,
+        transition (mkAliasing alive l) (mkAliasing alive (captured readonly :: l))
+    (* the owner is captured as mutable or immutable: its lifetime ends. (Captured as exclusive,
+       the exclusive reference merely moves to another variable, which changes nothing here.) *)
+    | capture_owner: forall l m,
+        m = mutable \/ m = immutable ->
+        transition (mkAliasing alive l) (mkAliasing dead (captured m :: l))
+    (* an alias is captured as a supertype of its own type; borrows can't be captured *)
+    | capture_alias: forall o l1 l2 m m',
+        is_subtype_of m m' = true ->
+        transition (mkAliasing o (l1 ++ captured m :: l2)) (mkAliasing o (captured m' :: l1 ++ captured m :: l2))
+    (* the owner is borrowed for the first time *)
+    | start_borrow: forall l m,
+        transition (mkAliasing alive l) (mkAliasing (borrowed m) (borrow m :: l))
+    (* the owner is borrowed again, while borrowed already: the new borrow must coexist with the
+       intersection of all active borrows, which is tracked from then on *)
+    | add_borrow: forall b l m,
+        may_coexist m b = true ->
+        transition (mkAliasing (borrowed b) l) (mkAliasing (borrowed (intersect_mutability b m)) (borrow m :: l))
+    (* a borrowed parameter is lent on. An exclusive one is an owner of its own in the called
+       function, which this model leaves out. *)
+    | reborrow: forall o l1 l2 m m',
+        m <> exclusive ->
+        is_subtype_of m m' = true ->
+        transition (mkAliasing o (l1 ++ borrow m :: l2)) (mkAliasing o (borrow m' :: l1 ++ borrow m :: l2))
+    (* an alias goes out of scope *)
+    | drop: forall o l1 a l2,
+        transition (mkAliasing o (l1 ++ a :: l2)) (mkAliasing o (l1 ++ l2))
+    (* an exclusive reference to another block is written into an owned slot of this one. Only
+       exclusive references can be: the other block becomes part of this one, and it can't be
+       reachable through anything but readonly references from elsewhere. *)
+    | adopt: forall o l l',
+        (forall a, In a l' -> alias_mutability a = readonly) ->
+        transition (mkAliasing o l) (mkAliasing o (l' ++ l))
+    (* the owner moves into an owned slot of another block, or an owned part is extracted from the
+       block as exclusive. Either way, the block is no longer reachable through the owner. *)
+    | give_up_owner: forall l,
+        transition (mkAliasing alive l) (mkAliasing dead l)
+    .
+
+(* VariableLifetime.endInvocation *)
+Definition owner_after_invocation (before after: Owner): Owner :=
+    match after with
+    | dead => dead
+    | _ => match before with borrowed b => borrowed b | _ => alive end
+    end.
+
+(* The invoked function returns: the borrows created for its arguments end, the ones from before the
+   invocation remain active. Captures from evaluating the arguments remain as well. *)
+Definition return_from (before after: Aliasing): Aliasing :=
+    mkAliasing (owner_after_invocation (owner before) (owner after))
+        (filter is_captured (aliases after) ++ filter (fun a => negb (is_captured a)) (aliases before)).
+
+Inductive step: Aliasing -> Aliasing -> Prop :=
+    | transition_step: forall s s', transition s s' -> step s s'
+    (* compiler.binding.context.InvocationJoinExecutionScopedCTContext: the arguments are evaluated,
+       then the invoked function returns *)
+    | invocation: forall s s', evaluates s s' -> step s (return_from s s')
+(* evaluating code: any number of steps, one after the other *)
+with evaluates: Aliasing -> Aliasing -> Prop :=
+    | evaluates_nothing: forall s, evaluates s s
+    | evaluates_more: forall s s' s'', evaluates s s' -> step s' s'' -> evaluates s s''
+    .
+
+Scheme step_mut := Minimality for step Sort Prop
+with evaluates_mut := Minimality for evaluates Sort Prop.
+Combined Scheme step_evaluates_mut from step_mut, evaluates_mut.
+
+(* How a block comes into existence: with an exclusive owner, and no other references than readonly
+   ones. Either it is the exclusive result of a constructor, without any other references; the axiom
+   that panic never returns means that Nothing is never one of them. Or an owned part of an
+   exclusively owned block is extracted as exclusive: the other references to that block were all
+   readonly. *)
+Definition initial (s: Aliasing): Prop :=
+    owner s = alive /\ forall a, In a (aliases s) -> alias_mutability a = readonly.
+
+Lemma constructed: initial (mkAliasing alive []).
+Proof. split; [reflexivity|intros a []]. Qed.
+
+(* The references to a block over its lifetime *)
+Definition reachable (s: Aliasing): Prop := exists s0, initial s0 /\ evaluates s0 s.
+
+(* sublists, to show that dropping references can't introduce a conflict *)
+Inductive sublist {A: Type}: list A -> list A -> Prop :=
+    | sublist_nil: sublist [] []
+    | sublist_skip: forall x l1 l2, sublist l1 l2 -> sublist l1 (x :: l2)
+    | sublist_keep: forall x l1 l2, sublist l1 l2 -> sublist (x :: l1) (x :: l2)
+    .
+
+Lemma sublist_refl: forall {T: Type} (l: list T), sublist l l.
+Proof. intros T l. induction l; constructor; assumption. Qed.
+
+Lemma sublist_in: forall {T: Type} (l1 l2: list T) x, sublist l1 l2 -> In x l1 -> In x l2.
+Proof.
+    intros T l1 l2 x H. induction H; simpl; intros Hin; [exact Hin | right; auto |].
+    destruct Hin; [left | right; auto]; assumption.
+Qed.
+
+Lemma sublist_remove: forall {T: Type} (l1 l2: list T) x, sublist (l1 ++ l2) (l1 ++ x :: l2).
+Proof.
+    intros T l1 l2 x. induction l1; simpl.
+    - apply sublist_skip, sublist_refl.
+    - apply sublist_keep. assumption.
+Qed.
+
+Lemma sublist_filter: forall {T: Type} (f: T -> bool) l, sublist (filter f l) l.
+Proof.
+    intros T f l. induction l as [|x rest IH]; simpl; [constructor|].
+    destruct (f x); constructor; assumption.
+Qed.
+
+Lemma pairwise_sublist: forall {T: Type} (R: T -> T -> bool) l1 l2,
+    sublist l1 l2 -> pairwise R l2 = true -> pairwise R l1 = true.
+Proof.
+    intros T R l1 l2 H. induction H as [|x l1 l2 H IH|x l1 l2 H IH]; simpl; intros Hp; [reflexivity| |].
+    - apply andb_true_iff in Hp. apply IH, Hp.
+    - apply andb_true_iff in Hp. destruct Hp as [Hx Hp]. apply andb_true_iff. split; [|apply IH, Hp].
+      rewrite forallb_forall in *. intros y Hy. apply Hx. eapply sublist_in; eassumption.
+Qed.
+
+Lemma forallb_sublist: forall {T: Type} (f: T -> bool) l1 l2,
+    sublist l1 l2 -> forallb f l2 = true -> forallb f l1 = true.
+Proof.
+    intros T f l1 l2 H Hf. rewrite forallb_forall in *. intros x Hx. apply Hf. eapply sublist_in; eassumption.
+Qed.
+
+(* every element of a pairwise related list is related to all the others *)
+Lemma pairwise_middle: forall {T: Type} (R: T -> T -> bool) l1 x l2,
+    (forall a b, R a b = R b a) ->
+    pairwise R (l1 ++ x :: l2) = true ->
+    forall y, In y (l1 ++ l2) -> R x y = true.
+Proof.
+    intros T R l1 x l2 Hsym. induction l1 as [|z l1 IH]; simpl; intros Hp y Hy;
+        apply andb_true_iff in Hp; destruct Hp as [Hz Hp]; rewrite forallb_forall in Hz.
+    - apply Hz, Hy.
+    - destruct Hy as [<-|Hy].
+      + rewrite Hsym. apply Hz, in_or_app. right. left. reflexivity.
+      + apply IH; assumption.
+Qed.
+
+Lemma pairwise_cons: forall {T: Type} (R: T -> T -> bool) x l,
+    (forall y, In y l -> R x y = true) -> pairwise R l = true -> pairwise R (x :: l) = true.
+Proof. intros. simpl. apply andb_true_iff. split; [apply forallb_forall|]; assumption. Qed.
+
+Lemma pairwise_app: forall {T: Type} (R: T -> T -> bool) l1 l2,
+    pairwise R l1 = true -> pairwise R l2 = true ->
+    (forall x y, In x l1 -> In y l2 -> R x y = true) ->
+    pairwise R (l1 ++ l2) = true.
+Proof.
+    intros T R l1 l2 H1 H2 Hcross. induction l1 as [|x l1 IH]; simpl in *; [exact H2|].
+    apply andb_true_iff in H1. destruct H1 as [Hx H1]. apply andb_true_iff. split.
+    - rewrite forallb_forall in *. intros y Hy. apply in_app_or in Hy. destruct Hy as [Hy|Hy].
+      + apply Hx, Hy.
+      + apply Hcross; [left; reflexivity|exact Hy].
+    - apply IH; [exact H1|]. intros a b Ha Hb. apply Hcross; [right; exact Ha|exact Hb].
+Qed.
+
+Lemma may_coexist_readonly: forall m, may_coexist readonly m = true.
+Proof. intros []; reflexivity. Qed.
+
+(* What keeps the references conflict-free from one step to the next *)
+Definition invariant (s: Aliasing): Prop :=
+    conflict_free s = true
+    (* exclusive references are never captured as anything but the owner *)
+    /\ (forall m, In (captured m) (aliases s) -> m <> exclusive)
+    (* as long as there is an owner, all captured references are readonly *)
+    /\ (owner s <> dead -> forall m, In (captured m) (aliases s) -> m = readonly)
+    (* the tracked mutability is a lower bound of the active borrows *)
+    /\ (forall b, owner s = borrowed b -> forall m, In (borrow m) (aliases s) -> is_subtype_of b m = true)
+    (* as long as the owner isn't borrowed, all borrows are readonly *)
+    /\ (is_borrowed (owner s) = false -> forall m, In (borrow m) (aliases s) -> m = readonly).
+
+Lemma alias_coexists_with_owner: forall rs r,
+    conflict_free rs = true -> In r (aliases rs) ->
+    may_coexist (owner_mutability (owner rs)) (alias_mutability r) = true.
+Proof.
+    intros rs r H Ha. unfold conflict_free in H. apply andb_true_iff in H.
+    destruct H as [H _]. rewrite forallb_forall in H. apply H, Ha.
+Qed.
+
+Lemma aliases_coexist: forall rs,
+    conflict_free rs = true ->
+    pairwise (fun r0 r1 => may_coexist (alias_mutability r0) (alias_mutability r1)) (aliases rs) = true.
+Proof. intros rs H. unfold conflict_free in H. apply andb_true_iff in H. apply H. Qed.
+
+Lemma make_conflict_free: forall ow rs,
+    (forall r0, In r0 rs -> may_coexist (owner_mutability ow) (alias_mutability r0) = true) ->
+    pairwise (fun r0 r1 => may_coexist (alias_mutability r0) (alias_mutability r1)) rs = true ->
+    conflict_free (mkAliasing ow rs) = true.
+Proof. intros ow rs Ho Hp. unfold conflict_free. simpl. apply andb_true_iff. split; [apply forallb_forall|]; assumption. Qed.
+
+(* Adding an alias created from the existing alias `source`, keeping the source. *)
+Lemma conflict_free_derived: forall ow rs1 rs2 source r,
+    conflict_free (mkAliasing ow (rs1 ++ source :: rs2)) = true ->
+    alias_mutability source <> exclusive ->
+    is_subtype_of (alias_mutability source) (alias_mutability r) = true ->
+    conflict_free (mkAliasing ow (r :: rs1 ++ source :: rs2)) = true.
+Proof.
+    intros ow rs1 rs2 source r H Hsource Hsub.
+    pose proof (fun a => alias_coexists_with_owner _ a H) as Howner. pose proof (aliases_coexist _ H) as Hpairs.
+    simpl in Howner, Hpairs.
+    apply make_conflict_free.
+    - intros a [<-|Ha]; [|apply Howner, Ha].
+      eapply may_coexist_supertype; [|exact Hsub]. apply Howner, in_or_app. right. left. reflexivity.
+    - apply pairwise_cons; [|exact Hpairs].
+      intros y Hy. rewrite may_coexist_sym. apply in_app_or in Hy. destruct Hy as [Hy|[<-|Hy]].
+      + eapply may_coexist_supertype; [|exact Hsub].
+        rewrite may_coexist_sym. apply (pairwise_middle (fun a b => may_coexist (alias_mutability a) (alias_mutability b)) rs1 source rs2); [intros; apply may_coexist_sym|exact Hpairs|].
+        apply in_or_app. left. exact Hy.
+      + apply may_coexist_with_source; assumption.
+      + eapply may_coexist_supertype; [|exact Hsub].
+        rewrite may_coexist_sym. apply (pairwise_middle (fun a b => may_coexist (alias_mutability a) (alias_mutability b)) rs1 source rs2); [intros; apply may_coexist_sym|exact Hpairs|].
+        apply in_or_app. right. exact Hy.
+Qed.
+
+Lemma in_derived: forall {T: Type} (x y: T) l1 source l2,
+    In x (y :: l1 ++ source :: l2) -> x = y \/ In x (l1 ++ source :: l2).
+Proof. intros. simpl in H. destruct H; [left; symmetry|right]; assumption. Qed.
+
+Lemma pairwise_readonly: forall rs,
+    (forall r0, In r0 rs -> alias_mutability r0 = readonly) ->
+    pairwise (fun r0 r1 => may_coexist (alias_mutability r0) (alias_mutability r1)) rs = true.
+Proof.
+    intros rs Hro. induction rs as [|x rs IH]; [reflexivity|].
+    apply pairwise_cons; [|apply IH; intros r0 Ha; apply Hro; right; exact Ha].
+    intros y _. rewrite (Hro x ltac:(left; reflexivity)). apply may_coexist_readonly.
+Qed.
+
+Lemma initial_invariant: forall rs, initial rs -> invariant rs.
+Proof.
+    intros [o l] [Ho Hro]. simpl in Ho, Hro. subst o.
+    repeat split; simpl.
+    - apply make_conflict_free; [intros a Ha; rewrite (Hro a Ha); reflexivity|apply pairwise_readonly, Hro].
+    - intros m Hin. pose proof (Hro _ Hin) as Hm. simpl in Hm. subst m. discriminate.
+    - intros _ m Hin. exact (Hro _ Hin).
+    - intros b Hb. discriminate Hb.
+    - intros _ m Hin. exact (Hro _ Hin).
+Qed.
+
+Lemma invariant_transition: forall rs rs', invariant rs -> transition rs rs' -> invariant rs'.
+Proof.
+    intros rs rs' [Hfree [Hexcl [Hreadonly [Hbound Hborrows]]]] Htransition.
+    destruct Htransition as [l|l m Hm|o l1 l2 m m' Hsub|l m|b l m Hallowed|o l1 l2 m m' Hm Hsub|o l1 a l2|o l l' Hro|l];
+        simpl in Hexcl, Hreadonly, Hbound, Hborrows.
+    - (* capture_owner_as_readonly *)
+      pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
+      repeat split; simpl.
+      + apply make_conflict_free; [intros a [<-|Ha]; [reflexivity|apply Howner, Ha]|].
+        apply pairwise_cons; [intros; reflexivity|exact Hpairs].
+      + intros m0 [Heq|Hin]; [injection Heq as <-; discriminate|apply Hexcl, Hin].
+      + intros _ m0 [Heq|Hin]; [injection Heq as <-; reflexivity|apply Hreadonly; [discriminate|exact Hin]].
+      + intros b0 Hb0. discriminate Hb0.
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hborrows; [reflexivity|exact Hin]].
+    - (* capture_owner *)
+      pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
+      simpl in Howner, Hpairs.
+      repeat split; simpl.
+      + apply make_conflict_free; [intros; reflexivity|].
+        apply pairwise_cons; [|exact Hpairs].
+        intros y Hy. rewrite (may_coexist_exclusive _ (Howner y Hy)). destruct m; reflexivity.
+      + intros m0 [Heq|Hin]; [injection Heq as <-; destruct Hm as [->| ->]; discriminate|apply Hexcl, Hin].
+      + intros Hdead. exfalso. apply Hdead. reflexivity.
+      + intros b0 Hb0. discriminate Hb0.
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hborrows; [reflexivity|exact Hin]].
+    - (* capture_alias *)
+      assert (Hm: m <> exclusive). { apply Hexcl, in_or_app. right. left. reflexivity. }
+      repeat split; simpl.
+      + apply (conflict_free_derived _ _ _ (captured m) (captured m')); assumption.
+      + intros m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hexcl, Hin].
+        injection Heq as ->. intros ->. apply Hm, mutability_subtype_of_exclusive, Hsub.
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hreadonly; assumption].
+        injection Heq as ->. assert (Hro: m = readonly). { apply Hreadonly; [exact Ho|]. apply in_or_app. right. left. reflexivity. }
+        subst m. destruct m'; simpl in Hsub; congruence.
+      + intros b0 Hb0 m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|]. apply (Hbound b0 Hb0), Hin.
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|]. apply Hborrows; assumption.
+    - (* start_borrow *)
+      pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
+      simpl in Howner, Hpairs.
+      repeat split; simpl.
+      + apply make_conflict_free; [intros; reflexivity|].
+        apply pairwise_cons; [|exact Hpairs].
+        intros y Hy. rewrite (may_coexist_exclusive _ (Howner y Hy)). destruct m; reflexivity.
+      + intros m0 [Heq|Hin]; [discriminate Heq|apply Hexcl, Hin].
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hreadonly; [discriminate|exact Hin]].
+      + intros b0 Hb0 m0 Hin. injection Hb0 as <-. destruct Hin as [Heq|Hin].
+        * injection Heq as <-. apply mutability_is_subtype_of_refl.
+        * pose proof (may_coexist_exclusive _ (Howner _ Hin)) as Hro. simpl in Hro. rewrite Hro.
+          apply mutability_subtype_of_readonly.
+      + intros Hb. discriminate Hb.
+    - (* add_borrow *)
+      pose proof (aliases_coexist _ Hfree) as Hpairs. simpl in Hpairs, Hallowed.
+      repeat split; simpl.
+      + apply make_conflict_free; [intros; reflexivity|].
+        apply pairwise_cons; [|exact Hpairs].
+        intros [m0|m0] Hy; simpl.
+        * rewrite (Hreadonly ltac:(discriminate) m0 Hy). destruct m; reflexivity.
+        * eapply may_coexist_supertype; [exact Hallowed|]. apply (Hbound b eq_refl), Hy.
+      + intros m0 [Heq|Hin]; [discriminate Heq|apply Hexcl, Hin].
+      + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hreadonly; [discriminate|exact Hin]].
+      + intros b0 Hb0 m0 Hin. injection Hb0 as <-. destruct Hin as [Heq|Hin].
+        * injection Heq as <-. apply intersect_mutability_right.
+        * eapply mutability_subtype_trans; [apply intersect_mutability_left|]. apply (Hbound b eq_refl), Hin.
+      + intros Hb. discriminate Hb.
+    - (* reborrow *)
+      repeat split; simpl.
+      + apply (conflict_free_derived _ _ _ (borrow m) (borrow m')); assumption.
+      + intros m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|apply Hexcl, Hin].
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [discriminate Heq|apply Hreadonly; assumption].
+      + intros b0 Hb0 m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply (Hbound b0 Hb0), Hin].
+        injection Heq as ->. eapply mutability_subtype_trans; [|exact Hsub].
+        apply (Hbound b0 Hb0), in_or_app. right. left. reflexivity.
+      + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hborrows; assumption].
+        injection Heq as ->. assert (Hro: m = readonly). { apply Hborrows; [exact Ho|]. apply in_or_app. right. left. reflexivity. }
+        subst m. destruct m'; simpl in Hsub; congruence.
+    - (* drop *)
+      pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
+      simpl in Howner, Hpairs.
+      assert (Hin: forall x, In x (l1 ++ l2) -> In x (l1 ++ a :: l2)).
+      { intros x Hx. eapply sublist_in; [apply sublist_remove|exact Hx]. }
+      repeat split; simpl.
+      + apply make_conflict_free; [intros x Hx; apply Howner, Hin, Hx|].
+        eapply pairwise_sublist; [apply sublist_remove|exact Hpairs].
+      + intros m0 Hm0. apply Hexcl, Hin, Hm0.
+      + intros Ho m0 Hm0. apply Hreadonly; [exact Ho|apply Hin, Hm0].
+      + intros b0 Hb0 m0 Hm0. apply (Hbound b0 Hb0), Hin, Hm0.
+      + intros Ho m0 Hm0. apply Hborrows; [exact Ho|apply Hin, Hm0].
+    - (* adopt *)
+      pose proof (fun a => alias_coexists_with_owner _ a Hfree) as Howner. pose proof (aliases_coexist _ Hfree) as Hpairs.
+      simpl in Howner, Hpairs.
+      repeat split; simpl.
+      + apply make_conflict_free.
+        * intros a Ha. apply in_app_or in Ha. destruct Ha as [Ha|Ha]; [|apply Howner, Ha].
+          rewrite (Hro a Ha), may_coexist_sym. apply may_coexist_readonly.
+        * apply pairwise_app; [apply pairwise_readonly, Hro|exact Hpairs|].
+          intros x y Hx _. cbv beta. rewrite (Hro x Hx). apply may_coexist_readonly.
+      + intros m0 Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin]; [|apply Hexcl, Hin].
+        pose proof (Hro _ Hin) as Hm0. simpl in Hm0. subst m0. discriminate.
+      + intros Ho m0 Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin]; [exact (Hro _ Hin)|apply Hreadonly; assumption].
+      + intros b0 Hb0 m0 Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin]; [|apply (Hbound b0 Hb0), Hin].
+        pose proof (Hro _ Hin) as Hm0. simpl in Hm0. rewrite Hm0. apply mutability_subtype_of_readonly.
+      + intros Ho m0 Hin. apply in_app_or in Hin. destruct Hin as [Hin|Hin]; [exact (Hro _ Hin)|apply Hborrows; assumption].
+    - (* give_up_owner *)
+      pose proof (aliases_coexist _ Hfree) as Hpairs. simpl in Hpairs.
+      repeat split; simpl.
+      + apply make_conflict_free; [intros; reflexivity|exact Hpairs].
+      + exact Hexcl.
+      + intros Hdead. exfalso. apply Hdead. reflexivity.
+      + intros b0 Hb0. discriminate Hb0.
+      + intros _. apply Hborrows. reflexivity.
+Qed.
+
+Lemma owner_after_invocation_alive: forall before after,
+    owner_after_invocation before after = alive -> after <> dead /\ is_borrowed before = false.
+Proof. intros [] [] H; simpl in H; try discriminate H; split; (congruence || reflexivity). Qed.
+
+Lemma owner_after_invocation_not_dead: forall before after,
+    owner_after_invocation before after <> dead -> after <> dead.
+Proof. intros [] [] H; simpl in H; congruence. Qed.
+
+Lemma owner_after_invocation_borrowed: forall before after m,
+    owner_after_invocation before after = borrowed m -> before = borrowed m.
+Proof. intros [] [] m H; simpl in H; congruence. Qed.
+
+Lemma owner_after_invocation_not_borrowed: forall before after,
+    is_borrowed (owner_after_invocation before after) = false -> after = dead \/ is_borrowed before = false.
+Proof. intros [] [] H; simpl in H; auto. Qed.
+
+(* An invocation that starts while the owner is borrowed can't end the borrow, nor the lifetime of the owner. *)
+Lemma owner_stays_borrowed:
+    (forall rs rs', step rs rs' -> is_borrowed (owner rs) = true -> is_borrowed (owner rs') = true)
+    /\ (forall rs rs', evaluates rs rs' -> is_borrowed (owner rs) = true -> is_borrowed (owner rs') = true).
+Proof.
+    apply step_evaluates_mut.
+    - intros rs rs' Htransition Hb. destruct Htransition; simpl in *; congruence.
+    - intros rs rs' _ IH Hb. specialize (IH Hb). simpl.
+      destruct (owner rs), (owner rs'); simpl in *; congruence.
+    - intros rs Hb. exact Hb.
+    - intros rs rs' s'' _ IH1 _ IH2 Hb. apply IH2, IH1, Hb.
+Qed.
+
+Lemma invariant_return: forall before after,
+    invariant before -> invariant after ->
+    (is_borrowed (owner before) = true -> is_borrowed (owner after) = true) ->
+    invariant (return_from before after).
+Proof.
+    intros before after [Hfree [Hexcl [Hreadonly [Hbound Hborrows]]]] [Hfree' [Hexcl' [Hreadonly' [Hbound' Hborrows']]]] Hstays.
+    set (captures := filter is_captured (aliases after)).
+    set (borrows := filter (fun a => negb (is_captured a)) (aliases before)).
+    (* the captures from evaluating the arguments are readonly, unless the owner was captured *)
+    assert (Hcaptures: owner after <> dead -> forall a, In a captures -> alias_mutability a = readonly).
+    { intros Ho [m|m] Ha; apply filter_In in Ha; destruct Ha as [Ha Hc]; [|discriminate Hc]. apply (Hreadonly' Ho m Ha). }
+    (* the borrows from before the invocation are readonly, unless the owner was borrowed *)
+    assert (Hborrowed: is_borrowed (owner before) = false -> forall a, In a borrows -> alias_mutability a = readonly).
+    { intros Ho [m|m] Ha; apply filter_In in Ha; destruct Ha as [Ha Hc]; [discriminate Hc|]. apply (Hborrows Ho m Ha). }
+    (* the owner can't be captured while it is borrowed *)
+    assert (Hcross: owner after <> dead \/ is_borrowed (owner before) = false).
+    { destruct (is_borrowed (owner before)) eqn:Hb; [left|right; reflexivity].
+      intros Hd. specialize (Hstays eq_refl). rewrite Hd in Hstays. discriminate Hstays. }
+    assert (Hin: forall a, In a (captures ++ borrows) -> (In a captures /\ In a (aliases after)) \/ (In a borrows /\ In a (aliases before))).
+    { intros a Ha. apply in_app_or in Ha. destruct Ha as [Ha|Ha]; [left|right]; split; try exact Ha; apply filter_In in Ha; apply Ha. }
+    unfold return_from. fold captures borrows.
+    repeat split; cbn [owner aliases].
+    - apply make_conflict_free.
+      + intros a Ha. destruct (owner_after_invocation (owner before) (owner after)) eqn:Ho; simpl; try reflexivity.
+        apply owner_after_invocation_alive in Ho. destruct Ho as [Hafter Hbefore].
+        destruct (Hin a Ha) as [[Ha' _]|[Ha' _]]; [rewrite (Hcaptures Hafter a Ha')|rewrite (Hborrowed Hbefore a Ha')]; reflexivity.
+      + apply pairwise_app.
+        * eapply pairwise_sublist; [apply sublist_filter|exact (aliases_coexist _ Hfree')].
+        * eapply pairwise_sublist; [apply sublist_filter|exact (aliases_coexist _ Hfree)].
+        * intros x y Hx Hy. cbv beta. destruct Hcross as [Ho|Ho].
+          -- rewrite (Hcaptures Ho x Hx). apply may_coexist_readonly.
+          -- rewrite (Hborrowed Ho y Hy), may_coexist_sym. apply may_coexist_readonly.
+    - intros m Hm. destruct (Hin _ Hm) as [[_ Hm']|[Hm' _]]; [apply Hexcl', Hm'|].
+      apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+    - intros Ho m Hm. destruct (Hin _ Hm) as [[_ Hm']|[Hm' _]].
+      + apply Hreadonly'; [apply (owner_after_invocation_not_dead (owner before)), Ho|exact Hm'].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+    - intros b Hb m Hm. apply owner_after_invocation_borrowed in Hb.
+      destruct (Hin _ Hm) as [[Hm' _]|[_ Hm']].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+      + apply (Hbound b Hb), Hm'.
+    - intros Ho m Hm. destruct (Hin _ Hm) as [[Hm' _]|[Hm' _]].
+      + apply filter_In in Hm'. destruct Hm' as [_ Hc]. discriminate Hc.
+      + apply owner_after_invocation_not_borrowed in Ho.
+        assert (Hbefore: is_borrowed (owner before) = false) by (destruct Ho as [Ho|Ho]; [destruct Hcross; [contradiction|assumption]|exact Ho]).
+        apply (Hborrowed Hbefore _ Hm').
+Qed.
+
+(* What happens to the references keeps them conflict-free *)
+Lemma invariant_steps:
+    (forall rs rs', step rs rs' -> invariant rs -> invariant rs')
+    /\ (forall rs rs', evaluates rs rs' -> invariant rs -> invariant rs').
+Proof.
+    apply step_evaluates_mut.
+    - intros rs rs' Htransition Hinv. eapply invariant_transition; eassumption.
+    - intros rs rs' Hevaluates IH Hinv. apply invariant_return; [exact Hinv|apply IH, Hinv|].
+      apply (proj2 owner_stays_borrowed _ _ Hevaluates).
+    - intros rs Hinv. exact Hinv.
+    - intros rs rs' s'' _ IH1 _ IH2 Hinv. apply IH2, IH1, Hinv.
+Qed.
+
+(* No two references to an object ever make conflicting promises. *)
+Theorem references_are_conflict_free: forall rs,
+    reachable rs -> conflict_free rs = true.
+Proof.
+    intros rs [s0 [Hinitial H]]. enough (Hinv: invariant rs) by apply Hinv.
+    apply (proj2 invariant_steps _ _ H), initial_invariant, Hinitial.
+Qed.
+
+(* ---------------------------------------------------------------------------------------------- *)
+(* (b) Assignability respects mutability                                                           *)
+(*                                                                                                *)
+(* Model (a) creates every alias as a supertype of the reference it is created from. This shows    *)
+(* that type checking guarantees that, for the types a reference to an object can have.            *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(*
+ * Whether a reference of this type can refer to an object. Not if Nothing is in the way: by the
+ * axiom that panic never returns, the constructor of Nothing never returns, so no object is of
+ * type Nothing (generics bounded by Nothing included). Erroneous types fail to compile; type
+ * arguments and type variables aren't the types of references.
+ *)
+Fixpoint can_refer_to_object_h (through_ref: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved _ c _ => negb (class_eqb c nothing)
+    | Nullable n => can_refer_to_object_h through_ref n
+    | Generic g => through_ref g
+    | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
+    | Intersection components => forallb (can_refer_to_object_h through_ref) components
+    end.
+
+(* Through the effective bound of a reference to a type parameter (Subtyping.through) *)
+Definition can_refer_through (g: GenericRef): bool := through env can_refer_to_object_h true g.
+
+Fixpoint can_refer_to_object (t: EType): bool :=
+    match t with
+    | RootResolved _ c _ => negb (class_eqb c nothing)
+    | Nullable n => can_refer_to_object n
+    | Generic g => can_refer_through g
+    | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
+    | Intersection components => forallb can_refer_to_object components
+    end.
+
+Lemma can_refer_to_object_h_agree: forall k Q1 Q2, (forall g, rank_of env g < k -> Q1 g = Q2 g) ->
+    forall t, ranked_below env k t = true -> can_refer_to_object_h Q1 t = can_refer_to_object_h Q2 t.
+Proof.
+    intros k Q1 Q2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    - exact (IH n Ht).
+    - exact (HU g (ref_ranked env k g Ht)).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma can_refer_top: forall t, can_refer_to_object t = can_refer_to_object_h can_refer_through t.
+Proof.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
+    induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+Qed.
+
+Lemma can_refer_generic: forall g, can_refer_to_object (Generic g) = can_refer_to_object (effective_bound env g).
+Proof.
+    intros g. change (can_refer_through g = can_refer_to_object (effective_bound env g)). rewrite can_refer_top.
+    unfold can_refer_through at 1. rewrite (through_eq env ranked); [reflexivity|exact can_refer_to_object_h_agree].
+Qed.
+
+(* A type and its type variables can refer to an object, or not, with and without null *)
+Lemma can_refer_without_null: forall vs t,
+    can_refer_to_object (with_type_variables vs (without_null env t)) = can_refer_to_object (with_type_variables vs t).
+Proof.
+    intros vs t. destruct (ranked_exists env t) as [k Hk]. revert vs t Hk. induction k as [k IHk] using lt_wf_ind.
+    intros vs. fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|[gm nn p us]|cs] Hk; try reflexivity.
+    - cbn [without_null]. pose proof (IH n Hk) as E. clear IH. destruct vs as [|w ws]; [exact E|].
+      cbn [with_type_variables with_type_variables_in can_refer_to_object] in E |- *. exact E.
+    - clear IH. pose proof (ref_ranked env k _ Hk) as Hg. cbn [without_null].
+      assert (Hsame: forall ws, can_refer_to_object (Generic (mkGenericRef gm (nn || ref_nullable env (mkGenericRef gm nn p us)) p ws))
+          = can_refer_to_object (Generic (mkGenericRef gm nn p ws))).
+      { intros ws. rewrite !can_refer_generic, !(effective_bound_adjusted env ranked). cbn [variables_of].
+        unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+        destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+        apply (IHk _ Hg).
+        exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)). }
+      destruct vs as [|w ws]; [exact (Hsame us)|]. unfold with_type_variables. cbn [with_type_variables_in].
+      destruct (existsb (param_eqb p) (w :: ws)); [reflexivity|]. exact (Hsame (us ++ w :: ws)).
+    - clear IH. destruct vs; reflexivity.
+    - assert (Hl: forall xs, can_refer_to_object (with_type_variables vs (Intersection xs))
+          = forallb (fun c => can_refer_to_object (with_type_variables vs c)) xs).
+      { clear. intros xs. destruct vs as [|w ws]; [reflexivity|]. cbn [with_type_variables with_type_variables_in can_refer_to_object].
+        induction xs as [|x xs IHx]; [reflexivity|]. cbn [map forallb]. rewrite IHx. reflexivity. }
+      cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      rewrite !Hl. simpl in Hk. clear IHk Hl. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk.
+      apply andb_true_iff in Hk. destruct Hk as [Hc Hcs]. cbn [map forallb]. rewrite (IH c Hc), (IHc Hcs). reflexivity.
+Qed.
+
+Lemma without_null_keeps: forall t,
+    mutability_of env (without_null env t) = mutability_of env t /\ can_refer_to_object (without_null env t) = can_refer_to_object t.
+Proof.
+    intros t. split; [|exact (can_refer_without_null [] t)].
+    destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    - exact (IH n Hk).
+    - cbn [without_null]. rewrite !(mutability_of_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
+      pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
+      assert (E: forall t, mutability_of env (with_type_variables us t) = mutability_of env t)
+          by (intros t; specialize (Hk' t); injection Hk' as E _ _ _; exact E).
+      rewrite !E. unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+      destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+      apply (IHk _ (ref_ranked env k _ Hk)).
+      exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
+    - simpl. rewrite (IH n Hk). reflexivity.
+    - cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      simpl in Hk. clear IHk. cbn [mutability_of].
+      assert (Ht: existsb (top_const env) (map (without_null env) cs) = existsb (top_const env) cs).
+      { clear IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map existsb]. rewrite (top_const_without_null env ranked c), IHc. reflexivity. }
+      assert (Hm: map (mutability_of env) (map (without_null env) cs) = map (mutability_of env) cs).
+      { clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+        cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)]. }
+      rewrite Ht, Hm. reflexivity.
+Qed.
+
+Lemma without_null_keeps_assignment_mutability: forall t,
+    assignment_mutability env (without_null env t) = assignment_mutability env t.
+Proof.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    - exact (IH n Hk).
+    - cbn [without_null]. rewrite !(assignment_mutability_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
+      pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
+      assert (E: forall t, assignment_mutability env (with_type_variables us t) = assignment_mutability env t)
+          by (intros t; specialize (Hk' t); injection Hk' as _ E _ _; exact E).
+      rewrite !E. unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
+      destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable env _); [|reflexivity].
+      apply (IHk _ (ref_ranked env k _ Hk)).
+      exact (adjusted_bound_ranked env ranked (mkGenericRef gm false p us)).
+    - exact (IH n Hk).
+    - cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
+      simpl in Hk. clear IHk. cbn [assignment_mutability]. f_equal.
+      clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
+      cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)].
+Qed.
+
+Lemma generic_mutability_below_bound: forall g,
+    is_subtype_of (mutability_of env (Generic g)) (mutability_of env (effective_bound env g)) = true.
+Proof.
+    intros g. rewrite (mutability_of_generic env ranked). apply mutability_is_subtype_of_refl.
+Qed.
+
+Lemma fold_intersect_below_acc: forall ms m, is_subtype_of (fold_left intersect_mutability ms m) m = true.
+Proof.
+    induction ms as [|x rest IH]; intros m; simpl; [apply mutability_is_subtype_of_refl|].
+    eapply mutability_subtype_trans; [apply IH|apply intersect_mutability_left].
+Qed.
+
+Lemma fold_intersect_below_element: forall ms m0 m1,
+    In m1 ms -> is_subtype_of (fold_left intersect_mutability ms m0) m1 = true.
+Proof.
+    induction ms as [|y rest IH]; intros m0 m1 Hx; simpl; [contradiction|].
+    destruct Hx as [<-|Hx]; [|apply IH, Hx].
+    eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
+Qed.
+
+Lemma fold_intersect_greatest: forall ms m0 m1,
+    is_subtype_of m1 m0 = true -> (forall m2, In m2 ms -> is_subtype_of m1 m2 = true) ->
+    is_subtype_of m1 (fold_left intersect_mutability ms m0) = true.
+Proof.
+    induction ms as [|m2 rest IH]; intros m0 m1 Hacc Hl; simpl; [exact Hacc|].
+    apply IH; [apply intersect_mutability_greatest; [exact Hacc|apply Hl; left; reflexivity]|].
+    intros z Hz. apply Hl. right. exact Hz.
+Qed.
+
+Lemma intersection_assignment_mutability: forall components,
+    assignment_mutability env (Intersection components) = fold_left intersect_mutability (map (assignment_mutability env) components) readonly.
+Proof. reflexivity. Qed.
+
+Lemma intersection_assignment_mutability_below_component: forall components x,
+    In x components -> is_subtype_of (assignment_mutability env (Intersection components)) (assignment_mutability env x) = true.
+Proof.
+    intros components x Hc. rewrite intersection_assignment_mutability.
+    apply fold_intersect_below_element, in_map, Hc.
+Qed.
+
+(* An object of a const class is assigned as exclusive *)
+Lemma top_const_assigned_exclusive: forall t, top_const env t = true -> assignment_mutability env t = exclusive.
+Proof.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk H.
+    - simpl in H |- *. rewrite H. reflexivity.
+    - exact (IH n Hk H).
+    - rewrite (top_const_generic env ranked) in H. rewrite (assignment_mutability_generic env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g) H).
+    - discriminate H.
+    - exact (IH n Hk H).
+    - rewrite (top_const_type_variable env ranked) in H. rewrite (assignment_mutability_type_variable env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g) H).
+    - simpl in H, Hk |- *. revert H Hk. generalize readonly as acc. induction cs as [|c rest IHl]; intros acc H Hk; simpl in H, Hk |- *; [discriminate H|].
+      apply andb_true_iff in Hk. destruct Hk as [Hc Hrest].
+      destruct (top_const env c) eqn:E.
+      + rewrite (IH c Hc E). apply mutability_subtype_of_exclusive.
+        eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
+      + exact (IHl _ H Hrest).
+Qed.
+
+(* A value is assigned as no more than its mutability: as exclusive, where it is an object of a const
+   class *)
+Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
+Proof.
+    intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk.
+    - simpl. destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
+    - exact (IH n Hk).
+    - rewrite (assignment_mutability_generic env ranked), (mutability_of_generic env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g)).
+    - apply mutability_is_subtype_of_refl.
+    - exact (IH n Hk).
+    - rewrite (assignment_mutability_type_variable env ranked), (mutability_of_type_variable env ranked).
+      exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g)).
+    - simpl. destruct (existsb (top_const env) cs) eqn:E.
+      { pose proof (top_const_assigned_exclusive (Intersection cs) E) as Hx. simpl in Hx. rewrite Hx. reflexivity. }
+      assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
+          is_subtype_of (intersect_mutability a b) (intersect_mutability a' b') = true).
+      { intros x x' y y' Hx Hy. apply intersect_mutability_greatest.
+        - eapply mutability_subtype_trans; [apply intersect_mutability_left|exact Hx].
+        - eapply mutability_subtype_trans; [apply intersect_mutability_right|exact Hy]. }
+      exact ((fix F (l: list EType) (acc acc': Mutability) (H: is_subtype_of acc acc' = true) {struct l}:
+          forallb (ranked_below env k) l = true ->
+          is_subtype_of (fold_left intersect_mutability (map (assignment_mutability env) l) acc)
+              (fold_left intersect_mutability (map (mutability_of env) l) acc') = true :=
+          match l with
+          | [] => fun _ => H
+          | x :: rest => fun Hl =>
+              F rest _ _ (Hmono _ _ _ _ H (IH x (proj1 (proj1 (andb_true_iff _ _) Hl)))) (proj2 (proj1 (andb_true_iff _ _) Hl))
+          end) cs readonly readonly eq_refl Hk).
+Qed.
+
+Lemma find_first_found: forall attempt candidates y states,
+    find_first attempt candidates = Some (Some (y, states)) ->
+    In y candidates /\ attempt y = Some (Ongoing states).
+Proof.
+    intros attempt candidates. induction candidates as [|x rest IH]; intros y states H; simpl in H.
+    - discriminate H.
+    - destruct (attempt x) as [[s|]|] eqn:E; try discriminate H.
+      + injection H as <- <-. split; [left; reflexivity|exact E].
+      + destruct (IH _ _ H) as [Hin Hc]. split; [right; exact Hin|exact Hc].
+Qed.
+
+Lemma intersection_flipped_unify_found: forall fuel target components states s',
+    intersection_flipped_unify (unify env fuel) target components states = Some (Ongoing s') ->
+    exists x, In x components /\ unify env fuel target x (Ongoing states) = Some (Ongoing s').
+Proof.
+    intros fuel target components states s' H. unfold intersection_flipped_unify in H.
+    destruct (find_first _ components) as [[[x s]|]|] eqn:E; try discriminate H.
+    injection H as <-. apply find_first_found in E. exists x. exact E.
+Qed.
+
+Lemma fold_unify_stays_failed: forall fuel assignee xs,
+    fold_unify (fun inner x => unify env fuel x assignee inner) xs Failed = Some Failed.
+Proof. intros fuel assignee xs. induction xs; simpl; [reflexivity|]. rewrite unify_keeps_failure. assumption. Qed.
+
+Lemma fold_unify_each: forall fuel assignee xs states s'',
+    fold_unify (fun inner y => unify env fuel y assignee inner) xs (Ongoing states) = Some (Ongoing s'') ->
+    forall y, In y xs -> exists s s', unify env fuel y assignee (Ongoing s) = Some (Ongoing s').
+Proof.
+    intros fuel assignee xs. induction xs as [|x rest IH]; intros states s'' H y Hc; simpl in H, Hc; [contradiction|].
+    destruct (unify env fuel x assignee (Ongoing states)) as [[s'|]|] eqn:E; try discriminate H.
+    - destruct Hc as [<-|Hc]; [exists states, s'; exact E|]. eapply IH; eassumption.
+    - rewrite fold_unify_stays_failed in H. discriminate H.
+Qed.
+
+Lemma no_type_variables: forall components,
+    forallb can_refer_to_object components = true ->
+    filter is_type_variable components = [] /\ filter (fun x => negb (is_type_variable x)) components = components.
+Proof.
+    induction components as [|x rest IH]; intros H; simpl in *; [split; reflexivity|].
+    apply andb_true_iff in H. destruct H as [Hc H]. destruct (IH H) as [IH1 IH2].
+    destruct x as [| |[]| | | |]; simpl in Hc; try discriminate Hc; simpl; rewrite IH1, IH2; split; reflexivity.
+Qed.
+
+(*
+ * If a value can be assigned to a reference, and both types can refer to an object, then the
+ * mutability of the reference is a supertype of the mutability the value is assigned as: its own,
+ * or exclusive for an object of a const class.
+ *)
+Theorem unify_respects_mutability: forall fuel target assignee states s,
+    unify env fuel target assignee (Ongoing states) = Some (Ongoing s) ->
+    can_refer_to_object target = true ->
+    can_refer_to_object assignee = true ->
+    is_subtype_of (assignment_mutability env assignee) (assignment_mutability env target) = true.
+Proof.
+    induction fuel as [|fuel IH]; intros target assignee states s H Ht Ha; [discriminate H|].
+    change (unify env (S fuel) target assignee (Ongoing states))
+        with (unify_step env (unify env fuel) target assignee states) in H.
+    destruct target as [tm tc targs|tn|[tg tnn tp tb]|tm tmsg|tv to tt|[tg tnn tp tb]|tcs]; simpl in Ht; try discriminate Ht;
+        cbv beta iota delta [unify_step] in H.
+    - (* RootResolved *)
+      cbv beta iota delta [unify_root_resolved] in H.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      + destruct (negb (base_type_is_subtype_of env ac tc)); [discriminate H|].
+        match type of H with context [negb (is_subtype_of ?x ?y)] => destruct (is_subtype_of x y) eqn:E end;
+            [reflexivity|discriminate H].
+      + discriminate H.
+      + rewrite (assignment_mutability_generic env ranked). eapply IH; [exact H|exact Ht|].
+        rewrite <- can_refer_generic. exact Ha.
+      + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
+        eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
+    - (* Nullable *)
+      cbv beta iota delta [unify_nullable] in H.
+      change (assignment_mutability env (Nullable tn)) with (assignment_mutability env tn).
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      + eapply IH; eassumption.
+      + change (assignment_mutability env (Nullable an)) with (assignment_mutability env an). eapply IH; eassumption.
+      + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
+        assert (Hnested: unify env fuel tn (without_null env (Generic (mkGenericRef ag ann ap ab))) (Ongoing states) = Some (Ongoing s) ->
+            is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
+        { intros Hu. destruct (without_null_keeps (Generic (mkGenericRef ag ann ap ab))) as [_ Hc].
+          rewrite <- (without_null_keeps_assignment_mutability (Generic (mkGenericRef ag ann ap ab))).
+          eapply IH; [exact Hu|exact Ht|rewrite Hc; exact Ha]. }
+        assert (Hself: unify env fuel (Nullable tn) (effective_bound env (mkGenericRef ag ann ap ab)) (Ongoing states) = Some (Ongoing s) ->
+            is_subtype_of (assignment_mutability env (Generic (mkGenericRef ag ann ap ab))) (assignment_mutability env tn) = true).
+        { intros Hu. rewrite (assignment_mutability_generic env ranked).
+          change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
+          eapply IH; [exact Hu|exact Ht|]. rewrite <- can_refer_generic. exact Ha. }
+        destruct tn as [| |[]| | | |]; first [exact (Hnested H) | exact (Hself H)].
+      + (* the assignee without null, unified with the nested type *)
+        destruct (without_null_keeps (Intersection acs)) as [_ Hc].
+        rewrite <- (without_null_keeps_assignment_mutability (Intersection acs)).
+        eapply IH; [exact H|exact Ht|rewrite Hc; exact Ha].
+    - (* Generic *)
+      cbv beta iota delta [unify_generic] in H.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      + simpl in H. apply negb_true_iff in Ha. rewrite Ha in H. discriminate H.
+      + discriminate H.
+      + destruct (param_eqb ap tp).
+        * destruct (_ && _) eqn:E2 in H; [|discriminate H]. apply andb_true_iff in E2. exact (proj1 E2).
+        * rewrite (assignment_mutability_generic env ranked). eapply IH; [exact H|exact Ht|]. rewrite <- can_refer_generic. exact Ha.
+      + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
+        eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
+    - (* Intersection *)
+      cbv beta iota zeta delta [unify_intersection intersection_body] in H.
+      destruct (no_type_variables _ Ht) as [Hvar Hnonvar].
+      assert (Hcomponents: forall s', fold_unify (fun inner c => unify env fuel c assignee inner) tcs (Ongoing states) = Some (Ongoing s') ->
+          is_subtype_of (assignment_mutability env assignee) (assignment_mutability env (Intersection tcs)) = true).
+      { intros s' Hfold. rewrite intersection_assignment_mutability.
+        apply fold_intersect_greatest; [apply mutability_subtype_of_readonly|].
+        intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hc]].
+        destruct (fold_unify_each _ _ _ _ _ Hfold c Hc) as [s1 [s1' Hu]].
+        eapply IH; [exact Hu| |exact Ha]. rewrite forallb_forall in Ht. apply Ht, Hc. }
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha;
+          try (simpl in H; discriminate H);
+          try (destruct (negb (is_nullable env (Intersection tcs))); [discriminate H|]);
+          rewrite Hnonvar in H;
+          (destruct (fold_unify _ tcs (Ongoing states)) as [[s2|]|] eqn:Efold; try discriminate H);
+          eapply Hcomponents; reflexivity.
+Qed.
+
+(* The same, in terms of is_assignable_to: a value can only ever be aliased by references that
+   promise less, unless it is an object of a const class, which keeps every promise. *)
+Theorem assignability_respects_mutability: forall fuel x y,
+    is_assignable_to env fuel x y = Some true ->
+    can_refer_to_object x = true ->
+    can_refer_to_object y = true ->
+    is_subtype_of (assignment_mutability env x) (assignment_mutability env y) = true.
+Proof.
+    intros fuel x y H Hsub Hsuper. unfold is_assignable_to in H.
+    destruct (unify env fuel y x empty_unification) as [[u|]|] eqn:E; try discriminate H.
+    eapply unify_respects_mutability; eassumption.
+Qed.
+
+End Ops.

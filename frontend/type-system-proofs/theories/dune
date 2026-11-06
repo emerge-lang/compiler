@@ -1,0 +1,9 @@
+; The build configuration of the proofs. dune discovers the .v files itself, so adding a proof
+; file needs no bookkeeping here; it builds them into ../_build/default/theories, leaving this
+; source tree free of artifacts.
+(rocq.theory
+ (name EmergeTypeSystem)
+ (theories Stdlib))
+
+; theories/Foo/Bar.v is the module EmergeTypeSystem.Foo.Bar
+(include_subdirs qualified)

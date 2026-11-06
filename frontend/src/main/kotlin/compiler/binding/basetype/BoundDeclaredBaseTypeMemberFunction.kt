@@ -173,9 +173,13 @@ class BoundDeclaredBaseTypeMemberFunction(
             .filter { it.canonicalName.simpleName == this.name }
             .filter { it.parameters.parameters.size == this.parameters.parameters.size }
             .filter { potentialSuperFn ->
+                val supertypeBindings = declaredOnType.superTypes
+                    .getParameterizedSupertype(potentialSuperFn.declaredOnType)
+                    .inherentTypeBindings
                 val potentialSuperFnParamTypes = potentialSuperFn.parameterTypes
                     .drop(1) // ignore receiver
                     .asElementNotNullable()
+                    ?.map { it.instantiateAllParameters(supertypeBindings) }
                     ?: return@filter false
 
                 selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())

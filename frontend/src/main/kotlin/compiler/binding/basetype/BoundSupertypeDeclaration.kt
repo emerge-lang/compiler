@@ -2,6 +2,7 @@ package compiler.binding.basetype
 
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.AstWildcardTypeArgument
+import compiler.ast.type.TypeVariance
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -13,6 +14,7 @@ import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.cyclicInheritance
 import compiler.diagnostic.illegalSupertype
+import compiler.diagnostic.immediateVariantTypeArgumentOnSupertype
 import compiler.diagnostic.immediateWildcardTypeArgumentOnSupertype
 import compiler.handleCyclicInvocation
 import kotlin.properties.Delegates
@@ -73,11 +75,14 @@ class BoundSupertypeDeclaration(
 
             unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.span, getTypeDef()), diagnosis)
 
-            resolvedReference?.inherentTypeBindings?.bindings
-                ?.filter { (_, arg) -> (arg as BoundTypeArgument).astNode is AstWildcardTypeArgument }
-                ?.forEach { (param, arg) ->
-                    diagnosis.immediateWildcardTypeArgumentOnSupertype((arg as BoundTypeArgument).astNode, param.astNode)
+            resolvedReference?.inherentTypeBindings?.bindings?.forEach { (param, arg) ->
+                arg as BoundTypeArgument
+                if (arg.astNode is AstWildcardTypeArgument) {
+                    diagnosis.immediateWildcardTypeArgumentOnSupertype(arg.astNode, param.astNode)
+                } else if (arg.variance != TypeVariance.UNSPECIFIED) {
+                    diagnosis.immediateVariantTypeArgumentOnSupertype(arg.astNode)
                 }
+            }
         }
     }
 

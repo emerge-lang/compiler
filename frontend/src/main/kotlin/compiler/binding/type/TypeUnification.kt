@@ -1,12 +1,16 @@
 package compiler.binding.type
 
+import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -21,6 +25,9 @@ class TypeUnification private constructor(
     private val variableStates: Map<BoundTypeParameter, TypeUnification.VariableState>,
     val diagnostics: Set<Diagnostic>,
 ) {
+    /** what of this unification steers unify: the states of the variables, not the diagnostics */
+    internal val stateOfVariables: Any get() = variableStates
+
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
         return diagnostics.asSequence()
             .filter { it.severity >= Diagnostic.Severity.ERROR }
@@ -47,7 +54,10 @@ class TypeUnification private constructor(
         val newUpperBound = stateBefore.upperBound.intersect(upperBound)
         if (newUpperBound.isNonNullableNothing) {
             // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
-            val unificationWithDefaultBound = stateBefore.staticUpperBound.unify(upperBound, assignmentLocation, this)
+            val unificationWithDefaultBound = stateBefore.staticUpperBound
+                .takeUnless { it.mentionsTypeVariables() }
+                ?.unify(upperBound, assignmentLocation, this)
+                ?: this
             return if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
                 unificationWithDefaultBound
             } else {
@@ -82,7 +92,10 @@ class TypeUnification private constructor(
         val unificationWithUpperBound = stateBefore.upperBound.unify(newLowerBound, assignmentLocation, this)
         if (unificationWithUpperBound.getErrorsNotIn(this).any()) {
             // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
-            val unificationWithDefaultBound = stateBefore.staticUpperBound.unify(lowerBound, assignmentLocation, this)
+            val unificationWithDefaultBound = stateBefore.staticUpperBound
+                .takeUnless { it.mentionsTypeVariables() }
+                ?.unify(lowerBound, assignmentLocation, this)
+                ?: this
             if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
                 return unificationWithDefaultBound
             }
@@ -90,10 +103,42 @@ class TypeUnification private constructor(
             return this.plusDiagnostic(UnsatisfiableTypeVariableConstraintsDiagnostic.forSupertypeConstraint(parameter, stateBefore, lowerBound, assignmentLocation))
         }
 
+        val unificationWithStaticBound = unificationWithUpperBound.plusStaticCheck(parameter, stateBefore, newLowerBound, assignmentLocation)
+        if (unificationWithStaticBound.getErrorsNotIn(this).any()) {
+            // again: is the incompatibility from other constraints, or the bound?
+            val unificationOfConstraintAlone = this.plusStaticCheck(parameter, stateBefore, lowerBound, assignmentLocation)
+            if (unificationOfConstraintAlone.getErrorsNotIn(this).any()) {
+                return unificationOfConstraintAlone
+            }
+
+            return this.plusDiagnostic(UnsatisfiableTypeVariableConstraintsDiagnostic.forSupertypeConstraint(parameter, stateBefore, lowerBound, assignmentLocation))
+        }
+
         return TypeUnification(
-            unificationWithUpperBound.variableStates + mapOf(parameter to stateBefore.copy(lowerBound = newLowerBound)),
+            unificationWithStaticBound.variableStates + mapOf(parameter to stateBefore.copy(lowerBound = newLowerBound)),
             diagnostics,
         )
+    }
+
+    /**
+     * Checks [candidate] against the [VariableState.staticUpperBound] of [parameter], with [candidate] substituted for
+     * [parameter]. Because this goes through unification, it also constrains the other variables mentioned in the bound:
+     * for `_N : Nested & _M`, the mutability of [candidate] is left over for `_M`.
+     * A no-op if the static bound mentions no type variables: [VariableState.upperBound] started out as that bound and
+     * has only been narrowed since, and callers check [candidate] against [VariableState.upperBound] already.
+     */
+    private fun plusStaticCheck(
+        parameter: BoundTypeParameter,
+        state: VariableState,
+        candidate: BoundTypeReference,
+        assignmentLocation: Span,
+    ): TypeUnification {
+        if (!state.staticUpperBound.mentionsTypeVariables()) {
+            return this
+        }
+
+        val withCandidate = forSubstitution(listOf(parameter), listOf(invariantArgument(candidate)))
+        return state.staticUpperBound.instantiateAllParameters(withCandidate).unify(candidate, assignmentLocation, this)
     }
 
     /**
@@ -106,10 +151,13 @@ class TypeUnification private constructor(
         assignmentLocation: Span
     ): TypeUnification {
         val stateBefore = variableStates[parameter] ?: throw TypeVariableNotUnderInferenceException(parameter)
-        val unificationWithUpperBound = stateBefore.upperBound.unify(binding, assignmentLocation, this)
+        val unificationWithUpperBound = stateBefore.upperBound.unify(binding.type, assignmentLocation, this)
         val errorWithUpperBound = unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<ValueNotAssignableDiagnostic>().firstOrNull()
         if (errorWithUpperBound != null) {
             return this.plusDiagnostic(TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, binding, errorWithUpperBound.reason))
+        }
+        unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<CyclicSubtypeCheckDiagnostic>().firstOrNull()?.let {
+            return this.plusDiagnostic(it)
         }
 
         val unificationWithLowerBound = binding.unify(stateBefore.lowerBound, assignmentLocation, this)
@@ -117,8 +165,22 @@ class TypeUnification private constructor(
             return unificationWithLowerBound
         }
 
+        // a binding with a variance is the captured type argument of a receiver, within the bounds already
+        val unificationWithStaticBound = if (binding.variance == TypeVariance.UNSPECIFIED) {
+            unificationWithLowerBound.plusStaticCheck(parameter, stateBefore, binding.type, assignmentLocation)
+        } else {
+            unificationWithLowerBound
+        }
+        val errorWithStaticBound = unificationWithStaticBound.getErrorsNotIn(this).filterIsInstance<ValueNotAssignableDiagnostic>().firstOrNull()
+        if (errorWithStaticBound != null) {
+            return this.plusDiagnostic(TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, binding, errorWithStaticBound.reason))
+        }
+        if (unificationWithStaticBound.getErrorsNotIn(this).any()) {
+            return unificationWithStaticBound
+        }
+
         return TypeUnification(
-            unificationWithLowerBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = binding, lowerBound = binding, isExact = true)),
+            unificationWithStaticBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = binding, lowerBound = binding, isExact = true)),
             diagnostics,
         )
     }
@@ -141,13 +203,82 @@ class TypeUnification private constructor(
         )
     }
 
+    /**
+     * Binds [parameter] exactly to [binding], if [parameter] may be captured and isn't bound exactly already. A capture of
+     * a type argument with a variance stands for all the types the type argument does: `out A` for `A` and its subtypes.
+     * @return `null` if [parameter] cannot be captured
+     */
+    fun plusCapture(
+        parameter: BoundTypeParameter,
+        binding: BoundTypeArgument,
+        assignmentLocation: Span,
+    ): TypeUnification? {
+        val state = variableStates[parameter] ?: return null
+        if (!state.isCapturable || state.isExact) {
+            return null
+        }
+
+        return plusExactBinding(parameter, binding, assignmentLocation)
+    }
+
+    /**
+     * @return whether [parameter] is bound by this [TypeUnification], or under inference in it
+     */
+    fun binds(parameter: BoundTypeParameter): Boolean = parameter in variableStates
+
     fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
-        val state = variableStates[parameter] ?: return parameter.bound.instantiateAllParameters(this)
+        val state = variableStates[parameter] ?: return instantiateUnbound(parameter)
 
         val raw = state.lowerBound.takeUnless { it.isNonNullableNothing }
-            ?: state.upperBound
+            ?: when {
+                !state.staticUpperBound.mentionsTypeVariables() -> state.upperBound
+                // not inferable, see plusFinalValueChecks
+                state.staticUpperBound.mentionsTypeVariable(parameter) -> state.upperBound
+                else -> state.upperBound.intersect(state.staticUpperBound.instantiateFreeVariables(this).asReadType())
+            }
 
         return raw.instantiateFreeVariables(this)
+    }
+
+    /**
+     * The bound of [parameter], instantiated; [parameter] itself in it (`T : Comparable<T>`) is the top type.
+     */
+    private fun instantiateUnbound(parameter: BoundTypeParameter): BoundTypeReference {
+        if (!parameter.bound.mentionsTypeParameter(parameter)) {
+            return parameter.bound.instantiateAllParameters(this)
+        }
+
+        val top = invariantArgument(parameter.context.swCtx.getTopType(parameter.astNode.span))
+        val selfAsTop = TypeUnification(variableStates + mapOf(parameter to VariableState(top, top, top, true)), diagnostics)
+        return parameter.bound.instantiateAllParameters(selfAsTop)
+    }
+
+    /**
+     * `this`, plus an error for each variable that inference can't pick a value for: one without a lower bound, whose
+     * static upper bound mentions it (`T : Comparable<T>`).
+     */
+    fun plusFinalValueChecks(inferenceLocation: Span): TypeUnification {
+        if (diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }) {
+            return this
+        }
+
+        val notInferable = variableStates.entries.filter { (parameter, state) ->
+            !state.isExact
+                && state.lowerBound.isNonNullableNothing
+                && state.staticUpperBound.mentionsTypeVariable(parameter)
+        }
+
+        return notInferable.fold(this) { carry, (parameter, _) ->
+            carry.plusDiagnostic(TypeVariableNotInferableDiagnostic(parameter.astNode, inferenceLocation))
+        }
+    }
+
+    /**
+     * [getFinalValueFor], where a parameter bound to an invariant type argument is that type
+     */
+    fun getFinalTypeFor(parameter: BoundTypeParameter): BoundTypeReference {
+        val value = getFinalValueFor(parameter)
+        return if (value is BoundTypeArgument && value.variance == TypeVariance.UNSPECIFIED) value.type else value
     }
 
     val bindings: Iterable<Pair<BoundTypeParameter, BoundTypeReference>> = object : Iterable<Pair<BoundTypeParameter, BoundTypeReference>> {
@@ -181,16 +312,44 @@ class TypeUnification private constructor(
     companion object {
         val EMPTY = TypeUnification(emptyMap(), emptySet())
 
-        fun forInferenceOf(parameters: Collection<BoundTypeParameter>): TypeUnification {
+        private fun invariantArgument(type: BoundTypeReference) = BoundTypeArgument(
+            type.context,
+            AstSpecificTypeArgument(TypeVariance.UNSPECIFIED, type.asAstReference()),
+            TypeVariance.UNSPECIFIED,
+            type,
+        )
+
+        /**
+         * @param capturableParameters see [plusCapture]
+         */
+        fun forInferenceOf(
+            parameters: Collection<BoundTypeParameter>,
+            capturableParameters: Collection<BoundTypeParameter> = emptySet(),
+        ): TypeUnification {
             return TypeUnification(
                 parameters.associateWith {
-                    val upperBound = it.bound.withTypeVariables(parameters)
-                    VariableState(upperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false)
+                    val staticUpperBound = it.bound.withTypeVariables(parameters)
+                    val upperBound = staticUpperBound.takeUnless { bound -> bound.mentionsTypeVariables() }
+                        ?: it.context.swCtx.getTopType(it.astNode.span)
+                    VariableState(staticUpperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false, it in capturableParameters)
                 },
                 emptySet(),
             )
         }
-        
+
+        /**
+         * Binds each of [parameters] to its argument as is. Unlike [fromExplicit] it doesn't check the arguments against
+         * the bounds, which validating the type reference does, so it works with [TypeVariable]s of another inference.
+         */
+        fun forSubstitution(parameters: List<BoundTypeParameter>, arguments: List<BoundTypeArgument>): TypeUnification {
+            return TypeUnification(
+                parameters.zip(arguments).associate { (parameter, argument) ->
+                    parameter to VariableState(argument, argument, argument, true)
+                },
+                emptySet(),
+            )
+        }
+
         /**
          * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments. E.g.:
          *
@@ -207,6 +366,7 @@ class TypeUnification private constructor(
          * for [Diagnostic]s if there are no type arguments and [allowZeroTypeArguments] is false
          * @param allowMissingTypeArguments Whether 0 type arguments is valid even if [declaredTypeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
+         * @param capturableParameters see [plusCapture]
          */
         fun fromExplicit(
             allTypeParameters: Collection<BoundTypeParameter>,
@@ -214,8 +374,9 @@ class TypeUnification private constructor(
             arguments: List<BoundTypeArgument>?,
             argumentsLocation: Span,
             allowMissingTypeArguments: Boolean = false,
+            capturableParameters: Collection<BoundTypeParameter> = emptySet(),
         ): TypeUnification {
-            var unification = forInferenceOf(allTypeParameters)
+            var unification = forInferenceOf(allTypeParameters, capturableParameters)
 
             if (arguments == null) {
                 if (declaredTypeParameters.isNotEmpty() && !allowMissingTypeArguments) {
@@ -262,6 +423,7 @@ class TypeUnification private constructor(
          */
         val lowerBound: BoundTypeReference,
         val isExact: Boolean,
+        val isCapturable: Boolean = false,
     )
 }
 

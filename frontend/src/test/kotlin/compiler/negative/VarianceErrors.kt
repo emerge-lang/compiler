@@ -5,6 +5,8 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.binding.type.parseTypeArgument
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentOnInvocationDiagnostic
 import compiler.lexer.Span
@@ -38,7 +40,7 @@ class VarianceErrors : FreeSpec({
             val targetType = arrayOf(target)
             val error = sourceType.evaluateAssignabilityTo(targetType, Span.UNKNOWN)
             return object : MatcherResult {
-                override fun failureMessage() = "$sourceType should be assignable to $targetType, but its not: ${error?.reason}"
+                override fun failureMessage() = "$sourceType should be assignable to $targetType, but its not: ${error?.message}"
                 override fun negatedFailureMessage() = "$sourceType should not be assignable to $targetType, but it is"
                 override fun passed() = error == null
             }
@@ -166,6 +168,29 @@ class VarianceErrors : FreeSpec({
         }
     }
 
+    "opposite variances meet at the top" - {
+        val outTop = swCtx.parseTypeArgument("out read Any?")
+        val outConstTop = swCtx.parseTypeArgument("out const Any?")
+        val inBottom = swCtx.parseTypeArgument("in exclusive Nothing")
+        val inReadBottom = swCtx.parseTypeArgument("in read Nothing")
+
+        "in Child to out read Any?" {
+            inChild should beAssignableTo(outTop)
+        }
+
+        "in Child to out const Any?" {
+            inChild shouldNot beAssignableTo(outConstTop)
+        }
+
+        "out Child to in exclusive Nothing" {
+            outChild should beAssignableTo(inBottom)
+        }
+
+        "out Child to in read Nothing, as Nothing is const" {
+            outChild should beAssignableTo(inReadBottom)
+        }
+    }
+
     "in-variant type argument assumes type read Any? in out-position" {
         validateModule("""
             interface A {}
@@ -183,6 +208,639 @@ class VarianceErrors : FreeSpec({
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }
+    }
+
+    "reading through an in-variant type argument gives read Any?" - {
+        "assigned to a class type" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: B = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read Any?"
+                }
+        }
+
+        "assigned to a nullable type" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: B? = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "assigned to read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {
+                    y: read Any? = a.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "members of the type argument are not available" {
+            validateModule("""
+                interface A {}
+                interface B : A {
+                    fn onlyOnB(self) -> S32
+                }
+                class C<T> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) -> S32 {
+                    return a.p.onlyOnB()
+                }
+            """.trimIndent())
+                .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
+        }
+
+        "an out-variant use of the type parameter in the type of the member reads as out read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    value: T = init
+                }
+                class C<T : mut A> {
+                    p: Box<out T> = init
+                }
+                fn test(a: C<in mut B>) {
+                    y: Box<out mut Any?> = a.p
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read Any"
+                    it.targetType.toString() shouldBe "mut Any"
+                }
+        }
+
+        "an out-variant use of the type parameter in the type of the member can be read as out read Any?" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    value: T = init
+                }
+                class C<T : mut A> {
+                    p: Box<out T> = init
+                }
+                fn test(a: C<in mut B>) {
+                    y: Box<out read Any?> = a.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "a bounded type parameter still takes an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class C<T : A> {
+                    p: T = init
+                }
+                fn test(a: C<in B>) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "writing through a variant type argument" - {
+        "a type parameter nested in the type of the member, bound to an out-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<out A>, b: Box<B>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a type parameter nested in the type of the member, bound to an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<in B>, b: Box<B>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "null can still be written to a nullable member" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T>? = init
+                }
+                fn test(h: mut Holder<out A>) {
+                    set h.box = null
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "a member typed as the type parameter takes subtypes of an in-variant type argument" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                class Holder<T> {
+                    var value: T? = init
+                }
+                fn test(h: mut Holder<in B>, b: B) {
+                    set h.value = b
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "an exact type argument takes the exact type" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    var box: Box<T> = init
+                }
+                fn test(h: mut Holder<A>, b: Box<A>) {
+                    set h.box = b
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "member functions on receivers with variant type arguments" - {
+        val types = """
+            interface A {}
+            interface B : A {}
+            class Box<T> {
+                var value: T = init
+            }
+            class Holder<T> {
+                intrinsic fn fetch(self) -> T
+                intrinsic fn getBox(self) -> Box<T>
+                intrinsic fn getOutBox(self) -> Box<out T>
+                intrinsic fn getBoxes(self) -> Box<Box<T>>
+                intrinsic fn put(self: mut _, v: T)
+                intrinsic fn putBox(self: mut _, b: Box<T>)
+                intrinsic fn putInBox(self: mut _, b: Box<in T>)
+            }
+        """.trimIndent()
+
+        "out: the return type" {
+            validateModule("""
+                $types
+                fn test(h: Holder<out B>) -> Box<out B> {
+                    return h.getOutBox()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "out: the type parameter reads as the type argument" {
+            validateModule("""
+                $types
+                fn test(h: Holder<out B>) -> B {
+                    return h.fetch()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in: the type parameter reads as read Any?" {
+            validateModule("""
+                $types
+                fn test(h: Holder<in B>) -> B {
+                    return h.fetch()
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "out: a return type nesting the type parameter is widened" {
+            validateModule("""
+                $types
+                fn test(h: Holder<out A>) {
+                    x: Box<A> = h.getBox()
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "out: a return type nesting the type parameter deeper is widened" {
+            validateModule("""
+                $types
+                fn test(h: Holder<out A>) {
+                    x: Box<Box<out A>> = h.getBoxes()
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "out: the widened return type can be read" {
+            validateModule("""
+                $types
+                fn test(h: Holder<out A>) {
+                    x: Box<out Box<out A>> = h.getBoxes()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "out: a parameter typed as the type parameter takes nothing" {
+            validateModule("""
+                $types
+                fn test(h: mut Holder<out A>, b: B) {
+                    h.put(b)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "in: a parameter typed as the type parameter takes subtypes" {
+            validateModule("""
+                $types
+                fn test(h: mut Holder<in B>, b: B) {
+                    h.put(b)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "out: a parameter nesting the type parameter takes nothing" {
+            validateModule("""
+                $types
+                fn test(h: mut Holder<out A>, b: Box<B>) {
+                    h.putBox(b)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "in: a parameter nesting the type parameter takes nothing" {
+            validateModule("""
+                $types
+                fn test(h: mut Holder<in B>, b: Box<B>) {
+                    h.putBox(b)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "out: a parameter taking in-variant type arguments of the type parameter takes supertypes" {
+            validateModule("""
+                $types
+                fn test(h: mut Holder<out B>, b: Box<A>) {
+                    h.putInBox(b)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "the type parameters of a function itself stay exact" {
+            validateModule("""
+                $types
+                intrinsic fn first<T>(b: Box<T>) -> T
+                fn test(b: Box<out A>) {
+                    first(b)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "instantiating a type argument with one of the same variance keeps the type" - {
+        "out" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                interface Box<T> {}
+                class Holder<T> {
+                    box: Box<out T> = init
+                }
+                fn test(h: Holder<out B>) -> Box<out B> {
+                    return h.box
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in" {
+            validateModule("""
+                interface A {}
+                interface B : A {}
+                interface Box<T> {}
+                class Holder<T> {
+                    box: Box<in T> = init
+                }
+                fn test(h: Holder<in B>) -> Box<in B> {
+                    return h.box
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "a type parameter bound to a variant type argument widens the type arguments it is nested in" - {
+        "an invariant one becomes out" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<Box<T>> = init
+                }
+                fn test(h: mut Holder<out A>) {
+                    x: mut Box<Box<out A>> = h.box
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "out read testmodule.Box<out read testmodule.A>"
+                }
+        }
+
+        "it can still be read" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: Box<Box<T>> = init
+                }
+                fn test(h: Holder<out A>) -> Box<out A> {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in supertypes" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                interface Source<T> {}
+                class Holder<T> : Source<Box<T>> {}
+                fn test(h: Holder<out A>) {
+                    x: Source<Box<out A>> = h
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "an in-variant one takes nothing anymore" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Consumer<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    consumer: mut Consumer<in Box<T>> = init
+                }
+                fn test(h: mut Holder<out A>, b: Box<A>) {
+                    set h.consumer.value = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "an in-variant type argument widened to in Nothing is assignable from all others" {
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
+            fn test(exact: Holder<A>, variant: Holder<out A>) {
+                x: Consumer<in exclusive Nothing> = variant.consumer
+                y: Consumer<in exclusive Nothing> = exact.consumer
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
+
+    "a type argument widened to in Nothing is assignable to out read Any?" {
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
+            fn test(variant: Holder<out A>) {
+                x: Consumer<out read Any?> = variant.consumer
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+
+        validateModule("""
+            interface A {}
+            class Box<T> {
+                var value: T = init
+            }
+            interface Consumer<T> {}
+            class Holder<T> {
+                consumer: Consumer<in Box<T>> = init
+            }
+            fn test(variant: Holder<out A>) {
+                x: Consumer<out const Any?> = variant.consumer
+            }
+        """.trimIndent())
+            .shouldFind<ValueNotAssignableDiagnostic>()
+    }
+
+    "opposite variances" - {
+        "out T with T = in X is no more than the mutability of T" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<out T> = init
+                }
+                fn test(h: mut Holder<in mut A>) -> mut Any? {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "in T with T = out X is nothing" {
+            validateModule("""
+                interface A {}
+                class Box<T> {
+                    var value: T = init
+                }
+                class Holder<T> {
+                    box: mut Box<in T> = init
+                }
+                fn test(h: mut Holder<out mut A>) -> mut Any? {
+                    return h.box.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+    }
+
+    "members typed other than as a plain type parameter" - {
+        val boxes = """
+            interface A {}
+            class X {
+                var n: S32 = 0
+            }
+            class MBox<T> {
+                var v: mut T = init
+            }
+            class NBox<T> {
+                var v: T! = init
+            }
+            class IBox<T> {
+                var v: A & T = init
+            }
+        """.trimIndent()
+
+        "a member of a mutability given to the type parameter" - {
+            "reads as read through a read reference" {
+                validateModule(boxes + "\n" + """
+                    fn r(b: read MBox<X>) -> mut X {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "reads as read through a read reference, in generic code" {
+                validateModule(boxes + "\n" + """
+                    fn r<E>(b: read MBox<E>) -> mut E {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "doesn't take a value of a weaker mutability" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut MBox<X>, x: read X) {
+                        set b.v = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take a value of a weaker mutability through an in-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut MBox<in X>, x: read X) {
+                        set b.v = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "a member typed as the type parameter narrowed" - {
+            "doesn't take null" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut NBox<X?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take null through an in-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut NBox<in X?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "doesn't take null in generic code" {
+                validateModule(boxes + "\n" + """
+                    fn w<E>(b: mut NBox<E?>) {
+                        set b.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "reads as non-null through an out-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn r(b: read NBox<out X?>) -> read X {
+                        return b.v
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a member typed as an intersection with the type parameter" - {
+            "takes a value of the intersection" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut IBox<X>, a: A & X) {
+                        set b.v = a
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "takes nothing through an out-variant type argument" {
+                validateModule(boxes + "\n" + """
+                    fn w(b: mut IBox<out X>, a: mut A & X) {
+                        set b.v = a
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
     }
 
     "wildcard type arguments are not valid in function invocations" {

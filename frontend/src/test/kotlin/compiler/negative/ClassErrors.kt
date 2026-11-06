@@ -17,10 +17,13 @@ import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.IllegalFunctionBodyDiagnostic
 import compiler.diagnostic.IllegalSupertypeDiagnostic
+import compiler.diagnostic.ImmediateVariantTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.ImmediateWildcardTypeArgumentOnSupertypeDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
+import compiler.diagnostic.MutabilityOnSupertypeDiagnostic
+import compiler.diagnostic.RedundantMutabilityOnSupertypeDiagnostic
 import compiler.diagnostic.MultipleClassDestructorsDiagnostic
 import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
 import compiler.diagnostic.NonVirtualMemberFunctionWithReceiverDiagnostic
@@ -37,6 +40,7 @@ import compiler.diagnostic.UndeclaredOverrideDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
+import compiler.diagnostic.UnsupportedFeatureDiagnostic
 import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Keyword
@@ -153,7 +157,38 @@ class ClassErrors : FreeSpec({
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
 
-        "decorated members".config(enabled = false) - {
+        "decorated members" - {
+            // the constructor doesn't tie the mutability of the object to that of a decorated value typed as a type
+            // parameter (T & _M is read T & read _M), nor to a const one when the object is assigned to a mut
+            // reference right away, and writes to decorated members don't take the mutability of the object
+            "are not supported yet" - {
+                "of a class type" {
+                    validateModule("""
+                        class X {}
+                        class W {
+                            decorates value: X = init
+                        }
+                        fn make(c: const X) -> mut W {
+                            return W(c)
+                        }
+                    """.trimIndent())
+                        .shouldFind<UnsupportedFeatureDiagnostic>()
+                }
+
+                "of a type parameter" {
+                    validateModule("""
+                        class X {}
+                        class Holder<T> {
+                            decorates value: T = init
+                        }
+                        fn leak(h: mut Holder<const X>) -> mut X {
+                            return h.value
+                        }
+                    """.trimIndent())
+                        .shouldFind<UnsupportedFeatureDiagnostic>()
+                }
+            }
+
             "duplicate decorates keyword" {
                 validateModule("""
                     interface A {}
@@ -180,7 +215,7 @@ class ClassErrors : FreeSpec({
                     }
             }
 
-            "decorates combined with non-read type".config(enabled = false) - {
+            "decorates combined with non-read type" - {
                 "with mut" {
                     validateModule("""
                         class A {}
@@ -195,7 +230,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class A {}
                         class Test {
-                            decorates n: mut A = init
+                            decorates n: const A = init
                         }
                     """.trimIndent())
                         .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
@@ -218,7 +253,7 @@ class ClassErrors : FreeSpec({
                             decorates n: N = init
                         }
                     """.trimIndent())
-                        .shouldHaveNoDiagnostics()
+                        .shouldNotFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
                 }
             }
 
@@ -871,6 +906,78 @@ class ClassErrors : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
+        "variance on an immediate argument to supertype declaration" {
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                class C : I<in A> {}
+            """.trimIndent())
+                .shouldFind<ImmediateVariantTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                class C : I<out A> {}
+            """.trimIndent())
+                .shouldFind<ImmediateVariantTypeArgumentOnSupertypeDiagnostic>()
+
+            validateModule("""
+                interface A {}
+                interface I<T> {}
+                interface J<T> {}
+                class C : I<J<out A>> {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "overriding a function of a supertype with type arguments" - {
+            val types = """
+                interface A {}
+                class B : A {}
+                class Box<T> {
+                    v: T = init
+                }
+                interface Consumer<T> {
+                    fn consume(self, p: T)
+                }
+            """.trimIndent()
+
+            "takes the parameter types with the type arguments in place" {
+                validateModule(types + "\n" + """
+                    class H : Consumer<B> {
+                        override fn consume(self, p: B) {}
+                    }
+                    class G<T> : Consumer<Box<T>> {
+                        override fn consume(self, p: Box<T>) {}
+                    }
+                    fn use(h: H, g: G<B>, box: Box<B>) {
+                        h.consume(B())
+                        g.consume(box)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "through two supertypes" {
+                validateModule(types + "\n" + """
+                    interface BoxConsumer<E> : Consumer<Box<E>> {}
+                    class G : BoxConsumer<B> {
+                        override fn consume(self, p: Box<B>) {}
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take other parameter types" {
+                validateModule(types + "\n" + """
+                    class H : Consumer<B> {
+                        override fn consume(self, p: A) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
+            }
+        }
+
         "duplicate inheritance from same base type" {
             validateModule("""
                 interface A {}
@@ -878,6 +985,56 @@ class ClassErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<DuplicateSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "mutability on a supertype other than const" {
+            validateModule("""
+                interface A {}
+                class B : mut A {}
+            """.trimIndent())
+                .shouldFind<MutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "exclusive on a supertype" {
+            validateModule("""
+                interface A {}
+                class B : exclusive A {}
+            """.trimIndent())
+                .shouldFind<MutabilityOnSupertypeDiagnostic>()
+        }
+
+        "read on a supertype is redundant" {
+            validateModule("""
+                interface A {}
+                class B : read A {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "const on more than one supertype is redundant" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                class C : const A & const B {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "B"
+                }
+        }
+
+        "const on a supertype that is const already is redundant" {
+            validateModule("""
+                interface A : const Any {}
+                class B : const A {}
+            """.trimIndent())
+                .shouldFind<RedundantMutabilityOnSupertypeDiagnostic> {
+                    it.supertype.simpleName shouldBe "A"
+                    it.reason shouldBe "A is const already"
                 }
         }
 

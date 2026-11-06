@@ -245,6 +245,13 @@ fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar
     add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.entryDeclaration, memberVar.attributes.firstDecoratesAttribute!!))
 }
 
+fun Diagnosis.decoratedMemberVariablesNotSupported(memberVar: BoundBaseTypeMemberVariable) {
+    add(UnsupportedFeatureDiagnostic(
+        "Decorated member variables are not supported yet: the mutability of the object isn't tied soundly to that of the decorated value",
+        memberVar.attributes.firstDecoratesAttribute!!.span,
+    ))
+}
+
 fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
     add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
         memberVar.entryDeclaration,
@@ -272,12 +279,28 @@ fun Diagnosis.immediateWildcardTypeArgumentOnSupertype(argument: AstTypeArgument
     add(ImmediateWildcardTypeArgumentOnSupertypeDiagnostic(argument, parameter))
 }
 
+fun Diagnosis.immediateVariantTypeArgumentOnSupertype(argument: AstTypeArgument) {
+    add(ImmediateVariantTypeArgumentOnSupertypeDiagnostic(argument))
+}
+
 fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 
+fun Diagnosis.mutabilityOnSupertype(ref: AstSimpleTypeReference) {
+    add(MutabilityOnSupertypeDiagnostic(ref))
+}
+
+fun Diagnosis.redundantMutabilityOnSupertype(ref: AstSimpleTypeReference, reason: String) {
+    add(RedundantMutabilityOnSupertypeDiagnostic(ref, reason))
+}
+
 fun Diagnosis.cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration) {
     add(CyclicInheritanceDiagnostic(type.declaration, involvingSupertype))
+}
+
+fun Diagnosis.expansiveInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration) {
+    add(ExpansiveInheritanceDiagnostic(type.declaration, involvingSupertype))
 }
 
 fun Diagnosis.duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseType>) {
@@ -556,12 +579,12 @@ fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, supe
     add(ExtendingOwnershipOverrideDiagnostic(override, superParameter))
 }
 
-fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: ValueNotAssignableDiagnostic) {
-    add(NarrowingParameterTypeOverrideDiagnostic(override, superParameter, assignabilityDiagnostic))
+fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: Diagnostic) {
+    add(assignabilityDiagnostic.wrapIfMismatch { NarrowingParameterTypeOverrideDiagnostic(override, superParameter, it) })
 }
 
-fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: ValueNotAssignableDiagnostic) {
-    add(IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, error))
+fun Diagnosis.incompatibleReturnTypeOnOverride(override: BoundDeclaredBaseTypeMemberFunction, inheritedFn: InheritedBoundMemberFunction, error: Diagnostic) {
+    add(error.wrapIfMismatch { IncompatibleReturnTypeOnOverrideDiagnostic(override.declaration, inheritedFn, it) })
 }
 
 fun Diagnosis.nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -615,6 +638,10 @@ fun Diagnosis.conditionIsNotBoolean(condition: BoundExpression<*>) {
 
 fun Diagnosis.typeParameterNameConflict(originalType: BoundTypeReference, conflicting: BoundTypeParameter) {
     add(TypeParameterNameConflictDiagnostic(originalType, conflicting))
+}
+
+fun Diagnosis.typeParameterBoundedByItself(parameter: TypeParameter, selfReference: TypeReference) {
+    add(TypeParameterBoundedByItselfDiagnostic(parameter, selfReference.span ?: parameter.span))
 }
 
 fun Diagnosis.duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers: Set<BoundBaseTypeMemberVariable>) {

@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -67,6 +68,49 @@ class MutabilityErrors : FreeSpec({
                     it.targetType.toString() shouldBe "mut testmodule.A"
                     it.sourceType.toString() shouldBe "const testmodule.A"
                 }
+        }
+    }
+
+    "a member of a type parameter type, through a reference of a mutability" - {
+        val holder = """
+            interface A {}
+            class Holder<T> {
+                var value: T = init
+            }
+        """.trimIndent()
+
+        "through a read reference, is read" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> mut A {
+                    return h.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "through a read reference, is no T" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> T {
+                    return h.value
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "through a read reference, is a read T" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: read Holder<T>) -> read T {
+                    return h.value
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "through a mut reference, is mut" {
+            validateModule(holder + "\n" + """
+                fn f<T : mut A>(h: mut Holder<T>) -> mut A {
+                    return h.value
+                }
+            """.trimIndent()) should haveNoDiagnostics()
         }
     }
 
@@ -174,6 +218,114 @@ class MutabilityErrors : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "An exclusive value is needed here, this one is const."
                 }
+        }
+    }
+
+    "const classes" - {
+        "a value of a const class fits a reference of any mutability" {
+            validateModule("""
+                class Foo : const Any {}
+                fn test(s: S32, f: Foo) {
+                    a: mut Any = s
+                    b: exclusive Any = s
+                    c: read Any = s
+                    d: const Any = s
+                    e: mut Any = f
+                    g: exclusive Any = f
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "references to a const class are const whatever the mutability written" {
+            validateModule("""
+                class Foo : const Any {
+                    var a: S32 = init
+                }
+                fn test(f: mut Foo) {
+                    set f.a = 3
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "objects of a const class can be constructed" {
+            validateModule("""
+                class Foo : const Any {
+                    a: S32 = init
+                }
+                fn test() -> S32 {
+                    f = Foo(2)
+                    return f.a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "constness carries over to subtypes" {
+            validateModule("""
+                interface Number : const Any {}
+                class Foo : Number {
+                    var a: S32 = init
+                }
+                fn test(f: mut Foo) {
+                    set f.a = 3
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a value of a subtype of a const interface fits a reference of any mutability" {
+            validateModule("""
+                interface Number : const Any {}
+                class Foo : Number {}
+                fn test(f: Foo) -> mut Number {
+                    return f
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a type variable of a given mutability takes a value of a const class" {
+            validateModule("""
+                fn foo<T>(p: mut T) {}
+                fn bar<T>(p: exclusive T) {}
+                fn test(s: S32) {
+                    foo(s)
+                    bar(s)
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "references to a type parameter bound to a const class fit each other whatever their mutability" {
+            validateModule("""
+                interface Number : const Any {}
+                fn test<T : Number>(a: read T, b: mut T) {
+                    x: exclusive T = a
+                    y: mut T = a
+                    z: exclusive Number = b
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a type parameter bound to an intersection with a const component is const, its values fit exclusive" {
+            validateModule("""
+                interface Number : const Any {}
+                interface Foo {}
+                fn test<T : Number & Foo>(a: read T) {
+                    x: exclusive T = a
+                    y: exclusive Foo = x
+                    z: exclusive Foo = a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an intersection with a const component is const" {
+            validateModule("""
+                interface Number : const Any {}
+                interface Foo {}
+                fn test(a: Number & Foo) {
+                    x: exclusive Foo = a
+                    y: exclusive Number = a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
         }
     }
 })

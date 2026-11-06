@@ -29,6 +29,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.decoratedMemberVariablesNotSupported
 import compiler.diagnostic.decoratingMemberVariableWithNonReadType
 import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
 import compiler.diagnostic.quoteIdentifier
@@ -72,6 +73,9 @@ class BoundBaseTypeMemberVariable(
         seanHelper.phase1(diagnosis) {
             visibility.validateOnElement(this, diagnosis)
             attributes.validate(diagnosis)
+            if (isDecorated) {
+                diagnosis.decoratedMemberVariablesNotSupported(this)
+            }
             if (isDecorated && !entryDeclaration.isConstructorParameterInitialized) {
                 diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
             }

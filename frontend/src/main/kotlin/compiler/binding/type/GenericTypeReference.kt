@@ -11,54 +11,103 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
-import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
-sealed class GenericTypeReference : BoundTypeReference {
-    abstract val original: NamedTypeReference
-    abstract val parameter: BoundTypeParameter
-    abstract val effectiveBound: BoundTypeReference
+class GenericTypeReference private constructor(
+    val parameter: BoundTypeParameter,
+    override val span: Span?,
+    /**
+     * The mutability written (`mut T`) or applied to this reference: a value of it is a [parameter] of a mutability
+     * that fits this one.
+     */
+    val givenMutability: TypeMutability?,
+    /**
+     * Whether a `!` made the [effectiveBound] non-nullable, where the bound of [parameter] is nullable.
+     */
+    val isNarrowed: Boolean,
+    private val typeVariables: Set<BoundTypeParameter>,
+) : BoundTypeReference {
+    override val context = parameter.context
+
+    val effectiveBound: BoundTypeReference by lazy {
+        var bound = parameter.bound
+        if (givenMutability != null) {
+            bound = bound.withMutability(givenMutability)
+        }
+        if (isNarrowed) {
+            bound = bound.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        }
+        if (typeVariables.isNotEmpty()) {
+            bound = bound.withTypeVariables(typeVariables)
+        }
+        bound
+    }
+
+    internal val hasTypeVariables: Boolean get() = typeVariables.isNotEmpty()
 
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
-    override val mutability: TypeMutability get() {
-        val givenMutability = original.mutability
-        if (givenMutability == null || !givenMutability.isAssignableTo(effectiveBound.mutability)) {
-            return effectiveBound.mutability
-        }
-        return givenMutability
-    }
+    override val mutability: TypeMutability get() = effectiveBound.mutability
+    override val assignmentMutability: TypeMutability get() = effectiveBound.assignmentMutability
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
-    override val span get() = original.span
-    override val inherentTypeBindings = TypeUnification.EMPTY
+    // the members of a T are those of its bound, of the type arguments there: `t.value` with `T : mut Box<A>` is an A
+    override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
-    override val isPartiallyUnresolved get() = effectiveBound.isPartiallyUnresolved
+    override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withMutability(mutability) }
+        if (mutability == givenMutability) {
+            return this
+        }
+        return copy(givenMutability = mutability)
     }
 
     override fun withMutabilityUnionedWith(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withMutabilityUnionedWith(mutability) }
+        val combinedMutability = mutability?.let { this.mutability.union(it) } ?: return this
+        if (combinedMutability == this.mutability) {
+            return this
+        }
+        return copy(givenMutability = combinedMutability)
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withMutabilityLimitedTo(limitToMutability) }
+        val limitedMutability = mutability.limitedTo(limitToMutability)
+        if (limitedMutability == mutability) {
+            return this
+        }
+        return copy(givenMutability = limitedMutability)
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return when(nullability) {
             TypeReference.Nullability.UNSPECIFIED -> this
             TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
-            TypeReference.Nullability.NOT_NULLABLE -> mapEffectiveBound { it.withCombinedNullability(nullability) }
+            // narrowing a parameter of a non-nullable bound changes nothing, so in its own bound it is narrowed regardless
+            TypeReference.Nullability.NOT_NULLABLE -> if (parameter.isResolvingBound || isNullable) copy(isNarrowed = true) else this
         }
     }
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        effectiveBound.validate(forUsage, diagnosis)
+        throughBound(Unit) { effectiveBound.validate(forUsage, diagnosis) }
+    }
+
+    /**
+     * Runs [action] on the [effectiveBound], unless that of [parameter] is being walked already, as for the parameter
+     * itself in its own bound (`T : Comparable<T>`).
+     */
+    private inline fun <R> throughBound(onCycle: R, action: () -> R): R {
+        val inProgress = parametersWithBoundInProgress.get()
+        if (!inProgress.add(parameter)) {
+            return onCycle
+        }
+        try {
+            return action()
+        } finally {
+            inProgress.remove(parameter)
+        }
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -87,7 +136,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is ErroneousType -> unify(assigneeType.asNothing, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                if (assigneeType.isNonNullableNothing && assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability)) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
                     assigneeType,
                     "$assigneeType cannot be proven to be a subtype of $this",
@@ -103,16 +152,21 @@ sealed class GenericTypeReference : BoundTypeReference {
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
                 // that it is forbidden to shadow type variables (e.g. class A<T> { fun foo<T>() {} })
-                if (assigneeType.isSubtypeOf(this)) {
+                if (assigneeType.parameter != this.parameter) {
+                    // another type parameter is a subtype of this one where its bound is
+                    val viaBound = unify(assigneeType.effectiveBound, assignmentLocation, carry)
+                    if (viaBound.getErrorsNotIn(carry).none()) {
+                        return viaBound
+                    }
+                } else if (assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability) && (!assigneeType.isNullable || this.isNullable)) {
                     return carry
-                } else {
-                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
-                        this,
-                        assigneeType,
-                        "$assigneeType cannot be proven to be a subtype of $this",
-                        assignmentLocation,
-                    ))
                 }
+                return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                    this,
+                    assigneeType,
+                    "$assigneeType cannot be proven to be a subtype of $this",
+                    assignmentLocation,
+                ))
             }
             is BoundIntersectionTypeReference -> {
                 return assigneeType.flippedUnify(
@@ -156,7 +210,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is RootResolvedTypeReference -> {
-                if (other.baseType == context.swCtx.nothing) {
+                if (other.baseType == context.swCtx.nothing && other.assignmentMutability.isAssignableTo(this.assignmentMutability)) {
                     return this
                 }
 
@@ -171,15 +225,19 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        var instantiated = context.getFinalValueFor(this.parameter)
-        if (original.mutability != null) {
-            instantiated = instantiated.withMutabilityUnionedWith(this.mutability)
+        var instantiated = context.getFinalTypeFor(this.parameter)
+        if (givenMutability != null) {
+            // a value of type `m T` is a T of a mutability that fits m
+            instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
         }
-        return instantiated.withCombinedNullability(original.nullability)
+        if (isNarrowed) {
+            instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        }
+        return instantiated
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
-        val withTypeVariableBound = mapEffectiveBound { it.withTypeVariables(variables) }
+        val withTypeVariableBound = copy(typeVariables = typeVariables + variables)
 
         if (this.parameter !in variables) {
             return withTypeVariableBound
@@ -188,11 +246,16 @@ sealed class GenericTypeReference : BoundTypeReference {
         return TypeVariable(withTypeVariableBound)
     }
 
-    override fun asAstReference(): NamedTypeReference = original
+    override fun asAstReference(): NamedTypeReference = NamedTypeReference(
+        parameter.name,
+        if (isNarrowed) TypeReference.Nullability.NOT_NULLABLE else TypeReference.Nullability.UNSPECIFIED,
+        givenMutability,
+        span = span,
+    )
 
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
-            return this.mutability.isAssignableTo(other.mutability)
+            return this.assignmentMutability.isAssignableTo(other.assignmentMutability) && (!this.isNullable || other.isNullable)
         }
 
         val bound = this.effectiveBound
@@ -203,22 +266,22 @@ sealed class GenericTypeReference : BoundTypeReference {
         return bound.isSubtypeOf(other)
     }
 
-    private fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
-        return MappedEffectiveBoundGenericTypeReference(this, mapper)
-    }
+    private fun copy(
+        givenMutability: TypeMutability? = this.givenMutability,
+        isNarrowed: Boolean = this.isNarrowed,
+        typeVariables: Set<BoundTypeParameter> = this.typeVariables,
+    ) = GenericTypeReference(parameter, span, givenMutability, isNarrowed, typeVariables)
 
-    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(
-        parameter.toBackendIr(),
-        effectiveBound.toBackendIr(),
-    )
+    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(parameter.toBackendIr()) { effectiveBound.toBackendIr() }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is GenericTypeReference) return false
 
-        if (other.mutability != this.mutability) return false
         if (other.parameter != this.parameter) return false
-        if (other.effectiveBound != this.effectiveBound) return false
+        if (other.mutability != this.mutability) return false
+        if (other.isNullable != this.isNullable) return false
+        if (other.typeVariables != this.typeVariables) return false
 
         return true
     }
@@ -226,16 +289,14 @@ sealed class GenericTypeReference : BoundTypeReference {
     override fun hashCode(): Int {
         var result = mutability.hashCode()
         result = 31 * result + parameter.hashCode()
-        result = 31 * result + effectiveBound.hashCode()
+        result = 31 * result + isNullable.hashCode()
         return result
     }
 
     override fun toString(): String {
         var str = ""
 
-        if (original.mutability != null) {
-            str += "${original.mutability} "
-        } else if (mutability != parameter.bound.mutability) {
+        if (givenMutability != null || mutability != parameter.bound.mutability) {
             str += "$mutability "
         }
 
@@ -244,57 +305,20 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     companion object {
+        private val parametersWithBoundInProgress = ThreadLocal.withInitial { HashSet<BoundTypeParameter>() }
+
         operator fun invoke(original: NamedTypeReference, parameter: BoundTypeParameter): BoundTypeReference {
-            return NakedGenericTypeReference(original, parameter)
-                .withMutability(original.mutability)
+            return GenericTypeReference(parameter, original.span, original.mutability, false, emptySet())
                 .withCombinedNullability(original.nullability)
-        }
-    }
-}
-
-private class NakedGenericTypeReference(
-    override val original: NamedTypeReference,
-    override val parameter: BoundTypeParameter,
-) : GenericTypeReference() {
-    override val context = parameter.context
-    override val effectiveBound: BoundTypeReference
-        get() = parameter.bound
-}
-
-private class MappedEffectiveBoundGenericTypeReference private constructor(
-    private val delegate: GenericTypeReference,
-    private val mapper: (BoundTypeReference) -> BoundTypeReference,
-) : GenericTypeReference() {
-    override val context = delegate.context
-    override val original = delegate.original
-    override val parameter = delegate.parameter
-    override val effectiveBound by lazy {
-        mapper(delegate.effectiveBound)
-    }
-
-
-
-    companion object {
-        operator fun invoke(delegate: GenericTypeReference, mapper: (BoundTypeReference) -> BoundTypeReference): MappedEffectiveBoundGenericTypeReference {
-            if (delegate is MappedEffectiveBoundGenericTypeReference) {
-                return MappedEffectiveBoundGenericTypeReference(
-                    delegate.delegate,
-                    delegate.mapper andThen mapper
-                )
-            } else {
-                return MappedEffectiveBoundGenericTypeReference(
-                    delegate,
-                    mapper,
-                )
-            }
         }
     }
 }
 
 internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
-    override val effectiveBound: IrType,
+    computeEffectiveBound: () -> IrType,
 ) : IrGenericTypeReference {
+    override val effectiveBound: IrType by lazy(computeEffectiveBound)
     override fun toString() = independentToString()
-    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, effectiveBound.asNullable())
+    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter) { effectiveBound.asNullable() }
 }

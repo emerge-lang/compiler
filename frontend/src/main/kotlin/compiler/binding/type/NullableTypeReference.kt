@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -14,6 +15,7 @@ class NullableTypeReference private constructor(
     override val context = nested.context
     override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
+    override val assignmentMutability get() = nested.assignmentMutability
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true
@@ -40,7 +42,7 @@ class NullableTypeReference private constructor(
         return when (nullability) {
             TypeReference.Nullability.NULLABLE -> this
             TypeReference.Nullability.UNSPECIFIED -> this
-            TypeReference.Nullability.NOT_NULLABLE -> nested
+            TypeReference.Nullability.NOT_NULLABLE -> nested.withCombinedNullability(nullability)
         }
     }
 
@@ -71,12 +73,14 @@ class NullableTypeReference private constructor(
     ): TypeUnification {
         return when(assigneeType) {
             is NullableTypeReference -> nested.unify(assigneeType.nested, assignmentLocation, carry)
-            is BoundTypeArgument -> unify(assigneeType.type, assignmentLocation, carry)
-            is GenericTypeReference -> if (nested is GenericTypeReference || nested is BoundTypeArgument) {
-                nested.unify(assigneeType, assignmentLocation, carry)
-            } else {
-                unify(assigneeType.effectiveBound, assignmentLocation, carry)
+            is BoundTypeArgument -> when (assigneeType.variance) {
+                TypeVariance.IN -> unify(context.swCtx.getTopType(assignmentLocation), assignmentLocation, carry)
+                TypeVariance.OUT,
+                TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
             }
+            // null is taken care of by this; what's left is whether the type parameter or intersection, made non-null, fits the nested type
+            is GenericTypeReference,
+            is BoundIntersectionTypeReference -> nested.unify(assigneeType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE), assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             else -> nested.unify(assigneeType, assignmentLocation, carry)
         }

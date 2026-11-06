@@ -12,8 +12,10 @@ import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.Rule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.assertions.fail
+import io.kotest.assertions.withClue
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
+import io.kotest.matchers.collections.shouldBeEmpty
 
 private fun <T : Any> SoftwareContext.parse(
     snippet: String,
@@ -49,6 +51,19 @@ internal fun SoftwareContext.parseType(
     return boundType
 }
 
+/**
+ * [parseType] within [baseType], so its type parameters can be referred to
+ */
+internal fun SoftwareContext.parseTypeIn(
+    baseType: String,
+    type: String,
+    module: String = "testmodule",
+): BoundTypeReference {
+    val astType = parse(type, Type)
+    val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
+    return moduleCtx.sourceFiles.first().context.resolveBaseType(baseType).first().typeRootContext.resolveType(astType)
+}
+
 internal fun SoftwareContext.parseTypeArgument(
     typeArgument: String,
     module: String = "testmodule",
@@ -60,10 +75,18 @@ internal fun SoftwareContext.parseTypeArgument(
     return boundArg
 }
 
+internal fun BoundTypeReference.isSubtypeOf(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null
+
+internal fun List<String>.shouldBeNone(shown: Int = 100) {
+    withClue(take(shown).joinToString("\n") + if (size > shown) "\n... ${size - shown} more" else "") {
+        shouldBeEmpty()
+    }
+}
+
 internal fun beAssignableTo(target: BoundTypeReference) = object : Matcher<BoundTypeReference> {
     override fun test(value: BoundTypeReference): MatcherResult {
         val result = value.evaluateAssignabilityTo(target, Span.UNKNOWN)
-        val reasonPart = result?.reason ?: "no reason available"
+        val reasonPart = result?.message ?: "no reason available"
         return object : MatcherResult {
             override fun passed() = result == null
             override fun failureMessage() = "$value should be assignable to $target, but isn't; $reasonPart"

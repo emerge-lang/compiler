@@ -30,6 +30,7 @@ class BoundTypeArgument(
     }
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
+    override val assignmentMutability get() = type.assignmentMutability
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
@@ -77,8 +78,13 @@ class BoundTypeArgument(
             }
             is BoundTypeArgument -> {
                 if (this.variance == TypeVariance.UNSPECIFIED) {
+                    val type = this.type
+                    if (type is TypeVariable) {
+                        carry.plusCapture(type.parameter, assigneeType, assignmentLocation)?.let { return it }
+                    }
+
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an ${assigneeType.variance}-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
@@ -92,9 +98,7 @@ class BoundTypeArgument(
                     }
 
                     check(assigneeType.variance == TypeVariance.IN)
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
-                    )
+                    return this.type.unify(context.swCtx.getTopType(assigneeType.span ?: Span.UNKNOWN), assignmentLocation, carry)
                 }
 
                 check(this.variance == TypeVariance.IN)
@@ -103,9 +107,7 @@ class BoundTypeArgument(
                     return assigneeType.type.unify(this.type, assignmentLocation, carry)
                 }
 
-                return carry.plusDiagnostic(
-                    ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
-                )
+                return context.swCtx.getBottomType(assigneeType.span ?: Span.UNKNOWN).unify(this.type, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
@@ -123,17 +125,16 @@ class BoundTypeArgument(
     /**
      * @see BoundTypeReference.instantiateFreeVariables
      */
-    override fun instantiateFreeVariables(context: TypeUnification,): BoundTypeArgument {
-        val binding = type.instantiateFreeVariables(context)
-        if (binding is BoundTypeArgument) {
-            return binding
-        }
-
-        return BoundTypeArgument(this.context, astNode, variance, binding)
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeArgument {
+        return instantiateWith(context, type.instantiateFreeVariables(context), keepAstNode = true)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
-        var nestedInstantiated = type.instantiateAllParameters(context)
+        return instantiateWith(context, type.instantiateAllParameters(context), keepAstNode = false)
+    }
+
+    private fun instantiateWith(context: TypeUnification, typeInstantiated: BoundTypeReference, keepAstNode: Boolean): BoundTypeArgument {
+        var nestedInstantiated = typeInstantiated
         var isNullable: Boolean
         if (nestedInstantiated is NullableTypeReference) {
             isNullable = true
@@ -143,13 +144,25 @@ class BoundTypeArgument(
         }
         val resultVariance: TypeVariance
         if (nestedInstantiated is BoundTypeArgument) {
-            if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED) {
+            if (nestedInstantiated.variance == TypeVariance.UNSPECIFIED || this.variance == TypeVariance.UNSPECIFIED || nestedInstantiated.variance == this.variance) {
                 resultVariance = nestedInstantiated.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: variance
                 nestedInstantiated = nestedInstantiated.type
+            } else if (this.variance == TypeVariance.OUT) {
+                resultVariance = TypeVariance.OUT
+                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
+                isNullable = false
+            } else {
+                resultVariance = TypeVariance.IN
+                nestedInstantiated = this.context.swCtx.getBottomType(astNode.span ?: Span.UNKNOWN)
+                isNullable = false
+            }
+        } else if (type.mentionsVariantlyBoundParameterInTypeArguments(context)) {
+            if (this.variance == TypeVariance.IN) {
+                resultVariance = TypeVariance.IN
+                nestedInstantiated = this.context.swCtx.getBottomType(astNode.span ?: Span.UNKNOWN)
+                isNullable = false
             } else {
                 resultVariance = TypeVariance.OUT
-                nestedInstantiated = this.context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN).withMutability(this.mutability.intersect(nestedInstantiated.mutability))
-                isNullable = this.isNullable || isNullable
             }
         } else {
             resultVariance = variance
@@ -159,7 +172,8 @@ class BoundTypeArgument(
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, AstSpecificTypeArgument(resultVariance, nestedInstantiated.asAstReference()), resultVariance, nestedInstantiated)
+        val resultAstNode = if (keepAstNode && resultVariance == variance) astNode else AstSpecificTypeArgument(resultVariance, nestedInstantiated.asAstReference())
+        return BoundTypeArgument(this.context, resultAstNode, resultVariance, nestedInstantiated)
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
@@ -239,7 +253,12 @@ class BoundTypeArgument(
 
         val resultType = when (resultVariance) {
             TypeVariance.IN -> this.type.intersect(other.type)
-            TypeVariance.OUT -> this.type.closestCommonSupertypeWith(other.type)
+            // what an in-variant type argument gives out is known no closer than `read Any?`
+            TypeVariance.OUT -> if (this.variance == TypeVariance.IN || other.variance == TypeVariance.IN) {
+                context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
+            } else {
+                this.type.closestCommonSupertypeWith(other.type)
+            }
             TypeVariance.UNSPECIFIED -> error("should never happen, intellij realizes this but not kotlinc")
         }
 
@@ -251,12 +270,18 @@ class BoundTypeArgument(
         )
     }
 
+    internal val readType: BoundTypeReference get() = when (variance) {
+        TypeVariance.IN -> context.swCtx.getTopType(astNode.span ?: Span.UNKNOWN)
+        TypeVariance.OUT,
+        TypeVariance.UNSPECIFIED -> type
+    }
+
     override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
-        return type.findMemberVariable(name)
+        return readType.findMemberVariable(name)
     }
 
     override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
-        return type.findMemberFunction(name)
+        return readType.findMemberFunction(name)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -317,4 +342,52 @@ private class IrTypeArgumentImpl(
         result = 31 * result + type.hashCode()
         return result
     }
+}
+
+/**
+ * Like [BoundTypeReference.instantiateAllParameters], but for the type of values written to a reference of this type:
+ * `Box<T>` with `T` bound to `out A` might be a `Box<B>` or a `Box<C>`, only `Nothing` fits all of them.
+ */
+fun BoundTypeReference.instantiateAllParametersForWriting(context: TypeUnification): BoundTypeReference {
+    if (!mentionsVariantlyBoundParameterInTypeArguments(context)) {
+        return instantiateAllParameters(context)
+    }
+
+    // null only where the member is nullable whatever the object: `Box<P>? & Q` with Q bound to `out B?` might be a `Box<A> & B`
+    val bottomType = this.context.swCtx.getBottomType(span ?: Span.UNKNOWN)
+    return if (this is NullableTypeReference) NullableTypeReference(bottomType) else bottomType
+}
+
+/**
+ * The type a value of this type reads as, where it is a type argument: `out A` as `A`, `in A` as the top type
+ */
+fun BoundTypeReference.asReadType(): BoundTypeReference = when {
+    this is BoundTypeArgument -> readType
+    this is NullableTypeReference && nested is BoundTypeArgument -> NullableTypeReference((nested as BoundTypeArgument).readType)
+    else -> this
+}
+
+private fun BoundTypeReference.mentionsVariantlyBoundParameter(context: TypeUnification): Boolean = when (this) {
+    is GenericTypeReference -> context.bindsVariantly(parameter)
+    is TypeVariable -> context.bindsVariantly(parameter)
+    is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
+    is NullableTypeReference -> nested.mentionsVariantlyBoundParameter(context)
+    is BoundTypeArgument -> type.mentionsVariantlyBoundParameter(context)
+    is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameter(context) }
+    else -> false
+}
+
+private fun BoundTypeReference.mentionsVariantlyBoundParameterInTypeArguments(context: TypeUnification): Boolean = when (this) {
+    is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
+    is NullableTypeReference -> nested.mentionsVariantlyBoundParameterInTypeArguments(context)
+    is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameterInTypeArguments(context) }
+    else -> false
+}
+
+private fun TypeUnification.bindsVariantly(parameter: BoundTypeParameter): Boolean {
+    if (!binds(parameter)) {
+        return false
+    }
+    val binding = getFinalValueFor(parameter)
+    return binding is BoundTypeArgument && binding.variance != TypeVariance.UNSPECIFIED
 }

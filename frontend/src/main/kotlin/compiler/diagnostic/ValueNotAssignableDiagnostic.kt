@@ -59,6 +59,10 @@ open class ValueNotAssignableDiagnostic(
             return null
         }
 
+        if (sourceType.mutability.isAssignableTo(targetType.mutability)) {
+            return null
+        }
+
         when (sourceType.mutability) {
             TypeMutability.MUTABLE -> when (targetType.mutability) {
                 TypeMutability.IMMUTABLE -> return "A const value is needed here, this one is mut."
@@ -101,3 +105,10 @@ open class ValueNotAssignableDiagnostic(
         }
     }
 }
+
+/**
+ * [wrap]s a type mismatch into a more specific diagnostic; any other error, e.g. a [CyclicSubtypeCheckDiagnostic],
+ * stays as it is
+ */
+inline fun Diagnostic.wrapIfMismatch(wrap: (ValueNotAssignableDiagnostic) -> Diagnostic): Diagnostic =
+    if (this is ValueNotAssignableDiagnostic) wrap(this) else this

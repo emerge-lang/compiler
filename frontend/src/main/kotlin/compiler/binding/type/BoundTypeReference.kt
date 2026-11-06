@@ -45,6 +45,13 @@ sealed interface BoundTypeReference {
     val simpleName: String?
 
     val mutability: TypeMutability
+
+    /**
+     * The mutability values of this type are assigned as: [mutability], except for objects of a const class
+     * ([BoundBaseType.isConst]), which nothing can mutate; they fit references of any mutability.
+     */
+    val assignmentMutability: TypeMutability get() = mutability
+
     val span: Span?
 
     /**
@@ -106,9 +113,9 @@ sealed interface BoundTypeReference {
      * @return `null` if the assignment is allowed, a diagnostic of severity [Diagnostic.Severity.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
+    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): Diagnostic? {
         val unification = targetType.unify(this, assignmentLocation, TypeUnification.EMPTY)
-        return unification.diagnostics.firstOrNull { it.severity >= Diagnostic.Severity.ERROR } as ValueNotAssignableDiagnostic?
+        return unification.diagnostics.firstOrNull { it.severity >= Diagnostic.Severity.ERROR }
     }
 
     /**

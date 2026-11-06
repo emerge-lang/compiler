@@ -152,9 +152,9 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             }
             
             // ----
-            "mut A and read Nothing is read A" {
-                mutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
-                readonlyNothing.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
+            "mut A and read Nothing is mut A" {
+                mutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe mutableA
+                readonlyNothing.closestCommonSupertypeWith(mutableA) shouldBe mutableA
             }
 
             "mut A and mut Nothing is mut A" {
@@ -162,9 +162,9 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 mutableNothing.closestCommonSupertypeWith(mutableA) shouldBe mutableA
             }
 
-            "const A and read Nothing is read A" {
-                immutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
-                readonlyNothing.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
+            "const A and read Nothing is const A" {
+                immutableA.closestCommonSupertypeWith(readonlyNothing) shouldBe immutableA
+                readonlyNothing.closestCommonSupertypeWith(immutableA) shouldBe immutableA
             }
 
             "const A and const Nothing is const A" {
@@ -172,9 +172,9 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 immutableNothing.closestCommonSupertypeWith(immutableA) shouldBe immutableA
             }
 
-            "exclusive A and read Nothing is read A" {
-                exclusiveA.closestCommonSupertypeWith(readonlyNothing) shouldBe readonlyA
-                readonlyNothing.closestCommonSupertypeWith(exclusiveA) shouldBe readonlyA
+            "exclusive A and read Nothing is exclusive A" {
+                exclusiveA.closestCommonSupertypeWith(readonlyNothing) shouldBe exclusiveA
+                readonlyNothing.closestCommonSupertypeWith(exclusiveA) shouldBe exclusiveA
             }
         }
     }

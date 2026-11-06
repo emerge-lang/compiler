@@ -1,20 +1,27 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.ParametricDiamondInheritanceWithDifferentTypeArgumentsDiagnostic
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeParameterBoundedByItselfDiagnostic
+import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.WildcardTypeArgumentWithVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TypeErrors : FreeSpec({
@@ -170,10 +177,11 @@ class TypeErrors : FreeSpec({
                     class A<T : mut Any> {
                         prop: T
                     }
-                    fn foo(p: A<const S32>) {}
+                    class B {}
+                    fn foo(p: A<const B>) {}
                 """.trimIndent())
                     .shouldFind<TypeArgumentOutOfBoundsDiagnostic> {
-                        it.argument.toString() shouldBe "const S32"
+                        it.argument.toString() shouldBe "const testmodule.B"
                     }
             }
 
@@ -182,13 +190,459 @@ class TypeErrors : FreeSpec({
                     class A<T : mut Any> {
                         prop: T = init
                     }
-                    x = A(2)
+                    class B {}
+                    fn test(b: const B) {
+                        x = A(b)
+                    }
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
-                        it.sourceType.toString() shouldBe "const S32"
+                        it.sourceType.toString() shouldBe "const testmodule.B"
                         it.targetType.toString() shouldBe "mut Any"
                         it.reason shouldBe "cannot assign a const value to a mut reference"
                     }
+            }
+
+            "a const class fits any mutability" {
+                validateModule("""
+                    class A<T : mut Any> {
+                        prop: T = init
+                    }
+                    fn foo(p: A<S32>) {}
+                    x = A(2)
+                """.trimIndent()) should haveNoDiagnostics()
+            }
+        }
+
+        "Nothing to a type parameter" - {
+            "of a fitting mutability" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : mut A>(n: exclusive Nothing) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of any other mutability, as Nothing is const" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : mut A>(n: read Nothing) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a type parameter bounded by Nothing to another type parameter" - {
+            "of a fitting mutability" {
+                validateModule("""
+                    interface A {}
+                    fn f<N : Nothing, T : A>(n: N) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of any other mutability, as Nothing is const" {
+                validateModule("""
+                    interface A {}
+                    fn f<N : read Nothing, T : mut A>(n: N) -> T {
+                        return n
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a type parameter to a nullable intersection that includes it" {
+            validateModule("""
+                interface A {}
+                fn f<T : A?>(t: T) -> A? & T {
+                    return t
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics(setOf(Diagnostic.Severity.CONSECUTIVE, Diagnostic.Severity.WARNING))
+        }
+
+        "an intersection with a type parameter, instantiated" - {
+            val holder = """
+                interface A {}
+                interface B {}
+                interface E {}
+                class Holder<T> {
+                    var value: A & T = init
+                }
+            """.trimIndent()
+
+            "in the class itself" {
+                validateModule(holder)
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with a nullable type, is non-nullable" {
+                validateModule(holder + "\n" + """
+                    fn f(h: Holder<E?>) -> A & E {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with an intersection" {
+                validateModule(holder + "\n" + """
+                    fn f(h: Holder<B & E>) -> A & B & E {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "an argument to an intersection with a type parameter bound already, another component covering it" - {
+            val types = """
+                interface A {}
+                interface E {}
+                fn f<T>(p: E & T) {}
+                class D<T> {
+                    u: E & T = init
+                    fn m(self, p: E & T) {}
+                }
+            """.trimIndent()
+
+            "is taken" {
+                validateModule(types + "\n" + """
+                    fn test(x: E & A, d: D<A>) {
+                        f::<A>(x)
+                        f(x)
+                        d.m(d.u)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of the wrong type parameter, isn't" {
+                validateModule(types + "\n" + """
+                    fn test(x: E) {
+                        f::<A>(x)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "a bound that mentions an earlier type parameter" - {
+            val types = """
+                interface A {}
+                class B : A {}
+                class C {}
+                fn f<U, T : U>(t: T) -> U {
+                    return t
+                }
+                class Twin<U, T : U> {}
+            """.trimIndent()
+
+            "takes type arguments within the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn g(b: B) -> A {
+                        return f::<A, B>(b)
+                    }
+                    fn h(x: Twin<A, B>) {}
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of a function, doesn't take a type argument outside the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn g(c: C) {
+                        f::<A, C>(c)
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+
+            "of a class, doesn't take a type argument outside the instantiated bound" {
+                validateModule(types + "\n" + """
+                    fn h(x: Twin<A, C>) {}
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+
+            "a member of the one, instantiated, is a value of the other" {
+                validateModule(types + "\n" + """
+                    class Holder<U, T : U> {
+                        t: T = init
+                        fn take(self, u: U) {}
+                    }
+                    fn h(x: Holder<A, B>) {
+                        x.take(x.t)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a type parameter to another type parameter, by its bound" - {
+            "an intersection of the other type parameter" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    fn f<P : A, T : P & B>(t: T) -> P {
+                        return t
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an intersection that has no values is Nothing" {
+                validateModule("""
+                    interface A {}
+                    class F : A {}
+                    class G : A {}
+                    fn f<T : F & G, U : A>(t: T) -> U {
+                        return t
+                    }
+                """.trimIndent())
+                    .shouldFind<SimplifiableIntersectionTypeDiagnostic>()
+                    .shouldNotFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
+
+        "non-nullable reference to a type parameter" - {
+            "takes the possibly null type parameter it narrows" {
+                validateModule("""
+                    fn f<V : Any?>(p: V!) {
+                        x: V = p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "is non-nullable" {
+                validateModule("""
+                    fn f<V : Any?>(p: V!) -> Any {
+                        return p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "is non-nullable, also bounded by a nullable type parameter" {
+                validateModule("""
+                    fn f<U : Any?, V : U?>(p: V!) -> Any {
+                        return p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take the possibly null type parameter" {
+                validateModule("""
+                    fn f<V : Any?>(p: V) {
+                        x: V! = p
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "as a parameter, doesn't take a possibly null type parameter" {
+                validateModule("""
+                    fn f<T : Any?>(p: T!) -> Any {
+                        return p
+                    }
+                    fn g<U : Any?>(u: U) -> Any {
+                        return f(u)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "as a parameter, takes a non-null type parameter" {
+                validateModule("""
+                    fn f<T : Any?>(p: T!) -> Any {
+                        return p
+                    }
+                    fn g<U : Any>(u: U) -> Any {
+                        return f(u)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take a possibly null type parameter bounded by it" {
+                validateModule("""
+                    fn f<V : Any?, W : V>(p: W) {
+                        x: V! = p
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "instantiated with a nullable type, is non-nullable" {
+                validateModule("""
+                    class Holder<V : Any?> {
+                        var value: V! = init
+                    }
+                    fn f(h: Holder<S32?>) -> S32 {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "instantiated with a nullable type, is the nullable type where it is nullable" {
+                validateModule("""
+                    class Holder<V : Any?> {
+                        var value: V = init
+                    }
+                    fn f(h: Holder<S32?>) -> S32 {
+                        return h.value
+                    }
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "in the return type of an invocation, is non-nullable" {
+                validateModule("""
+                    fn f<T : Any?>(t: T, n: T!) -> T! {
+                        return n
+                    }
+                    fn g(a: S32?) -> S32 {
+                        return f(a, 1)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in a type argument of the return type of an invocation, is non-nullable" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    fn f<T : Any?>(t: T, n: T!) -> Box<T!> {
+                        return Box(n)
+                    }
+                    fn g(a: S32?) {
+                        b: Box<S32?> = f(a, 1)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "a type parameter with a mutability" - {
+            "takes values of a fitting mutability only, with the type argument given" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    interface B : A {}
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f(b: const B) {
+                        g::<const B>(b)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "const testmodule.B"
+                    }
+            }
+
+            "takes values of a fitting mutability only, with the type argument inferred" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f<T : read A>(t: const T) {
+                        g(t)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "const T"
+                    }
+            }
+
+            "takes values of a fitting mutability" {
+                validateModule("""
+                    interface A {
+                        fn mutate(self: mut _)
+                    }
+                    interface B : A {}
+                    fn g<X : read A>(p: mut X) {
+                        p.mutate()
+                    }
+                    fn f(b: mut B) {
+                        g::<mut B>(b)
+                        g(b)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "has the mutability it is given after the fact" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : read A>(p: const T) {
+                        x: read _ = p
+                        y: const T = x
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "read T"
+                        it.targetType.toString() shouldBe "const T"
+                    }
+            }
+
+            "is instantiated to its type argument of the mutabilities of both" {
+                validateModule("""
+                    interface A {}
+                    interface B : A {}
+                    class Box<X : read A> {
+                        p: mut X = init
+                    }
+                    fn f(b: mut Box<read B>) -> mut B {
+                        return b.p
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in a type argument of the return type of an invocation, is of that mutability" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    class Foo {}
+                    fn f<T : Any>(t: T, m: mut T) -> Box<mut T> {
+                        return Box(m)
+                    }
+                    fn g(a: read Foo, m: mut Foo) {
+                        b: Box<read Foo> = f(a, m)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "in a type argument of the return type of an invocation, takes values of that mutability" {
+                validateModule("""
+                    class Box<E> {
+                        var v: E = init
+                    }
+                    class Foo {}
+                    fn f<T : Any>(t: T, m: mut T) -> Box<mut T> {
+                        return Box(m)
+                    }
+                    fn g(a: read Foo, m: mut Foo) {
+                        b: Box<mut Foo> = f(a, m)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
             }
         }
 
@@ -556,6 +1010,425 @@ class TypeErrors : FreeSpec({
         }
     }
 
+    "F-bounds" - {
+        val ord = """
+            interface Ord<T> {
+                fn compare(self, other: T) -> S32
+            }
+            class Num : Ord<Num> {
+                override fn compare(self, other: Num) -> S32 {
+                    return 0
+                }
+            }
+            class Bad {}
+        """.trimIndent()
+
+        "a type parameter bounded in terms of itself is inferred" {
+            validateModule(ord + "\n" + """
+                fn max<T : Ord<in T>>(a: T, b: T) -> T {
+                    return a
+                }
+                fn test(p: read Num) {
+                    x: Num = max(Num(), Num())
+                    y: read Num = max(p, Num())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "an F-bound invariant in its parameter takes the mutability of the supertype literally" - {
+            "read arguments are accepted" {
+                validateModule(ord + "\n" + """
+                    fn max<T : Ord<T>>(a: T, b: T) -> T {
+                        return a
+                    }
+                    fn test(p: read Num) {
+                        x: read Num = max(p, p)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "exclusive arguments are rejected" {
+                validateModule(ord + "\n" + """
+                    fn max<T : Ord<T>>(a: T) -> T {
+                        return a
+                    }
+                    fn test() {
+                        max(Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "an argument outside the F-bound is rejected" {
+            validateModule(ord + "\n" + """
+                fn max<T : Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    max(Bad())
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "an F-bounded variable without a lower bound cannot be inferred" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    make()
+                }
+            """.trimIndent())
+                .shouldFind<TypeVariableNotInferableDiagnostic>()
+        }
+
+        "explicit type arguments within the F-bound" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    x: Num = make::<Num>()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "explicit type arguments outside the F-bound" {
+            validateModule(ord + "\n" + """
+                intrinsic fn make<T : Ord<T>>() -> T
+                fn test() {
+                    make::<Bad>()
+                }
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+        }
+
+        "a bound mentioning another type parameter infers it" {
+            validateModule(ord + "\n" + """
+                intrinsic fn other<A, B : Ord<A>>(b: B) -> A
+                fn test() {
+                    x: Num = other(Num())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "F-bounded class" {
+            validateModule(ord + "\n" + """
+                class Node<T : Ord<in T>> {
+                    value: T = init
+                    fn current(self) -> T {
+                        return self.value
+                    }
+                }
+                fn test() {
+                    var n = Node(Num())
+                    x: read Num = n.current()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "type argument outside the bound of an F-bounded class" {
+            validateModule(ord + "\n" + """
+                class Node<T : Ord<T>> {}
+                fn test(n: Node<Bad>) {}
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+        }
+
+        "member functions" - {
+            val members = """
+                class Box<E> {
+                    value: E = init
+                    fn below<T : E>(self, t: T) -> T {
+                        return t
+                    }
+                    fn ordered<T : Ord<in E>>(self, t: T) -> T {
+                        return t
+                    }
+                }
+                class Calc {
+                    fn max<T : Ord<in T>>(self, a: T, b: T) -> T {
+                        return a
+                    }
+                }
+            """.trimIndent()
+
+            "an F-bounded type parameter of a member function is inferred" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(c: Calc) {
+                        x: Num = c.max(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an argument outside the F-bound of a member function is rejected" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(c: Calc) {
+                        c.max(Bad(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "a bound mentioning a type parameter of the class takes its type argument" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(b: Box<Num>) {
+                        x: Num = b.below(Num())
+                        y: Num = b.ordered(Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "an argument outside a bound mentioning a type parameter of the class is rejected" {
+                validateModule(ord + "\n" + members + "\n" + """
+                    fn test(b: Box<Num>) {
+                        b.below(Bad())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "intersection with an F-bound" {
+            validateModule(ord + "\n" + """
+                interface Named {}
+                class NamedNum : Ord<NamedNum> & Named {
+                    override fn compare(self, other: NamedNum) -> S32 {
+                        return 0
+                    }
+                }
+                fn pick<T : Named & Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    x: NamedNum = pick(NamedNum())
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "intersection with an F-bound, a component not met" {
+            validateModule(ord + "\n" + """
+                interface Named {}
+                fn pick<T : Named & Ord<in T>>(a: T) -> T {
+                    return a
+                }
+                fn test() {
+                    pick(Num())
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a type parameter made nullable in its own bound" - {
+            val nullableOrd = ord + "\n" + """
+                class NOrd : Ord<NOrd?> {
+                    override fn compare(self, other: NOrd?) -> S32 {
+                        return 0
+                    }
+                }
+                intrinsic fn max<T : Ord<in T?>>(a: T, b: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        x: NOrd = max(NOrd(), NOrd())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take an argument comparable to non-null values only" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        max(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+            }
+
+            "takes explicit type arguments within the bound" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        x: NOrd = max::<NOrd>(NOrd(), NOrd())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "doesn't take explicit type arguments outside the bound" {
+                validateModule(nullableOrd + "\n" + """
+                    fn test() {
+                        max::<Num>(Num(), Num())
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>>(e: E) {
+                            x: E = max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a type parameter comparable to non-null values only" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E>>(e: E) {
+                            max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "doesn't take a possibly null type parameter" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>?>(e: E) {
+                            max(e, e)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "takes a possibly null type parameter, narrowed" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E?>?>(e: E) {
+                            x: E = max(e!!, e!!)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a narrowed type parameter comparable to non-null values only" {
+                    validateModule(nullableOrd + "\n" + """
+                        fn test<E : Ord<in E>?>(e: E) {
+                            max(e!!, e!!)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
+        "a type parameter of a mutability given to it in its own bound" - {
+            val mutableSelf = """
+                interface Mk<E> {}
+                class K : Mk<mut K> {}
+                intrinsic fn make<T : Mk<mut T>>(t: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(mutableSelf + "\n" + """
+                    fn test(k: mut K, r: read K) {
+                        x: mut K = make(k)
+                        y: read K = make(r)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : Mk<mut U>>(u: U) {
+                            x: U = make(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a type parameter whose bound has it of no mutability given" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : Mk<U>>(u: U) {
+                            make(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+
+                "doesn't take a subtype of a class that fixes the type argument" {
+                    validateModule(mutableSelf + "\n" + """
+                        fn test<U : K>(u: U) {
+                            make(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
+        "a type parameter narrowed in its own bound" - {
+            val narrowedOrd = ord + "\n" + """
+                intrinsic fn pick<T : Ord<in T!>>(a: T) -> T
+            """.trimIndent()
+
+            "is inferred" {
+                validateModule(narrowedOrd + "\n" + """
+                    fn test() {
+                        x: Num = pick(Num())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "in generic code" - {
+                "takes a type parameter of the same bound" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Ord<in U!>>(u: U) {
+                            x: U = pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "takes a subtype of a class comparable to itself" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Num>(u: U) {
+                            x: U = pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't take a possibly null type parameter" {
+                    validateModule(narrowedOrd + "\n" + """
+                        fn test<U : Ord<in U!>>(u: U?) {
+                            pick(u)
+                        }
+                    """.trimIndent())
+                        .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                }
+            }
+        }
+
+        "a type parameter cannot bound itself" - {
+            "directly" {
+                validateModule("fn f<T : T>() {}")
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
+            }
+            "nullable" {
+                validateModule("fn f<T : T?>() {}")
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
+            }
+            "in an intersection" {
+                validateModule("""
+                    interface A {}
+                    fn f<T : A & T>() {}
+                """.trimIndent())
+                    .shouldFind<TypeParameterBoundedByItselfDiagnostic>()
+            }
+        }
+    }
+
     "regressions" - {
         "type argument unification with nullability" {
             validateModule("""
@@ -565,6 +1438,189 @@ class TypeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+
+        "a supertype check that comes back to itself fails, rather than not finishing" {
+            validateModule("""
+                interface Cn<T> {}
+                class K : Cn<Cn<in K>> {}
+                fn test(k: K) {
+                    x: Cn<in K> = k
+                }
+            """.trimIndent())
+                .shouldFind<CyclicSubtypeCheckDiagnostic>()
+                .shouldNotFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "a supertype check that comes back to itself through an F-bound fails, rather than not finishing" {
+            validateModule("""
+                interface Cn<T> {}
+                fn test<T : Cn<Cn<in T>>>(t: T) {
+                    x: Cn<in T> = t
+                }
+            """.trimIndent())
+                .shouldFind<CyclicSubtypeCheckDiagnostic>() {
+                    it shouldNotBe null
+                }
+                .shouldNotFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "intersections whose components keep their nullability" - {
+            "null as an argument is a value of every component" {
+                validateModule("""
+                    interface A {}
+                    fn id<P>(x: A? & P) -> A? & P = x
+                    fn test() -> A = id(null)
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "inferred from a type argument" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {}
+                    fn g<P>(x: Box<A? & P>) {}
+                    fn test(b: Box<A?>) {
+                        g(b)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "a component instantiated to an in-variant type argument doesn't take null away" {
+                validateModule("""
+                    interface A {}
+                    class H<P> {
+                        v: A? & P = init
+                    }
+                    fn test(h: H<in A>) -> A = h.v
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+
+            "in a type argument, a component instantiated to an in-variant type argument makes it in-variant" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {}
+                    class H<P> {
+                        v: Box<A? & P> = init
+                    }
+                    fn test(h: H<in A>) -> Box<A> = h.v
+                """.trimIndent())
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
+            }
+        }
+
+        "the members of a value of a type parameter are those of its bound" - {
+            "written" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    fn test<T : mut Box<A>>(t: T, b: B) {
+                        set t.value = b
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "written through an out-variant type argument" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    fn test<T : mut Box<out A>>(t: T, a: A) {
+                        set t.value = a
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "read, of a bound mentioning another type parameter" {
+                validateModule("""
+                    class Holder<X> {
+                        value: X = init
+                    }
+                    fn unwrap<A, B : Holder<A>>(b: B) -> A = b.value
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a member written through a variantly bound type argument takes null only where it is declared nullable" - {
+            "an intersection whose components keep their nullability" {
+                validateModule("""
+                    interface A {}
+                    interface B {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    class H<P, Q> {
+                        var v: Box<P>? & Q = init
+                    }
+                    fn test(h: mut H<out A, out B?>) {
+                        set h.v = null
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "a nullable type" {
+                validateModule("""
+                    interface A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    class H<P> {
+                        var v: Box<P>? = init
+                    }
+                    fn test(h: mut H<out A>) {
+                        set h.v = null
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "a variable without a lower bound, bounded by a type parameter of a variantly captured receiver, is the type the type argument reads as" - {
+            "on its own" {
+                validateModule("""
+                    interface A {}
+                    interface D {}
+                    interface Mk<E> {
+                        fn m<T : E>(self) -> T
+                    }
+                    fn test(k: Mk<out A>) {
+                        r: D = k.m()
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>()
+                    }
+            }
+
+            "intersected with its upper bound" {
+                validateModule("""
+                    interface A {}
+                    interface D {}
+                    class AI : A {}
+                    class Box<E> {
+                        var value: E = init
+                    }
+                    interface Mk<E> {
+                        fn m<T : E>(self, sink: Box<in T>) -> T
+                    }
+                    fn test(k: Mk<out A>, sink: Box<AI>) {
+                        r: D = k.m(sink)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>()
+                    }
+            }
         }
     }
 })

@@ -1,0 +1,241 @@
+From Stdlib Require Import String Arith.
+
+Section Model.
+
+Inductive Mutability :=
+    | exclusive
+    | immutable
+    | readonly
+    | mutable
+    .
+
+Scheme Equality for Mutability.
+
+Definition is_subtype_of (ma mt: Mutability): bool :=
+    match ma, mt with
+    | exclusive, _ => true
+    | immutable, immutable => true
+    | immutable, readonly => true
+    | mutable, mutable => true
+    | mutable, readonly => true
+    | readonly, readonly => true
+    | _, _ => false
+    end.
+
+Definition union (m0 m1: Mutability): Mutability :=
+    if Mutability_beq m0 m1 then m0 else
+    if Mutability_beq m0 exclusive then m1 else
+    if Mutability_beq m1 exclusive then m0 else
+    readonly
+    .
+
+Theorem union_comm: forall m0 m1: Mutability, union m0 m1 = union m1 m0.
+Proof.
+    intros [] []; reflexivity.
+Qed.
+
+Theorem union_assoc: forall m0 m1 m2: Mutability, union (union m0 m1) m2 = union m0 (union m1 m2).
+Proof.
+    intros [] [] []; reflexivity.
+Qed.
+
+Definition intersect_mutability (m0 m1: Mutability): Mutability :=
+    match m0, m1 with
+    | mutable, mutable => mutable
+    | mutable, readonly => mutable
+    | mutable, immutable => exclusive
+    | mutable, exclusive => exclusive
+    | readonly, readonly => readonly
+    | readonly, immutable => immutable
+    | readonly, mutable => mutable
+    | readonly, exclusive => exclusive
+    | immutable, immutable => immutable
+    | immutable, exclusive => exclusive
+    | immutable, readonly => immutable
+    | immutable, mutable => exclusive
+    | exclusive, _ => exclusive
+    end.
+
+Theorem intersect_mutability_comm: forall m0 m1: Mutability, intersect_mutability m0 m1 = intersect_mutability m1 m0.
+Proof.
+    intros [] []; reflexivity.
+Qed.
+
+Theorem intersect_mutability_assoc: forall m0 m1 m2: Mutability, intersect_mutability (intersect_mutability m0 m1) m2 = intersect_mutability m0 (intersect_mutability m1 m2).
+Proof.
+    intros [] [] []; reflexivity.
+Qed.
+
+Definition mutability_allows_mutation (m: Mutability): bool :=
+    match m with
+    | mutable => true
+    | exclusive => true
+    | _ => false
+    end.
+
+Record Field := {
+    is_ref: bool;
+}.
+
+(*
+ * Classes and type parameters are referenced by an id, which is their identity: two references mean
+ * the same declaration exactly when their ids are equal, like the identity comparison in Kotlin.
+ * Distinct declarations get distinct ids, even where their names are the same (the T of
+ * `class A<T>` and the T of `fun foo<T>`). There are deliberately no names: they are only needed for
+ * error messages, and they'd invite mistaking one declaration for another. nat makes a fresh id
+ * easy to come by: one more than the largest in use.
+ *)
+Definition ClassId := nat.
+Definition TypeParameterId := nat.
+
+(*
+ * BoundBaseType, as it is referenced. What is declared about a class, its supertypes and fields
+ * among it, is in its ClassDecl (below). A class can't carry that declaration itself: the
+ * supertypes are type references, with type arguments, back into Class.
+ *)
+Inductive Class :=
+    | any
+    | some_class (id: ClassId)
+    | nothing
+    .
+
+Definition Class_eq_dec: forall a b: Class, {a = b} + {a <> b}.
+Proof. decide equality; apply Nat.eq_dec. Defined.
+
+(* BoundBaseType.Kind *)
+Inductive ClassKind :=
+    | class_kind
+    | interface_kind
+    .
+
+Inductive Variance :=
+    | invariant
+    | input
+    | output
+    .
+
+Scheme Equality for Variance.
+
+Definition intersect_variance (v0 v1: Variance): Variance :=
+    if Variance_beq v0 v1 then v0 else invariant.
+
+Theorem intersect_variance_comm: forall v0 v1: Variance, intersect_variance v0 v1 = intersect_variance v1 v0.
+Proof.
+    intros [] []; reflexivity.
+Qed.
+
+Theorem intersect_variance_assoc: forall v0 v1 v2: Variance, intersect_variance (intersect_variance v0 v1) v2 = intersect_variance v0 (intersect_variance v1 v2).
+Proof.
+    intros [] [] []; reflexivity.
+Qed.
+
+(*
+ * How a type argument holds the objects of its type, e.g. the elements of an Array (see Ownership.v).
+ *)
+Inductive Ownership :=
+    (* `Array<owned mut Order>` owns them: they are part of the array's block of objects, and are
+       accessed with the mutability of the reference to the array. That only matters for mutable
+       types: `Array<owned const Order>` holds immutable objects, just like `Array<ref const Order>`. *)
+    | owned
+    (* `Array<ref mut Order>` refers to them, with a mutability of its own *)
+    | ref
+    (* `Array<any T>` may do either. It has to be treated as the weakest of the two, which makes it
+       a supertype of the others. *)
+    | any_ownership
+    (* `Array<T>`, for a type parameter T: the ownership T is instantiated with. Unknown to the
+       generic code, but the same wherever it says T, so a value of type T fits into it. *)
+    | parameter_ownership (param: TypeParameterId)
+    .
+
+(* EType nests list, for which Rocq would like a scheme that nothing here needs *)
+Local Set Warnings "-register-all".
+
+(* BoundTypeReference and its subclasses *)
+Inductive EType :=
+    (* RootResolvedTypeReference; the mutability is `explicitMutability ?: original?.mutability`.
+       The arguments are TypeArguments; no arguments and a null list are the same thing. *)
+    | RootResolved (mutability: option Mutability) (class: Class) (arguments: list EType)
+    | Nullable (nested: EType)
+    | Generic (generic: GenericRef)
+    (* ErroneousType; the mutability is `astNode.mutability` *)
+    | Error (mutability: option Mutability) (message: string)
+    (* BoundTypeArgument *)
+    | TypeArgument (variance: Variance) (ownership: Ownership) (nested: EType)
+    (* a generic type under inference; wraps a GenericTypeReference, just like the Kotlin class *)
+    | TypeVariable (generic: GenericRef)
+    (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
+    | Intersection (components: list EType)
+(* GenericTypeReference; the mutability is `givenMutability`, written or applied. The bound is the
+   parameter's (Environment.parameter_bound); the effective bound is that with the mutability and
+   nullability of this reference applied, and the type variables (Subtyping.effective_bound).
+   narrowed: `isNarrowed`, a `!` made the effective bound non-nullable, where the bound of the
+   parameter is nullable. variables: `typeVariables`, the type parameters under inference, which are
+   type variables in the effective bound. *)
+with GenericRef :=
+    | mkGenericRef (mutability: option Mutability) (narrowed: bool) (param: TypeParameterId) (variables: list TypeParameterId)
+.
+
+(* GenericTypeReference.givenMutability, .isNarrowed, .parameter and .typeVariables. New proofs go
+   through these rather than taking a GenericRef apart, so they need not change when it changes
+   shape. *)
+Definition given_mutability (g: GenericRef): option Mutability := match g with mkGenericRef m _ _ _ => m end.
+Definition is_narrowed (g: GenericRef): bool := match g with mkGenericRef _ nn _ _ => nn end.
+Definition param_of (g: GenericRef): TypeParameterId := match g with mkGenericRef _ _ p _ => p end.
+Definition variables_of (g: GenericRef): list TypeParameterId := match g with mkGenericRef _ _ _ vs => vs end.
+
+(* The declaration of a type parameter (BoundTypeParameter), the counterpart to a GenericRef. Its bound
+   is Environment.parameter_bound. *)
+Record TypeParameterDecl := {
+    param_id: TypeParameterId;
+    (* `class Vec<owned T>`: the ownership every type argument for it must have. Without one, a type
+       argument may have any. Not in the Kotlin frontend, yet. *)
+    prescribed_ownership: option Ownership;
+}.
+
+(* The declaration of a class (BoundBaseType), the counterpart to a Class reference. *)
+Record ClassDecl := {
+    kind: ClassKind;
+    (* BoundBaseType.isConst: declared `: const Any` (or `: const` any other supertype), or a subtype
+       of such a class, like the numeric types and bool. Its references are always immutable, and
+       nothing can mutate its objects. *)
+    is_const: bool;
+    type_parameters: list TypeParameterDecl;
+    (* RootResolved references to the direct supertypes, their arguments in terms of type_parameters *)
+    supertypes: list EType;
+    fields: list Field;
+}.
+
+(*
+ * Everything the type system only consumes, rather than decides: the class declarations, what is
+ * derived from them (the transitive supertypes, their type arguments), and the lattice operations
+ * the inference uses. They are translations of their own. Theorems that take an Environment hold
+ * for any program.
+ *)
+Record Environment := {
+    (* the declaration of every class *)
+    declaration_of: Class -> ClassDecl;
+    (* The keys of superTypes.preprocessedInheritanceTree.parameterizedSupertypes: all the transitive
+       supertypes of a class, following the supertypes of declaration_of, except Any. *)
+    supertypes_of: Class -> list Class;
+    (* BoundBaseType.closestCommonSupertypeOf *)
+    closest_common_super_class: list Class -> Class;
+    (*
+     * Given a class `sub` and one of its transitive supertypes `super` (never `sub` itself, nor
+     * `nothing`): the RootResolved reference to `super` as a supertype of `sub`, its arguments in
+     * terms of the type parameters of `sub`. That is `sub.superTypes.getParameterizedSupertype(super)`.
+     * Instantiating it with the arguments of a reference to `sub` is up to the type system (see
+     * Subtyping.parameterized_supertype_arguments).
+     *)
+    parameterized_supertype: Class -> Class -> EType;
+    (* BoundTypeReference.closestCommonSupertypeWith *)
+    closest_common_supertype_with: EType -> EType -> EType;
+    (* BoundIntersectionTypeReference.Companion.intersect *)
+    intersect: EType -> EType -> EType;
+    (* BoundTypeParameter.bound, of every type parameter, of classes and functions alike *)
+    parameter_bound: TypeParameterId -> EType;
+    (* The order the type parameters are declared in: a bound mentions only type parameters declared
+       before (Subtyping.bounds_ranked). Kotlin resolves a bound with only those in scope. *)
+    parameter_rank: TypeParameterId -> nat;
+}.
+
+End Model.

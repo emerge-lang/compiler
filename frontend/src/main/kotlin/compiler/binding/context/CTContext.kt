@@ -158,5 +158,18 @@ interface CTContext {
         return stateClass.getInitialState(subject)
     }
 
+    /**
+     * Same as [getEphemeralState], but the state in [ancestor], a direct or indirect parent of `this`, is taken to be
+     * [stateInAncestor] instead of computing it again.
+     */
+    fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        return if (this === ancestor) stateInAncestor else getEphemeralState(stateClass, subject)
+    }
+
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>>
 }

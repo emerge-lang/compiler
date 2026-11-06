@@ -6,7 +6,7 @@ import emerge.std.collections.ArrayList
 import emerge.core.range.ArrayRange
 import emerge.core.range.Iterable
 
-export class Unit {
+export class Unit : const Any {
     private constructor {}
 
     export nothrow intrinsic fn instance() -> Unit
@@ -14,19 +14,21 @@ export class Unit {
 
 export interface Any {}
 
-export class Nothing {
+export class Nothing : const Any {
+    private constructor {
+        panic("Cannot create instances of emerge.core.Nothing")
+    }
+}
+
+export class F32 : const Any {
     private constructor {}
 }
 
-export class F32 {
+export class F64 : const Any {
     private constructor {}
 }
 
-export class F64 {
-    private constructor {}
-}
-
-export class S8 : Printable {
+export class S8 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S8
@@ -64,7 +66,7 @@ export class S8 : Printable {
     export intrinsic nothrow fn copy(self) -> S8
 }
 
-export class U8 : Printable {
+export class U8 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U8
@@ -96,7 +98,7 @@ export class U8 : Printable {
     }
 }
 
-export class S16 : Printable {
+export class S16 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S16
@@ -133,7 +135,7 @@ export class S16 : Printable {
     export intrinsic nothrow fn copy(self) -> S16
 }
 
-export class U16 : Printable {
+export class U16 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U16
@@ -164,7 +166,7 @@ export class U16 : Printable {
     }
 }
 
-export class S32 : Printable {
+export class S32 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S32
@@ -200,7 +202,7 @@ export class S32 : Printable {
     export intrinsic nothrow fn copy(self) -> S32
 }
 
-export class U32 : Printable {
+export class U32 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U32
@@ -230,7 +232,7 @@ export class U32 : Printable {
     }
 }
 
-export class S64 : Printable {
+export class S64 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S64
@@ -271,7 +273,7 @@ export class S64 : Printable {
     export intrinsic nothrow fn copy(self) -> S64
 }
 
-export class U64 : Printable {
+export class U64 : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U64
@@ -336,7 +338,7 @@ export class U64 : Printable {
     }
 }
 
-export class SWord : Printable {
+export class SWord : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> SWord
@@ -373,7 +375,7 @@ export class SWord : Printable {
     export intrinsic nothrow fn copy(self) -> SWord
 }
 
-export class UWord : Printable {
+export class UWord : const Any & Printable {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> UWord
@@ -404,7 +406,7 @@ export class UWord : Printable {
     }
 }
 
-export class Bool {
+export class Bool : const Any {
     private constructor {}
 
     export intrinsic nothrow operator fn negate(self) -> Bool

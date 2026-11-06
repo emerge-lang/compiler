@@ -18,9 +18,6 @@
 
 package compiler.ast.type
 
-import compiler.ast.type.TypeMutability.EXCLUSIVE
-import compiler.ast.type.TypeMutability.IMMUTABLE
-import compiler.ast.type.TypeMutability.MUTABLE
 import compiler.lexer.Keyword
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
@@ -147,6 +144,18 @@ enum class TypeMutability(
             else -> other.intersect(this)
         }
         EXCLUSIVE -> EXCLUSIVE
+    }
+
+    fun mayBeAliasedWith(other: TypeMutability): Boolean {
+        if (this == READONLY || other == READONLY) {
+            return true
+        }
+
+        if ((this == IMMUTABLE || this == MUTABLE) && this == other) {
+            return true
+        }
+
+        return false
     }
 
     fun toBackendIr(): IrTypeMutability = when (this) {
