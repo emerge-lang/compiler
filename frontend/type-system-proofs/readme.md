@@ -334,24 +334,3 @@ The IDE only compiles the file that is open, though, never the files it requires
 
 With a local Rocq and dune, `dune rocq top theories/Foo.v` opens a REPL set up for exactly that
 file, which `./rocq.sh repl` cannot do from inside the container.
-
-## Generating Kotlin from the proofs
-
-The eventual goal is to derive parts of the Kotlin implementation from the proven definitions, so
-that the code the compiler runs is the code that was proven correct. Rocq has no Kotlin backend, so
-this will take some work. The options, most promising first:
-
-1. **Extract to JSON, emit Kotlin from that.** `Extraction Language JSON` (verified present in
-   9.2) dumps the extracted program as a declaration tree — inductives, constructors, fixpoints,
-   matches. A Kotlin emitter for that tree could live in this repo as a small tool and is plain
-   data processing, no Rocq plugin needed. The catch is that extraction erases types down to an
-   ML-ish core, so the generated Kotlin would need its types reconstructed to be idiomatic.
-2. **Pretty-print Kotlin inside Rocq.** Deep-embed the fragment of Kotlin that is needed as an
-   inductive type, write the emitter as a Rocq function and `Compute` the result into a `.kt` file.
-   More upfront work, but the emitter itself becomes provable, and full control over the output.
-3. **A Rocq plugin with a Kotlin extraction backend**, in OCaml, alongside the existing OCaml and
-   Haskell ones. Most faithful, by far the most work, and ties the project to Rocq internals.
-
-Until one of these lands, the proofs and the Kotlin implementation are connected by review, and by
-the oracle over the types of `TypeGrid`; the definitions in `theories/` should be kept recognisably
-close to their Kotlin counterparts to keep that review tractable.
