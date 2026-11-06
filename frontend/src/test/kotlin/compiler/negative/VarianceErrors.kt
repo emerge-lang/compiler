@@ -404,22 +404,26 @@ class VarianceErrors : FreeSpec({
     }
 
     "member functions on receivers with variant type arguments" - {
+        val types = """
+            interface A {}
+            interface B : A {}
+            class Box<T> {
+                var value: T = init
+            }
+            class Holder<T> {
+                intrinsic fn fetch(self) -> T
+                intrinsic fn getBox(self) -> Box<T>
+                intrinsic fn getOutBox(self) -> Box<out T>
+                intrinsic fn getBoxes(self) -> Box<Box<T>>
+                intrinsic fn put(self: mut _, v: T)
+                intrinsic fn putBox(self: mut _, b: Box<T>)
+                intrinsic fn putInBox(self: mut _, b: Box<in T>)
+            }
+        """.trimIndent()
+
         "out: the return type" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<out B>) -> Box<out B> {
                     return h.getOutBox()
                 }
@@ -429,20 +433,7 @@ class VarianceErrors : FreeSpec({
 
         "out: the type parameter reads as the type argument" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<out B>) -> B {
                     return h.fetch()
                 }
@@ -452,20 +443,7 @@ class VarianceErrors : FreeSpec({
 
         "in: the type parameter reads as read Any?" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<in B>) -> B {
                     return h.fetch()
                 }
@@ -475,20 +453,7 @@ class VarianceErrors : FreeSpec({
 
         "out: a return type nesting the type parameter is widened" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<out A>) {
                     x: Box<A> = h.getBox()
                 }
@@ -498,20 +463,7 @@ class VarianceErrors : FreeSpec({
 
         "out: a return type nesting the type parameter deeper is widened" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<out A>) {
                     x: Box<Box<out A>> = h.getBoxes()
                 }
@@ -521,20 +473,7 @@ class VarianceErrors : FreeSpec({
 
         "out: the widened return type can be read" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: Holder<out A>) {
                     x: Box<out Box<out A>> = h.getBoxes()
                 }
@@ -544,20 +483,7 @@ class VarianceErrors : FreeSpec({
 
         "out: a parameter typed as the type parameter takes nothing" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: mut Holder<out A>, b: B) {
                     h.put(b)
                 }
@@ -567,20 +493,7 @@ class VarianceErrors : FreeSpec({
 
         "in: a parameter typed as the type parameter takes subtypes" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: mut Holder<in B>, b: B) {
                     h.put(b)
                 }
@@ -590,20 +503,7 @@ class VarianceErrors : FreeSpec({
 
         "out: a parameter nesting the type parameter takes nothing" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: mut Holder<out A>, b: Box<B>) {
                     h.putBox(b)
                 }
@@ -613,20 +513,7 @@ class VarianceErrors : FreeSpec({
 
         "in: a parameter nesting the type parameter takes nothing" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: mut Holder<in B>, b: Box<B>) {
                     h.putBox(b)
                 }
@@ -636,20 +523,7 @@ class VarianceErrors : FreeSpec({
 
         "out: a parameter taking in-variant type arguments of the type parameter takes supertypes" {
             validateModule("""
-                interface A {}
-                interface B : A {}
-                class Box<T> {
-                    var value: T = init
-                }
-                class Holder<T> {
-                    intrinsic fn fetch(self) -> T
-                    intrinsic fn getBox(self) -> Box<T>
-                    intrinsic fn getOutBox(self) -> Box<out T>
-                    intrinsic fn getBoxes(self) -> Box<Box<T>>
-                    intrinsic fn put(self: mut _, v: T)
-                    intrinsic fn putBox(self: mut _, b: Box<T>)
-                    intrinsic fn putInBox(self: mut _, b: Box<in T>)
-                }
+                $types
                 fn test(h: mut Holder<out B>, b: Box<A>) {
                     h.putInBox(b)
                 }
@@ -659,10 +533,7 @@ class VarianceErrors : FreeSpec({
 
         "the type parameters of a function itself stay exact" {
             validateModule("""
-                interface A {}
-                class Box<T> {
-                    var value: T = init
-                }
+                $types
                 intrinsic fn first<T>(b: Box<T>) -> T
                 fn test(b: Box<out A>) {
                     first(b)

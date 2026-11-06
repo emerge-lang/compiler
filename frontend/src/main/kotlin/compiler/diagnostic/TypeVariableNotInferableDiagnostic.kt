@@ -12,9 +12,9 @@ class TypeVariableNotInferableDiagnostic(
     "Cannot infer a type argument for `${parameter.name.value}` because `${parameter.name.value}`s upper bound is self-referential and there is no lower bound for it here. Specify the type arguments explicitly.",
     inferenceLocation,
 ) {
-    context(CellBuilder)
+    context(builder: CellBuilder)
     override fun renderBody() {
-        sourceHints(
+        builder.sourceHints(
             SourceHint(span, "inferred here", severity = severity),
             SourceHint(parameter.name.span, "this parameter is affected", severity = Severity.INFO),
         )
