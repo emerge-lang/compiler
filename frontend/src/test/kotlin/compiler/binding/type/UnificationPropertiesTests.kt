@@ -21,7 +21,7 @@ class UnificationPropertiesTests : FreeSpec({
     val below: List<List<Boolean?>> = types.map { (_, a) ->
         types.map { (_, b) ->
             try {
-                a.isBelow(b)
+                a.isSubtypeOf(b)
             } catch (e: Exception) {
                 null
             }
@@ -32,7 +32,7 @@ class UnificationPropertiesTests : FreeSpec({
         types.indices.flatMap { i ->
             types.indices.mapNotNull { j ->
                 if (below[i][j] != null) null else {
-                    val e = runCatching { types[i].second.isBelow(types[j].second) }.exceptionOrNull()
+                    val e = runCatching { types[i].second.isSubtypeOf(types[j].second) }.exceptionOrNull()
                     "${types[i].first} to ${types[j].first}: ${e?.let { it::class.simpleName + " " + it.message }}"
                 }
             }
@@ -61,7 +61,7 @@ class UnificationPropertiesTests : FreeSpec({
             TypeGrid.ctxBounds.mapNotNull { (parameter, bound) ->
                 val value = TypeGrid.swCtx.parseTypeIn("Ctx", parameter).instantiateAllParameters(bindings)
                 val boundInstance = TypeGrid.swCtx.parseTypeIn("Ctx", bound).instantiateAllParameters(bindings)
-                "in $ctxStr: $parameter = $value, not within $boundInstance".takeUnless { value.isBelow(boundInstance) }
+                "in $ctxStr: $parameter = $value, not within $boundInstance".takeUnless { value.isSubtypeOf(boundInstance) }
             }
         }.shouldBeNone()
     }
@@ -73,7 +73,7 @@ class UnificationPropertiesTests : FreeSpec({
                 types.indices.filter { below[i][it] == true }.mapNotNull { j ->
                     val a = instances[i].getOrNull()
                     val b = instances[j].getOrNull()
-                    val result = if (a == null || b == null) null else runCatching { a.isBelow(b) }.getOrNull()
+                    val result = if (a == null || b == null) null else runCatching { a.isSubtypeOf(b) }.getOrNull()
                     if (result == true) null else
                         "in $ctxStr: ${types[i].first} below ${types[j].first}, but not $a below $b" +
                             if (result == null) " (threw)" else ""
@@ -114,7 +114,7 @@ class UnificationPropertiesTests : FreeSpec({
         "a goal that comes back to itself fails" {
             for ((assignee, target) in listOf("K" to "Cn<in K>", "Cn<Cn<in K>>" to "Cn<in K>", "S" to "Ord<in S>")) {
                 withClue("$assignee to $target") {
-                    swCtx.parseTypeIn("Ctx", assignee).isBelow(swCtx.parseTypeIn("Ctx", target)) shouldBe false
+                    swCtx.parseTypeIn("Ctx", assignee).isSubtypeOf(swCtx.parseTypeIn("Ctx", target)) shouldBe false
                 }
             }
         }
@@ -126,7 +126,7 @@ class UnificationPropertiesTests : FreeSpec({
                 val outcome = AtomicReference<String>()
                 val thread = Thread {
                     outcome.set(try {
-                        if (a.isBelow(t)) "below" else "not below"
+                        if (a.isSubtypeOf(t)) "below" else "not below"
                     } catch (e: StackOverflowError) {
                         "stack overflow"
                     } catch (e: Throwable) {

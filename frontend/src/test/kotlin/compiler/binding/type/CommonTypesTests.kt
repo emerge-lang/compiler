@@ -23,7 +23,7 @@ class CommonTypesTests : FreeSpec({
                         val aInstance = a.instantiateAllParameters(bindings)
                         val bInstance = b.instantiateAllParameters(bindings)
                         intersection
-                            .takeUnless { it.isBelow(aInstance) && it.isBelow(bInstance) }
+                            .takeUnless { it.isSubtypeOf(aInstance) && it.isSubtypeOf(bInstance) }
                             ?.let { "$aStr, $bStr in $ctxStr: $it, of $aInstance and $bInstance" }
                     } catch (e: Exception) {
                         "$aStr, $bStr in $ctxStr: ${e::class.simpleName} ${e.message}"

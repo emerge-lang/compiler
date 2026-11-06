@@ -75,7 +75,7 @@ internal fun SoftwareContext.parseTypeArgument(
     return boundArg
 }
 
-internal fun BoundTypeReference.isBelow(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null
+internal fun BoundTypeReference.isSubtypeOf(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null
 
 internal fun List<String>.shouldBeNone(shown: Int = 100) {
     withClue(take(shown).joinToString("\n") + if (size > shown) "\n... ${size - shown} more" else "") {

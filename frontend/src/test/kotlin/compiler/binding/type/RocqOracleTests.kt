@@ -172,7 +172,7 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
         val allNodes = grid.map { (_, t) -> encode(t) }
         val allIntersections = grid.map { (_, a) -> grid.map { (_, b) -> encodeResult { a.intersect(b) } } }
         val allCommonSupertypes = grid.map { (_, a) -> grid.map { (_, b) -> encodeResult { a.closestCommonSupertypeWith(b) } } }
-        val allBelow = grid.map { (_, a) -> grid.map { (_, b) -> a.isBelow(b) } }
+        val allBelow = grid.map { (_, a) -> grid.map { (_, b) -> a.isSubtypeOf(b) } }
 
         // types encoded alike are checked once; the frontend must not tell them apart, or the encoding would lose what does
         val firstOf = HashMap<String, Int>()

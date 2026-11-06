@@ -12,6 +12,8 @@ import io.kotest.core.spec.style.FreeSpec
  * instantiated for bindings of those, is above what is read through `H<y>` instantiated, the reference at run time;
  * and what is written, instantiated, fits what the reference at run time takes. With `MemberAccess.v` and
  * `MemberIntersections.v` for the reference at run time, member access in generic code is sound (coverage #11).
+ *
+ * The individual cases should be unrolled, but that makes the tests run orders of magnitude slower.
  */
 class MemberAccessPropertiesTests : FreeSpec({
     val swCtx = TypeGrid.swCtx
@@ -54,7 +56,7 @@ class MemberAccessPropertiesTests : FreeSpec({
                         val static = read(member.instantiateAllParameters(ref.inherentTypeBindings)).instantiateAllParameters(bindings)
                         val runtime = read(member.instantiateAllParameters(runtimeRef.inherentTypeBindings))
                         "in $ctxStr: $memberStr of $refStr reads $runtime at run time, not below $static"
-                            .takeUnless { runtime.isBelow(static) }
+                            .takeUnless { runtime.isSubtypeOf(static) }
                     } catch (e: Exception) {
                         "in $ctxStr: $memberStr of $refStr: ${e::class.simpleName} ${e.message}"
                     }
@@ -75,7 +77,7 @@ class MemberAccessPropertiesTests : FreeSpec({
                         val twice = member.instantiateAllParameters(ref.inherentTypeBindings).instantiateAllParameters(bindings)
                         val once = member.instantiateAllParameters(runtimeRef.inherentTypeBindings)
                         "in $ctxStr: $memberStr of $refStr is $twice instantiated twice, $once once"
-                            .takeUnless { twice.isBelow(once) && once.isBelow(twice) }
+                            .takeUnless { twice.isSubtypeOf(once) && once.isSubtypeOf(twice) }
                     } catch (e: Exception) {
                         "in $ctxStr: $memberStr of $refStr: ${e::class.simpleName} ${e.message}"
                     }
@@ -93,7 +95,7 @@ class MemberAccessPropertiesTests : FreeSpec({
                         val static = taken(member.instantiateAllParametersForWriting(ref.inherentTypeBindings)).instantiateAllParameters(bindings)
                         val runtime = taken(member.instantiateAllParametersForWriting(runtimeRef.inherentTypeBindings))
                         "in $ctxStr: $memberStr of $refStr takes $static, at run time only $runtime"
-                            .takeUnless { static.isBelow(runtime) }
+                            .takeUnless { static.isSubtypeOf(runtime) }
                     } catch (e: Exception) {
                         "in $ctxStr: $memberStr of $refStr: ${e::class.simpleName} ${e.message}"
                     }

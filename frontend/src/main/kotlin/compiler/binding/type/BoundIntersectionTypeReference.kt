@@ -23,12 +23,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
-/**
- * The nullability is decided in [ofComponents]:
- * * a non-nullable component makes the intersection and all its components non-nullable
- * * if every component is `A?`, the structure is `NullableTypeReference(IntersectionTypeReference)` of non-nullable components
- * * otherwise (`A? & T` with `T : Any?`) the components keep their nullability: null is a value where each takes it
- */
 class BoundIntersectionTypeReference private constructor(
     override val context: CTContext,
     val astNode: AstIntersectionType?,
