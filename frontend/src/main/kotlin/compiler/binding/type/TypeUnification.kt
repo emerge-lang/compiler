@@ -121,9 +121,11 @@ class TypeUnification private constructor(
     }
 
     /**
-     * Checks [candidate] against the [VariableState.staticUpperBound] of [parameter], with [candidate] in place of
-     * [parameter], which constrains the other variables (`_N : Nested & _M` leaves `_M` the mutability). Without type
-     * variables in it, the [VariableState.upperBound] is below it already.
+     * Checks [candidate] against the [VariableState.staticUpperBound] of [parameter], with [candidate] substituted for
+     * [parameter]. Because this goes through unification, it also constrains the other variables mentioned in the bound:
+     * for `_N : Nested & _M`, the mutability of [candidate] is left over for `_M`.
+     * A no-op if the static bound mentions no type variables: [VariableState.upperBound] started out as that bound and
+     * has only been narrowed since, and callers check [candidate] against [VariableState.upperBound] already.
      */
     private fun plusStaticCheck(
         parameter: BoundTypeParameter,
