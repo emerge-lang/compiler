@@ -12,6 +12,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.compiler.SHOULD_WRITE_GOLDEN_FILES
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FreeSpec
 import java.io.File
@@ -20,7 +21,8 @@ import java.io.File
  * Writes `type-system-proofs/theories/Generated/Grid.v`: the module of [TypeGrid] as an `Environment` of the model, the
  * types of the grid encoded, what [intersect] and [BoundTypeReference.closestCommonSupertypeWith] make of every pair of
  * them, and whether each is below each, as the frontend has it. `OracleGrid.v` evaluates the model on the same pairs.
- * The file is checked in; this fails when it was stale, having rewritten it.
+ * The file is checked in; this fails when it is stale, and rewrites it only when the environment variable
+ * `GOLDEN_FILE_TESTS_WRITE` is `true`.
  */
 class RocqOracleTests : FreeSpec({
     "Grid.v is up to date" {
@@ -28,6 +30,9 @@ class RocqOracleTests : FreeSpec({
         val generated = RocqGridEncoder(TypeGrid.swCtx).render(TypeGrid.types, callerParameters)
         val file = File("type-system-proofs/theories/Generated/Grid.v")
         if (!file.exists() || file.readText() != generated) {
+            if (!SHOULD_WRITE_GOLDEN_FILES) {
+                fail("${file.path} is stale; rerun with the environment variable GOLDEN_FILE_TESTS_WRITE=true to regenerate it")
+            }
             file.parentFile.mkdirs()
             file.writeText(generated)
             fail("${file.path} was stale and has been regenerated; commit it")
