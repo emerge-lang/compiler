@@ -48,6 +48,7 @@ import compiler.binding.misc_ir.IrUnreachableStatementImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.nonDisjointPairs
@@ -153,7 +154,8 @@ class BoundInvocationExpression(
                 null
             }
 
-            availableOverloads?.candidates?.singleOrNull()?.overloads?.singleOrNull()?.let { singleOption ->
+            val singleOption = availableOverloads?.candidates?.singleOrNull()?.overloads?.singleOrNull()
+            if (singleOption != null) {
                 singleOption.parameters.parameters
                     .dropWhile { it === singleOption.parameters.declaredReceiver }
                     .zip(valueArguments)
@@ -162,6 +164,8 @@ class BoundInvocationExpression(
                             argument.setExpectedEvaluationResultType(paramType, diagnosis)
                         }
                     }
+            } else if (availableOverloads != null) {
+                inferTypesOfNumericLiteralArguments(availableOverloads, diagnosis)
             }
 
             typeArguments?.forEach { it.validate(TypeUseSite.Irrelevant(it.astNode.span, null), diagnosis) }
@@ -199,6 +203,33 @@ class BoundInvocationExpression(
                         parameter.ownershipAtDeclarationTime,
                     ))
                 }
+        }
+    }
+
+    /**
+     * A numeric literal can only be an argument to a parameter of a numeric type. If, among all the overloads,
+     * those parameters agree on the type, the literal takes that type; just as it does when there is only one overload.
+     */
+    private fun inferTypesOfNumericLiteralArguments(availableOverloads: AvailableOverloads, diagnosis: Diagnosis) {
+        val overloads = availableOverloads.candidates.flatMap { it.overloads }
+        valueArguments.forEachIndexed { argumentIndex, argument ->
+            if (argument !is BoundNumericLiteral) {
+                return@forEachIndexed
+            }
+
+            val numericParameterTypes = overloads
+                .mapNotNull { overload ->
+                    overload.parameters.parameters
+                        .dropWhile { it === overload.parameters.declaredReceiver }
+                        .takeIf { it.size == valueArguments.size }
+                        ?.get(argumentIndex)
+                        ?.typeAtDeclarationTime
+                        ?.let { it as? RootResolvedTypeReference }
+                        ?.takeIf { it.baseType.isCoreNumericType }
+                }
+                .distinctBy { it.baseType }
+
+            numericParameterTypes.singleOrNull()?.let { argument.setExpectedEvaluationResultType(it, diagnosis) }
         }
     }
 
