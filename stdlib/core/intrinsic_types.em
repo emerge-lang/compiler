@@ -5,6 +5,7 @@ import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
 import emerge.core.range.ArrayRange
 import emerge.core.range.Iterable
+import emerge.core.range.UWordRange
 
 export class Unit : const Any {
     private constructor {}
@@ -397,6 +398,8 @@ export class UWord : const Any & Printable {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
+    export operator fn rangeToExclusive(capture self, endExclusive: UWord) -> exclusive UWordRange = UWordRange(self, endExclusive)
+
     export fn toString(self) = self.asU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asU64().printTo(stream)
@@ -420,6 +423,7 @@ export class Array<Element> : Iterable<Element> {
 
     export operator intrinsic fn getAtIndex(self: read _<out Element>, index: UWord) -> Element
     export operator intrinsic fn setAtIndex(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    export operator fn getAtIndex<A : read Array<out Any?>>(capture self: A, borrow range: read UWordRange) -> A = self.slice(range.start, range.endExclusive)
     
     export nothrow intrinsic fn getOrPanic(self: read _<out Element>, index: UWord) -> Element
     export nothrow intrinsic fn setOrPanic(self: mut _<in Element>, index: UWord, value: Element) -> Unit

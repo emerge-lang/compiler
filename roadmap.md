@@ -288,7 +288,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     keeping the entire buffer alive for as long as the string lives
 41. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
     `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
-    the arguments that were reference-counted to begin with
+    the arguments that were reference-counted to begin with. A `capture` parameter passed on is such an argument:
+    `fn f(capture a: read Array<S32>) = a.slice(1, 2)` leaks a reference to the array, and so does `arr[r]` with a
+    range value `r`, because `Array.getAtIndex(UWordRange)` is such a function
 -----
 
 ## Future features

@@ -1079,6 +1079,10 @@ private sealed interface ArrayDispatchOverride {
         }
 
         private fun findForInstanceFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
+            if (invocation.function.body != null) {
+                // only the intrinsic accessors are optimized, e.g. not getAtIndex(UWordRange)
+                return None
+            }
             val fnName = invocation.function.canonicalName.simpleName
             val nParams = invocation.function.parameters.size
             val accessor = when {

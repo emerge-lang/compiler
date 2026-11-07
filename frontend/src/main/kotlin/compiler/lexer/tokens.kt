@@ -121,6 +121,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     IDENTIFIER_DELIMITER  (Char(compiler.lexer.IDENTIFIER_DELIMITER.value).toString()),
     COMMENT               ("//", "comment marker"),
     INTERSECTION          ("&"),
+    RANGE_UNTIL           ("..<", "half-open range operator"),
     ;
 
     override fun toString() = this._humanReadableName ?: "operator $text"

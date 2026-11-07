@@ -115,6 +115,8 @@ private val AstSemanticOperator.priority: Int
         Operator.EQUALS,
         Operator.NOT_EQUALS -> 30
 
+        Operator.RANGE_UNTIL -> 35
+
         Operator.PLUS,
         Operator.MINUS -> 40
 
@@ -176,9 +178,12 @@ private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>):
     val leftOfOperator = rawExpression.subList(0, rightmostWithLeastPriority.first)
     val rightOfOperator = rawExpression.subList(rightmostWithLeastPriority.first + 1, rawExpression.size)
 
-    return BinaryExpression(
-        leftHandSide = buildBinaryExpressionAst(leftOfOperator),
-        operator = rightmostWithLeastPriority.second,
-        rightHandSide = buildBinaryExpressionAst(rightOfOperator)
-    )
+    val leftHandSide = buildBinaryExpressionAst(leftOfOperator)
+    val operator = rightmostWithLeastPriority.second
+    val rightHandSide = buildBinaryExpressionAst(rightOfOperator)
+    if (operator.operatorElement == Operator.RANGE_UNTIL) {
+        return AstRangeExpression(leftHandSide, operator, rightHandSide)
+    }
+
+    return BinaryExpression(leftHandSide, operator, rightHandSide)
 }

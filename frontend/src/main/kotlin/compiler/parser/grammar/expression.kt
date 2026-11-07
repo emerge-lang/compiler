@@ -479,6 +479,7 @@ val BinaryOperator = eitherOf {
 
     // MISC
     operator(Operator.NULL_COALESCE)
+    operator(Operator.RANGE_UNTIL)
 }
     .astTransformation { tokens ->
         when (val element = tokens.next()!!) {

@@ -799,7 +799,8 @@ class EmergeLlvmContext(
             }
         }
 
-        if (intrinsic == null) {
+        if (intrinsic == null && fn.body == null) {
+            // overloads share the canonical name, e.g. the intrinsic Array::getAtIndex(UWord) and Array::getAtIndex(UWordRange)
             intrinsic = intrinsicFunctions[fn.canonicalName.toString()]?.let {
                 this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
             }

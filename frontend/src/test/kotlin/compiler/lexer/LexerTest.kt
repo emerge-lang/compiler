@@ -304,4 +304,42 @@ class LexerTest : FreeSpec() {init {
 
         result[25] should beInstanceOf<EndOfInputToken>()
     }
+
+    "ranges" - {
+        "between identifiers" {
+            val result = lexCode("a..<b", false)
+
+            result.size shouldBe 4
+            (result[0] as IdentifierToken).value shouldBe "a"
+            (result[1] as OperatorToken).operator shouldBe Operator.RANGE_UNTIL
+            (result[2] as IdentifierToken).value shouldBe "b"
+        }
+
+        "between integer literals" {
+            val result = lexCode("1..<5", false)
+
+            result.size shouldBe 4
+            (result[0] as NumericLiteralToken).stringContent shouldBe "1"
+            (result[1] as OperatorToken).operator shouldBe Operator.RANGE_UNTIL
+            (result[2] as NumericLiteralToken).stringContent shouldBe "5"
+        }
+
+        "between decimal literals" {
+            val result = lexCode("1.5..<2.5", false)
+
+            result.size shouldBe 4
+            (result[0] as NumericLiteralToken).stringContent shouldBe "1.5"
+            (result[1] as OperatorToken).operator shouldBe Operator.RANGE_UNTIL
+            (result[2] as NumericLiteralToken).stringContent shouldBe "2.5"
+        }
+
+        "member access is unaffected" {
+            val result = lexCode("a.b", false)
+
+            result.size shouldBe 4
+            (result[0] as IdentifierToken).value shouldBe "a"
+            (result[1] as OperatorToken).operator shouldBe Operator.DOT
+            (result[2] as IdentifierToken).value shouldBe "b"
+        }
+    }
 }}
