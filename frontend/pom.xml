@@ -44,9 +44,6 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
-                        <configuration>
-                            <args>-Xcontext-parameters</args>
-                        </configuration>
                     </execution>
 
                     <execution>
@@ -121,6 +118,13 @@
             <groupId>com.github.ajalt.mordant</groupId>
             <artifactId>mordant-jvm</artifactId>
             <version>2.2.0</version>
+            <exclusions>
+                <!-- legacy metadata-only jar at 1.9.10, not managed by kotlin-bom; kotlin-stdlib covers it -->
+                <exclusion>
+                    <groupId>org.jetbrains.kotlin</groupId>
+                    <artifactId>kotlin-stdlib-common</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.kotest</groupId>

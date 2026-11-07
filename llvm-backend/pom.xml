@@ -37,9 +37,6 @@
                         <id>compile</id>
                         <phase>compile</phase>
                         <goals> <goal>compile</goal> </goals>
-                        <configuration>
-                            <args>-Xcontext-parameters</args>
-                        </configuration>
                     </execution>
 
                     <execution>

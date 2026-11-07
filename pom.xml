@@ -17,7 +17,9 @@
 
     <properties>
         <java.version>21</java.version>
-        <kotlin.version>2.1.21</kotlin.version>
+        <kotlin.version>2.4.21</kotlin.version>
+        <!-- must match major.minor of kotlin.version; IntelliJ imports these into the Kotlin facets -->
+        <kotlin.language.version>2.4</kotlin.language.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -100,6 +102,8 @@
                     <version>${kotlin.version}</version>
                     <configuration>
                         <jvmTarget>${java.version}</jvmTarget>
+                        <languageVersion>${kotlin.language.version}</languageVersion>
+                        <apiVersion>${kotlin.language.version}</apiVersion>
                     </configuration>
                 </plugin>
                 <plugin>
