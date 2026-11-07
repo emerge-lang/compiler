@@ -13,6 +13,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundTopLevelFunction(
     parentContext: CTContext,
+    annotations: BoundAnnotationSet,
     functionRootContext: MutableExecutionScopedCTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
@@ -21,6 +22,7 @@ class BoundTopLevelFunction(
     body: Body?,
 ) : BoundDeclaredFunction(
     parentContext,
+    annotations,
     functionRootContext,
     declaration,
     attributes,

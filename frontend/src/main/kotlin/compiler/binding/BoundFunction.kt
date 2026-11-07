@@ -40,6 +40,8 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
      */
     val parentContext: CTContext
 
+    val annotations: BoundAnnotationSet
+
     /**
      * The root context of the function; these constraints hold:
      * * [parentContext] is a parent of [functionRootContext]

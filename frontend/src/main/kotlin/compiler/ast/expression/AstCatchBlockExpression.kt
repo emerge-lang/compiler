@@ -1,5 +1,6 @@
 package compiler.ast.expression
 
+import compiler.ast.AstAnnotationSet
 import compiler.ast.AstCodeChunk
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
@@ -22,6 +23,7 @@ class AstCatchBlockExpression(
     override fun bindTo(context: ExecutionScopedCTContext): BoundCatchBlockExpression {
         val catchThrowableVariableDeclaration = VariableDeclaration(
             declaredAt = throwableVariableNameToken.span,
+            annotations = AstAnnotationSet.EMPTY,
             visibility = null,
             varToken = null,
             ownership = null,

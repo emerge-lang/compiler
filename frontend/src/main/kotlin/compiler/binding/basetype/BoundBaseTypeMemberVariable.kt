@@ -21,6 +21,7 @@ package compiler.binding.basetype
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -41,6 +42,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundBaseTypeMemberVariable(
     private val typeRootContext: CTContext,
     private val boundLocalVariableInConstructorCode: BoundVariable?,
+    val annotations: BoundAnnotationSet,
     override val visibility: BoundVisibility,
     val attributes: BoundBaseTypeMemberVariableAttributes,
     private val getTypeDef: () -> BoundBaseType,
@@ -71,6 +73,7 @@ class BoundBaseTypeMemberVariable(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         seanHelper.phase1(diagnosis) {
+            annotations.semanticAnalysisPhase1(diagnosis)
             visibility.validateOnElement(this, diagnosis)
             attributes.validate(diagnosis)
             if (isDecorated) {
@@ -85,6 +88,7 @@ class BoundBaseTypeMemberVariable(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase2(diagnosis)
             type = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
                 ?: entryDeclaration.variableDeclaration.type?.let(typeRootContext::resolveType)
@@ -108,6 +112,7 @@ class BoundBaseTypeMemberVariable(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         seanHelper.phase3(diagnosis) {
+            annotations.semanticAnalysisPhase3(diagnosis)
             // the initializer expression is being analyzed by the ctor
         }
     }

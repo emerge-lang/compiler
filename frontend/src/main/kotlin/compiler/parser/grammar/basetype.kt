@@ -18,6 +18,7 @@
 
 package compiler.parser.grammar
 
+import compiler.ast.AstAnnotationSet
 import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
@@ -48,6 +49,7 @@ import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
+    ref(AnnotationSet)
     repeating {
         eitherOf {
             keyword(DECORATES)
@@ -57,8 +59,10 @@ val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") 
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val annotations = tokens.next() as AstAnnotationSet
         val attributes = tokens.takeWhileIsInstanceOf<KeywordToken>()
         BaseTypeMemberVariableDeclaration(
+            annotations,
             attributes,
             tokens.next() as VariableDeclaration,
         )
@@ -73,17 +77,20 @@ val BaseTypeMemberFunctionDeclaration = sequence("member function declaration") 
     }
 
 val BaseTypeConstructor = sequence("constructor declaration") {
+    ref(AnnotationSet)
     ref(FunctionAttributes)
     keyword(CONSTRUCTOR)
     ref(CurlyBracedCodeChunk)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val annotations = tokens.next() as AstAnnotationSet
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val ctorKeyword = tokens.next() as KeywordToken
         val code = tokens.next() as AstCodeChunk
 
         BaseTypeConstructorDeclaration(
+            annotations,
             attributes,
             ctorKeyword,
             code,
@@ -91,17 +98,19 @@ val BaseTypeConstructor = sequence("constructor declaration") {
     }
 
 val BaseTypeDestructor = sequence("destructor declaration") {
+    ref(AnnotationSet)
     ref(FunctionAttributes)
     keyword(DESTRUCTOR)
     ref(CurlyBracedCodeChunk)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val annotations = tokens.next() as AstAnnotationSet
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val dtorKeyword = tokens.next() as KeywordToken
         val code = tokens.next() as AstCodeChunk
 
-        BaseTypeDestructorDeclaration(dtorKeyword, attributes, code)
+        BaseTypeDestructorDeclaration(annotations, dtorKeyword, attributes, code)
     }
 
 val BaseTypeEntry = eitherOf {
@@ -124,6 +133,7 @@ val SupertypeSpecification = sequence {
     }
 
 val BaseTypeDefinition = sequence("base type definition") {
+    ref(AnnotationSet)
     optional {
         ref(Visibility)
     }
@@ -145,8 +155,11 @@ val BaseTypeDefinition = sequence("base type definition") {
     operator(CBRACE_CLOSE)
 }
     .astTransformation { tokens ->
-        val visibility: AstVisibility?
+        val annotations = tokens.next() as AstAnnotationSet
+
         var next: Any? = tokens.next()!!
+
+        val visibility: AstVisibility?
         if (next is AstVisibility) {
             visibility = next
             next = tokens.next()!!
@@ -183,6 +196,7 @@ val BaseTypeDefinition = sequence("base type definition") {
         }
 
         BaseTypeDeclaration(
+            annotations,
             declarationKeyword,
             visibility,
             name,

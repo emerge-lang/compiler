@@ -64,6 +64,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
  */
 class BoundVariable(
     override val context: ExecutionScopedCTContext,
+    val annotations: BoundAnnotationSet,
     override val declaration: VariableDeclaration,
     override val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
@@ -117,6 +118,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            annotations.semanticAnalysisPhase1(diagnosis)
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
                 diagnosis.visibilityNotAllowedOnVariable(this)
@@ -176,6 +178,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            annotations.semanticAnalysisPhase2(diagnosis)
             visibility.semanticAnalysisPhase2(diagnosis)
 
             if (initializerExpression != null) {
@@ -206,6 +209,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
+            annotations.semanticAnalysisPhase3(diagnosis)
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
         }

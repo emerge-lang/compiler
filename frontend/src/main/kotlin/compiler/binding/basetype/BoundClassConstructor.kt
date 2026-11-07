@@ -4,6 +4,7 @@ import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
@@ -68,6 +69,7 @@ class BoundClassConstructor(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     private val typeParameterForDecoratorMutability: BoundTypeParameter?,
     private val additionalTypeParameters: List<BoundTypeParameter>,
+    override val annotations: BoundAnnotationSet,
     override val parameters: BoundParameterList,
     private val selfVariableForInitCode: BoundVariable,
     private val mutableContextBeforeInitCode: MutableExecutionScopedCTContext,

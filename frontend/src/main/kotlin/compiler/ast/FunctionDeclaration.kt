@@ -36,6 +36,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 
 data class FunctionDeclaration(
+    val annotations: AstAnnotationSet,
     val declarationKeyword: KeywordToken,
     val attributes: List<AstFunctionAttribute>,
     val name: IdentifierToken,
@@ -48,6 +49,7 @@ data class FunctionDeclaration(
 
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         lateinit var boundFn: BoundTopLevelFunction
+        val boundAnnotations = annotations.bindTo(context, { boundFn })
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
@@ -56,6 +58,7 @@ data class FunctionDeclaration(
 
         boundFn = BoundTopLevelFunction(
             context,
+            boundAnnotations,
             functionRootContext,
             this,
             attributes,
@@ -84,6 +87,7 @@ data class FunctionDeclaration(
             context,
             functionRootContext,
             entryDeclaration,
+            annotations.bindTo(context, { boundFn }),
             attributes,
             boundTypeParams,
             boundParameterList,

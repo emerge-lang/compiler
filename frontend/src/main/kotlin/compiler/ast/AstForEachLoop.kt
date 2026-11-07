@@ -71,17 +71,18 @@ class AstForEachLoop(
 
         val generatedSpan = foreachKeyword.span.deriveGenerated()
         val rangeHolderDeclaration = VariableDeclaration(
-            generatedSpan,
-            null,
-            null,
-            null,
-            IdentifierToken("__range_$internalVarSuffix", generatedSpan),
-            NamedTypeReference(
+            declaredAt = generatedSpan,
+            annotations = AstAnnotationSet.EMPTY,
+            visibility = null,
+            varToken = null,
+            ownership = null,
+            name = IdentifierToken("__range_$internalVarSuffix", generatedSpan),
+            type = NamedTypeReference(
                 BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE,
                 mutability = TypeMutability.MUTABLE,
                 span = generatedSpan
             ),
-            InvocationExpression(
+            initializerExpression = InvocationExpression(
                 MemberAccessExpression(
                     iterable,
                     OperatorToken(Operator.DOT, generatedSpan),
@@ -97,13 +98,14 @@ class AstForEachLoop(
         val preBodyContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(rangeHolderDeclaration.modifiedContext, true, { boundForEachLoop })
         val frontExceptionVarName = IdentifierToken("__rangeFrontE_$internalVarSuffix", generatedSpan)
         val cursorInBodyDeclaration = VariableDeclaration(
-            cursorVariableName.span,
-            null,
-            null,
-            null,
-            cursorVariableName,
-            null,
-            AstTryCatchExpression(
+            declaredAt = cursorVariableName.span,
+            annotations = AstAnnotationSet.EMPTY,
+            visibility = null,
+            varToken = null,
+            ownership = null,
+            name = cursorVariableName,
+            type = null,
+            initializerExpression = AstTryCatchExpression(
                 generatedSpan,
                 InvocationExpression(
                     MemberAccessExpression(

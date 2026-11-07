@@ -123,6 +123,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     INTERSECTION          ("&"),
     RANGE_UNTIL           ("..<", "half-open range operator"),
     INDEXED_LENGTH        ("$", "length-of-indexed-value marker"),
+    HASH                  ("#"),
     ;
 
     override fun toString() = this._humanReadableName ?: "operator $text"

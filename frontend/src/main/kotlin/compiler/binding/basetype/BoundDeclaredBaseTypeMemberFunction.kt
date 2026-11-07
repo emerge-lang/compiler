@@ -1,6 +1,7 @@
 package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberFunctionDeclaration
+import compiler.binding.BoundAnnotationSet
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
@@ -40,6 +41,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     parentContext: CTContext,
     functionRootContext: MutableExecutionScopedCTContext,
     override val entryDeclaration: BaseTypeMemberFunctionDeclaration,
+    annotations: BoundAnnotationSet,
     attributes: BoundFunctionAttributeList,
     declaredTypeParameters: List<BoundTypeParameter>,
     parameters: BoundParameterList,
@@ -48,6 +50,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     private val lazyImpliedReceiverType: () -> RootResolvedTypeReference,
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     parentContext,
+    annotations,
     functionRootContext,
     entryDeclaration.functionDeclaration,
     attributes,
