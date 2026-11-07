@@ -261,8 +261,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
     ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
-32. slicing syntax: `someArray[from..toExclusive]`, lowered to `Array.slice`. Needs a `..` operator in the
-    lexer/parser; maybe also open ranges (`someArray[from..]`, `someArray[..to]`)
+32. ~~slicing syntax: `someArray[from..toExclusive]`, lowered to `Array.slice`~~: `a..<b` is
+    `a.rangeToExclusive(b)` (`emerge.core.range.UWordRange` for UWord), `arr[a..<b]` lowers to `arr.slice(a, b)` without
+    a range object, `arr[r]` slices by a range value, `$` is the size of the indexed value (`arr[$ - 1]`,
+    `arr[0..<$ - 3]`). Not done: an inclusive `..=`, slice assignment `set arr[a..<b] = x`, ranges over other
+    integer types
 33. ~~nullable arrays without a box~~: `Array<T>?` is an `arrayslice` with a null base; boxing it yields a null
     pointer for null, unboxing a null pointer yields the null slice
 34. explicitly importing a function from `emerge.std` makes invocations of it ambiguous: with
@@ -291,6 +294,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     the arguments that were reference-counted to begin with. A `capture` parameter passed on is such an argument:
     `fn f(capture a: read Array<S32>) = a.slice(1, 2)` leaks a reference to the array, and so does `arr[r]` with a
     range value `r`, because `Array.getAtIndex(UWordRange)` is such a function
+42. minus: the lexer reads a leading minus as part of a numeric literal regardless of what precedes it, so `a-1`
+    lexes as `a`, `-1` (same for `arr[$-1]`); only `a - 1` works as a subtraction. Separately, the grammar rule
+    `UnaryExpression` takes a full `Expression` as its operand, so unary minus swallows the rest of the expression:
+    with `x = 5`, `-x + 2` evaluates to -7 and `-x * 2 + 20` to -30. `-1 + 2` is only correct because `-1` is a single
+    token. Fix:
+    * always lex `-` as an operator, never as part of a numeric literal
+    * fold `-<numeric literal>` into a negative literal in the parser, so that e.g. `-128` still fits `S8`
+    * make the operand of unary operators exclude binary expressions (`ExpressionExcludingBinaryPostfix`). The same
+      rule handles `not`, so `not a and b` presumably groups as `not (a and b)` today (unverified) and would become
+      `(not a) and b`; check existing code for that
 -----
 
 ## Future features

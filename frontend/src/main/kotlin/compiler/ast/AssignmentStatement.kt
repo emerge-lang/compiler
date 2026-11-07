@@ -18,7 +18,10 @@
 
 package compiler.ast
 
+import compiler.ast.expression.AstAfterIndexExpression
 import compiler.ast.expression.AstIndexAccessExpression
+import compiler.ast.expression.AstIndexExpressionScope
+import compiler.ast.expression.AstSharedValueExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -72,16 +75,17 @@ class AssignmentStatement<out Target : Expression>(
             }
             is AstIndexAccessExpression -> {
                 val generatedSpan = span.deriveGenerated()
+                val indexedValue = AstSharedValueExpression(targetExpression.valueExpression)
                 val hiddenInvocation = InvocationExpression(
                     MemberAccessExpression(
-                        targetExpression.valueExpression,
+                        indexedValue,
                         OperatorToken(Operator.DOT, generatedSpan),
                         IdentifierToken(SET_AT_INDEX_FN_NAME, generatedSpan),
                     ),
                     null,
                     listOf(
-                        targetExpression.indexExpression,
-                        valueExpression,
+                        AstIndexExpressionScope(targetExpression.indexExpression, indexedValue),
+                        AstAfterIndexExpression(valueExpression, indexedValue),
                     ),
                     generatedSpan,
                 )

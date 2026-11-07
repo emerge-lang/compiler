@@ -342,4 +342,16 @@ class LexerTest : FreeSpec() {init {
             (result[2] as IdentifierToken).value shouldBe "b"
         }
     }
+
+    "indexed length marker" {
+        val result = lexCode("x[$ - 1]", false)
+
+        result.size shouldBe 7
+        (result[0] as IdentifierToken).value shouldBe "x"
+        (result[1] as OperatorToken).operator shouldBe Operator.SBRACE_OPEN
+        (result[2] as OperatorToken).operator shouldBe Operator.INDEXED_LENGTH
+        (result[3] as OperatorToken).operator shouldBe Operator.MINUS
+        (result[4] as NumericLiteralToken).stringContent shouldBe "1"
+        (result[5] as OperatorToken).operator shouldBe Operator.SBRACE_CLOSE
+    }
 }}

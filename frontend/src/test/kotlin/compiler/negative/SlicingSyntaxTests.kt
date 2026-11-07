@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.IndexedLengthOutsideIndexDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -91,6 +92,90 @@ class SlicingSyntaxTests : FreeSpec({
                 fn test(p: read Array<S32>) -> S32 = p[1..<3]
             """.trimIndent())
                 .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+    }
+
+    "indexed length" - {
+        "last element" {
+            validateModule("""
+                fn test(p: read Array<S32>) -> S32 = p[$ - 1]
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a slice" {
+            validateModule("""
+                fn test(p: read Array<S32>) -> read Array<S32> = p[0..<$ - 3]
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "refers to the innermost index access" {
+            validateModule("""
+                fn test(a: read Array<S32>, b: read Array<UWord>) -> S32 = a[b[$ - 1]]
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "after a nested index access refers to the outer one again" {
+            validateModule("""
+                fn test(a: read Array<S32>, b: read Array<UWord>) -> S32 = a[b[0] + $ - 1]
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "on the result of an invocation" {
+            validateModule("""
+                fn make() -> exclusive Array<S32> = Array.new::<S32>(3, 0)
+                fn test() -> S32 = make()[$ - 1]
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "with an operand that is computed from a range" {
+            validateModule("""
+                fn test(n: UWord) -> read Array<S32> {
+                    a: exclusive _ = Array.new::<S32>(n, 0)
+                    return a[(0..<n).size - 1..<$]
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the index of an index assignment" {
+            validateModule("""
+                fn test(p: mut Array<S32>) {
+                    set p[$ - 1] = 5
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the value of an index assignment" {
+            validateModule("""
+                fn test(p: mut Array<UWord>) {
+                    set p[0] = $
+                }
+            """.trimIndent())
+                .shouldFind<IndexedLengthOutsideIndexDiagnostic>()
+        }
+
+        "not outside of an index access" {
+            validateModule("""
+                fn test() -> UWord = $
+            """.trimIndent())
+                .shouldFind<IndexedLengthOutsideIndexDiagnostic>()
+        }
+
+        "not after an index access" {
+            validateModule("""
+                fn id(x: UWord) -> UWord = x
+                fn test(p: read Array<S32>) -> UWord {
+                    x = p[0]
+                    return id($)
+                }
+            """.trimIndent())
+                .shouldFind<IndexedLengthOutsideIndexDiagnostic>()
         }
     }
 

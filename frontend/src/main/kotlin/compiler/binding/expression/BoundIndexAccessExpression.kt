@@ -10,6 +10,7 @@ class BoundIndexAccessExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstIndexAccessExpression,
     private val hiddenInvocation: BoundInvocationExpression,
+    override val modifiedContext: ExecutionScopedCTContext,
 ) : BoundExpression<Expression> by hiddenInvocation {
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenInvocation.semanticAnalysisPhase2(diagnosis)

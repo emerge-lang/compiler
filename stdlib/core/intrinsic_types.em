@@ -428,7 +428,7 @@ export class Array<Element> : Iterable<Element> {
     export nothrow intrinsic fn getOrPanic(self: read _<out Element>, index: UWord) -> Element
     export nothrow intrinsic fn setOrPanic(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
-    export intrinsic fn slice<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
+    export operator intrinsic fn slice<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
     export nothrow intrinsic fn sliceOrPanic<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>

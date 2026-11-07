@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.expression.AstSharedValueExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
@@ -77,6 +78,11 @@ interface ExecutionScopedCTContext : CTContext {
      * If [isScopeBoundary], `this`, otherwise the closest parent that [isScopeBoundary].
      */
     val parentScopeContext: ExecutionScopedCTContext?
+
+    /**
+     * The value that `$` refers to in this context, see [IndexExecutionScopedCTContext]
+     */
+    val indexedValue: AstSharedValueExpression?
 
     /**
      * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
@@ -189,6 +195,21 @@ open class MutableExecutionScopedCTContext protected constructor(
             else -> null
         }
     }
+
+    override val indexedValue: AstSharedValueExpression?
+        get() {
+            val expiredIndexedValues = ArrayList<AstSharedValueExpression>()
+            for (context in hierarchy) {
+                when (context) {
+                    is AfterIndexExecutionScopedCTContext -> expiredIndexedValues.add(context.valueIndexedBefore)
+                    is IndexExecutionScopedCTContext -> if (expiredIndexedValues.none { it === context.valueIndexedHere }) {
+                        return context.valueIndexedHere
+                    }
+                }
+            }
+
+            return null
+        }
 
     override val parentScopeContext: ExecutionScopedCTContext? by lazy {
         val parent = hierarchy.drop(1)
@@ -582,3 +603,30 @@ class TryBlockExecutionScopedCTContext(
 ) {
     override val isTryContext = true
 }
+
+/**
+ * The context of an index expression, e.g. `i` in `array[i]`: here, `$` refers to the size of [valueIndexedHere].
+ */
+class IndexExecutionScopedCTContext(
+    parent: ExecutionScopedCTContext,
+    val valueIndexedHere: AstSharedValueExpression,
+) : MutableExecutionScopedCTContext(
+    parent,
+    isScopeBoundary = false,
+    isFunctionRoot = false,
+    ExecutionScopedCTContext.Repetition.EXACTLY_ONCE,
+)
+
+/**
+ * The context after the index expressions of [valueIndexedBefore]. Binding them derives contexts from
+ * [IndexExecutionScopedCTContext], so all code bound after them has one as an ancestor; this context ends its effect.
+ */
+class AfterIndexExecutionScopedCTContext(
+    parent: ExecutionScopedCTContext,
+    val valueIndexedBefore: AstSharedValueExpression,
+) : MutableExecutionScopedCTContext(
+    parent,
+    isScopeBoundary = false,
+    isFunctionRoot = false,
+    ExecutionScopedCTContext.Repetition.EXACTLY_ONCE,
+)
