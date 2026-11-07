@@ -45,12 +45,28 @@ v_files() {
   find "$THEORIES" -type f -name '*.v' | LC_ALL=C sort
 }
 
+# OracleGrid.v checks the model against the frontend's answers in Generated/Grid.v, which is not in git: the
+# frontend's RocqOracleTests writes it, and has to have run first
+GRID="$THEORIES/Generated/Grid.v"
+require_grid() {
+  if [ ! -f "$GRID" ]; then
+    {
+      echo "ERROR: $GRID is missing. It is a build product, not in git: run the frontend's RocqOracleTests"
+      echo "(frontend/src/test/kotlin/compiler/binding/type/RocqOracleTests.kt) first, which writes it. From compiler/:"
+      echo "  mvn -B -pl frontend -am test -Dkotest.filter.specs='*RocqOracleTests'"
+      echo "Rerun it after every change to the frontend's type system or to TypeGrid; see readme.md."
+    } >&2
+    exit 1
+  fi
+}
+
 # An editor with a local Rocq compiles in place, next to the sources, and dune refuses to build
 # while any of its outputs also exists in the source tree. Deleting them is no option: the editor
 # only ever compiles the file that is open, never what that file requires, so they would stay
 # missing. dune builds a copy of the sources instead, one that holds nothing but what the build
 # reads, into the usual build directory, so that rebuilds stay incremental.
 dune_build() {
+  require_grid
   sources=$(mktemp -d)
   trap 'rm -rf "$sources"' EXIT
   cp dune-project "$sources/"

@@ -20,6 +20,9 @@
 #   JOBS         number of parallel compile jobs (default: number of cores in the container)
 #
 # On Windows, run this from Git Bash (it ships with git); Docker Desktop must be running.
+#
+# theories/Generated/Grid.v, which OracleGrid.v checks the model against, is not in git: the
+# frontend's RocqOracleTests writes it, so run that first (see readme.md).
 
 set -euo pipefail
 
