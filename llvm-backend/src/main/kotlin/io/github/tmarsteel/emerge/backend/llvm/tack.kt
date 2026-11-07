@@ -22,7 +22,7 @@ class ComputedLazyTackDelegate<in R : Any, out T>(
      * This needs to be an IdentityWeakMap. Not in the default SDK, and its hard
      * to compose one. See https://stackoverflow.com/questions/22910375/combo-of-identityhashmap-and-weakhashmap
      */
-    private val data = MapMaker().weakKeys().makeMap<R, T>()
+    private val data = MapMaker().weakKeys().makeMap<R, T & Any>()
 
     operator fun getValue(thisRef: R, prop: KProperty<*>): T {
         return data.computeIfAbsent(thisRef, compute)
@@ -33,7 +33,7 @@ fun <R : Any, T> tackState(computeInitial: R.() -> T) = StateTackDelegate<R, T>(
 fun <T : Any> tackLateInitState() = LateInitStateTackDelegate<T>()
 
 class StateTackDelegate<in R : Any, T>(private val computeInitial: R.() -> T) {
-    private val data = MapMaker().weakKeys().makeMap<R, T>()
+    private val data = MapMaker().weakKeys().makeMap<R, T & Any>()
 
     operator fun getValue(thisRef: R, prop: KProperty<*>): T {
         return data.computeIfAbsent(thisRef, computeInitial)
@@ -56,7 +56,7 @@ class StateTackDelegate<in R : Any, T>(private val computeInitial: R.() -> T) {
 }
 
 class LateInitStateTackDelegate<T : Any?> {
-    private val data = MapMaker().weakKeys().makeMap<Any, T>()
+    private val data = MapMaker().weakKeys().makeMap<Any, T & Any>()
 
     operator fun getValue(thisRef: Any, prop: KProperty<*>): T {
         return data[thisRef]
