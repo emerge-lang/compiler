@@ -1,6 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
-import javax.annotation.*;
+import org.jetbrains.annotations.Nullable;
 
 public enum LlvmCodeModel implements JnaEnum {
     JIT_DEFAULT(null),
