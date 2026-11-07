@@ -142,20 +142,35 @@ jobs:
   type-system-proofs:
     name: verify type system proofs
     runs-on: ubuntu-latest
-    # the maven tests check that the checked-in theories/Generated/Grid.v is what RocqOracleTests writes;
-    # proving a stale one would check the model against answers the frontend no longer gives
-    needs:
-      - emerge-toolchain-maven
+    # theories/Generated/Grid.v, the frontend's answers that OracleGrid.v checks the model against, is a build
+    # product: this job writes it itself, by running only RocqOracleTests, rather than taking it from the maven
+    # job, whose steps are all skipped when the toolchain jar is cached for this commit
     steps:
       - name: checkout
         uses: actions/checkout@v4
         with:
           ref: "${{ inputs.kotlin-ref || github.sha }}"
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4.7.1
+        with:
+          java-version-file: .java-version
+          distribution: zulu
+          cache: maven
+      - name: generate theories/Generated/Grid.v
+        run: mvn -B -pl frontend -am test "-Dkotest.filter.specs=*RocqOracleTests"
       # runs Rocq from the rocq/rocq-prover docker image, which the script pulls itself; nothing
       # needs to be installed on the runner beyond the docker it already has. This is the very
       # same script developers run locally, see frontend/type-system-proofs/readme.md
       - name: verify type system proofs
         run: frontend/type-system-proofs/rocq.sh verify
+      # not in git, so kept here: diffing it against that of another run shows what a change did to the frontend's answers
+      - name: upload Grid.v
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: oracle-grid
+          path: frontend/type-system-proofs/theories/Generated/Grid.v
+          if-no-files-found: ignore
   llvm-build-for-linux:
     uses: ./.github/workflows/build-llvm-linux.yaml
   linux-distributables:
