@@ -42,7 +42,7 @@ jobs:
       commit-to-build: "${{ steps.update-versions.outputs.commit-to-build }}"
     steps:
       - name: checkout
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.from-branch }}
           fetch-depth: 0
@@ -92,7 +92,7 @@ jobs:
       contents: write
     steps:
       - name: checkout release branch
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare-build.outputs.release-branch }}
           fetch-depth: 0
@@ -165,13 +165,13 @@ jobs:
       - name: install build dependencies
         run: sudo apt-get install moreutils
       - name: checkout source for debian package
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v7
         with:
           ref: "${{ needs.tag-release.outputs.tag }}"
           sparse-checkout: dist/linux/deb
           path: repository
       - name: download tarball
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: "${{ needs.build-releasable-binaries.run-id }}"
           name: tarball
@@ -199,7 +199,7 @@ jobs:
           echo "deb_file_name=${DEB_NAME}.deb" >> "$GITHUB_OUTPUT"
           echo "deb_file_path=${{ github.workspace }}/deb-package/${DEB_NAME}.deb" >> "$GITHUB_OUTPUT"
       - name: archive debian package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deb
           path: "${{ steps.deb-package.outputs.deb_file_path }}"
@@ -213,7 +213,7 @@ jobs:
       - stage2
     steps:
       - name: download tarball
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: "${{ needs.build-releasable-binaries.run-id }}"
           name: tarball
@@ -227,11 +227,11 @@ jobs:
           mv "$TARBALL_PATH" "$RELEASE_TARBALL_NAME"
           echo "release_tarball_path=${{ github.workspace }}/$RELEASE_TARBALL_NAME" >> "$GITHUB_OUTPUT"
       - name: download deb file
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           name: deb
       - name: download windows archive
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: "${{ needs.build-releasable-binaries.run-id }}"
           name: windows-zip

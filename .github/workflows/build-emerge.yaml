@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-glibc
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@v6
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -59,14 +59,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-gcc
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@v6
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
       - name: checkout GCC source
         if: steps.cache-gcc.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: gcc-mirror/gcc
           ref: ${{ env.GCC_GIT_REF }}
@@ -88,14 +88,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-libunwind
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@v6
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
           key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
       - name: checkout libunwind source
         if: steps.cache-libunwind.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: libunwind/libunwind
           ref: ${{ env.LIBUNWIND_GIT_REF }}
@@ -113,19 +113,19 @@ jobs:
     name: emerge compiler maven verify
     steps:
       - id: cache-emerge-toolchain-maven
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@v6
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
           key: "toolchain-runnable-jar-${{ inputs.kotlin-ref || github.sha }}"
       - name: checkout
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: "${{ github.kotlin-ref || github.sha }}"
       - name: Set up JDK 21
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v6
         with:
           java-version-file: .java-version
           distribution: zulu
@@ -147,11 +147,11 @@ jobs:
     # job, whose steps are all skipped when the toolchain jar is cached for this commit
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: "${{ inputs.kotlin-ref || github.sha }}"
       - name: Set up JDK 21
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v6
         with:
           java-version-file: .java-version
           distribution: zulu
@@ -166,7 +166,7 @@ jobs:
       # not in git, so kept here: diffing it against that of another run shows what a change did to the frontend's answers
       - name: upload Grid.v
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v7
         with:
           name: oracle-grid
           path: frontend/type-system-proofs/theories/Generated/Grid.v
@@ -186,17 +186,17 @@ jobs:
       - llvm-build-for-linux
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: "${{ inputs.ref || github.sha }}"
       - name: get LLVM binaries
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: "${{ needs.llvm-build-for-linux.run-id }}"
           name: llvm-linux-gnu-x86_64
           path: ${{ github.workspace }}/llvm-install
       - name: get C-runtime binaries from glibc
-        uses: actions/cache/restore@v4.2.2
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -204,21 +204,21 @@ jobs:
           key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
           fail-on-cache-miss: true
       - name: get C-runtime binaries from gcc
-        uses: actions/cache/restore@v4.2.2
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
           fail-on-cache-miss: true
       - name: get libunwind binaries
-        uses: actions/cache/restore@v4.2.2
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
           key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
           fail-on-cache-miss: true
       - name: get runnable toolchain jar
-        uses: actions/cache/restore@v4.2.2
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
@@ -290,7 +290,7 @@ jobs:
           echo "tarball_name=$TARBALL_NAME" >> "$GITHUB_OUTPUT"
           echo "tarball_path=${{ github.workspace }}/$TARBALL_NAME" >> "$GITHUB_OUTPUT"
       - name: archive tarball
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v7
         with:
           name: tarball
           path: "${{ steps.tarball.outputs.tarball_path }}"
@@ -306,7 +306,7 @@ jobs:
       zip-sha256: "${{ steps.pack-zip.outputs.sha256 }}"
     steps:
       - name: get tarball
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: ${{ needs.linux-distributables.run-id }}
           name: tarball
@@ -322,7 +322,7 @@ jobs:
           # should have on users disks once installed
           Rename-Item -Path (Get-ChildItem zulu-jre)[0] -NewName jre
       - name: get LLVM binaries
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v8
         with:
           run-id: "${{ needs.llvm-build-for-windows.run-id }}"
           name: llvm-windows-x86_64
@@ -356,7 +356,7 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 "emerge-toolchain.zip").Hash
           Add-Content -Path "$Env:GITHUB_OUTPUT" -Value "sha256=$hash"
       - name: archive zip
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v7
         with:
           name: windows-zip
           path: "emerge-toolchain.zip"

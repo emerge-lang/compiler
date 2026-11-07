@@ -18,14 +18,14 @@ jobs:
     steps:
       - name: cache
         id: cache
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@v6
         with:
           path: |
             ${{ env.LLVM_INSTALL_PATH }}
           key: llvm-built-${{ env.LLVM_REF }}
       - name: Fetch LLVM sources
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: llvm/llvm-project
           ref: ${{ env.LLVM_REF }}
@@ -67,7 +67,7 @@ jobs:
           ninja
           ninja install
       - name: Collect artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: llvm-linux-gnu-x86_64
           path: |
