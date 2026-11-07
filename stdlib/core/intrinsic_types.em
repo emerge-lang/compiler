@@ -5,6 +5,7 @@ import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
 import emerge.core.range.ArrayRange
 import emerge.core.range.Iterable
+import emerge.core.range.UWordRange
 
 export class Unit : const Any {
     private constructor {}
@@ -331,10 +332,7 @@ export class U64 : const Any & Printable {
             set insertionIndex = insertionIndex - 1
         }
 
-        // trim utf8 data
-        var finalBuf: exclusive _ = Array.new::<S8>(buf.size - insertionIndex - 1, SPACE_CODEPOINT)
-        Array.copy(buf, insertionIndex + 1, finalBuf, 0, finalBuf.size)
-        return String(finalBuf)
+        return String(buf.sliceOrPanic(insertionIndex + 1, buf.size))
     }
 }
 
@@ -400,6 +398,8 @@ export class UWord : const Any & Printable {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
+    export operator fn rangeToExclusive(capture self, endExclusive: UWord) -> exclusive UWordRange = UWordRange(self, endExclusive)
+
     export fn toString(self) = self.asU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asU64().printTo(stream)
@@ -423,9 +423,13 @@ export class Array<Element> : Iterable<Element> {
 
     export operator intrinsic fn getAtIndex(self: read _<out Element>, index: UWord) -> Element
     export operator intrinsic fn setAtIndex(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    export operator fn getAtIndex<A : read Array<out Any?>>(capture self: A, borrow range: read UWordRange) -> A = self.slice(range.start, range.endExclusive)
     
     export nothrow intrinsic fn getOrPanic(self: read _<out Element>, index: UWord) -> Element
     export nothrow intrinsic fn setOrPanic(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+
+    export operator intrinsic fn slice<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
+    export nothrow intrinsic fn sliceOrPanic<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
 

@@ -66,6 +66,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     }
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
+    fun memmove(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
     fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
@@ -477,6 +478,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
         val inst = Llvm.LLVMBuildMemCpy(llvmRef, destination.raw, 1, source.raw, 1, nBytes.raw)
+    }
+
+    override fun memmove(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>) {
+        // TODO: alignment; 1 is bad
+        Llvm.LLVMBuildMemMove(llvmRef, destination.raw, 1, source.raw, 1, nBytes.raw)
     }
 
     override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmS8Type>, nBytes: LlvmValue<LlvmIntegerType>) {

@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.expression.AstSharedValueExpression
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
@@ -88,6 +89,7 @@ class SourceFileRootContext(
             override val isFunctionRoot = false
             override val isTryContext = false
             override val isInTryContext = false
+            override val indexedValue: AstSharedValueExpression? = null
             override val repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             override val imports = emptySet<BoundImportDeclaration>()
             override val allTypeParameters = emptySequence<BoundTypeParameter>()

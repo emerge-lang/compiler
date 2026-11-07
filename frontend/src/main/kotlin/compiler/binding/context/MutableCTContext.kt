@@ -72,7 +72,7 @@ open class MutableCTContext(
         }
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
-    protected val _variables: MutableMap<String, BoundVariable> = HashMap()
+    protected val _variables: MutableMap<String, BoundVariable> = LinkedHashMap()
 
     /** Holds all the toplevel functions defined in this context */
     protected val _functions: MutableSet<BoundDeclaredFunction> = HashSet()

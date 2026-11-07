@@ -1,8 +1,12 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -23,11 +27,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArraySliceType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySliceOfEntireArray
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
@@ -201,13 +208,21 @@ internal sealed interface Autoboxer {
             baseValue as LlvmValue<LlvmPointerType<TypeinfoType>>
 
             with(builder) {
-                return getelementptr(baseValue)
+                val memberName = readAccess.memberVariable!!.name
+                val memberValue = getelementptr(baseValue)
                     .member {
-                        memberVariableMappings.getValue(readAccess.memberVariable!!.name)
-                            .invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
+                        memberVariableMappings.getValue(memberName).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
                     }
                     .get()
                     .dereference()
+
+                if (memberName == "supertypes") {
+                    // typeinfos point to the array object, emerge code sees the array as a slice
+                    @Suppress("UNCHECKED_CAST")
+                    return buildArraySliceOfEntireArray(memberValue as LlvmValue<LlvmPointerType<*>>)
+                }
+
+                return memberValue
             }
         }
 
@@ -273,6 +288,104 @@ internal sealed interface Autoboxer {
                     .member(valueHolderMember)
                     .get()
                     .dereference()
+            }
+        }
+    }
+
+    /**
+     * `emerge.core.Array`: is an [EmergeArraySliceType] wherever the reference is typed as an array, and
+     * is boxed into `emerge.platform.ArrayBox` when referenced as one of its supertypes. A nullable array is a
+     * slice with a null base; it boxes to and unboxes from a null pointer. Hence, other than for the other
+     * [Autoboxer]s, [unbox] accepts null.
+     * The box holds its own reference to the base of the slice.
+     */
+    object ArraySlice : Autoboxer {
+        override val omitConstructorAndDestructor = true
+
+        override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
+            return context.boxTypeArray
+        }
+
+        override fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType? {
+            return null
+        }
+
+        override val unboxedType: LlvmType = EmergeArraySliceType
+
+        override fun isAccessingIntoTheBox(context: EmergeLlvmContext, readAccess: IrClassFieldAccessExpression): Boolean = false
+
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*> {
+            throw UnsupportedOperationException("cannot access into an array box")
+        }
+
+        override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
+            return type.boundBaseTypeOrNull()?.autoboxer !== this
+        }
+
+        override fun getReferenceSiteType(context: EmergeLlvmContext, referenceSiteType: IrType, forceBoxed: Boolean): LlvmType {
+            return if (forceBoxed) pointerTo(getBoxedType(context)) else unboxedType
+        }
+
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun box(llvmValue: LlvmValue<*>): LlvmValue<*> {
+            check(llvmValue.type == EmergeArraySliceType) {
+                "cannot box an ${llvmValue.type} as an array"
+            }
+            @Suppress("UNCHECKED_CAST")
+            llvmValue as LlvmValue<EmergeArraySliceType>
+            with(builder) {
+                val boxedType = getBoxedType(context)
+                val boxed = PhiBucket(pointerTo(boxedType))
+                conditionalBranch(
+                    condition = isNull(llvmValue.sliceBase),
+                    ifTrue = {
+                        boxed.setBranchResult(context.nullValue(boxed.type))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                            propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
+                        })
+                        concludeBranch()
+                    }
+                )
+                return boxed.buildPhi()
+            }
+        }
+
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
+            check(llvmValue.type is LlvmPointerType<*>)
+            @Suppress("UNCHECKED_CAST")
+            llvmValue as LlvmValue<LlvmPointerType<*>>
+            with(builder) {
+                val unboxed = PhiBucket(EmergeArraySliceType)
+                conditionalBranch(
+                    condition = isNull(llvmValue),
+                    ifTrue = {
+                        unboxed.setBranchResult(context.nullValue(EmergeArraySliceType))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        unboxed.setBranchResult(unboxNotNull(llvmValue))
+                        concludeBranch()
+                    }
+                )
+                return unboxed.buildPhi()
+            }
+        }
+
+        /** like [unbox], for a [box] that is known not to be null */
+        context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+        fun unboxNotNull(box: LlvmValue<*>): LlvmValue<EmergeArraySliceType> {
+            with(builder) {
+                val boxedType = getBoxedType(context)
+                @Suppress("UNCHECKED_CAST")
+                return getelementptr(box.reinterpretAs(pointerTo(boxedType)))
+                    .member(boxedType.irClass.fields.single())
+                    .get()
+                    .dereference() as LlvmValue<EmergeArraySliceType>
             }
         }
     }
@@ -400,7 +513,8 @@ internal sealed interface Autoboxer {
          */
         context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
         fun autoBoxOrUnbox(value: IrTemporaryValueReference, targetType: IrType): LlvmValue<*> {
-            return autoBoxOrUnbox(value.declaration.llvmValue, value.type, targetType)
+            // the LLVM value is in the representation of the declared type, which may differ from value.type
+            return autoBoxOrUnbox(value.declaration.llvmValue, value.declaration.type, targetType)
         }
 
         /**
@@ -455,6 +569,13 @@ internal sealed interface Autoboxer {
             }
         }
     }
+}
+
+internal fun IrType.boundBaseTypeOrNull(): IrBaseType? = when (this) {
+    is IrSimpleType -> baseType
+    is IrParameterizedType -> simpleType.baseType
+    is IrGenericTypeReference -> effectiveBound.boundBaseTypeOrNull()
+    is IrIntersectionType -> null
 }
 
 private val boxDestructor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(

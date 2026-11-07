@@ -29,6 +29,7 @@ import compiler.ast.ReturnExpression
 import compiler.ast.Statement
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.expression.AstIndexedLengthExpression
 import compiler.ast.expression.AstCatchBlockExpression
 import compiler.ast.expression.AstReflectExpression
 import compiler.ast.expression.AstTryCatchExpression
@@ -179,11 +180,19 @@ val ReflectExpression = sequence("reflection") {
         AstReflectExpression(keyword, type)
     }
 
+val IndexedLengthExpression = sequence("length of indexed value") {
+    operator(Operator.INDEXED_LENGTH)
+}
+    .astTransformation { tokens ->
+        AstIndexedLengthExpression(tokens.next() as OperatorToken)
+    }
+
 val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
     ref(ArrayLiteralExpression)
     ref(ReflectExpression)
+    ref(IndexedLengthExpression)
 }
 
 val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expression") {
@@ -479,6 +488,7 @@ val BinaryOperator = eitherOf {
 
     // MISC
     operator(Operator.NULL_COALESCE)
+    operator(Operator.RANGE_UNTIL)
 }
     .astTransformation { tokens ->
         when (val element = tokens.next()!!) {

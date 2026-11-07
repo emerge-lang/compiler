@@ -1,21 +1,23 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-1. arrays slices; goal/target situation
-    * there are array-base-objects, identical to what an Array<T> is before
-    * emerge source can never reference these base objects directly, only ever slices of that
-    * when emerge source says "Array<T>", this is actually a fat pointer consisting of
+1. ~~arrays slices; goal/target situation~~
+    * ~~there are array-base-objects, identical to what an Array<T> is before~~
+    * ~~emerge source can never reference these base objects directly, only ever slices of that~~
+    * ~~when emerge source says "Array<T>", this is actually a fat pointer~~ consisting of
         * a pointer to the base array object that holds reference count, vtable, the length of the memory chunk
           and the actual array data
-        * a pointer to the first element in the slice
+        * ~~a pointer to the first element in the slice~~ the index of the first element in the slice, so that
+          virtual element access works without knowing the element size
         * the length of the slice
-    * so when you have a variable/parameter of type `Array<T>`, it can be a full array, but could also just be
-      a sub-slice of one
-    * `Array.new<T>(UWord, T)` creates a base array object and then returns a slice covering the entire array
-    * slicing functions, e.g. `someArray[1..5]`
-    * how to deal with `exclusive` mutability? idea: Array.new is the only way to get hold of an `exclusive`
-      slice. Slicing operations always capture the old slice, stopping the exclusive lifetime and settling the
-      sub-slice to either `mut` or `const`
-    * apply to standard library, especially IO functions
+    * ~~so when you have a variable/parameter of type `Array<T>`, it can be a full array, but could also just be
+      a sub-slice of one~~
+    * ~~`Array.new<T>(UWord, T)` creates a base array object and then returns a slice covering the entire array~~
+    * ~~slicing functions~~: `Array.slice` and `Array.sliceOrPanic`; the syntax `someArray[1..5]` is item 32
+    * ~~how to deal with `exclusive` mutability?~~ slicing captures the source and keeps its type, so an exclusive
+      array yields an exclusive slice and the source is gone
+    * ~~apply to standard library, especially IO functions~~
+    * arrays referenced as one of their supertypes (`Any`, `Iterable`, `T`) are boxed into
+      `emerge.platform.ArrayBox`; a nullable array is a slice with a null base
 2. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
@@ -259,6 +261,49 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
     ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
+32. ~~slicing syntax: `someArray[from..toExclusive]`, lowered to `Array.slice`~~: `a..<b` is
+    `a.rangeToExclusive(b)` (`emerge.core.range.UWordRange` for UWord), `arr[a..<b]` lowers to `arr.slice(a, b)` without
+    a range object, `arr[r]` slices by a range value, `$` is the size of the indexed value (`arr[$ - 1]`,
+    `arr[0..<$ - 3]`). Not done: an inclusive `..=`, slice assignment `set arr[a..<b] = x`, ranges over other
+    integer types
+33. ~~nullable arrays without a box~~: `Array<T>?` is an `arrayslice` with a null base; boxing it yields a null
+    pointer for null, unboxing a null pointer yields the null slice
+34. explicitly importing a function from `emerge.std` makes invocations of it ambiguous: with
+    `import emerge.std.println`, `println("x")` reports "Multiple overloads of println apply", listing one
+    candidate
+35. signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
+    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`
+36. `f()!!.member` leaks the result of `f()`: the temporary from the invocation is never dropped when the
+    not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
+37. global variables are initialized in declaration order within a source file, but not in dependency order across
+    files: a global that reads a global of another file can see it uninitialized
+38. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
+    of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
+    dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
+    returns and invocation results move or drop their boxes correctly
+39. `EmergeLlvmContext.getArrayObjectType` chooses the array object type (and with it the raw element accessors) from
+    the static bound of the element type: `Array<T>` with `T : Printable`, or `Array<out Printable>`, is accessed as
+    an array of references. But an `Array<S32>` is a valid argument for both (`S32` is a `Printable`) and stores raw
+    32-bit values, so the access reads/writes garbage. Only `Any` is handled correctly as a bound. Element bounds
+    other than `Any` that have value-type subtypes need the virtual accessors (or the exact element type)
+40. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
+    slice's size, so the rest of the base array can be freed. `U64.toString` returns a slice of its 21-byte buffer,
+    keeping the entire buffer alive for as long as the string lives
+41. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
+    `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
+    the arguments that were reference-counted to begin with. A `capture` parameter passed on is such an argument:
+    `fn f(capture a: read Array<S32>) = a.slice(1, 2)` leaks a reference to the array, and so does `arr[r]` with a
+    range value `r`, because `Array.getAtIndex(UWordRange)` is such a function
+42. minus: the lexer reads a leading minus as part of a numeric literal regardless of what precedes it, so `a-1`
+    lexes as `a`, `-1` (same for `arr[$-1]`); only `a - 1` works as a subtraction. Separately, the grammar rule
+    `UnaryExpression` takes a full `Expression` as its operand, so unary minus swallows the rest of the expression:
+    with `x = 5`, `-x + 2` evaluates to -7 and `-x * 2 + 20` to -30. `-1 + 2` is only correct because `-1` is a single
+    token. Fix:
+    * always lex `-` as an operator, never as part of a numeric literal
+    * fold `-<numeric literal>` into a negative literal in the parser, so that e.g. `-128` still fits `S8`
+    * make the operand of unary operators exclude binary expressions (`ExpressionExcludingBinaryPostfix`). The same
+      rule handles `not`, so `not a and b` presumably groups as `not (a and b)` today (unverified) and would become
+      `(not a) and b`; check existing code for that
 -----
 
 ## Future features

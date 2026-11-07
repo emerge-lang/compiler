@@ -29,6 +29,7 @@ data object EmergeConstants {
         val F64_TYPE_NAME = CanonicalElementName.BaseType(NAME, "F64")
         val SWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "SWord")
         val UWORD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UWord")
+        val ARRAY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Array")
     }
 
     data object ReflectionModule {

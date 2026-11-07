@@ -466,6 +466,16 @@ public class Llvm {
     );
 
     /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildMemMove(
+            @NotNull LlvmBuilderRef builderRef,
+            @NotNull LlvmValueRef dst,
+            @Unsigned int dstAlign,
+            @NotNull LlvmValueRef src,
+            @Unsigned int srcAlign,
+            @NotNull LlvmValueRef size
+    );
+
+    /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildMemSet(
             @NotNull LlvmBuilderRef builder,
             @NotNull LlvmValueRef ptr,
