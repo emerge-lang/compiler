@@ -41,6 +41,7 @@ data object EmergeConstants {
         val TYPE_ARGUMENT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "TypeArgument")
         val TYPE_WITH_NULLABILITY_FN_NAME = "withNullability"
         val INTERSECTION_OF_FN_NAME = CanonicalElementName.Function(NAME, "intersectionOf")
+        val TYPEOF_FN_NAME = CanonicalElementName.Function(NAME, "typeOf")
 
         /** values of `TypeArgument.variance` */
         const val VARIANCE_INVARIANT: UByte = 0u

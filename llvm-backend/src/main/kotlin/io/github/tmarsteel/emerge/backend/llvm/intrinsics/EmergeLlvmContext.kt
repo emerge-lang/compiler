@@ -5,11 +5,9 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
-import io.github.tmarsteel.emerge.backend.llvm.reifiedTypeArgumentValues
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -66,6 +64,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.safemathFns
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.typeOfTypeArgument
 import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -77,6 +76,8 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
+import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
+import io.github.tmarsteel.emerge.backend.llvm.reifiedTypeArgumentValues
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import java.util.Collections
@@ -359,8 +360,9 @@ class EmergeLlvmContext(
         fn.llvmRef?.let { return it }
 
         val intrinsic = if (fn is IrFullyInheritedMemberFunction) null else getInstrinsic(fn)
-        // intrinsics are implemented in kotlin and don't take the runtime type information
-        val receivesReifiedTypeArguments = intrinsic == null && fn.typeParameters.isNotEmpty()
+        // intrinsics take the runtime type information only if they declare parameters for it
+        val receivesReifiedTypeArguments = fn.typeParameters.isNotEmpty()
+            && (intrinsic == null || intrinsic.type.parameterTypes.size == fn.parameters.size + fn.typeParameters.size)
         fn.receivesReifiedTypeArguments = receivesReifiedTypeArguments
         val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) } +
             (if (receivesReifiedTypeArguments) fn.typeParameters.map { PointerToReifiedType } else emptyList())
@@ -913,6 +915,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             writeMemoryAddress,
             pureWrite,
             anyReflect,
+            typeOfTypeArgument,
             reflectionBaseTypeIsSameObjectAs,
             unitInstance,
             collectStackTrace,

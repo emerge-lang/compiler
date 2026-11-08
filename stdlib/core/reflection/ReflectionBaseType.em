@@ -30,11 +30,11 @@ export class ReflectionBaseType {
             return true
         }
 
-        if supertype.isSameObjectAs(reflect Any) {
+        if supertype.isSameObjectAs(typeOf::<Any>().firstComponent().baseType) {
             return true
         }
 
-        if self.isSameObjectAs(reflect Nothing) {
+        if self.isSameObjectAs(typeOf::<Nothing>().firstComponent().baseType) {
             return true
         }
 

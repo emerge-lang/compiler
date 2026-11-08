@@ -1,5 +1,7 @@
 package emerge.core.reflection
 
+import emerge.platform.panic
+
 // runtime type information on a type (as opposed to ReflectionBaseType, which describes a base type only):
 // a base type together with nullability and type arguments, or an intersection of those.
 export interface Type {
@@ -7,10 +9,12 @@ export interface Type {
     export fn withNullability(capture self, nullable: Bool) -> const Type
 
     // the number of named types this type is composed of: 1 for a NamedType, the number of components for an IntersectionType
-    export fn componentCount(self) -> UWord
+    export nothrow fn componentCount(self) -> UWord
 
     // the first of the named types this type is composed of
-    export fn firstComponent(capture self) -> const NamedType
+    export nothrow fn firstComponent(capture self) -> const NamedType
+
+    export fn toString(self) -> String
 }
 
 export class NamedType : const Type {
@@ -25,9 +29,27 @@ export class NamedType : const Type {
         return NamedType(self.baseType, nullable, self.arguments)
     }
 
-    export override fn componentCount(self) -> UWord = 1
+    export override nothrow fn componentCount(self) -> UWord = 1
 
-    export override fn firstComponent(capture self) -> const NamedType = self
+    export override nothrow fn firstComponent(capture self) -> const NamedType = self
+
+    export override fn toString(self) -> String {
+        var str = self.baseType.canonicalName
+
+        if self.arguments.size > 0 {
+            set str = str + "<" + self.arguments[0].toString()
+            foreach a in self.arguments[1..<$] {
+                set str = str + ", " + a.toString()
+            }
+            set  str = str + ">"
+        }
+
+        if self.nullable {
+            set str = str + "?"
+        }
+
+        return str
+    }
 }
 
 export class IntersectionType : const Type {
@@ -42,21 +64,50 @@ export class IntersectionType : const Type {
         return IntersectionType(newComponents)
     }
 
-    export override fn componentCount(self) -> UWord = self.components.size
+    export override nothrow fn componentCount(self) -> UWord = self.components.size
 
-    export override fn firstComponent(capture self) -> const NamedType = self.components[0]
+    export override nothrow fn firstComponent(capture self) -> const NamedType = self.components.getOrPanic(0)
+
+    export override fn toString(self) -> String {
+        var str = self.components[0].toString()
+        foreach c in self.components[1..<$] {
+            set str = str + " & " + c.toString()
+        }
+
+        return str
+    }
 }
 
 export class TypeArgument : const Any {
     // one of VARIANCE_INVARIANT, VARIANCE_IN, VARIANCE_OUT
     export variance: U8 = init
     export type: const Type = init
+
+    export fn toString(self) -> String {
+        if self.variance == VARIANCE_INVARIANT {
+            return self.type.toString()
+        }
+
+        if self.variance == VARIANCE_IN {
+            return "in " + self.type.toString()
+        }
+
+        if self.variance == VARIANCE_OUT {
+            return "out " + self.type.toString()
+        }
+
+        panic("invalid type argument")
+    }
 }
 
 // TODO: make this a proper enum / union type ones these are implemented
 export VARIANCE_INVARIANT: U8 = 0
 export VARIANCE_IN: U8 = 1
 export VARIANCE_OUT: U8 = 2
+
+// the runtime type information for the type argument. Type parameters are reified, so this works for type
+// parameters of the enclosing function or class, too: `typeOf::<T>()`
+export nothrow intrinsic fn typeOf<T>() -> const Type
 
 // the intersection of the given types; nested intersections are flattened
 export fn intersectionOf(capture components: const Array<const Type>) -> const Type {

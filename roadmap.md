@@ -71,8 +71,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 13. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
     type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
-    `TypeArgument`). `is` and `as` still only check the base type (`BoundInstanceOfExpression.validateTypeCheck`
-    drops the type arguments). Remaining work:
+    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` still only check the base type
+    (`BoundInstanceOfExpression.validateTypeCheck` drops the type arguments). Remaining work:
     1. implement `isSubtypeOf` on `Type`, like the compiler does for `BoundTypeReference`
        * how to keep these in sync?? Tests, tests, tests!
     2. implement wildcard generic parameters to address unchecked generics, where the wildcard is always

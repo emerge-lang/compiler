@@ -721,10 +721,6 @@ fun Diagnosis.forbiddenCast(castOp: BoundCastExpression, reason: String, span: S
     add(ForbiddenCastDiagnostic(castOp.declaration, reason, span))
 }
 
-fun Diagnosis.unsupportedReflection(onType: BoundTypeReference) {
-    add(UnsupportedTypeReflectionException(onType.span ?: Span.UNKNOWN))
-}
-
 fun Diagnosis.typeCheckOnVolatileTypeParameter(node: BoundExpression<*>, typeToCheck: BoundTypeReference) {
     add(TypeCheckOnVolatileTypeParameterDiagnostic(typeToCheck.span ?: node.declaration.span))
 }

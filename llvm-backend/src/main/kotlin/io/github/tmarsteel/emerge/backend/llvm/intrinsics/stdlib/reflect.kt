@@ -7,7 +7,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToReifiedType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 internal val anyReflect = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.core.reflection.reflectType",
@@ -23,6 +26,22 @@ internal val anyReflect = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
                 .get()
                 .dereference()
         )
+    }
+}
+
+/**
+ * `emerge.core.reflection.typeOf<T>()`: the only parameter is the hidden runtime type of `T`, see
+ * [io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments]. Returns it as a new reference.
+ */
+internal val typeOfTypeArgument = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    EmergeConstants.ReflectionModule.TYPEOF_FN_NAME.toString(),
+    PointerToReifiedType,
+) {
+    val type by param(PointerToReifiedType)
+
+    body {
+        type.afterReferenceCreated(isNullable = false)
+        ret(type)
     }
 }
 

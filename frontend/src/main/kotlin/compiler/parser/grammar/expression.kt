@@ -31,7 +31,6 @@ import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.expression.AstCatchBlockExpression
 import compiler.ast.expression.AstIndexedLengthExpression
-import compiler.ast.expression.AstReflectExpression
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.ast.expression.IdentifierExpression
@@ -47,7 +46,6 @@ import compiler.lexer.Keyword.CATCH
 import compiler.lexer.Keyword.CONTINUE
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
-import compiler.lexer.Keyword.REFLECT
 import compiler.lexer.Keyword.TRY
 import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
@@ -204,16 +202,6 @@ val IdentifierExpression = sequence("identifier") {
         }
     }
 
-val ReflectExpression = sequence("reflection") {
-    keyword(REFLECT)
-    ref(Type)
-}
-    .astTransformation { tokens ->
-        val keyword = tokens.next() as KeywordToken
-        val type = tokens.next() as TypeReference
-        AstReflectExpression(keyword, type)
-    }
-
 val IndexedLengthExpression = sequence("length of indexed value") {
     operator(Operator.INDEXED_LENGTH)
 }
@@ -225,7 +213,6 @@ val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
     ref(ArrayLiteralExpression)
-    ref(ReflectExpression)
     ref(IndexedLengthExpression)
 }
 

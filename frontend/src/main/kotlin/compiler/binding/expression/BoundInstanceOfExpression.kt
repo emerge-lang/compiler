@@ -19,14 +19,17 @@ import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.typeCheckOnVolatileTypeParameter
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 /**
- * Entirely syntax sugar; `v is T` desugars to `isInstance(v, reflect T)`,
- * plus an import of `emerge.core.reflection.isInstance`.
+ * Entirely syntax sugar; `v is T` desugars to `isInstance(v, <runtime type information of the base type of T>)`
+ * (see [IrBaseTypeReflectionExpressionImpl]), plus an import of `emerge.core.reflection.isInstance`.
  */
 class BoundInstanceOfExpression(
     override val context: ExecutionScopedCTContext,
@@ -167,3 +170,8 @@ internal fun buildInstanceOf(
         IrTemporaryValueReferenceImpl(isInstanceTemporary),
     )
 }
+
+internal class IrBaseTypeReflectionExpressionImpl(
+    override val baseType: IrBaseType,
+    override val evaluatesTo: IrType,
+) : IrBaseTypeReflectionExpression
