@@ -1,10 +1,13 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.AmbiguousImportsDiagnostic
+import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.AmbiguousTypeReferenceDiagnostic
 import compiler.diagnostic.RedundantImportsDiagnostic
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.UnresolvableImportDiagnostic
 import compiler.diagnostic.UnresolvablePackageNameDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
@@ -35,6 +38,71 @@ class ImportErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<UnresolvableImportDiagnostic>()
+        }
+    }
+
+    "a function reachable through more than one import is not ambiguous" - {
+        "explicit import of a function that is also imported by default" {
+            validateModule("""
+                import emerge.std.println
+
+                mut fn test() {
+                    println("x")
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "errors in the invocation are reported specifically" {
+            validateModule("""
+                import emerge.std.println
+
+                mut fn test() {
+                    println(1)
+                }
+            """.trimIndent())
+                .shouldNotFind<AmbiguousInvocationDiagnostic>()
+                .shouldNotFind<UnresolvableFunctionOverloadDiagnostic>()
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "by name and by wildcard" {
+            val exportingModule = IntegrationTestModule.of("module_a", """
+                package module_a
+
+                export fn foo() {}
+            """.trimIndent())
+            validateModules(
+                exportingModule,
+                IntegrationTestModule.of(
+                    moduleName = "testmodule",
+                    uses = setOf(exportingModule.moduleName),
+                    code = """
+                        package testmodule
+
+                        import module_a.foo
+                        import module_a.*
+
+                        fn test() {
+                            foo()
+                        }
+                    """.trimIndent(),
+                )
+            )
+                .shouldHaveNoDiagnostics()
+        }
+
+        "from the package of the importing file" {
+            validateModule("""
+                import testmodule.foo
+
+                fn foo() {}
+
+                fn test() {
+                    foo()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 
