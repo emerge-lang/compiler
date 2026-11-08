@@ -88,6 +88,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayBaseType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArraySliceType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
@@ -97,15 +98,25 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
@@ -704,16 +715,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.uWord(expression.size)
             val arrayType = context.getArrayObjectType(expression.evaluatesTo)
-            val arrayPtr = if (arrayType is EmergeArrayType<*>) {
-                callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
-            } else {
-                if (expression.size == 0uL) {
-                    // the element type doesn't matter
-                    callIntrinsic(EmergeReferenceArrayType.constructorOfNullEntries, listOf(elementCount))
-                } else {
-                    throw CodeGenerationException("Cannot create an uninitialized array where the component type is not known (${expression.evaluatesTo} in ${currentDebugLocation()}")
-                }
-            }
+            val arrayPtr = callIntrinsic(
+                (arrayType as? EmergeArrayType<*> ?: EmergeReferenceArrayType).constructorOfNullEntries,
+                listOf(elementCount),
+            )
             return ExpressionResult.Value(buildArraySlice(arrayPtr, context.uWord(0u), elementCount))
         }
         is IrIfExpression -> {
@@ -1142,19 +1147,22 @@ private sealed interface ArrayDispatchOverride {
             }
 
             if (invocation.function.canonicalName.simpleName == "copy" && invocation.function.parameters.size == 5) {
-                val elementType = (invocation.typeArgumentsAtCallSite.getValue("T")).findSimpleTypeBound().baseType
-                return when (elementType) {
-                    context.rawS8Clazz -> InvokeIntrinsic(EmergeS8ArrayCopyFn)
-                    context.rawU8Clazz -> InvokeIntrinsic(EmergeU8ArrayCopyFn)
-                    context.rawS16Clazz -> InvokeIntrinsic(EmergeS16ArrayCopyFn)
-                    context.rawU16Clazz -> InvokeIntrinsic(EmergeU16ArrayCopyFn)
-                    context.rawS32Clazz -> InvokeIntrinsic(EmergeS32ArrayCopyFn)
-                    context.rawU32Clazz -> InvokeIntrinsic(EmergeU32ArrayCopyFn)
-                    context.rawS64Clazz -> InvokeIntrinsic(EmergeS64ArrayCopyFn)
-                    context.rawU64Clazz -> InvokeIntrinsic(EmergeU64ArrayCopyFn)
-                    context.rawSWordClazz -> InvokeIntrinsic(EmergeSWordArrayCopyFn)
-                    context.rawUWordClazz -> InvokeIntrinsic(EmergeUWordArrayCopyFn)
-                    context.rawBoolClazz -> InvokeIntrinsic(EmergeBoolArrayCopyFn)
+                val sourceArrayType = context.getArrayObjectType(invocation.arguments[0].type)
+                if (sourceArrayType !== context.getArrayObjectType(invocation.arguments[2].type)) {
+                    return None
+                }
+                return when (sourceArrayType) {
+                    EmergeS8ArrayType -> InvokeIntrinsic(EmergeS8ArrayCopyFn)
+                    EmergeU8ArrayType -> InvokeIntrinsic(EmergeU8ArrayCopyFn)
+                    EmergeS16ArrayType -> InvokeIntrinsic(EmergeS16ArrayCopyFn)
+                    EmergeU16ArrayType -> InvokeIntrinsic(EmergeU16ArrayCopyFn)
+                    EmergeS32ArrayType -> InvokeIntrinsic(EmergeS32ArrayCopyFn)
+                    EmergeU32ArrayType -> InvokeIntrinsic(EmergeU32ArrayCopyFn)
+                    EmergeS64ArrayType -> InvokeIntrinsic(EmergeS64ArrayCopyFn)
+                    EmergeU64ArrayType -> InvokeIntrinsic(EmergeU64ArrayCopyFn)
+                    EmergeSWordArrayType -> InvokeIntrinsic(EmergeSWordArrayCopyFn)
+                    EmergeUWordArrayType -> InvokeIntrinsic(EmergeUWordArrayCopyFn)
+                    EmergeBooleanArrayType -> InvokeIntrinsic(EmergeBoolArrayCopyFn)
                     else -> None
                 }
             }

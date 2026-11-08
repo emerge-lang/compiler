@@ -692,20 +692,26 @@ class EmergeLlvmContext(
         val elementBaseType = component.type.boundBaseTypeOrNull()
             ?: return EmergeArrayBaseType
 
-        if (elementBaseType.canonicalName.toString() == "emerge.core.Any") {
-            return if (component.type !is IrGenericTypeReference && component.variance == IrTypeVariance.INVARIANT) {
-                EmergeReferenceArrayType
-            } else {
-                EmergeArrayBaseType
-            }
+        val layout = getArrayObjectTypeOfExactElement(elementBaseType, component.type.isNullable)
+        if (component.variance == IrTypeVariance.INVARIANT && component.type !is IrGenericTypeReference) {
+            return layout
         }
 
+        // the runtime element type can be a subtype, the layout must be the same for all of them
+        if (elementBaseType !is IrClass || layout !== getArrayObjectTypeOfExactElement(elementBaseType, isNullable = false)) {
+            return EmergeArrayBaseType
+        }
+
+        return layout
+    }
+
+    private fun getArrayObjectTypeOfExactElement(elementBaseType: IrBaseType, isNullable: Boolean): LlvmType {
         if (elementBaseType.autoboxer === Autoboxer.ArraySlice) {
             // nullable arrays are slices, too
             return EmergeSliceArrayType
         }
 
-        if (component.type.isNullable) {
+        if (isNullable) {
             // nullable value types are boxed
             return EmergeReferenceArrayType
         }

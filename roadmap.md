@@ -4,11 +4,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. global variables are initialized in declaration order within a source file, but not in dependency order across
    files: a global that reads a global of another file can see it uninitialized
-3. `EmergeLlvmContext.getArrayObjectType` chooses the array object type (and with it the raw element accessors) from
-   the static bound of the element type: `Array<T>` with `T : Printable`, or `Array<out Printable>`, is accessed as
-   an array of references. But an `Array<S32>` is a valid argument for both (`S32` is a `Printable`) and stores raw
-   32-bit values, so the access reads/writes garbage. Only `Any` is handled correctly as a bound. Element bounds
-   other than `Any` that have value-type subtypes need the virtual accessors (or the exact element type)
+3. arrays created in generic code always hold references, because the element type is erased. A caller that knows the
+   element type accesses them with the raw accessors of that type and reads garbage:
+   ```
+   fn f<T : Printable>(capture v: T) -> exclusive Array<T> = Array.new::<T>(2, v)
+   ```
+   `f(1234 as S32)[0]` doesn't evaluate to `1234` but to the lower half of the pointer to the box. Array literals with a type parameter as
+   the element type (`[a, b]` with `a, b: T`) create the same kind of array. A fix needs the element layout at runtime
+   (reified type parameters or monomorphization)
 4. the compiler crashes (`InternalCompilerError`: `preprocessedInheritanceTree` accessed before semantic analysis
    phase 1 is complete) on an intersection of different base types in the type arguments of a supertype whose
    virtual functions are inherited:
