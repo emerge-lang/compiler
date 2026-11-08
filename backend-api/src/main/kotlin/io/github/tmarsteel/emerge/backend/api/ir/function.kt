@@ -11,6 +11,15 @@ interface IrFunction {
     val isExternalC: Boolean
 
     /**
+     * The type parameters this function receives the runtime type information for, as hidden arguments of type
+     * `const emerge.core.reflection.Type` that follow [parameters] in this order. These are the type parameters
+     * declared on the function itself; for constructors, the type parameters of the class. Type parameters of the
+     * class are not passed to member functions that declare a receiver, those are stored in the receiver
+     * (see [IrClass.typeParameterFields]).
+     */
+    val typeParameters: List<IrBaseType.Parameter>
+
+    /**
      * the implementation of this function; null iff
      * * [isExternalC]
      * * is intrinsic

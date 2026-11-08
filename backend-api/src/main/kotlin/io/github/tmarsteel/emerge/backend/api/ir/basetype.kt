@@ -40,6 +40,13 @@ interface IrClass : IrBaseType {
      */
     val fields: List<Field>
 
+    /**
+     * For each of [parameters], the field (also in [fields]) that holds the runtime type information
+     * (`const emerge.core.reflection.Type`) for that type parameter. Written by the [constructor] before any other
+     * initialization code runs.
+     */
+    val typeParameterFields: Map<IrBaseType.Parameter, Field>
+
     val constructor: IrFunction
 
     val destructor: IrFunction

@@ -35,6 +35,17 @@ data object EmergeConstants {
     data object ReflectionModule {
         val NAME = CoreModule.NAME + "reflection"
         val REFLECTION_BASE_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "ReflectionBaseType")
+        val TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Type")
+        val NAMED_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "NamedType")
+        val INTERSECTION_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "IntersectionType")
+        val TYPE_ARGUMENT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "TypeArgument")
+        val TYPE_WITH_NULLABILITY_FN_NAME = "withNullability"
+        val INTERSECTION_OF_FN_NAME = CanonicalElementName.Function(NAME, "intersectionOf")
+
+        /** values of `TypeArgument.variance` */
+        const val VARIANCE_INVARIANT: UByte = 0u
+        const val VARIANCE_IN: UByte = 1u
+        const val VARIANCE_OUT: UByte = 2u
     }
 
     data object StdModule {

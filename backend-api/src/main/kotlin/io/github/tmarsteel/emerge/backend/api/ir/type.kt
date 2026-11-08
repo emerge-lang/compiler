@@ -46,6 +46,12 @@ interface IrGenericTypeReference : IrType {
     val parameter: IrBaseType.Parameter
     val effectiveBound: IrType
 
+    /**
+     * `null` if this is a plain reference to the type parameter: at runtime the type is exactly the type argument.
+     * `true` for `T?` and `false` for `T!`: the nullability of the type argument is replaced at runtime.
+     */
+    val nullabilityOverride: Boolean?
+
     override val mutability get() = effectiveBound.mutability
     override val isNullable get() = effectiveBound.isNullable
     override fun asNullable(): IrGenericTypeReference

@@ -57,6 +57,7 @@ private class IrTopLevelFunctionImpl(
 ) : IrFunction {
     override val canonicalName = boundFn.canonicalName
     override val parameters = boundFn.parameters.parameters.map { it.backendIrDeclaration }
+    override val typeParameters by lazy { boundFn.declaredTypeParameters.map { it.toBackendIr() } }
     override val declaresReceiver = boundFn.declaresReceiver
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
