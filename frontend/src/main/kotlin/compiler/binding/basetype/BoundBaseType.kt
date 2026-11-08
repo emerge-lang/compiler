@@ -81,6 +81,9 @@ class BoundBaseType(
 ) : BoundElement<BaseTypeDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
+    /** see [SeanHelper.phase1InProgress] */
+    val isPhase1InProgress: Boolean get() = seanHelper.phase1InProgress
+
     override val context: CTContext = fileContext
     val canonicalName: CanonicalElementName.BaseType by lazy {
         CanonicalElementName.BaseType(context.packageName, declaration.name.value)

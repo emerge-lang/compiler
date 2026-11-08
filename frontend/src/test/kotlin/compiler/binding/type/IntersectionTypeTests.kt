@@ -182,4 +182,25 @@ class IntersectionTypeTests : FreeSpec({
             }
         }
     }
+
+    "type parameters bounded by an intersection" - {
+        "intersected with another type parameter" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                fn f<T : A & B, Q : A>(x: T & Q) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "intersected with a class" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                class C {}
+                fn f<T : A & B>(x: T & C) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
 })

@@ -103,7 +103,7 @@ class BoundIntersectionTypeReference private constructor(
         }
 
         components
-            .mapNotNull { it.asRootResolved() }
+            .flatMap { it.asRootResolvedComponents() }
             .map { it.baseType.superTypes.preprocessedInheritanceTree.translateForSubtype(it) }
             .let { partialTrees -> PartialPreprocessedInheritanceTree.merge(partialTrees, emptySet()) }
             .inconsistentBindings
@@ -562,14 +562,18 @@ class BoundIntersectionTypeReference private constructor(
     }
 }
 
-private fun BoundTypeReference.asRootResolved(): RootResolvedTypeReference? = when (this) {
-    is RootResolvedTypeReference -> this
-    is NullableTypeReference -> this.nested.asRootResolved()
-    is BoundTypeArgument -> this.type.asRootResolved()
-    is GenericTypeReference -> this.effectiveBound.asRootResolved()
-    is ErroneousType -> null
+/**
+ * @return the named types this type is composed of; a type parameter bounded by an intersection (`T : A & B`)
+ * contributes all of the components of its bound
+ */
+private fun BoundTypeReference.asRootResolvedComponents(): List<RootResolvedTypeReference> = when (this) {
+    is RootResolvedTypeReference -> listOf(this)
+    is NullableTypeReference -> this.nested.asRootResolvedComponents()
+    is BoundTypeArgument -> this.type.asRootResolvedComponents()
+    is GenericTypeReference -> this.effectiveBound.asRootResolvedComponents()
+    is ErroneousType -> emptyList()
     is TypeVariable -> error("cannot validate during type inference")
-    is BoundIntersectionTypeReference -> error("this should have been prevented in ${BoundIntersectionTypeReference.Companion::ofComponents.name}")
+    is BoundIntersectionTypeReference -> this.components.flatMap { it.asRootResolvedComponents() }
 }
 
 private class IrIntersectionTypeImpl(
