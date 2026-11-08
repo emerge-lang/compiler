@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -53,6 +54,8 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
 internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
     val elementCount by structMember(EmergeUWordType)
+    /** the `emerge.core.reflection.Type` of the elements; a counted reference */
+    val elementType by structMember(PointerToAnyEmergeValue)
 
     override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
@@ -69,7 +72,7 @@ internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHea
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::anyBase, ::elementCount), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::anyBase, ::elementCount, ::elementType), NativeI32FlagGroup())
     }
 }
 
@@ -220,10 +223,17 @@ internal class EmergeArrayType<Element : LlvmType>(
     private val finalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 
     /**
-     * A function of the signature (size: UWord, defaultValue: Element) -> Array<Element> that creates a new array
-     * of the given size and sets all the elements to the given value.
+     * A function of the signature (size: UWord, defaultValue: Element, elementType: Type) -> Array<Element> that
+     * creates a new array of the given size and sets all the elements to the given value.
      */
     val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, EmergeArraySliceType>,
+
+    /**
+     * Like [defaultValueConstructor], but takes the default value in its boxed form (`Any`), so that all array types
+     * share one signature: (size: UWord, defaultValue: Any, elementType: Type) -> Array<Element>. Used when the
+     * array type is chosen at runtime, see `arrayNewDynamic`.
+     */
+    val defaultValueConstructorFromBoxed: KotlinLlvmFunction<EmergeLlvmContext, EmergeArraySliceType>,
 ) : LlvmNamedStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
@@ -264,7 +274,10 @@ internal class EmergeArrayType<Element : LlvmType>(
     /**
      * A constructor that will allocate an array of [this] type, filled with [LlvmContext.undefValue]s. Signature:
      *
-     *     declare ptr array_E__ctor(%word elementCount)
+     *     declare ptr array_E__ctor(%word elementCount, ptr elementType)
+     *
+     * where `elementType` is the `emerge.core.reflection.Type` of the elements, stored in the header (a reference
+     * the array holds from then on).
      */
     val constructorOfNullEntries: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeArrayType<Element>>> by lazy {
         KotlinLlvmFunction.define(
@@ -272,6 +285,7 @@ internal class EmergeArrayType<Element : LlvmType>(
             pointerTo(this),
         ) {
             val elementCount by param(EmergeUWordType)
+            val reifiedElementType by param(PointerToReifiedType)
             body {
                 val allocationSizeForContiguousElements = mul(elementType.sizeof(), elementCount)
                 val allocationSize = add(this@EmergeArrayType.sizeof(), allocationSizeForContiguousElements)
@@ -294,6 +308,14 @@ internal class EmergeArrayType<Element : LlvmType>(
                     .member { this@member.elementCount }
                     .get()
                 store(elementCount, arrayElementCountPtr)
+                store(
+                    reifiedElementType,
+                    getelementptr(allocation)
+                        .member { base }
+                        .member { this@member.elementType }
+                        .get()
+                )
+                reifiedElementType.afterReferenceCreated(isNullable = false)
 
                 // set all the data to 0
                 memset(
@@ -336,9 +358,13 @@ internal class EmergeArrayType<Element : LlvmType>(
         }
     }
 
+    /**
+     * @param elementType the static `emerge.core.reflection.Type` of the elements
+     */
     fun <Raw> buildConstantIn(
         context: EmergeLlvmContext,
         data: Collection<Raw>,
+        reifiedElementType: LlvmConstant<LlvmPointerType<out EmergeHeapAllocated>>,
         rawTransform: (Raw) -> LlvmValue<Element>,
     ): LlvmConstant<LlvmInlineStructType> {
         /*
@@ -376,6 +402,7 @@ internal class EmergeArrayType<Element : LlvmType>(
                 )
             })
             setValue(EmergeArrayBaseType.elementCount, context.uWord(data.size.toULong()))
+            setValue(EmergeArrayBaseType.elementType, reifiedElementType)
         }
         val payload = LlvmArrayType(data.size.toLong(), elementType).buildConstantIn(
             context,
@@ -428,8 +455,21 @@ internal val valueArrayDestructor = KotlinLlvmFunction.define<EmergeLlvmContext,
     val self by param(PointerToAnyEmergeValue)
     body {
         // nothing to do for the array elements; there are no references, just values, so no dropping needed
+        self.reinterpretAs(pointerTo(EmergeArrayBaseType)).dropElementType()
         call(context.freeFunction, listOf(self))
         retVoid()
+    }
+}
+
+/** drops the reference to the element type held by the array header */
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun LlvmValue<LlvmPointerType<EmergeArrayBaseType>>.dropElementType() {
+    with(builder) {
+        getelementptr(this@dropElementType)
+            .member { elementType }
+            .get()
+            .dereference()
+            .afterReferenceDropped(isNullable = false)
     }
 }
 
@@ -699,9 +739,10 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
     ) {
         val size by param(EmergeUWordType)
         val defaultValue by param(elementType)
+        val reifiedElementType by param(PointerToReifiedType)
 
         body {
-            val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
+            val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size, reifiedElementType))
             val indexStack = alloca(EmergeUWordType)
             store(context.uWord(0u), indexStack)
             loop {
@@ -727,7 +768,11 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
     }
 }
 
-private fun <Element : LlvmType> buildValueArrayType(
+/**
+ * @param getBoxType the box class for the element type; [EmergeArrayType.defaultValueConstructorFromBoxed] reads the
+ * raw element out of its single member variable
+ */
+internal fun <Element : LlvmType> buildValueArrayType(
     elementTypeName: String,
     elementType: Element,
     getBoxType: EmergeLlvmContext.() -> EmergeClassType,
@@ -744,6 +789,24 @@ private fun <Element : LlvmType> buildValueArrayType(
     val rawSetterWithFallibleBoundsCheck = buildRawSetterWithFallibleBoundsCheck("emerge.core.array_${elementTypeName}_rawSetWithFallibleBoundsCheck", elementType, rawSetterWithoutBoundsCheck)
     val rawSetterWithPanicBoundsCheck = buildRawSetterWithPanicBoundsCheck("emerge.core.array_${elementTypeName}_rawSetWithPanicBoundsCheck", elementType, rawSetterWithoutBoundsCheck)
     val defaultValueCtor = buildValueArrayDefaultValueConstructor(elementTypeName, elementType, { arrayTypeHolder })
+    val defaultValueCtorFromBoxed = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "emerge.core.array_${elementTypeName}_defaultValueCtorFromBoxed",
+        EmergeArraySliceType,
+    ) {
+        val size by param(EmergeUWordType)
+        val boxedDefaultValue by param(PointerToAnyEmergeValue)
+        val reifiedElementType by param(PointerToReifiedType)
+
+        body {
+            val boxType = getBoxType(context)
+            val rawDefaultValue = getelementptr(boxedDefaultValue.reinterpretAs(pointerTo(boxType)))
+                .member(boxType.irClass.singleMemberVariableField)
+                .get()
+                .dereference()
+                .reinterpretAs(elementType)
+            ret(call(context.registerIntrinsic(defaultValueCtor), listOf(size, rawDefaultValue, reifiedElementType)))
+        }
+    }
     arrayTypeHolder = EmergeArrayType(
         elementTypeName,
         elementType,
@@ -759,6 +822,7 @@ private fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithoutBoundsCheck,
         valueArrayDestructor,
         defaultValueCtor,
+        defaultValueCtorFromBoxed,
     )
 
     return arrayTypeHolder
@@ -929,6 +993,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
             loopContinue()
         }
 
+        self.reinterpretAs(pointerTo(EmergeArrayBaseType)).dropElementType()
         call(context.freeFunction, listOf(self))
         retVoid()
     }
@@ -942,6 +1007,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
     ) {
         val size by param(EmergeUWordType)
         val defaultValue by param(PointerToAnyEmergeValue)
+        val reifiedElementType by param(PointerToReifiedType)
 
         body {
             // efficient refcounting
@@ -956,7 +1022,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                     concludeBranch()
                 }
             )
-            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
+            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size, reifiedElementType))
             val indexStack = alloca(EmergeUWordType, forceEntryBlock = true)
             store(context.uWord(0u), indexStack)
             loop {
@@ -995,6 +1061,8 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         rawSetterWithoutBoundsCheck = referenceArrayElementSetterNoBoundsCheck,
         finalizer = referenceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
+        // the elements are the boxes
+        defaultValueConstructorFromBoxed = defaultValueCtor,
     )
     arrayTypeHolder
 }
@@ -1126,6 +1194,7 @@ private val sliceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidT
             loopContinue()
         }
 
+        self.reinterpretAs(pointerTo(EmergeArrayBaseType)).dropElementType()
         call(context.freeFunction, listOf(self))
         retVoid()
     }
@@ -1142,9 +1211,10 @@ internal val EmergeSliceArrayType: EmergeArrayType<EmergeArraySliceType> by lazy
     ) {
         val size by param(EmergeUWordType)
         val defaultValue by param(EmergeArraySliceType)
+        val reifiedElementType by param(PointerToReifiedType)
 
         body {
-            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
+            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size, reifiedElementType))
             val indexStack = alloca(EmergeUWordType, forceEntryBlock = true)
             store(context.uWord(0u), indexStack)
             loop {
@@ -1167,6 +1237,21 @@ internal val EmergeSliceArrayType: EmergeArrayType<EmergeArraySliceType> by lazy
             }
 
             ret(buildArraySlice(arrayPtr, context.uWord(0u), size))
+        }
+    }
+    val defaultValueCtorFromBoxed = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "emerge.platform.slice_array_defaultValueCtorFromBoxed",
+        EmergeArraySliceType,
+    ) {
+        val size by param(EmergeUWordType)
+        val boxedDefaultValue by param(PointerToAnyEmergeValue)
+        val reifiedElementType by param(PointerToReifiedType)
+
+        body {
+            ret(call(
+                context.registerIntrinsic(defaultValueCtor),
+                listOf(size, Autoboxer.ArraySlice.unbox(boxedDefaultValue), reifiedElementType),
+            ))
         }
     }
     val getterFallible = buildRawGetterWithFallibleBoundsCheck(
@@ -1204,6 +1289,7 @@ internal val EmergeSliceArrayType: EmergeArrayType<EmergeArraySliceType> by lazy
         rawSetterWithoutBoundsCheck = sliceArrayElementSetterNoBoundsCheck,
         finalizer = sliceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
+        defaultValueConstructorFromBoxed = defaultValueCtorFromBoxed,
     )
     arrayTypeHolder
 }

@@ -58,6 +58,7 @@ class VTableAlgorithmTest : FreeSpec({
                                         override val declaredAt = MockSourceLocation
                                         override val scope = mockk<IrVariableDeclaration.Scope>()
                                     })
+                                    override val typeParameters = emptyList<IrBaseType.Parameter>()
                                     override val declaresReceiver = true
                                     override val returnType = IrSimpleTypeImpl(MockIrUnit, IrTypeMutability.READONLY, false)
                                     override val isNothrow = false
@@ -108,6 +109,7 @@ class VTableAlgorithmTest : FreeSpec({
                                             override val scope = mockk<IrVariableDeclaration.Scope>()
                                         }
                                     }
+                                    override val typeParameters = emptyList<IrBaseType.Parameter>()
                                     override val declaresReceiver = true
                                     override val returnType = superFn.returnType
                                     override val isNothrow = superFn.isNothrow
@@ -122,6 +124,7 @@ class VTableAlgorithmTest : FreeSpec({
                                 })
                             }
                         override val fields = emptyList<IrClass.Field>()
+                        override val typeParameterFields = emptyMap<IrBaseType.Parameter, IrClass.Field>()
                         override val constructor = mockk<IrFunction>()
                         override val destructor = mockk<IrFunction>()
                         override val memberVariables = emptyList<IrClass.MemberVariable>()
@@ -192,6 +195,7 @@ private abstract class MockCoreType(simpleName: String) : IrClass {
     override val memberFunctions = emptyList<IrOverloadGroup<IrMemberFunction>>()
     override val memberVariables = emptyList<IrClass.MemberVariable>()
     override val fields = emptyList<IrClass.Field>()
+    override val typeParameterFields = emptyMap<IrBaseType.Parameter, IrClass.Field>()
     override val constructor: IrFunction = mockk()
     override val destructor: IrFunction = mockk()
     override val declaredAt = MockSourceLocation

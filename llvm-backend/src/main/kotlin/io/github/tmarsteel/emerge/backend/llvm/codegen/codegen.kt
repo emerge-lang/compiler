@@ -26,7 +26,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIsNullExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
@@ -37,6 +36,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrReifiedTypeExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
@@ -96,7 +96,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayCopyFn
@@ -118,20 +117,24 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ReifiedTypeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicGet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayNewDynamic
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayNewNullDynamic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySlice
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.lowerReifiedType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sWord
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.typeinfoPointerOf
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.uWord
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
@@ -141,10 +144,10 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.memberVariable
+import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
-import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import kotlin.properties.Delegates
 
@@ -557,6 +560,25 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrInvocationExpression -> {
             val argumentBoxes = ArrayList<LlvmValue<*>>()
+            // owned for the duration of the call only
+            val reifiedTypeArguments = ArrayList<ReifiedTypeValue>()
+            fun reifiedTypeArgument(type: IrType): ReifiedTypeValue {
+                val value = lowerReifiedType(type)
+                reifiedTypeArguments.add(value)
+                return value
+            }
+            /** the hidden arguments carrying the runtime type information for the type parameters of the callee */
+            fun hiddenArguments(): List<LlvmValue<*>> {
+                val callee = expression.function
+                if (!callee.receivesReifiedTypeArguments) {
+                    return emptyList()
+                }
+                return callee.typeParameters.map { parameter ->
+                    val type = expression.typeArgumentsAtCallSite[parameter.name]
+                        ?: throw CodeGenerationException("No type argument for ${parameter.name} in the invocation of ${callee.canonicalName} at ${currentDebugLocation()}")
+                    reifiedTypeArgument(type)
+                }
+            }
             fun prepareArgument(argument: IrTemporaryValueReference, parameterType: IrType): LlvmValue<*> {
                 val prepared = autoBoxOrUnbox(argument, parameterType)
                 if (prepared.type != EmergeArraySliceType && argument.declaration.llvmValue.type == EmergeArraySliceType) {
@@ -609,7 +631,19 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                                             value
                                         }
                                     }
-                                overridenCallInstruction = call(intrinsic, arguments)
+                                val createdElementTypeArguments = override.createdElementType?.let { listOf(reifiedTypeArgument(it)) } ?: emptyList()
+                                overridenCallInstruction = call(intrinsic, arguments + createdElementTypeArguments)
+                            }
+
+                            is ArrayDispatchOverride.InvokeDynamicNew -> {
+                                val (sizeArgument, initialValueArgument) = expression.arguments
+                                val initialValueParameter = expression.function.parameters[1]
+                                overridenCallInstruction = callIntrinsic(arrayNewDynamic, listOf(
+                                    autoBoxOrUnbox(sizeArgument, sizeArgument.type),
+                                    // the parameter is of type T, so this boxes the value
+                                    prepareArgument(initialValueArgument, initialValueParameter.type),
+                                    reifiedTypeArgument(override.elementType),
+                                ))
                             }
                             else -> {}
                         }
@@ -626,7 +660,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         call(
                             llvmFunction,
                             expression.arguments.zip(expression.function.parameters)
-                                .map { (argument, parameter) -> prepareArgument(argument, parameter.type) },
+                                .map { (argument, parameter) -> prepareArgument(argument, parameter.type) } + hiddenArguments(),
                         )
                     }
                 }
@@ -646,7 +680,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                             context.uWord(expression.function.signatureHashes.first()),
                         )
                     )
-                    call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
+                    call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation + hiddenArguments())
                 }
             }
 
@@ -654,6 +688,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 @Suppress("UNCHECKED_CAST")
                 // boxing a null array results in a null pointer
                 (box as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceDropped(isNullable = true)
+            }
+            for (reifiedType in reifiedTypeArguments) {
+                reifiedType.afterReferenceDropped(isNullable = false)
             }
 
             val rawNonThrowableReturnValue = when {
@@ -715,10 +752,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.uWord(expression.size)
             val arrayType = context.getArrayObjectType(expression.evaluatesTo)
-            val arrayPtr = callIntrinsic(
-                (arrayType as? EmergeArrayType<*> ?: EmergeReferenceArrayType).constructorOfNullEntries,
-                listOf(elementCount),
-            )
+            val reifiedElementType = lowerReifiedType(expression.elementType)
+            val arrayPtr: LlvmValue<LlvmPointerType<*>> = if (arrayType is EmergeArrayType<*>) {
+                callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount, reifiedElementType))
+            } else {
+                callIntrinsic(arrayNewNullDynamic, listOf(elementCount, reifiedElementType))
+            }
+            reifiedElementType.afterReferenceDropped(isNullable = false)
             return ExpressionResult.Value(buildArraySlice(arrayPtr, context.uWord(0u), elementCount))
         }
         is IrIfExpression -> {
@@ -826,21 +866,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrBaseTypeReflectionExpression -> {
             check(expression.evaluatesTo.autoboxer == Autoboxer.ReflectionBaseType)
-            val boxedType = expression.baseType.autoboxer?.getBoxedType(context)
-            val typeinfoPtr: LlvmValue<LlvmPointerType<TypeinfoType>> = when (boxedType) {
-                null -> when (val localBaseType = expression.baseType) {
-                    is IrClass -> {
-                        val emergeClass = context.getEmergeClassByIrType(expression.baseType)
-                            ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
-                        emergeClass.getTypeinfoInContext(context).dynamic
-                    }
-                    is IrInterface -> localBaseType.typeinfoHolder.getTypeinfoInContext(context)
-                    else -> throw CodeGenerationException("Unsupported base type ${localBaseType::class.qualifiedName}")
-                }
-                else -> boxedType.getTypeinfoInContext(context).dynamic
-            }
-
-            return ExpressionResult.Value(typeinfoPtr)
+            return ExpressionResult.Value(context.typeinfoPointerOf(expression.baseType))
+        }
+        is IrReifiedTypeExpression -> {
+            return ExpressionResult.Value(lowerReifiedType(expression.type))
         }
         is IrTryCatchExpression -> {
             val tryCatchResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo, false)
@@ -1066,9 +1095,13 @@ private sealed interface ArrayDispatchOverride {
     class InvokeIntrinsic(
         val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>,
         val elementArgument: Pair<Int, IrType>? = null,
+        /** if the intrinsic creates an array: the element type, passed as the trailing argument as a runtime `Type` */
+        val createdElementType: IrType? = null,
     ) : ArrayDispatchOverride
     /** invoke a virtual function dispatched on the array object */
     class InvokeVirtual(val hash: ULong, val fnType: LlvmFunctionType<*>) : ArrayDispatchOverride
+    /** `Array.new` where the layout of the array object is only known at runtime, from the runtime type of [elementType] */
+    class InvokeDynamicNew(val elementType: IrType) : ArrayDispatchOverride
 
     companion object {
         /**
@@ -1139,10 +1172,13 @@ private sealed interface ArrayDispatchOverride {
                 val arrayType = context.getArrayObjectType(invocation.evaluatesTo)
                 val elementType = invocation.evaluatesTo.arrayElementTypeOrNull()
                     ?: throw CodeGenerationException("Cannot determine the element type of ${invocation.evaluatesTo} in ${invocation.function.canonicalName}")
+                if (arrayType !is EmergeArrayType<*>) {
+                    return InvokeDynamicNew(elementType)
+                }
                 return InvokeIntrinsic(
-                    (arrayType as? EmergeArrayType<*>)?.defaultValueConstructor
-                        ?: EmergeReferenceArrayType.defaultValueConstructor,
+                    arrayType.defaultValueConstructor,
                     Pair(1, elementType),
+                    createdElementType = elementType,
                 )
             }
 
