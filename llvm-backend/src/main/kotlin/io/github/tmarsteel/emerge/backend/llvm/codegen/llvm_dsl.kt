@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
@@ -14,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildConstantSliceOf
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.staticReifiedType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
@@ -21,6 +24,7 @@ internal fun EmergeLlvmContext.emergeStringLiteral(utf8Bytes: ByteArray): LlvmGl
     val byteArrayConstant = EmergeS8ArrayType.buildConstantIn(
         this,
         utf8Bytes.asList(),
+        staticReifiedType(IrSimpleTypeImpl(rawS8Clazz, IrTypeMutability.IMMUTABLE, false)),
         { s8(it) }
     )
     val byteArrayGlobal = addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)

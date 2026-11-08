@@ -180,6 +180,10 @@ class SoftwareContext {
             .singleOrNull()
             ?: throw InternalCompilerError("Could not find typeinfo type in emerge source")
     }
+    val reflectionType: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.ReflectionModule.TYPE_TYPE_NAME)
+    val reflectionNamedType: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.ReflectionModule.NAMED_TYPE_TYPE_NAME)
+    val reflectionIntersectionType: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.ReflectionModule.INTERSECTION_TYPE_TYPE_NAME)
+    val reflectionTypeArgument: BoundBaseType by lazyBaseTypeFromSource(EmergeConstants.ReflectionModule.TYPE_ARGUMENT_TYPE_NAME)
 
     val iterable by lazyBaseTypeFromSource(EmergeConstants.IterableContract.ITERABLE_TYPE_NAME)
 

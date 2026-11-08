@@ -8,6 +8,7 @@ import compiler.diagnostic.CyclicInheritanceDiagnostic
 import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
 import compiler.diagnostic.ExpansiveInheritanceDiagnostic
 import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
+import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
 import compiler.diagnostic.UnsupportedDeclarationSiteVarianceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -15,6 +16,49 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 
 class InterfaceErrors : FreeSpec({
+    "intersection type as the type argument of a supertype" - {
+        "override with the instantiated parameter type" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                interface I<T> {
+                    fn put(self, x: T)
+                }
+                class C : I<A? & B?> {
+                    override fn put(self, x: A? & B?) {}
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "the type itself in the type argument" {
+            validateModule("""
+                interface A {}
+                interface I<T> {
+                    fn put(self, x: T)
+                }
+                class C : I<C? & A?> {
+                    override fn put(self, x: C? & A?) {}
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "override with a component of the intersection doesn't override" {
+            validateModule("""
+                interface A {}
+                interface B {}
+                interface I<T> {
+                    fn put(self, x: T)
+                }
+                class C : I<A? & B?> {
+                    override fn put(self, x: A) {}
+                }
+            """.trimIndent())
+                .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
+        }
+    }
+
     "constructors are not allowed" {
         validateModule("""
             interface Foo {

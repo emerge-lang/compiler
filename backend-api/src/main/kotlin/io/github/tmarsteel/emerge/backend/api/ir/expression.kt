@@ -259,6 +259,16 @@ interface IrBaseTypeReflectionExpression : IrExpression {
 }
 
 /**
+ * Evaluates to the runtime type information object (`const emerge.core.reflection.Type`) describing [type].
+ * [type] may refer to type parameters that are in scope: those of the enclosing function (see
+ * [IrFunction.typeParameters]) and, in functions declaring a receiver, those of the receivers class
+ * (see [IrClass.typeParameterFields]). The result is a reference owned by the code receiving it.
+ */
+interface IrReifiedTypeExpression : IrExpression {
+    val type: IrType
+}
+
+/**
  * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
  * but are not actually expressions. Prime candidate: assignment statements.
  *

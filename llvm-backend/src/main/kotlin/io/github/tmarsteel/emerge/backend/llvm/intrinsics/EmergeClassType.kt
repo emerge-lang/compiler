@@ -8,6 +8,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
@@ -60,15 +64,15 @@ internal class EmergeClassType private constructor(
     val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeClassType>>>
     val destructor: LlvmFunction<*> get() = irClass.destructor.llvmRef!! as LlvmFunction<*>
 
-    private fun getTypeNameInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType {
-        val isBox = irClass.canonicalName.packageName.toString() == "emerge.platform" && irClass.canonicalName.simpleName.endsWith("Box")
-        if (!isBox) {
-            return irClass.canonicalName
-        }
+    private val isBox: Boolean
+        get() = irClass.canonicalName.packageName.toString() == "emerge.platform" && irClass.canonicalName.simpleName.endsWith("Box")
 
-        // boxing types have only one field, holding the boxed value. We use the name of that
-        return irClass.fields.single().type.findSimpleTypeBound().baseType.canonicalName
-    }
+    /**
+     * The base type this classes typeinfo describes: boxes have only one member variable, holding the boxed value,
+     * and their typeinfo acts as the typeinfo of the boxed type.
+     */
+    private val reflectedBaseType: IrBaseType
+        get() = if (isBox) irClass.singleMemberVariableField.type.findSimpleTypeBound().baseType else irClass
 
     private val typeinfoProvider: StaticAndDynamicTypeInfo.Provider by lazy {
         if (this.irClass.canonicalName.toString() == "emerge.core.Array") {
@@ -91,12 +95,13 @@ internal class EmergeClassType private constructor(
                             memberFn.signatureHashes.map { hash -> Pair(hash, bridge) }
                         }
                         .associateErrorOnDuplicate()
-                }
+                },
+                arrayElementLayoutKind = ArrayElementLayoutKind.SLICE,
             )
         }
 
         StaticAndDynamicTypeInfo.define(
-            { ctx -> getTypeNameInContext(ctx).toString() },
+            { _ -> reflectedBaseType.canonicalName.toString() },
             irClass.allDistinctSupertypesExceptAny,
             { _ -> destructor },
             virtualFunctions = {
@@ -106,7 +111,8 @@ internal class EmergeClassType private constructor(
                     .filter { it.overrides.isNotEmpty() && it.supportsDynamicDispatch }
                     .flatMap { memberFn -> memberFn.signatureHashes.map { hash -> Pair(hash, memberFn.llvmRef!!) } }
                     .associateErrorOnDuplicate()
-            }
+            },
+            arrayElementLayoutKind = context.arrayElementLayoutKindOf(reflectedBaseType),
         )
     }
 
@@ -359,7 +365,11 @@ internal class EmergeInterfaceTypeinfoHolder(
 
             val tArrayOfTypeinfoPtr = PointerToEmergeArrayOfPointersToTypeInfoType.pointed
             val supertypesArrayPtr = context.addGlobal(
-                tArrayOfTypeinfoPtr.buildConstantIn(context, emergeInterface.allDistinctSupertypesExceptAny) {
+                tArrayOfTypeinfoPtr.buildConstantIn(
+                    context,
+                    emergeInterface.allDistinctSupertypesExceptAny,
+                    context.staticReifiedType(IrSimpleTypeImpl(context.rawReflectionBaseTypeClazz, IrTypeMutability.IMMUTABLE, false)),
+                ) {
                     it.typeinfoHolder.getTypeinfoInContext(context)
                 },
                 LlvmThreadLocalMode.NOT_THREAD_LOCAL,
@@ -370,6 +380,7 @@ internal class EmergeInterfaceTypeinfoHolder(
                 setValue(TypeinfoType.GENERIC.anyValueVirtuals, context.poisonValue(EmergeAnyValueVirtualsType))
                 setNull(TypeinfoType.GENERIC.dynamicTypeInfoPtr)
                 setValue(TypeinfoType.GENERIC.canonicalNamePtr, namePtr)
+                setValue(TypeinfoType.GENERIC.arrayElementLayoutKind, context.uWord(ArrayElementLayoutKind.REFERENCE.code))
                 setValue(TypeinfoType.GENERIC.vtable, context.poisonValue(VTableType(0)))
             }
 

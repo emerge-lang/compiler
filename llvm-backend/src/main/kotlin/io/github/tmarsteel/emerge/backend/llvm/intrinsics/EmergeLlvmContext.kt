@@ -6,7 +6,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
+import io.github.tmarsteel.emerge.backend.llvm.reifiedTypeArgumentValues
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -168,6 +171,22 @@ class EmergeLlvmContext(
     internal lateinit var stringType: EmergeClassType
     /** `emerge.core.ArrayIndexOutOfBoundsError` */
     internal lateinit var arrayIndexOutOfBoundsErrorType: EmergeClassType
+    /** `emerge.core.reflection.NamedType` */
+    internal lateinit var reifiedNamedTypeClass: EmergeClassType
+    /** `emerge.core.reflection.IntersectionType` */
+    internal lateinit var reifiedIntersectionTypeClass: EmergeClassType
+    /** `emerge.core.reflection.TypeArgument` */
+    internal lateinit var reifiedTypeArgumentClass: EmergeClassType
+    /** static `emerge.core.reflection.Type` objects, see [staticReifiedType] */
+    internal val staticReifiedTypes = HashMap<String, LlvmGlobal<EmergeClassType>>()
+    /** `emerge.core.reflection.Type` */
+    internal lateinit var reifiedTypeInterface: IrInterface
+    /** `emerge.core.reflection.intersectionOf` */
+    internal lateinit var intersectionOfFn: IrFunction
+
+    /** function bodies can be defined re-entrantly (destructors), hence a stack */
+    private val typeEnvironmentStack = ArrayDeque<TypeEnvironment>()
+    internal val currentTypeEnvironment: TypeEnvironment? get() = typeEnvironmentStack.lastOrNull()
 
     /** `emerge.core.S8 */
     internal lateinit var rawS8Clazz: IrClass
@@ -221,8 +240,9 @@ class EmergeLlvmContext(
     fun registerBaseType(type: IrBaseType) {
         when (type) {
             is IrInterface -> {
-                when (type.canonicalName.toString()) {
-                    "emerge.core.Throwable" -> throwableClazz = type
+                when (type.canonicalName) {
+                    EmergeConstants.CoreModule.THROWABLE_TYPE_NAME -> throwableClazz = type
+                    EmergeConstants.ReflectionModule.TYPE_TYPE_NAME -> reifiedTypeInterface = type
                 }
             }
             is IrClass -> registerClass(type)
@@ -288,6 +308,9 @@ class EmergeLlvmContext(
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
             "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
+            "emerge.core.reflection.NamedType" -> reifiedNamedTypeClass = emergeClassType
+            "emerge.core.reflection.IntersectionType" -> reifiedIntersectionTypeClass = emergeClassType
+            "emerge.core.reflection.TypeArgument" -> reifiedTypeArgumentClass = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToUnitInstance = addGlobal(undefValue(emergeClassType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
@@ -335,7 +358,12 @@ class EmergeLlvmContext(
     ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
-        val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
+        val intrinsic = if (fn is IrFullyInheritedMemberFunction) null else getInstrinsic(fn)
+        // intrinsics are implemented in kotlin and don't take the runtime type information
+        val receivesReifiedTypeArguments = intrinsic == null && fn.typeParameters.isNotEmpty()
+        fn.receivesReifiedTypeArguments = receivesReifiedTypeArguments
+        val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) } +
+            (if (receivesReifiedTypeArguments) fn.typeParameters.map { PointerToReifiedType } else emptyList())
         val coreReturnValueLlvmType = returnTypeOverride ?: when {
             fn.returnType.isUnit -> LlvmVoidType
             !fn.returnType.isNullable && (fn.returnType as? IrSimpleType)?.baseType?.isNothing == true -> LlvmVoidType
@@ -363,7 +391,7 @@ class EmergeLlvmContext(
             return llvmFn
         }
 
-        getInstrinsic(fn)?.let { intrinsic ->
+        intrinsic?.let { intrinsic ->
             assert(llvmParameterTypes.size == intrinsic.type.parameterTypes.size) {
                 "LLVM Function type doesn't align with backend-IR function type: LLVM has ${llvmParameterTypes.size} parameters, IR has ${intrinsic.type.parameterTypes.size}"
             }
@@ -426,6 +454,17 @@ class EmergeLlvmContext(
             param.emitWrite = {
                 throw CodeGenerationException("illegal IR - cannot write to function parameters")
             }
+        }
+        if (receivesReifiedTypeArguments) {
+            fn.reifiedTypeArgumentValues = fn.typeParameters.mapIndexed { index, parameter ->
+                val raw = Llvm.LLVMGetParam(rawRef, fn.parameters.size + index)
+                LlvmValue.setName(raw, "reified_${parameter.name}")
+                parameter to LlvmValue(raw, PointerToReifiedType)
+            }.toMap()
+        }
+
+        if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.INTERSECTION_OF_FN_NAME.toString()) {
+            intersectionOfFn = fn
         }
 
         if (fn.canonicalName.simpleName == "main") {
@@ -525,6 +564,15 @@ class EmergeLlvmContext(
         }
 
         val diBuilder = fn.declaredAt.file.diBuilder
+        typeEnvironmentStack.addLast(TypeEnvironment(fn))
+        try {
+            fillBodyWithTypeEnvironment(fn, body, llvmFunction, diBuilder)
+        } finally {
+            typeEnvironmentStack.removeLast()
+        }
+    }
+
+    private fun fillBodyWithTypeEnvironment(fn: IrFunction, body: IrCodeChunk, llvmFunction: LlvmFunction<*>, diBuilder: DiBuilder) {
         BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, llvmFunction.diFunction!!) {
             if (emitDebugInfo) {
                 fn.parameters.zip(llvmFunction.type.parameterTypes).forEachIndexed { index, (param, llvmParamType) ->
@@ -692,20 +740,30 @@ class EmergeLlvmContext(
         val elementBaseType = component.type.boundBaseTypeOrNull()
             ?: return EmergeArrayBaseType
 
-        if (elementBaseType.canonicalName.toString() == "emerge.core.Any") {
-            return if (component.type !is IrGenericTypeReference && component.variance == IrTypeVariance.INVARIANT) {
-                EmergeReferenceArrayType
-            } else {
-                EmergeArrayBaseType
-            }
+        val layout = getArrayObjectTypeOfExactElement(elementBaseType, component.type.isNullable)
+        if (component.variance == IrTypeVariance.INVARIANT && component.type !is IrGenericTypeReference) {
+            return layout
         }
 
+        // the runtime element type can be a subtype, the layout must be the same for all of them
+        if (elementBaseType !is IrClass || layout !== getArrayObjectTypeOfExactElement(elementBaseType, isNullable = false)) {
+            return EmergeArrayBaseType
+        }
+
+        return layout
+    }
+
+    /**
+     * @return the array object type for arrays whose elements are exactly of [elementBaseType] (no subtypes).
+     * Must agree with [arrayElementLayoutKindOf], which picks the layout at runtime.
+     */
+    internal fun getArrayObjectTypeOfExactElement(elementBaseType: IrBaseType, isNullable: Boolean): LlvmType {
         if (elementBaseType.autoboxer === Autoboxer.ArraySlice) {
             // nullable arrays are slices, too
             return EmergeSliceArrayType
         }
 
-        if (component.type.isNullable) {
+        if (isNullable) {
             // nullable value types are boxed
             return EmergeReferenceArrayType
         }

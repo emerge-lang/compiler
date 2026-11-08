@@ -272,7 +272,10 @@ class GenericTypeReference private constructor(
         typeVariables: Set<BoundTypeParameter> = this.typeVariables,
     ) = GenericTypeReference(parameter, span, givenMutability, isNarrowed, typeVariables)
 
-    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(parameter.toBackendIr()) { effectiveBound.toBackendIr() }
+    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(
+        parameter.toBackendIr(),
+        nullabilityOverride = if (isNarrowed) false else null,
+    ) { effectiveBound.toBackendIr() }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -316,9 +319,10 @@ class GenericTypeReference private constructor(
 
 internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
+    override val nullabilityOverride: Boolean? = null,
     computeEffectiveBound: () -> IrType,
 ) : IrGenericTypeReference {
     override val effectiveBound: IrType by lazy(computeEffectiveBound)
     override fun toString() = independentToString()
-    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter) { effectiveBound.asNullable() }
+    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, nullabilityOverride = true) { effectiveBound.asNullable() }
 }

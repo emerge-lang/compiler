@@ -30,6 +30,7 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
@@ -189,6 +190,7 @@ class BoundClassDestructor(
                         )
                     ))
                 },
+                dropTypeParameterFieldsIr(selfTemporary),
                 IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary))
             )))
         }
@@ -210,12 +212,30 @@ class BoundClassDestructor(
                     IrDropStrongReferenceStatementImpl(memberTemporary),
                 )
             }),
+            dropTypeParameterFieldsIr(selfTemporary),
         ) + additionalCode + listOf(
             IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary)),
         ))
 
         IrDestructorImpl(this, destructorCode)
     }
+
+    private fun dropTypeParameterFieldsIr(selfTemporary: IrCreateTemporaryValue): IrExecutable {
+        return IrCodeChunkImpl(classDef.typeParameterFields.values.flatMap { field ->
+            val typeTemporary = IrCreateTemporaryValueImpl(
+                IrClassFieldAccessExpressionImpl(
+                    IrTemporaryValueReferenceImpl(selfTemporary),
+                    field.toBackendIr(),
+                    field.type.toBackendIr(),
+                )
+            )
+            listOf(
+                typeTemporary,
+                IrDropStrongReferenceStatementImpl(typeTemporary),
+            )
+        })
+    }
+
     override fun toBackendIr(): IrFunction {
         return backendIr
     }
@@ -229,6 +249,7 @@ private class IrDestructorImpl(
 ) : IrMemberFunction {
     override val canonicalName = dtor.canonicalName
     override val parameters = dtor.parameters.parameters.map { it.backendIrDeclaration }
+    override val typeParameters = emptyList<IrBaseType.Parameter>()
     override val declaresReceiver = true
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false

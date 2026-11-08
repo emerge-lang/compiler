@@ -441,7 +441,7 @@ internal sealed interface Autoboxer {
         fun getConstructorIntrinsic(context: EmergeLlvmContext, name: CanonicalElementName.Function): LlvmFunction<LlvmPointerType<EmergeClassType>> {
             return constructorByContext.computeIfAbsent(context) { _ ->
                 val emergeClazz = getBoxedType(context)
-                require(emergeClazz.irClass.fields.size == 1)
+                val valueField = emergeClazz.irClass.singleMemberVariableField
                 val template = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmPointerType<EmergeClassType>>(
                     name.toString(),
                     pointerTo(emergeClazz),
@@ -450,7 +450,7 @@ internal sealed interface Autoboxer {
 
                     body {
                         val heapAllocation = emergeClazz.allocateUninitializedDynamicObject(this)
-                        store(unboxedValue, getelementptr(heapAllocation).member(emergeClazz.irClass.fields.single()).get())
+                        store(unboxedValue, getelementptr(heapAllocation).member(valueField).get())
                         ret(heapAllocation)
                     }
                 }

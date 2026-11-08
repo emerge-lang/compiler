@@ -35,6 +35,7 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeArgument
+import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
@@ -79,6 +80,9 @@ class BoundBaseType(
     private val bindTimeDiagnosis: CollectingDiagnosis,
 ) : BoundElement<BaseTypeDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
+
+    /** see [SeanHelper.phase1InProgress] */
+    val isPhase1InProgress: Boolean get() = seanHelper.phase1InProgress
 
     override val context: CTContext = fileContext
     val canonicalName: CanonicalElementName.BaseType by lazy {
@@ -405,10 +409,25 @@ class BoundBaseType(
         return field
     }
 
+    /**
+     * For classes: the fields holding the runtime type information for each type parameter,
+     * see [IrClass.typeParameterFields]. Allocated when the backend IR is first requested.
+     */
+    val typeParameterFields: Map<BoundTypeParameter, BaseTypeField> by lazy {
+        if (kind != Kind.CLASS) {
+            return@lazy emptyMap()
+        }
+        val fieldType = context.swCtx.reflectionType
+            .getBoundReferenceAssertNoTypeParameters()
+            .withMutability(TypeMutability.IMMUTABLE)
+        (typeParameters ?: emptyList()).associateWith { allocateField(fieldType) }
+    }
+
     private val backendIr by lazy {
         memberVariables.forEach {
             it.assureFieldAllocated()
         }
+        typeParameterFields
         kind.toBackendIr(this)
     }
     fun toBackendIr(): IrBaseType = backendIr
@@ -594,6 +613,9 @@ private class IrClassImpl(
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
+    override val typeParameterFields by lazy {
+        typeDef.typeParameterFields.entries.associate { (parameter, field) -> parameter.toBackendIr() to field.toBackendIr() }
+    }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }

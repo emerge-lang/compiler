@@ -22,6 +22,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF64Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS64Type
@@ -114,6 +116,17 @@ internal val IrBaseType.allDistinctSupertypesExceptAny: Set<IrInterface> by tack
 internal var IrClass.Field.isCPointerPointed: Boolean by tackState { false }
 
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
+
+/**
+ * Whether the LLVM function takes the runtime type information for [IrFunction.typeParameters] as trailing arguments.
+ * False for functions implemented by intrinsics.
+ */
+internal var IrFunction.receivesReifiedTypeArguments: Boolean by tackState { false }
+
+/**
+ * Inside the function body: the hidden arguments holding the runtime type information, by type parameter.
+ */
+internal var IrFunction.reifiedTypeArgumentValues: Map<IrBaseType.Parameter, LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>> by tackState { emptyMap() }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
 internal var IrFunction.llvmName: String by tackState {
     if (isExternalC) canonicalName.simpleName else {
@@ -150,6 +163,15 @@ internal var IrVariableDeclaration.Scope.diScope: LlvmDebugInfo.Scope.LexicalBlo
 
 internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
+
+/**
+ * for classes with exactly one member variable (boxes, Weak, CPointer): the field holding that member variable.
+ * In contrast to `fields.single()` this ignores the hidden fields, see [IrClass.typeParameterFields].
+ */
+internal val IrClass.singleMemberVariableField: IrClass.Field by tackLazyVal {
+    val fieldId = (memberVariables.single().readStrategy as IrClass.MemberVariable.AccessStrategy.BareField).fieldId
+    fields.single { it.id == fieldId }
+}
 
 internal val IrClassFieldAccessExpression.baseBaseType: IrBaseType by tackLazyVal {
     base.type.findSimpleTypeBound().baseType

@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -40,7 +41,7 @@ private val weakArrayBoxTypeinfo = StaticAndDynamicTypeInfo.defineRaw(
 )
 
 context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
-private fun hasTypeinfo(obj: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>, typeinfo: StaticAndDynamicTypeInfo): LlvmValue<LlvmBooleanType> {
+internal fun hasTypeinfo(obj: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>, typeinfo: StaticAndDynamicTypeInfo): LlvmValue<LlvmBooleanType> {
     with(builder) {
         val typeinfoPtr = obj
             .anyValueBase()
@@ -140,7 +141,7 @@ internal val weakToStrongOrNull = KotlinLlvmFunction.define<EmergeLlvmContext, _
     body {
         val weakType = context.weakType
         val referred = getelementptr(self.reinterpretAs(pointerTo(weakType)))
-            .member(weakType.irClass.fields.single())
+            .member(weakType.irClass.singleMemberVariableField)
             .get()
             .dereference()
             .reinterpretAs(PointerToAnyEmergeValue)

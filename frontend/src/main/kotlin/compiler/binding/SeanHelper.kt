@@ -13,6 +13,10 @@ class SeanHelper {
     var phase1HadErrors = false
         private set
 
+    /** true while [phase1] is running; re-entering it from within would run the analysis a second time */
+    var phase1InProgress = false
+        private set
+
     private var phase2DoneOn: Diagnosis? = null
     var phase2HadErrors = false
         private set
@@ -28,7 +32,12 @@ class SeanHelper {
         }
 
         val nErrorsBefore = diagnosis.nErrors
-        impl()
+        phase1InProgress = true
+        try {
+            impl()
+        } finally {
+            phase1InProgress = false
+        }
         phase1DoneOn = diagnosis
         phase1HadErrors = diagnosis.nErrors > nErrorsBefore
     }

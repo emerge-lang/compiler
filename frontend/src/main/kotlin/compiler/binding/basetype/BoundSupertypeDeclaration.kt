@@ -6,10 +6,14 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeVariable
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.cyclicInheritance
@@ -64,6 +68,17 @@ class BoundSupertypeDeclaration(
             if (unfilteredResolved !is RootResolvedTypeReference && unfilteredResolved !is ErroneousType) {
                 diagnosis.illegalSupertype(astNode, "can only inherit from interfaces")
             }
+
+            // the inherited member functions are checked against this supertype as declared (InheritedBoundMemberFunction),
+            // still in phase 1 of the subtype. That unifies the type arguments, which needs the inheritance trees of all
+            // base types mentioned in them. The subtype itself (class C : I<C>) is being analyzed right now.
+            resolvedReference?.arguments?.forEach { argument ->
+                argument.type.collectBaseTypes(mutableSetOf()).forEach { baseType ->
+                    if (!baseType.isPhase1InProgress) {
+                        baseType.semanticAnalysisPhase1(diagnosis)
+                    }
+                }
+            }
         }
     }
 
@@ -98,4 +113,30 @@ class BoundSupertypeDeclaration(
             }
         }
     }
+}
+
+/**
+ * @return [into], with all base types mentioned in this type added; the bounds of type parameters included
+ */
+private fun BoundTypeReference.collectBaseTypes(into: MutableSet<BoundBaseType>): Set<BoundBaseType> {
+    when (this) {
+        is RootResolvedTypeReference -> {
+            into.add(baseType)
+            arguments?.forEach { it.collectBaseTypes(into) }
+        }
+        is NullableTypeReference -> nested.collectBaseTypes(into)
+        is BoundTypeArgument -> type.collectBaseTypes(into)
+        is BoundIntersectionTypeReference -> components.forEach { it.collectBaseTypes(into) }
+        is GenericTypeReference -> {
+            // `T : Comparable<T>` would recurse forever without the check
+            val bound = parameter.bound
+            if (bound is RootResolvedTypeReference && bound.baseType in into) {
+                return into
+            }
+            bound.collectBaseTypes(into)
+        }
+        is ErroneousType,
+        is TypeVariable -> {}
+    }
+    return into
 }

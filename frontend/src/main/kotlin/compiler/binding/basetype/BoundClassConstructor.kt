@@ -25,12 +25,14 @@ import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrReifiedTypeExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.Diagnosis
@@ -46,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
@@ -252,6 +255,7 @@ class BoundClassConstructor(
                 IrTemporaryValueReferenceImpl(selfTemporary),
                 IrTemporaryValueReferenceImpl(referencedObjTemporary),
             ))
+            initIr.addAll(typeParameterFieldInitIr(selfTemporary))
         } else {
             initIr.add(selfVariableForInitCode.backendIrDeclaration)
             initIr.add(
@@ -260,6 +264,7 @@ class BoundClassConstructor(
                     IrTemporaryValueReferenceImpl(selfTemporary),
                 )
             )
+            initIr.addAll(typeParameterFieldInitIr(selfTemporary))
             initIr.add(boundInitCode.toBackendIrStatement())
             initIr.add(boundBody.toBackendIrStatement())
         }
@@ -270,6 +275,26 @@ class BoundClassConstructor(
             this,
             IrCodeChunkImpl(initIr),
         )
+    }
+
+    /**
+     * stores the runtime type information for each type parameter of the class into its field, see
+     * [IrClass.typeParameterFields]. Must run before any other initialization code.
+     */
+    private fun typeParameterFieldInitIr(selfTemporary: IrCreateTemporaryValue): List<IrExecutable> {
+        return classDef.typeParameterFields.flatMap { (parameter, field) ->
+            val typeTemporary = IrCreateTemporaryValueImpl(IrReifiedTypeExpressionImpl(
+                IrGenericTypeReferenceImpl(parameter.toBackendIr()) { parameter.bound.toBackendIr() },
+                field.type.toBackendIr(),
+            ))
+            listOf(
+                typeTemporary,
+                IrAssignmentStatementImpl(
+                    IrAssignmentStatementTargetClassFieldImpl(field.toBackendIr(), IrTemporaryValueReferenceImpl(selfTemporary)),
+                    IrTemporaryValueReferenceImpl(typeTemporary),
+                ),
+            )
+        }
     }
 
     override fun toBackendIr(): IrFunction = backendIr
@@ -327,6 +352,7 @@ private class IrDefaultConstructorImpl(
 ) : IrConstructor {
     override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
+    override val typeParameters by lazy { ctor.declaredTypeParameters.map { it.toBackendIr() } }
     override val declaresReceiver = false
     override val returnType = IrClassSimpleType(ctor.classDef, IrTypeMutability.EXCLUSIVE)
     override val isExternalC = false

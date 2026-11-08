@@ -2,6 +2,8 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -77,6 +79,8 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     val dynamicTypeInfoPtr by structMember(pointerTo(this))
     /** always points to a static `emerge.core.String` */
     val canonicalNamePtr by structMember(PointerToAnyEmergeValue)
+    /** the [ArrayElementLayoutKind] (its [ArrayElementLayoutKind.code]) of arrays with elements of this type */
+    val arrayElementLayoutKind by structMember(EmergeUWordType)
     /** !! dynamically sized !! */
     val vtable by structMember(VTableType(nVTableEntries))
 
@@ -96,7 +100,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::supertypes, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::vtable), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::vtable), NativeI32FlagGroup())
     }
 
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
@@ -108,9 +112,10 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
              * anyValueVirtuals: { pointer to dtor }
              * dynamicTypeInfoPtr: pointer
              * canonicalNamePtr: pointer to emerge string
+             * arrayElementLayoutKind: word
              * vtable: [pointer x size]
              */
-            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (4u + vtable.type.nEntries.toUInt()),
+            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (5u + vtable.type.nEntries.toUInt()),
             alignInBits = diBuilder.context.targetData.pointerSizeInBits.toUInt(),
             flags = NativeI32FlagGroup(),
             declaredAt = Companion.declaredAt,
@@ -129,169 +134,11 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
 }
 
 /**
- * Getter function for [EmergeArrayOfPointersToTypeInfoType]
+ * The array type for `Array<ReflectionBaseType>`: the elements are pointers to [TypeinfoType]; boxed into
+ * `emerge.platform.ReflectionBaseTypeBox` when accessed through the virtual accessors.
  */
-private val getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<TypeinfoType>>> by lazy {
-    KotlinLlvmFunction.define(
-        "emerge.platform.valueArrayOfPointersToTypeinfo_Get_ExceptionOnOutOfBounds",
-        EmergeFallibleCallResult.WithValue(pointerTo(TypeinfoType.GENERIC)),
-    ) {
-        val self by param(EmergeArraySliceType)
-        val index by param(EmergeUWordType)
-        body {
-            inlineFallibleBoundsCheck(self, index)
-            val raw = sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index).dereference()
-
-            ret(fallibleSuccess(raw))
-        }
-    }
-}
-
-/**
- * Getter function for [EmergeArrayOfPointersToTypeInfoType]
- */
-private val getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> by lazy {
-    KotlinLlvmFunction.define(
-        "emerge.platform.valueArrayOfPointersToTypeinfo_Get_PanicOnOutOfBounds",
-        pointerTo(TypeinfoType.GENERIC),
-    ) {
-        val self by param(EmergeArraySliceType)
-        val index by param(EmergeUWordType)
-        body {
-            conditionalBranch(
-                condition = indexIsOutOfBounds(self, index),
-                ifTrue = {
-                    inlinePanic("index into array of typeinfo pointers is out of bounds")
-                }
-            )
-            val raw = sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index).dereference()
-
-            ret(raw)
-        }
-    }
-}
-
-/**
- * Setter function for [EmergeArrayOfPointersToTypeInfoType]
- */
-private val setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> by lazy {
-    KotlinLlvmFunction.define(
-        "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
-        LlvmVoidType
-    ) {
-        val self by param(EmergeArraySliceType)
-        val index by param(EmergeUWordType)
-        val value by param(pointerTo(TypeinfoType.GENERIC))
-        body {
-            inlinePanicBoundsCheck(self, index)
-            store(value, sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index))
-
-            retVoid()
-        }
-    }
-}
-
-/**
- * Setter function for [EmergeArrayOfPointersToTypeInfoType]
- */
-private val setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> by lazy {
-    KotlinLlvmFunction.define(
-        "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
-        EmergeFallibleCallResult.OfVoid,
-    ) {
-        val self by param(EmergeArraySliceType)
-        val index by param(EmergeUWordType)
-        val value by param(pointerTo(TypeinfoType.GENERIC))
-        body {
-            inlineFallibleBoundsCheck(self, index)
-            store(value, sliceElementPointer(PointerToEmergeArrayOfPointersToTypeInfoType.pointed, self, index))
-
-            retFallibleVoid()
-        }
-    }
-}
-
 internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
-    val virtualGetterFallible = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualGet_fallible",
-        EmergeFallibleCallResult.ofEmergeReference,
-    ) {
-        param(EmergeArraySliceType)
-        param(EmergeUWordType)
-
-        body {
-            inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
-        }
-    }
-
-    val virtualGetterPanic = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualGet_panic",
-        PointerToAnyEmergeValue,
-    ) {
-        param(EmergeArraySliceType)
-        param(EmergeUWordType)
-
-        body {
-            inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
-        }
-    }
-
-    val virtualSetterFallible = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualSet_fallible",
-        EmergeFallibleCallResult.OfVoid,
-    ) {
-        param(EmergeArraySliceType)
-        param(EmergeUWordType)
-        param(pointerTo(TypeinfoType.GENERIC))
-
-        body {
-            inlinePanic("array_pointer_to_typeinfo_virtualSet is not implemented")
-        }
-    }
-
-    val virtualSetterPanic = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualSet_panic",
-        LlvmVoidType,
-    ) {
-        param(EmergeArraySliceType)
-        param(EmergeUWordType)
-        param(pointerTo(TypeinfoType.GENERIC))
-
-        body {
-            inlinePanic("array_pointer_to_typeinfo_virtualSet is not implemented")
-        }
-    }
-
-    val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_defaultValueCtor",
-        EmergeArraySliceType,
-    ) {
-        param(EmergeUWordType)
-        param(pointerTo(TypeinfoType.GENERIC))
-
-        body {
-            inlinePanic("array_pointer_to_typeinfo_defaultValueCtor is not implemented")
-        }
-    }
-
-    pointerTo(
-        EmergeArrayType(
-            "pointer_to_typeinfo",
-            pointerTo(TypeinfoType.GENERIC),
-            virtualGetterFallible,
-            virtualGetterPanic,
-            virtualSetterFallible,
-            virtualSetterPanic,
-            getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck,
-            getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck,
-            setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            valueArrayDestructor,
-            defaultValueCtor,
-        )
-    )
+    pointerTo(buildValueArrayType("pointer_to_typeinfo", pointerTo(TypeinfoType.GENERIC), EmergeLlvmContext::boxTypeReflectionBaseType))
 }
 
 internal class StaticAndDynamicTypeInfo private constructor(
@@ -308,6 +155,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
+        val arrayElementLayoutKind: ArrayElementLayoutKind,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
@@ -343,7 +191,11 @@ internal class StaticAndDynamicTypeInfo private constructor(
             vtable: LlvmConstant<VTableType>,
             dynamicGlobal: LlvmGlobal<TypeinfoType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
-            val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes) {
+            val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(
+                context,
+                supertypes,
+                context.staticReifiedType(IrSimpleTypeImpl(context.rawReflectionBaseTypeClazz, IrTypeMutability.IMMUTABLE, false)),
+            ) {
                 it(context)
             }
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
@@ -359,6 +211,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 })
                 setNull(typeinfoType.dynamicTypeInfoPtr)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
+                setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
@@ -369,6 +222,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 })
                 setValue(typeinfoType.dynamicTypeInfoPtr, dynamicGlobal)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
+                setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
@@ -381,11 +235,13 @@ internal class StaticAndDynamicTypeInfo private constructor(
             supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
+            arrayElementLayoutKind: ArrayElementLayoutKind = ArrayElementLayoutKind.REFERENCE,
         ): Provider = ProviderImpl(
             typeName,
             supertypes,
             finalizerFunction,
-            virtualFunctions
+            virtualFunctions,
+            arrayElementLayoutKind,
         )
 
         fun define(
@@ -393,11 +249,13 @@ internal class StaticAndDynamicTypeInfo private constructor(
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
+            arrayElementLayoutKind: ArrayElementLayoutKind,
         ): Provider = ProviderImpl(
             typeName,
             supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
             finalizerFunction,
             virtualFunctions,
+            arrayElementLayoutKind,
         )
     }
 }
