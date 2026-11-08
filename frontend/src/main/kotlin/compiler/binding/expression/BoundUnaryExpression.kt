@@ -27,6 +27,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic.Companion.requireOperatorAttribute
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
+import compiler.diagnostic.PrefixOperatorNeedsParenthesesDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
 class BoundUnaryExpression(
@@ -40,6 +41,13 @@ class BoundUnaryExpression(
         }
 
         hiddenInvocation.setExpectedEvaluationResultType(type, diagnosis)
+    }
+
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        hiddenInvocation.semanticAnalysisPhase1(diagnosis)
+        declaration.weakerThanEnclosingOperator?.let { enclosing ->
+            diagnosis.add(PrefixOperatorNeedsParenthesesDiagnostic(declaration, enclosing))
+        }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

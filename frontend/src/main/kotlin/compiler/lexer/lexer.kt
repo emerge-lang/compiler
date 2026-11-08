@@ -185,26 +185,9 @@ private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorO
 private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: LexerSourceFile): NumericLiteralToken? {
     val startLocation = currentPosition
     val firstCodePoint = peek() ?: return null
-
-    mark()
-
-    var isNegative = false
-    if (firstCodePoint == MINUS_CODEPOINT) {
-        isNegative = true
-        nextOrThrow()
-    }
-
-    if (!hasNext) {
-        rollback()
+    if (!firstCodePoint.isDigit) {
         return null
     }
-
-    if (!peek()!!.isDigit) {
-        rollback()
-        return null
-    }
-
-    commit()
 
     // NUMERIC_LITERAL
     val (firstIntegerString, firstIntegerStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
@@ -219,9 +202,6 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
 
             // floating point literal
             val floatBuilder = StringBuilder()
-            if (isNegative) {
-                floatBuilder.append('-')
-            }
             floatBuilder.append(firstIntegerString)
             floatBuilder.appendCodePoint(DECIMAL_SEPARATOR.value)
             val (fractionalString, fractionalStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
@@ -244,7 +224,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
 
     return NumericLiteralToken(
         Span(sourceFile, startLocation.lineNumber, startLocation.columnNumber, firstIntegerStringLocation.toLineNumber, firstIntegerStringLocation.toColumnNumber),
-        if (isNegative) "-$firstIntegerString" else firstIntegerString,
+        firstIntegerString,
     )
 }
 
@@ -302,7 +282,6 @@ private fun PositionTrackingCodePointTransactionalSequence.collectDelimitedIdent
     return Pair(data.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
-private val MINUS_CODEPOINT = CodePoint(Operator.MINUS.text.single().code)
 private val ESCAPE_SEQUENCES: Map<CodePoint, CodePoint> = mapOf<Char, Char>(
     'n' to '\n',
     't' to '\t',

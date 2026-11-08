@@ -414,6 +414,7 @@ export class Bool : const Any {
     export intrinsic nothrow operator fn `and`(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn `or`(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn `xor`(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn equals(self, other: Bool) -> Bool
 }
 
 export class Array<Element> : Iterable<Element> {

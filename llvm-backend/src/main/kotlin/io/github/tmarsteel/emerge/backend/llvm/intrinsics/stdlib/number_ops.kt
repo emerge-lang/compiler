@@ -147,6 +147,7 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         equals_u64,
         equals_sWord,
         equals_uWord,
+        equals_bool,
         convert_s8_to_s16,
         convert_s8_to_s32,
         convert_s8_to_s64,
@@ -589,6 +590,7 @@ private val equals_s64 = buildEqualsFn("S64", LlvmS64Type)
 private val equals_u64 = buildEqualsFn("U64", LlvmU64Type)
 private val equals_sWord = buildEqualsFn("SWord", EmergeSWordType)
 private val equals_uWord = buildEqualsFn("UWord", EmergeUWordType)
+private val equals_bool = buildEqualsFn("Bool", LlvmBooleanType)
 
 private fun <T : LlvmFixedIntegerType> buildSignedEnlargeFn(fromType: LlvmFixedIntegerType, toType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
     "emerge.core.S${fromType.nBits}::toS${toType.nBits}",

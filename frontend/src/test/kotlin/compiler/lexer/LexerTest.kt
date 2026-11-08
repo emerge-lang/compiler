@@ -354,4 +354,23 @@ class LexerTest : FreeSpec() {init {
         (result[4] as NumericLiteralToken).stringContent shouldBe "1"
         (result[5] as OperatorToken).operator shouldBe Operator.SBRACE_CLOSE
     }
+
+    "minus is never part of a numeric literal" - {
+        "binary" {
+            val result = lexCode("a-1", false)
+
+            result.size shouldBe 4
+            (result[0] as IdentifierToken).value shouldBe "a"
+            (result[1] as OperatorToken).operator shouldBe Operator.MINUS
+            (result[2] as NumericLiteralToken).stringContent shouldBe "1"
+        }
+
+        "unary" {
+            val result = lexCode("-1.5", false)
+
+            result.size shouldBe 3
+            (result[0] as OperatorToken).operator shouldBe Operator.MINUS
+            (result[1] as NumericLiteralToken).stringContent shouldBe "1.5"
+        }
+    }
 }}

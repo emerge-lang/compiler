@@ -29,8 +29,8 @@ import compiler.ast.ReturnExpression
 import compiler.ast.Statement
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
-import compiler.ast.expression.AstIndexedLengthExpression
 import compiler.ast.expression.AstCatchBlockExpression
+import compiler.ast.expression.AstIndexedLengthExpression
 import compiler.ast.expression.AstReflectExpression
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.ast.expression.BooleanLiteralExpression
@@ -39,7 +39,6 @@ import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.ast.expression.ParenthesisedExpression
 import compiler.ast.expression.StringLiteralExpression
-import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -55,7 +54,6 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
-import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.CastExpressionPostfix
 import compiler.parser.ExpressionPostfix
 import compiler.parser.IndexAccessExpressionPostfix
@@ -63,16 +61,16 @@ import compiler.parser.InstanceOfExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
+import compiler.parser.OperatorExpressionBuilder
+import compiler.parser.PrefixedOperand
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
-import compiler.transact.TransactionalSequence
 import compiler.ast.Expression as AstExpression
 
 private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without postfixes") {
-    ref(UnaryExpression)
     ref(ValueExpression)
     ref(ParanthesisedExpression)
     ref(ExecutionAbortingExpression)
@@ -81,21 +79,57 @@ private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without p
 }
     .astTransformation { tokens -> tokens.next() as AstExpression }
 
-val Expression: Rule<AstExpression> = sequence("expression") {
+private val PrefixOperator = eitherOf("prefix operator") {
+    operator(Operator.MINUS)
+    keyword(Keyword.NOT)
+    // There is no unary plus because it is a noop on all builtin types. Allowing overloading wiht a non-noop behavior
+    // would just cause confusion
+}
+    .astTransformation { tokens ->
+        when (val operatorToken = tokens.next()!!) {
+            is OperatorToken -> AstSemanticOperator(operatorToken)
+            is KeywordToken -> AstSemanticOperator(operatorToken)
+            else -> throw InternalCompilerError("Unsupported prefix operator token type $operatorToken")
+        }
+    }
+
+private val ExpressionOperand = sequence("operand") {
+    repeating {
+        ref(PrefixOperator)
+    }
     ref(ExpressionBase)
     repeating {
         ref(ExpressionPostfix)
     }
 }
-    .astTransformation(false, ::astTransformOneExpressionWithOptionalPostfixes)
+    .astTransformation { tokens ->
+        val prefixOperators = ArrayList<AstSemanticOperator>()
+        while (tokens.peek() is AstSemanticOperator) {
+            prefixOperators.add(tokens.next() as AstSemanticOperator)
+        }
+        var operand = tokens.next() as AstExpression
+        while (tokens.hasNext()) {
+            operand = (tokens.next() as ExpressionPostfix<*>).modify(operand)
+        }
+        PrefixedOperand(prefixOperators, operand)
+    }
 
-val ExpressionExcludingBinaryPostfix = sequence("expression (excluding binary expressions)") {
-    ref(ExpressionBase)
+val Expression: Rule<AstExpression> = sequence("expression") {
+    ref(ExpressionOperand)
     repeating {
-        ref(ExpressionPostfixExcludingBinary)
+        ref(BinaryOperator)
+        ref(ExpressionOperand)
     }
 }
-    .astTransformation(false, ::astTransformOneExpressionWithOptionalPostfixes)
+    .astTransformation { tokens ->
+        val operands = arrayListOf(tokens.next() as PrefixedOperand)
+        val infixOperators = ArrayList<AstSemanticOperator>()
+        while (tokens.hasNext()) {
+            infixOperators.add(tokens.next() as AstSemanticOperator)
+            operands.add(tokens.next() as PrefixedOperand)
+        }
+        OperatorExpressionBuilder.buildOperatorExpression(operands, infixOperators)
+    }
 
 val StringLiteralExpression = sequence("string literal") {
     operator(Operator.STRING_DELIMITER)
@@ -205,26 +239,6 @@ val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expre
         val nested = tokens.next()!! as AstExpression
 
         ParenthesisedExpression(nested, parantOpen.span)
-    }
-
-val UnaryExpression = sequence("unary expression") {
-    eitherOf {
-        operator(Operator.MINUS)
-        keyword(Keyword.NOT)
-    }
-    // There is no unary plus because it is a noop on all builtin types. Allowing overloading wiht a non-noop behavior
-    // would just cause confusion
-
-    ref(Expression)
-}
-    .astTransformation { tokens ->
-        val operator = when(val operatorToken = tokens.next()!!) {
-            is OperatorToken -> AstSemanticOperator(operatorToken)
-            is KeywordToken -> AstSemanticOperator(operatorToken)
-            else -> throw InternalCompilerError("Unsupported unary operator token type $operatorToken")
-        }
-        val expression = tokens.next()!! as AstExpression
-        UnaryExpression(operator, expression)
     }
 
 val ExecutionAbortingExpression = eitherOf {
@@ -498,15 +512,7 @@ val BinaryOperator = eitherOf {
         }
     }
 
-val ExpressionPostfixBinaryOperation = sequence("binary expression") {
-    ref(BinaryOperator)
-    ref(ExpressionExcludingBinaryPostfix)
-}
-    .astTransformation { tokens ->
-        BinaryExpressionPostfix(tokens.remainingToList())
-    }
-
-val ExpressionPostfixExcludingBinary = eitherOf {
+val ExpressionPostfix = eitherOf {
     ref(ExpressionPostfixNotNull)
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
@@ -514,32 +520,4 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixCast)
     ref(ExpressionPostfixInstanceOf)
 }
-
-val ExpressionPostfix = eitherOf {
-    ref(ExpressionPostfixExcludingBinary)
-    ref(ExpressionPostfixBinaryOperation)
-}
     .mapResult { it as ExpressionPostfix<AstExpression> }
-
-private fun astTransformOneExpressionWithOptionalPostfixes(tokens: TransactionalSequence<Any, *>): AstExpression {
-    var expression = tokens.next()!! as AstExpression
-
-    // we have to find runs of BinaryOperationPostfix to correctly account for operator precedence
-    tokens@while (tokens.hasNext()) {
-        val postfix = tokens.next() as ExpressionPostfix<*>
-        if (postfix !is BinaryExpressionPostfix) {
-            expression = postfix.modify(expression)
-            continue@tokens
-        }
-
-        val binaryPostfixes = ArrayList<BinaryExpressionPostfix>()
-        binaryPostfixes.add(postfix)
-        while (tokens.peek() is BinaryExpressionPostfix) {
-            binaryPostfixes.add(tokens.next() as BinaryExpressionPostfix)
-        }
-
-        expression = BinaryExpressionPostfix.buildBinaryExpression(expression, binaryPostfixes)
-    }
-
-    return expression
-}
