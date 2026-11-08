@@ -1,12 +1,11 @@
 package compiler.compiler.binding
 
 import compiler.compiler.negative.moduleBackendIrAssumingNoErrors
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -30,6 +29,18 @@ class ReificationIrTests : FreeSpec({
     """.trimIndent()).moduleBackendIrAssumingNoErrors()
     val pkg = module.packages.single()
     val classC = pkg.classes.single { it.canonicalName.simpleName == "C" }
+
+    "typeOf is an ordinary generic function" {
+        validateModule("""
+            import emerge.core.reflection.typeOf
+            import emerge.core.reflection.Type
+            fn concrete() -> const Type = typeOf::<Array<S32?>>()
+            fn generic<T>() -> const Type = typeOf::<T>()
+            fn asIdentifier() {
+                typeOf = typeOf::<S32>()
+            }
+        """.trimIndent()).shouldHaveNoDiagnostics()
+    }
 
     "a plain reference to a type parameter keeps the nullability of the type argument, `T?` overrides it" {
         val f = pkg.functions.single { it.canonicalName.simpleName == "f" }.overloads.single()

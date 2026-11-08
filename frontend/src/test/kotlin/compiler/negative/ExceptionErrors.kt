@@ -43,6 +43,26 @@ class ExceptionErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
+
+            "as the argument of a nothrow invocation" {
+                validateModule("""
+                    intrinsic fn dangerous() -> S32
+                    nothrow fn id(x: S32) -> S32 = x
+                    nothrow fn safe() -> S32 = id(dangerous())
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "as the receiver of a nothrow invocation" {
+                validateModule("""
+                    class Holder {
+                        export nothrow fn value(self) -> S32 = 1
+                    }
+                    intrinsic fn dangerous() -> Holder
+                    nothrow fn safe() -> S32 = dangerous().value()
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
         }
 
         "not-null assertion" - {
