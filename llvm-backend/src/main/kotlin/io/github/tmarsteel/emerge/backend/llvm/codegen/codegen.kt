@@ -120,8 +120,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sWord
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.uWord
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sliceBase
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.uWord
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReferenceToAnyValue
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
@@ -785,7 +785,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     LlvmIntPredicate.UNSIGNED_LESS_THAN
                 }
                 IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL -> if (isSigned) {
-                    LlvmIntPredicate.SIGNED_LESS_THAN
+                    LlvmIntPredicate.SIGNED_LESS_THAN_OR_EQUAL
                 } else {
                     LlvmIntPredicate.UNSIGNED_LESS_THAN_OR_EQUAL
                 }
