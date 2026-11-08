@@ -461,6 +461,8 @@ class BoundInvocationExpression(
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
+        receiverExpression?.setNothrow(boundary)
+        valueArguments.forEach { it.setNothrow(boundary) }
     }
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
