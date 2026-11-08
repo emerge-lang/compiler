@@ -23,13 +23,17 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
-import compiler.lexer.NumericLiteralToken
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ErroneousLiteralExpressionDiagnostic
+import compiler.lexer.NumericLiteralToken
+import compiler.lexer.OperatorToken
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expression {
+class NumericLiteralExpression(
+    val literalToken: NumericLiteralToken,
+    val minusToken: OperatorToken? = null,
+) : Expression {
 
     /** integer value of this expression, if integer */
     private var integerValue: BigInteger? = null
@@ -43,7 +47,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     /** Cached validation result; numeric literals are the same in every context */
     private var validationResult: Collection<Diagnostic>? = null
 
-    override val span = literalToken.span
+    override val span = minusToken?.let { it.span .. literalToken.span } ?: literalToken.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundNumericLiteral {
         validateAndInitialize()
@@ -173,7 +177,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             return
         }
 
-        floatingValue = BigDecimal(str)
+        floatingValue = BigDecimal(str).let { if (minusToken != null) it.negate() else it }
         validationResult = emptySet()
     }
 
@@ -201,7 +205,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             allowedChars = ('0'..'9').toList()
         }
 
-        val unallowed = str.minus(allowedChars + listOf('-'))
+        val unallowed = str.minus(allowedChars)
         if (unallowed.isNotEmpty()) {
             validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Integer literal contains unallowed characters: ${unallowed.unique()}",
@@ -210,7 +214,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             return
         }
 
-        integerValue = BigInteger(str, integerBase.toInt())
+        integerValue = BigInteger(str, integerBase.toInt()).let { if (minusToken != null) it.negate() else it }
         validationResult = emptySet()
     }
 }

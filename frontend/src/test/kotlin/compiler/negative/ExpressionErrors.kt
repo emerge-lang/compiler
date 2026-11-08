@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.ast.VariableDeclaration
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.diagnostic.ImplicitlyEvaluatedStatementDiagnostic
+import compiler.diagnostic.PrefixOperatorNeedsParenthesesDiagnostic
 import compiler.diagnostic.UnsafeObjectTraversalDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -61,6 +62,53 @@ class ExpressionErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<ImplicitlyEvaluatedStatementDiagnostic>()
+        }
+    }
+
+    "operator precedence" - {
+        "prefix operator weaker than enclosing infix operator" {
+            validateModule("""
+                fn foo(a: Bool, b: Bool) -> Bool {
+                    return a == not b
+                }
+            """.trimIndent())
+                .shouldFind<PrefixOperatorNeedsParenthesesDiagnostic> {
+                    it.enclosingOperator.name shouldBe "=="
+                }
+        }
+
+        "prefix operator weaker than enclosing prefix operator" {
+            validateModule("""
+                fn foo(x: S32) -> S32 {
+                    return - not x
+                }
+            """.trimIndent())
+                .shouldFind<PrefixOperatorNeedsParenthesesDiagnostic> {
+                    it.enclosingOperator.name shouldBe "-"
+                }
+        }
+
+        "parenthesised and naturally grouped prefix operators are fine" {
+            validateModule("""
+                fn foo(a: Bool, b: Bool, x: S32, y: S32) -> Bool {
+                    v1 = x == (not y)
+                    v2 = not x == y
+                    v3 = a and not b
+                    v4 = -(not x)
+                    v5 = -x * 2 + 20
+                    return v1 and v2 and v3
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "xor" {
+            validateModule("""
+                fn foo(a: Bool, b: Bool, c: Bool) -> Bool {
+                    return a xor b and c
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 })

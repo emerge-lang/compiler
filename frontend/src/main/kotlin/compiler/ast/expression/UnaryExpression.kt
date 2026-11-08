@@ -36,8 +36,10 @@ private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
 class UnaryExpression(
     val operator: AstSemanticOperator,
     val valueExpression: Expression,
+    /** set if [operator] binds weaker than this operator directly enclosing it, see [compiler.diagnostic.PrefixOperatorNeedsParenthesesDiagnostic] */
+    val weakerThanEnclosingOperator: AstSemanticOperator? = null,
 ):Expression {
-    override val span = valueExpression.span
+    override val span = operator.token.span .. valueExpression.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundUnaryExpression {
         val functionName = OPERATOR_FUNCTION_NAME_MAPPING[operator.operatorElement]

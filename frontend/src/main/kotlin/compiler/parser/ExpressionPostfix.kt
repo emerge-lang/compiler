@@ -3,10 +3,23 @@ package compiler.parser
 import compiler.InternalCompilerError
 import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
-import compiler.ast.expression.*
+import compiler.ast.expression.AstCastExpression
+import compiler.ast.expression.AstIndexAccessExpression
+import compiler.ast.expression.AstInstanceOfExpression
+import compiler.ast.expression.AstRangeExpression
+import compiler.ast.expression.BinaryExpression
+import compiler.ast.expression.InvocationExpression
+import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.expression.NotNullExpression
+import compiler.ast.expression.NumericLiteralExpression
+import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 
 /**
  * Given the expression itself, it returns a new expression that contains the information about the postfix.
@@ -72,41 +85,87 @@ class InstanceOfExpressionPostfix(
     }
 }
 
-class BinaryExpressionPostfix(
-    val operatorsOrExpressions: List<OperatorOrExpression>,
-) : ExpressionPostfix<Expression> {
-    override fun modify(expr: Expression): Expression {
-        throw UnsupportedOperationException("Use ${Companion::buildBinaryExpression} instead")
+
+class PrefixedOperand(
+    val prefixOperators: List<AstSemanticOperator>,
+    val operand: Expression,
+)
+
+class OperatorExpressionBuilder private constructor(
+    private val operands: List<PrefixedOperand>,
+    private val infixOperators: List<AstSemanticOperator>,
+) {
+    private var operandIndex = 0
+    private var prefixIndex = 0
+    private var infixIndex = 0
+
+    private fun parseExpression(enclosingOperator: AstSemanticOperator?, enclosingPower: Int): Expression {
+        var expression = parseOperand(enclosingOperator, enclosingPower)
+        while (infixIndex < infixOperators.size) {
+            val operator = infixOperators[infixIndex]
+            val power = operator.infixPower
+            if (power <= enclosingPower) {
+                break
+            }
+            infixIndex++
+            val rightHandSide = parseExpression(operator, power)
+            expression = if (operator.operatorElement == Operator.RANGE_UNTIL) {
+                AstRangeExpression(expression, operator, rightHandSide)
+            } else {
+                BinaryExpression(expression, operator, rightHandSide)
+            }
+        }
+
+        return expression
+    }
+
+    private fun parseOperand(enclosingOperator: AstSemanticOperator?, enclosingPower: Int): Expression {
+        val unit = operands[operandIndex]
+        if (prefixIndex < unit.prefixOperators.size) {
+            val operator = unit.prefixOperators[prefixIndex++]
+            val power = operator.prefixPower
+            val valueExpression = parseExpression(operator, power)
+            val weakerThanEnclosing = enclosingOperator?.takeIf { power < enclosingPower }
+            if (operator.operatorElement == Operator.MINUS && valueExpression is NumericLiteralExpression && valueExpression.minusToken == null) {
+                return NumericLiteralExpression(valueExpression.literalToken, operator.token as OperatorToken)
+            }
+            return UnaryExpression(operator, valueExpression, weakerThanEnclosing)
+        }
+
+        operandIndex++
+        prefixIndex = 0
+        return unit.operand
     }
 
     companion object {
-        fun buildBinaryExpression(first: Expression, postfixes: List<BinaryExpressionPostfix>): Expression {
-            val operatorsOrExprs = ArrayList<OperatorOrExpression>(1 + postfixes.sumOf { it.operatorsOrExpressions.size })
-            operatorsOrExprs.add(first)
-            postfixes.forEach {
-                it.operatorsOrExpressions.forEach { opOrExpr ->
-                    operatorsOrExprs.add(opOrExpr)
-                }
-            }
-
-            return buildBinaryExpressionAst(operatorsOrExprs)
+        /**
+         * Builds the AST of `operands[0] infixOperators[0] operands[1] infixOperators[1] ...` by precedence climbing,
+         * using [infixPower] and [prefixPower]. All infix operators are left-associative.
+         *
+         * A prefix operator that binds weaker than the operator directly enclosing it (e.g. `a == not b`) still gets
+         * its operand greedily, but the resulting [UnaryExpression] is marked so that semantic analysis reports it.
+         * A unary minus directly applied to a numeric literal is folded into a negative literal, so that e.g. `-128`
+         * fits `S8`.
+         */
+        fun buildOperatorExpression(operands: List<PrefixedOperand>, infixOperators: List<AstSemanticOperator>): Expression {
+            require(operands.size == infixOperators.size + 1)
+            return OperatorExpressionBuilder(operands, infixOperators).parseExpression(null, 0)
         }
     }
 }
-
-private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = AstSemanticOperator | Expression
 
 /**
  * Operator priority/precedence. The higher the priority, the more aggressively the operator
  * binds to terms around it. `*` and `/` have a higher priority than `+` or `-`, as per
  * the rules of mathematics.
  */
-private val AstSemanticOperator.priority: Int
+private val AstSemanticOperator.infixPower: Int
     get() = when(operatorElement) {
         Operator.NULL_COALESCE -> 10
 
-        Keyword.AND -> 20
-        Keyword.OR -> 21
+        Keyword.OR -> 20
+        Keyword.XOR -> 21
+        Keyword.AND -> 22
 
         Operator.LESS_THAN,
         Operator.LESS_THAN_OR_EQUALS,
@@ -125,65 +184,10 @@ private val AstSemanticOperator.priority: Int
         else -> throw InternalCompilerError("$this is not a binary operator")
     }
 
-/**
- * Takes as input a list of alternating [Expression]s and [OperatorToken]s, e.g.:
- *     [Identifier(a), Operator(+), Identifier(b), Operator(*), Identifier(c)]
- * Builds the AST with respect to operator precedence defined in [Operator.priority]
- *
- * **Operator Precedence**
- *
- * Consider this input: `a * (b + c) + e * f + g`
- * Of those operators with the lowest precedence the rightmost will form the toplevel expression (the one
- * returned from this function). In this case it's the second `+`:
- *
- *                                   +
- *                                  / \
- *      [a, *, (b + c), +, e, *, f]    g
- *
- * This process is then recursively repeated for both sides of the node:
- *
- *                        +
- *                       / \
- *                      +   g
- *                     / \
- *     [a, *, (b + c)]    [e, *, f]
- *
- *     ---
- *               +
- *              / \
- *             +   g
- *            / \
- *           /   *
- *          /   / \
- *         *   e   f
- *        / \
- *       a  (b + c)
- */
-private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>): Expression {
-    if (rawExpression.size == 1) {
-        return rawExpression[0] as? Expression
-            ?: throw InternalCompilerError("List with one item that is not an expression.. bug!")
+/** Like [infixPower]; the operand of a prefix operator extends over all infix operators with a higher power. */
+private val AstSemanticOperator.prefixPower: Int
+    get() = when(operatorElement) {
+        Keyword.NOT -> 25
+        Operator.MINUS -> 60
+        else -> throw InternalCompilerError("$this is not a prefix operator")
     }
-
-    @Suppress("UNCHECKED_CAST") // the type check is in the filter {}
-    val operatorsWithIndex = rawExpression
-        .mapIndexed { index, item -> Pair(index, item) }
-        .filter { it.second is AstSemanticOperator } as List<Pair<Int, AstSemanticOperator>>
-
-    val rightmostWithLeastPriority = operatorsWithIndex
-        .reversed()
-        .minByOrNull { it.second.priority }
-        ?: throw InternalCompilerError("No operator in the list... how can this even be?")
-
-    val leftOfOperator = rawExpression.subList(0, rightmostWithLeastPriority.first)
-    val rightOfOperator = rawExpression.subList(rightmostWithLeastPriority.first + 1, rawExpression.size)
-
-    val leftHandSide = buildBinaryExpressionAst(leftOfOperator)
-    val operator = rightmostWithLeastPriority.second
-    val rightHandSide = buildBinaryExpressionAst(rightOfOperator)
-    if (operator.operatorElement == Operator.RANGE_UNTIL) {
-        return AstRangeExpression(leftHandSide, operator, rightHandSide)
-    }
-
-    return BinaryExpression(leftHandSide, operator, rightHandSide)
-}

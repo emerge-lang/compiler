@@ -51,4 +51,34 @@ class LiteralErrors : FreeSpec({
                 }
         }
     }
+
+    "negative literals" - {
+        "fitting S8" {
+            validateModule("""
+                a: S8 = -128
+                b: S8 = -0x80
+                c: S32 = 3-1
+                d: F32 = -1.5
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "out of range for S8" {
+            validateModule("""
+                x: S8 = -129
+            """.trimIndent())
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
+                    it.expectedType shouldBe s8
+                }
+        }
+
+        "parenthesised literal is not folded" {
+            validateModule("""
+                x: S8 = -(128)
+            """.trimIndent())
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
+                    it.expectedType shouldBe s8
+                }
+        }
+    }
 })
