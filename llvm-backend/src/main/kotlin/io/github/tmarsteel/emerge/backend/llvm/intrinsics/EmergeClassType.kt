@@ -3,21 +3,24 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
-import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
-import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
+import io.github.tmarsteel.emerge.backend.llvm.Mangler
+import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
+import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
@@ -34,6 +37,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -44,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -84,7 +89,8 @@ internal class EmergeClassType private constructor(
             return@lazy StaticAndDynamicTypeInfo.define(
                 { ctx -> ctx.rawArrayClazz.canonicalName.toString() },
                 context.rawArrayClazz.allDistinctSupertypesExceptAny,
-                { _ -> destructor },
+                finalizerFunction = { _ -> destructor },
+                runtimeTypeGetter = { context -> context.registerIntrinsic(arrayRuntimeTypeGetter) },
                 virtualFunctions = {
                     rawArrayClazz.memberFunctions
                         .asSequence()
@@ -103,7 +109,8 @@ internal class EmergeClassType private constructor(
         StaticAndDynamicTypeInfo.define(
             { _ -> reflectedBaseType.canonicalName.toString() },
             irClass.allDistinctSupertypesExceptAny,
-            { _ -> destructor },
+            runtimeTypeGetter = { context -> buildRuntimeTypeGetter(context, this@EmergeClassType, irClass) },
+            finalizerFunction = { _ -> destructor },
             virtualFunctions = {
                 irClass.memberFunctions
                     .asSequence()
@@ -316,6 +323,53 @@ internal class EmergeClassType private constructor(
 
             check(field in this@member.pointeeType.irClass.fields)
             return stepUnsafe(builder.context.s32(field.indexInLlvmStruct!!), builder.context.getReferenceSiteType(field.type))
+        }
+
+        private fun buildRuntimeTypeGetter(
+            context: EmergeLlvmContext,
+            llvmSelfType: EmergeClassType,
+            irClass: IrClass
+        ): LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> {
+            val irFnForMangler = object : IrMemberFunction {
+                override val overrides = emptySet<IrMemberFunction>()
+                override val supportsDynamicDispatch = false
+                override val ownerBaseType = irClass
+                override val canonicalName = CanonicalElementName.Function(
+                    irClass.canonicalName,
+                    "__runtime_type",
+                )
+                override val parameters = emptyList<IrVariableDeclaration>()
+                override val declaresReceiver = true
+                override val returnType = IrSimpleTypeImpl(context.reifiedNamedTypeClass.irClass, IrTypeMutability.IMMUTABLE, false)
+                override val isNothrow = false
+                override val isExternalC = false
+                override val typeParameters = emptyList<IrBaseType.Parameter>()
+                override val body = null
+                override val declaredAt = irClass.declaredAt
+            }
+
+            val template = KotlinLlvmFunction.define(
+                Mangler.computeMangledNameFor(irFnForMangler),
+                EmergeFallibleCallResult.ofEmergeReference,
+            ) {
+                val self by param(pointerTo(llvmSelfType))
+
+                body {
+                    val selfTypeInfo = self.anyValueBase().member { typeinfo }.get().dereference("typeinfo")
+                    val typeArguments = irClass.parameters.mapIndexed { index, parameter ->
+                        val field = irClass.typeParameterFields.getValue(parameter)
+                        Pair(
+                            IrTypeVariance.INVARIANT,
+                            getelementptr(self).member(field).get().dereference("ta$index").reinterpretAs(PointerToReifiedType),
+                        )
+                    }
+                    ret(fallibleSuccess(newNamedType(selfTypeInfo, false, typeArguments)))
+                }
+            }
+
+            val declared = template.declareInContext(context)
+            declared.defineBody()
+            return declared.function
         }
     }
 }

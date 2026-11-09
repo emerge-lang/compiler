@@ -33,63 +33,63 @@ object LlvmF64Type : LlvmCachedType() {
     }
 }
 
-fun LlvmContext.i1(value: Boolean): LlvmValue<LlvmBooleanType> {
+fun LlvmContext.i1(value: Boolean): LlvmConstant<LlvmBooleanType> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmBooleanType.getRawInContext(this), if (value) 1 else 0, 0),
         LlvmBooleanType,
     )
 }
 
-fun LlvmContext.s8(value: Byte): LlvmValue<LlvmS8Type> {
+fun LlvmContext.s8(value: Byte): LlvmConstant<LlvmS8Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmS8Type.getRawInContext(this), value.toLong(), 0),
         LlvmS8Type,
     )
 }
 
-fun LlvmContext.u8(value: UByte): LlvmValue<LlvmU8Type> {
+fun LlvmContext.u8(value: UByte): LlvmConstant<LlvmU8Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmU8Type.getRawInContext(this), value.toLong(), 0),
         LlvmU8Type,
     )
 }
 
-fun LlvmContext.s16(value: Short): LlvmValue<LlvmS16Type> {
+fun LlvmContext.s16(value: Short): LlvmConstant<LlvmS16Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmS16Type.getRawInContext(this), value.toLong(), 0),
         LlvmS16Type,
     )
 }
 
-fun LlvmContext.u16(value: UShort): LlvmValue<LlvmU16Type> {
+fun LlvmContext.u16(value: UShort): LlvmConstant<LlvmU16Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmU16Type.getRawInContext(this), value.toLong(), 0),
         LlvmU16Type,
     )
 }
 
-fun LlvmContext.s32(value: Int): LlvmValue<LlvmS32Type> {
+fun LlvmContext.s32(value: Int): LlvmConstant<LlvmS32Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmS32Type.getRawInContext(this), value.toLong(), 0),
         LlvmS32Type,
     )
 }
 
-fun LlvmContext.u32(value: UInt): LlvmValue<LlvmU32Type> {
+fun LlvmContext.u32(value: UInt): LlvmConstant<LlvmU32Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmU32Type.getRawInContext(this), value.toLong(), 0),
         LlvmU32Type,
     )
 }
 
-fun LlvmContext.s64(value: Long): LlvmValue<LlvmS64Type> {
+fun LlvmContext.s64(value: Long): LlvmConstant<LlvmS64Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmS64Type.getRawInContext(this), value, 0),
         LlvmS64Type,
     )
 }
 
-fun LlvmContext.u64(value: ULong): LlvmValue<LlvmU64Type> {
+fun LlvmContext.u64(value: ULong): LlvmConstant<LlvmU64Type> {
     return LlvmConstant(
         Llvm.LLVMConstInt(LlvmU64Type.getRawInContext(this), value.toLong(), 0),
         LlvmU64Type,

@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
+import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -28,19 +29,18 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
-import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u8
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -195,7 +195,7 @@ private fun EmergeLlvmContext.buildStaticNamedType(
         val argumentClazz = reifiedTypeArgumentClass
         val constant = argumentClazz.buildStaticConstant(mapOf(
             argumentClazz.irClass.fieldOfMemberVariable("variance") to u8(argument.variance.runtimeCode).asConstant(),
-            argumentClazz.irClass.fieldOfMemberVariable("type") to staticReifiedType(argument.type),
+            argumentClazz.irClass.fieldOfMemberVariable("value") to staticReifiedType(argument.type),
         ))
         addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     }
@@ -325,27 +325,17 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
             }
             is IrParameterizedType -> {
                 val base = type.simpleType.baseType
-                val argumentObjects = base.parameters.map { parameter ->
+                val arguments = base.parameters.map { parameter ->
                     val argument = type.arguments.getValue(parameter.name)
-                    val argumentType = lowerReifiedType(argument.type)
-                    val argumentObject = call(
-                        context.reifiedTypeArgumentClass.constructor,
-                        listOf(context.u8(argument.variance.runtimeCode), argumentType),
-                    ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
-                    argumentType.afterReferenceDropped(isNullable = false)
-                    argumentObject
+                    Pair(argument.variance, lowerReifiedType(argument.type))
                 }
-                val argumentsArray = newReferenceArrayOf(argumentObjects, IrSimpleTypeImpl(context.reifiedTypeArgumentClass.irClass, IrTypeMutability.IMMUTABLE, false))
-                val namedType = call(
-                    context.reifiedNamedTypeClass.constructor,
-                    listOf(
-                        context.typeinfoPointerOf(base).reinterpretAs(pointerTo(TypeinfoType.GENERIC)),
-                        context.i1(type.isNullable),
-                        buildArraySliceOfEntireArray(argumentsArray),
-                    ),
-                ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
-                argumentsArray.afterReferenceDropped(isNullable = false)
-                namedType.reinterpretAs(PointerToReifiedType)
+                val namedType = newNamedType(
+                    context.typeinfoPointerOf(base).reinterpretAs(pointerTo(TypeinfoType.GENERIC)),
+                    type.isNullable,
+                    arguments,
+                )
+                arguments.forEach { (_, argumentType) -> argumentType.afterReferenceDropped(isNullable = false) }
+                namedType
             }
             is IrIntersectionType -> {
                 val componentObjects = type.components.map { lowerReifiedType(it) }
@@ -360,6 +350,37 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
             }
             is IrSimpleType -> throw CodeGenerationException("unreachable, simple types don't mention type parameters")
         }
+    }
+}
+
+/**
+ * @param arguments the types are borrowed
+ * @return a new `emerge.core.reflection.NamedType`, a reference owned by the caller
+ */
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+internal fun newNamedType(
+    baseType: LlvmValue<LlvmPointerType<TypeinfoType>>,
+    nullable: Boolean,
+    arguments: List<Pair<IrTypeVariance, ReifiedTypeValue>>,
+): ReifiedTypeValue {
+    with(builder) {
+        val argumentObjects = arguments.map { (variance, type) ->
+            call(
+                context.reifiedTypeArgumentClass.constructor,
+                listOf(context.u8(variance.runtimeCode), type),
+            ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+        }
+        val argumentsArray = newReferenceArrayOf(argumentObjects, IrSimpleTypeImpl(context.reifiedTypeArgumentClass.irClass, IrTypeMutability.IMMUTABLE, false))
+        val namedType = call(
+            context.reifiedNamedTypeClass.constructor,
+            listOf(
+                baseType,
+                context.i1(nullable),
+                buildArraySliceOfEntireArray(argumentsArray),
+            ),
+        ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+        argumentsArray.afterReferenceDropped(isNullable = false)
+        return namedType.reinterpretAs(PointerToReifiedType)
     }
 }
 

@@ -2,10 +2,10 @@ package emerge.std.coresupport
 
 import emerge.core.unwind.StackTraceElement
 import emerge.std.io.PrintStream
-import emerge.core.reflection.reflectType
+import emerge.core.reflection.type
 
 export fn printTo(self: Throwable, borrow target: mut PrintStream) {
-    target.put(self.reflectType().canonicalName)
+    target.put(self.type.baseType.canonicalName)
     target.put(": ")
     target.put(self.message ?: "<no message>")
     target.putEndOfLine()

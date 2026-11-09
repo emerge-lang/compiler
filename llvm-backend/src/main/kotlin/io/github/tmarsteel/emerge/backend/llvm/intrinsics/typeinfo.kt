@@ -29,8 +29,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
@@ -154,6 +152,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val canonicalNameGetter: (EmergeLlvmContext) -> String,
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
+        val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
         val arrayElementLayoutKind: ArrayElementLayoutKind,
     ) : Provider {
@@ -208,6 +207,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.supertypes, supertypesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
+                    setValue(EmergeAnyValueVirtualsType.runtimeTypeGetterFunction, runtimeTypeGetter(context).address)
                 })
                 setNull(typeinfoType.dynamicTypeInfoPtr)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
@@ -219,6 +219,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.supertypes, supertypesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
+                    setValue(EmergeAnyValueVirtualsType.runtimeTypeGetterFunction, runtimeTypeGetter(context).address)
                 })
                 setValue(typeinfoType.dynamicTypeInfoPtr, dynamicGlobal)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
@@ -234,12 +235,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
+            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
             arrayElementLayoutKind: ArrayElementLayoutKind = ArrayElementLayoutKind.REFERENCE,
         ): Provider = ProviderImpl(
             typeName,
             supertypes,
             finalizerFunction,
+            runtimeTypeGetter,
             virtualFunctions,
             arrayElementLayoutKind,
         )
@@ -248,12 +251,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
+            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
             arrayElementLayoutKind: ArrayElementLayoutKind,
         ): Provider = ProviderImpl(
             typeName,
             supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
             finalizerFunction,
+            runtimeTypeGetter,
             virtualFunctions,
             arrayElementLayoutKind,
         )

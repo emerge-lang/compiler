@@ -1,7 +1,6 @@
 package emerge.core
 
 import emerge.core.range.Iterable
-import emerge.core.reflection.reflectType
 import emerge.core.unwind.collectStackTrace
 import emerge.core.unwind.StackTraceElement
 

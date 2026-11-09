@@ -2,8 +2,8 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -39,7 +39,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.UnsignedWordAddWithOverflow
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
@@ -50,6 +49,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 
 internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
@@ -218,6 +218,11 @@ internal class EmergeArrayType<Element : LlvmType>(
     val rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 
     /**
+     * implementation for `emerge.core.reflection.type`
+     */
+    private val runtimeTypeGetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
+
+    /**
      * the finalizer for this array type
      */
     private val finalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
@@ -262,6 +267,7 @@ internal class EmergeArrayType<Element : LlvmType>(
         { _ -> name },
         emptyList(),
         { ctx -> ctx.registerIntrinsic(finalizer) },
+        { ctx -> ctx.registerIntrinsic(runtimeTypeGetter) },
         { mapOf(
             VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE to registerIntrinsic(virtualGetterWithFallibleBoundsCheck),
             VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC    to registerIntrinsic(virtualGetterWithPanicBoundsCheck),
@@ -820,6 +826,7 @@ internal fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithFallibleBoundsCheck,
         rawSetterWithPanicBoundsCheck,
         rawSetterWithoutBoundsCheck,
+        rawArrayObjectRuntimeTypeGetter,
         valueArrayDestructor,
         defaultValueCtor,
         defaultValueCtorFromBoxed,
@@ -902,6 +909,30 @@ val EmergeS64ArrayCopyFn = buildValueArrayCopy(LlvmS64Type) { EmergeS64ArrayType
 val EmergeU64ArrayCopyFn = buildValueArrayCopy(LlvmU64Type) { EmergeU64ArrayType }
 val EmergeSWordArrayCopyFn = buildValueArrayCopy(EmergeSWordType) { EmergeSWordArrayType }
 val EmergeUWordArrayCopyFn = buildValueArrayCopy(EmergeUWordType) { EmergeUWordArrayType }
+
+internal val arrayRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.Array::__runtime_type",
+    EmergeFallibleCallResult.ofEmergeReference,
+) {
+    val self by param(PointerToAnyEmergeValue)
+
+    body {
+        val selfTypeInfo = self.anyValueBase().member { typeinfo }.get().dereference()
+        val arrayObject = pointerToBoxedSliceBase(self).dereference().reinterpretAs(pointerTo(EmergeArrayBaseType))
+        val elementType = getelementptr(arrayObject).member { elementType }.get().dereference()
+        ret(fallibleSuccess(newNamedType(selfTypeInfo, false, listOf(Pair(IrTypeVariance.INVARIANT, elementType)))))
+    }
+}
+
+private val rawArrayObjectRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.rawArrayObject_getRuntimeType",
+    EmergeFallibleCallResult.ofEmergeReference,
+) {
+    val self by param(PointerToAnyEmergeValue)
+    body {
+        inlinePanic("runtime type getter called on a raw array object")
+    }
+}
 
 private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_get_noBoundsCheck",
@@ -1059,6 +1090,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         rawSetterWithFallibleBoundsCheck = referenceArrayElementSetterFallibleBoundsCheck,
         rawSetterWithPanicBoundsCheck = referenceArrayElementSetterPanicBoundsCheck,
         rawSetterWithoutBoundsCheck = referenceArrayElementSetterNoBoundsCheck,
+        runtimeTypeGetter = rawArrayObjectRuntimeTypeGetter,
         finalizer = referenceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
         // the elements are the boxes
@@ -1287,6 +1319,7 @@ internal val EmergeSliceArrayType: EmergeArrayType<EmergeArraySliceType> by lazy
         rawSetterWithFallibleBoundsCheck = setterFallible,
         rawSetterWithPanicBoundsCheck = setterPanic,
         rawSetterWithoutBoundsCheck = sliceArrayElementSetterNoBoundsCheck,
+        runtimeTypeGetter = rawArrayObjectRuntimeTypeGetter,
         finalizer = sliceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
         defaultValueConstructorFromBoxed = defaultValueCtorFromBoxed,

@@ -114,8 +114,10 @@ internal fun LlvmContext.uWord(value: ULong): LlvmConstant<EmergeUWordType> {
 
 internal object EmergeAnyValueVirtualsType : LlvmNamedStructType("anyvalue_virtuals") {
     val finalizeFunction by structMember(LlvmFunctionAddressType)
+    val runtimeTypeGetterFunction by structMember(LlvmFunctionAddressType)
 
     val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue))
+    val runtimeTypeGetterFunctionType = LlvmFunctionType(EmergeFallibleCallResult.ofEmergeReference, listOf(PointerToAnyEmergeValue))
 }
 
 internal val PointerToAnyEmergeValue: LlvmPointerType<out EmergeHeapAllocated> by lazy { pointerTo(EmergeHeapAllocatedValueBaseType) }
@@ -377,8 +379,6 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
     }
 
     companion object {
-
-
         val ofEmergeReference: WithValue<LlvmPointerType<out EmergeHeapAllocated>>
             get() = WithValue.ofPointer
 

@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
-import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -14,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
+import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 
 /*
 An emerge.core.Weak referring to an array cannot refer to the emerge.platform.ArrayBox it receives: that box
@@ -33,10 +33,21 @@ private val weakArrayBoxFinalizer = KotlinLlvmFunction.define<EmergeLlvmContext,
     }
 }
 
+private val weakArrayBoxRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.weakArrayBox_getRuntimeType",
+    EmergeFallibleCallResult.ofEmergeReference,
+) {
+    val self by param(PointerToAnyEmergeValue)
+    body {
+        inlinePanic("weak array box runtime type getter called")
+    }
+}
+
 private val weakArrayBoxTypeinfo = StaticAndDynamicTypeInfo.defineRaw(
     { _ -> "emerge.platform.WeakArrayBox" },
     emptyList(),
     { ctx -> ctx.registerIntrinsic(weakArrayBoxFinalizer) },
+    { ctx -> ctx.registerIntrinsic(weakArrayBoxRuntimeTypeGetter) },
     { emptyMap() },
 )
 
@@ -64,7 +75,7 @@ private fun pointerToBoxedSlice(box: LlvmValue<LlvmPointerType<out EmergeHeapAll
 }
 
 context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
-private fun pointerToBoxedSliceBase(box: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>): LlvmValue<LlvmPointerType<LlvmPointerType<out EmergeHeapAllocated>>> {
+internal fun pointerToBoxedSliceBase(box: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>): LlvmValue<LlvmPointerType<LlvmPointerType<out EmergeHeapAllocated>>> {
     with(builder) {
         return getelementptr(pointerToBoxedSlice(box))
             .member { base }
