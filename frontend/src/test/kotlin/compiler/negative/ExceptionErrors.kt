@@ -63,6 +63,30 @@ class ExceptionErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
+
+            "as getter" {
+                validateModule("""
+                    class Foo {
+                        get fn bla(self) = 1
+                    }
+                    
+                    nothrow fn test(o: Foo) = o.bla
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "as setter" {
+                validateModule("""
+                    class Foo {
+                        set fn bla(self: mut _, v: S32) {}
+                    }
+                    
+                    nothrow fn test(o: mut Foo) {
+                        set o.bla = 4
+                    }
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
         }
 
         "not-null assertion" - {

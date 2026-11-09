@@ -177,6 +177,7 @@ class BoundMemberVariableReadExpression(
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         valueExpression.setNothrow(boundary)
+        getterInvocation.setNothrow(boundary)
     }
 
     private var usageContextSet = false
