@@ -34,7 +34,8 @@ export class NamedType : const Type {
     export override nothrow fn firstComponent(capture self) -> const NamedType = self
 
     export override fn toString(self) -> String {
-        var str = self.baseType.canonicalName
+        bt = self.baseType
+        var str = bt.canonicalName
 
         if self.arguments.size > 0 {
             set str = str + "<" + self.arguments[0].toString()
@@ -81,19 +82,19 @@ export class IntersectionType : const Type {
 export class TypeArgument : const Any {
     // one of VARIANCE_INVARIANT, VARIANCE_IN, VARIANCE_OUT
     export variance: U8 = init
-    export type: const Type = init
+    export value: const Type = init
 
     export fn toString(self) -> String {
         if self.variance == VARIANCE_INVARIANT {
-            return self.type.toString()
+            return self.value.toString()
         }
 
         if self.variance == VARIANCE_IN {
-            return "in " + self.type.toString()
+            return "in " + self.value.toString()
         }
 
         if self.variance == VARIANCE_OUT {
-            return "out " + self.type.toString()
+            return "out " + self.value.toString()
         }
 
         panic("invalid type argument")
@@ -136,3 +137,5 @@ export fn intersectionOf(capture components: const Array<const Type>) -> const T
 
     return IntersectionType(flat)
 }
+
+export intrinsic get fn type(self: Any) -> NamedType

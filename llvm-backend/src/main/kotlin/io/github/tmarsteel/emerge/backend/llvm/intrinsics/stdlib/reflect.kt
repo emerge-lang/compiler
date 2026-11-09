@@ -5,29 +5,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeAnyValueVirtualsType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToReifiedType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.common.EmergeConstants
-
-internal val anyReflect = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-    "emerge.core.reflection.reflectType",
-    pointerTo(TypeinfoType.GENERIC),
-) {
-    val self by param(PointerToAnyEmergeValue)
-
-    body {
-        ret(
-            self
-                .anyValueBase()
-                .member { typeinfo }
-                .get()
-                .dereference()
-        )
-    }
-}
 
 /**
  * `emerge.core.reflection.typeOf<T>()`: the only parameter is the hidden runtime type of `T`, see
@@ -42,6 +27,39 @@ internal val typeOfTypeArgument = KotlinLlvmFunction.define<EmergeLlvmContext, _
     body {
         type.afterReferenceCreated(isNullable = false)
         ret(type)
+    }
+}
+
+internal val reflectAnyTypeFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.core.reflection.type", EmergeFallibleCallResult.ofEmergeReference) {
+    val self by param(PointerToAnyEmergeValue)
+
+    body {
+        val typeInfo = self
+            .anyValueBase()
+            .member { typeinfo }
+            .get()
+            .dereference("typeinfo")
+        val typeGetter = getelementptr(typeInfo)
+            .member { anyValueVirtuals }
+            .member { runtimeTypeGetterFunction }
+            .get()
+            .dereference("typeGetter")
+
+        val type = call(typeGetter, EmergeAnyValueVirtualsType.runtimeTypeGetterFunctionType, listOf(self))
+        ret(type)
+    }
+}
+
+internal val reflectionBaseTypeFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.reflection.reflectionBaseType",
+    pointerTo(TypeinfoType.GENERIC),
+) {
+    val self by param(PointerToAnyEmergeValue)
+
+    body {
+        ret(
+            self.anyValueBase().member { typeinfo }.get().dereference("typeinfo")
+        )
     }
 }
 

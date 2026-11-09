@@ -51,6 +51,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
@@ -58,10 +59,11 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.addressOfBuiltin
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.anyReflect
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectAnyTypeFunction
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.safemathFns
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.typeOfTypeArgument
@@ -227,6 +229,10 @@ class EmergeLlvmContext(
     internal lateinit var pointerToUnitInstance: LlvmGlobal<EmergeClassType>
     /** `emerge.platform.StandardError` */
     internal lateinit var standardErrorStreamGlobalVar: IrGlobalVariable
+    /** an `emerge.core.reflection.Type` of itself */
+    internal val metaReifiedTypeGlobal: LlvmGlobal<EmergeClassType> by lazy {
+        addGlobal(undefValue(reifiedNamedTypeClass), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "meta_reified_type")
+    }
 
     private val emergeStructs = ArrayList<EmergeClassType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
@@ -625,6 +631,22 @@ class EmergeLlvmContext(
 
         Llvm.LLVMSetInitializer(pointerToUnitInstance.raw, unitType.buildStaticConstant(emptyMap()).raw)
 
+        val metaReifiedTypeArgs = addGlobal(
+            EmergeReferenceArrayType.buildConstantIn(
+            this,
+            emptyList<Nothing>(),
+            metaReifiedTypeGlobal,
+            { throw RuntimeException("unreachable") },
+            ),
+            LlvmThreadLocalMode.NOT_THREAD_LOCAL,
+            "meta_reified_type_args",
+        )
+        Llvm.LLVMSetInitializer(metaReifiedTypeGlobal.raw, reifiedNamedTypeClass.buildStaticConstant(mapOf(
+            reifiedNamedTypeClass.irClass.fieldOfMemberVariable("baseType") to reifiedNamedTypeClass.getTypeinfoInContext(this).static,
+            reifiedNamedTypeClass.irClass.fieldOfMemberVariable("nullable") to i1(false),
+            reifiedNamedTypeClass.irClass.fieldOfMemberVariable("arguments") to buildConstantSliceOf(metaReifiedTypeArgs, 0),
+        )).raw)
+
         // todo: move to llvm global_ctors
         // this doesn't work as of now because for some reason, llc doesn't emit them into the .init_array.X sections of the object file
         globalInitializerFn = KotlinLlvmFunction.define(
@@ -914,9 +936,11 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             panicOnThrowable,
             writeMemoryAddress,
             pureWrite,
-            anyReflect,
             typeOfTypeArgument,
+            reflectAnyTypeFunction,
+            reflectionBaseTypeFunction,
             reflectionBaseTypeIsSameObjectAs,
+            arrayRuntimeTypeGetter,
             unitInstance,
             collectStackTrace,
         )

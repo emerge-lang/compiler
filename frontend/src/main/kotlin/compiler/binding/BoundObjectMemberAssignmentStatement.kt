@@ -113,6 +113,7 @@ class BoundObjectMemberAssignmentStatement(
 
     override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetObjectExpression.setNothrow(boundary)
+        setterInvocation.setNothrow(boundary)
     }
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {

@@ -50,4 +50,4 @@ export class ReflectionBaseType {
     }
 }
 
-export nothrow intrinsic fn reflectType(self: Any) -> ReflectionBaseType
+export intrinsic nothrow get fn reflectionBaseType(self: Any) -> ReflectionBaseType

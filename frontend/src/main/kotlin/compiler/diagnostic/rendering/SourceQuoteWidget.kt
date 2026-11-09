@@ -118,10 +118,10 @@ class SourceQuoteWidget(
         })
 
         val pointerWidth = canvas.renderTargetInfo.computeCellWidth(pointer)
-        val swiggleWidth = markerCellWidth - pointerWidth
+        val swiggleWidth = (markerCellWidth - pointerWidth).coerceAtLeast(0)
         val swiggleWidthBefore = swiggleWidth / 2
         val swiggleWidthAfter = swiggleWidth - swiggleWidthBefore
-        check(swiggleWidthBefore + pointerWidth + swiggleWidthAfter == markerCellWidth)
+        check(markerCellWidth == 0 || swiggleWidthBefore + pointerWidth + swiggleWidthAfter == markerCellWidth)
 
         canvas.assureOnBlankLine()
         repeat(paddingLeftCellWidth) {

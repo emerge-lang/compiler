@@ -11,6 +11,11 @@ class TextSpan(val content: String, val style: TextStyle = DEFAULT_STYLE) {
     }
 
     fun substring(from: Int, toExclusive: Int): TextSpan {
+        if (toExclusive == content.length + 1) {
+            // happens when the span points at the end-of-line
+            return substring(from, content.length)
+        }
+
         return TextSpan(content.substring(from, toExclusive), style)
     }
 

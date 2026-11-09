@@ -70,6 +70,7 @@ interface IrClass : IrBaseType {
 
         val declaredAt: IrSourceLocation
 
+        // todo: remove, getters and setters are handled entirely by the frontend
         sealed interface AccessStrategy {
             /**
              * The member variable is supposed to be read/written by directly accessing the [Field] with [Field.id] == [BareField.fieldId].
