@@ -184,7 +184,7 @@ class BoundCastExpression(
                     landingpad,
                 )
             },
-            assumeNothrow = false,
+            assumeNothrow = true, // the constructor of the cast error is nothrow
         )
 
         return IrImplicitEvaluationExpressionImpl(

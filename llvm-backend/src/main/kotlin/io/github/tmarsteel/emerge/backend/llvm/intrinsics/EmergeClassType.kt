@@ -36,8 +36,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
+import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -66,7 +66,16 @@ internal class EmergeClassType private constructor(
         // done in [fromLlvmStructWithoutBody]
     }
 
-    val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeClassType>>>
+    /**
+     * For the classes the backend instantiates on its own; their constructors have to be `nothrow`.
+     */
+    val constructor: LlvmFunction<LlvmPointerType<EmergeClassType>> get() {
+        check(irClass.constructor.hasNothrowAbi) {
+            "The constructor of ${irClass.canonicalName} must be nothrow, the backend depends on it"
+        }
+        @Suppress("UNCHECKED_CAST")
+        return irClass.constructor.llvmRef!! as LlvmFunction<LlvmPointerType<EmergeClassType>>
+    }
     val destructor: LlvmFunction<*> get() = irClass.destructor.llvmRef!! as LlvmFunction<*>
 
     private val isBox: Boolean
@@ -329,7 +338,7 @@ internal class EmergeClassType private constructor(
             context: EmergeLlvmContext,
             llvmSelfType: EmergeClassType,
             irClass: IrClass
-        ): LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> {
+        ): LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>> {
             val irFnForMangler = object : IrMemberFunction {
                 override val overrides = emptySet<IrMemberFunction>()
                 override val supportsDynamicDispatch = false
@@ -341,7 +350,7 @@ internal class EmergeClassType private constructor(
                 override val parameters = emptyList<IrVariableDeclaration>()
                 override val declaresReceiver = true
                 override val returnType = IrSimpleTypeImpl(context.reifiedNamedTypeClass.irClass, IrTypeMutability.IMMUTABLE, false)
-                override val isNothrow = false
+                override val isNothrow = true
                 override val isExternalC = false
                 override val typeParameters = emptyList<IrBaseType.Parameter>()
                 override val body = null
@@ -350,7 +359,7 @@ internal class EmergeClassType private constructor(
 
             val template = KotlinLlvmFunction.define(
                 Mangler.computeMangledNameFor(irFnForMangler),
-                EmergeFallibleCallResult.ofEmergeReference,
+                PointerToAnyEmergeValue,
             ) {
                 val self by param(pointerTo(llvmSelfType))
 
@@ -363,7 +372,7 @@ internal class EmergeClassType private constructor(
                             getelementptr(self).member(field).get().dereference("ta$index").reinterpretAs(PointerToReifiedType),
                         )
                     }
-                    ret(fallibleSuccess(newNamedType(selfTypeInfo, false, typeArguments)))
+                    ret(newNamedType(selfTypeInfo, false, typeArguments))
                 }
             }
 

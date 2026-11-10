@@ -139,13 +139,11 @@ internal var IrFunction.llvmName: String by tackState {
  */
 internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
     if (canonicalName.toString() in setOf(
-        "emerge.ffi.c.CPointer::\$constructor",
         "emerge.ffi.c.CPointer::\$destructor",
-        "emerge.ffi.c.COpaquePointer::\$constructor",
         "emerge.ffi.c.COpaquePointer::\$destructor",
     )) {
         // the CPointer types are really just used to turn off emerges reference counting; they never actually manifest
-        // in memory, so the constructor and destructor are noops
+        // in memory, so the destructor is a noop
         return@tackLazyVal true
     }
 

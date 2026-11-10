@@ -112,7 +112,7 @@ class ClassErrors : FreeSpec({
                 class Foo {
                     x: S32
                     
-                    constructor {
+                    nothrow constructor {
                         set self.x = 3
                     }
                 }
@@ -749,7 +749,7 @@ class ClassErrors : FreeSpec({
                         x: S32 = foo()
                         class Test {
                             y: S32
-                            read constructor {
+                            read nothrow constructor {
                                 set self.y = x
                             }
                         }

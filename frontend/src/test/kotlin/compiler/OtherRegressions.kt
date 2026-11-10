@@ -96,6 +96,8 @@ class OtherRegressions : FreeSpec({
                 class Foo {
                     a: S32 = 0
                     b: S32 = self.a + 5
+
+                    constructor {}
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()

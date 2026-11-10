@@ -13,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
@@ -24,6 +25,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
@@ -41,7 +43,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.UnsignedWordAddWithOverflow
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
@@ -220,7 +221,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     /**
      * implementation for `emerge.core.reflection.type`
      */
-    private val runtimeTypeGetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
+    private val runtimeTypeGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
 
     /**
      * the finalizer for this array type
@@ -293,11 +294,10 @@ internal class EmergeArrayType<Element : LlvmType>(
             val elementCount by param(EmergeUWordType)
             val reifiedElementType by param(PointerToReifiedType)
             body {
-                val allocationSizeForContiguousElements = mul(elementType.sizeof(), elementCount)
-                val allocationSize = add(this@EmergeArrayType.sizeof(), allocationSizeForContiguousElements)
+                val allocationSizeForContiguousElements = callIntrinsic(multiplyArraySizeOrPanic, listOf(elementType.sizeof(), elementCount))
+                val allocationSize = callIntrinsic(addArraySizeOrPanic, listOf(this@EmergeArrayType.sizeof(), allocationSizeForContiguousElements))
                 val allocation = heapAllocate(allocationSize)
                     .reinterpretAs(pointerTo(this@EmergeArrayType))
-                // TODO: check allocation == null, OOM
 
                 // initialize the any
                 val anyBasePtr = getelementptr(allocation)
@@ -495,10 +495,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithFallibleB
 
             val raw = sliceElementPointer(getValueArrayType(), self, index).dereference()
 
-            ret(
-                call(getBoxType(context).constructor, listOf(raw))
-                    .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
-            )
+            ret(fallibleSuccess(call(getBoxType(context).constructor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue)))
         }
     }
 }
@@ -518,11 +515,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithPanicBoun
             inlinePanicBoundsCheck(self, index)
 
             val raw = sliceElementPointer(getValueArrayType(), self, index).dereference()
-
-            val box = call(getBoxType(context).constructor, listOf(raw)).abortOnException { exceptionPtr ->
-                inlinePanic("failed to allocate box - OOM")
-            }
-
+            val box = call(getBoxType(context).constructor, listOf(raw))
             ret(box.reinterpretAs(PointerToAnyEmergeValue))
         }
     }
@@ -910,9 +903,42 @@ val EmergeU64ArrayCopyFn = buildValueArrayCopy(LlvmU64Type) { EmergeU64ArrayType
 val EmergeSWordArrayCopyFn = buildValueArrayCopy(EmergeSWordType) { EmergeSWordArrayType }
 val EmergeUWordArrayCopyFn = buildValueArrayCopy(EmergeUWordType) { EmergeUWordArrayType }
 
+private fun buildArraySizeArithmeticOrPanic(
+    name: String,
+    llvmIntrinsicName: String,
+): KotlinLlvmFunction<EmergeLlvmContext, EmergeUWordType> {
+    val llvmIntrinsic = LlvmIntrinsic(
+        llvmIntrinsicName,
+        listOf(EmergeUWordType),
+        listOf(EmergeUWordType, EmergeUWordType),
+        object : LlvmInlineStructType() {
+            val result by structMember(EmergeUWordType)
+            val hadOverflow by structMember(LlvmBooleanType)
+        },
+    )
+
+    return KotlinLlvmFunction.define(name, EmergeUWordType) {
+        val operand1 by param(EmergeUWordType)
+        val operand2 by param(EmergeUWordType)
+        body {
+            val intrinsicResult = call(llvmIntrinsic, listOf(operand1, operand2))
+            conditionalBranch(
+                condition = extractValue(intrinsicResult) { hadOverflow },
+                ifTrue = {
+                    inlinePanic("out of memory: the size of the requested array exceeds the address space")
+                },
+            )
+            ret(extractValue(intrinsicResult) { result })
+        }
+    }
+}
+
+private val multiplyArraySizeOrPanic = buildArraySizeArithmeticOrPanic("emerge.platform.array_multiplySizeOrPanic", "llvm.umul.with.overflow.*")
+private val addArraySizeOrPanic = buildArraySizeArithmeticOrPanic("emerge.platform.array_addSizeOrPanic", "llvm.uadd.with.overflow.*")
+
 internal val arrayRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.Array::__runtime_type",
-    EmergeFallibleCallResult.ofEmergeReference,
+    PointerToAnyEmergeValue,
 ) {
     val self by param(PointerToAnyEmergeValue)
 
@@ -920,13 +946,13 @@ internal val arrayRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContex
         val selfTypeInfo = self.anyValueBase().member { typeinfo }.get().dereference()
         val arrayObject = pointerToBoxedSliceBase(self).dereference().reinterpretAs(pointerTo(EmergeArrayBaseType))
         val elementType = getelementptr(arrayObject).member { elementType }.get().dereference()
-        ret(fallibleSuccess(newNamedType(selfTypeInfo, false, listOf(Pair(IrTypeVariance.INVARIANT, elementType)))))
+        ret(newNamedType(selfTypeInfo, false, listOf(Pair(IrTypeVariance.INVARIANT, elementType))))
     }
 }
 
 private val rawArrayObjectRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.rawArrayObject_getRuntimeType",
-    EmergeFallibleCallResult.ofEmergeReference,
+    PointerToAnyEmergeValue,
 ) {
     val self by param(PointerToAnyEmergeValue)
     body {

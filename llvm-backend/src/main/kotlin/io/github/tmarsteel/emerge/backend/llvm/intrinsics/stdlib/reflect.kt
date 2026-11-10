@@ -6,7 +6,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeAnyValueVirtualsType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToReifiedType
@@ -30,7 +29,7 @@ internal val typeOfTypeArgument = KotlinLlvmFunction.define<EmergeLlvmContext, _
     }
 }
 
-internal val reflectAnyTypeFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.core.reflection.type", EmergeFallibleCallResult.ofEmergeReference) {
+internal val reflectAnyTypeFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.core.reflection.type", PointerToAnyEmergeValue) {
     val self by param(PointerToAnyEmergeValue)
 
     body {

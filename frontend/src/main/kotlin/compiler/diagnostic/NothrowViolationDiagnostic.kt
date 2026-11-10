@@ -60,7 +60,11 @@ open class NothrowViolationDiagnostic(
             override val nothrowDeclaredAt get() = fn.attributes.firstNothrowAttribute!!.sourceLocation
 
             override fun toString() = when (fn) {
-                is BoundClassConstructor -> "constructor of ${fn.classDef.simpleName}"
+                is BoundClassConstructor -> if (fn.attributes.firstNothrowAttribute?.sourceLocation?.generated == true) {
+                    "default constructor of ${fn.classDef.simpleName} (implicitly ${Keyword.NOTHROW.text}, declare a ${Keyword.CONSTRUCTOR.text} to allow throwing)"
+                } else {
+                    "constructor of ${fn.classDef.simpleName}"
+                }
                 is BoundClassDestructor -> "destructor of ${fn.classDef.simpleName}"
                 else -> "function ${fn.name}"
             }

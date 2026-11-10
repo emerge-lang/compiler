@@ -38,6 +38,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -899,16 +900,34 @@ class EmergeLlvmContext(
 }
 
 /**
- * Allocates [nBytes] bytes on the heap, triggering an OOM exception if [EmergeLlvmContext.allocateFunction] returns `null`.
+ * Kept out-of-line so that the code for printing the panic isn't duplicated at every allocation site.
  */
-internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmValue<EmergeUWordType>): LlvmValue<LlvmPointerType<LlvmVoidType>> {
-    val allocationPointer = call(context.allocateFunction, listOf(nBytes))
-    // TODO: check allocation pointer == null, OOM
-    return allocationPointer
+private val heapAllocateOrPanic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmPointerType<LlvmVoidType>>(
+    "emerge.platform.heapAllocateOrPanic",
+    pointerTo(LlvmVoidType),
+) {
+    val nBytes by param(EmergeUWordType)
+    body {
+        val allocationPointer = call(context.allocateFunction, listOf(nBytes))
+        conditionalBranch(
+            condition = isNull(allocationPointer),
+            ifTrue = {
+                inlinePanic("out of memory")
+            },
+        )
+        ret(allocationPointer)
+    }
 }
 
 /**
- * Allocates [T].[sizeof] bytes on the heap, triggering an OOM exception if needed
+ * Allocates [nBytes] bytes on the heap, panicking if [EmergeLlvmContext.allocateFunction] returns `null`.
+ */
+internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmValue<EmergeUWordType>): LlvmValue<LlvmPointerType<LlvmVoidType>> {
+    return callIntrinsic(heapAllocateOrPanic, listOf(nBytes))
+}
+
+/**
+ * Allocates [T].[sizeof] bytes on the heap, panicking if out of memory
  */
 fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T, memset: Byte? = 0): LlvmValue<LlvmPointerType<T>> {
     val size = type.sizeof()

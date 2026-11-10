@@ -3,7 +3,7 @@ package emerge.core
 export class ArithmeticError : Error {
     private _message: String = init
     
-    constructor {
+    nothrow constructor {
         mixin ThrowableTrait(self._message)
     }
 }
