@@ -368,7 +368,7 @@ internal fun newNamedType(
             call(
                 context.reifiedTypeArgumentClass.constructor,
                 listOf(context.u8(variance.runtimeCode), type),
-            ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+            )
         }
         val argumentsArray = newReferenceArrayOf(argumentObjects, IrSimpleTypeImpl(context.reifiedTypeArgumentClass.irClass, IrTypeMutability.IMMUTABLE, false))
         val namedType = call(
@@ -378,7 +378,7 @@ internal fun newNamedType(
                 context.i1(nullable),
                 buildArraySliceOfEntireArray(argumentsArray),
             ),
-        ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+        )
         argumentsArray.afterReferenceDropped(isNullable = false)
         return namedType.reinterpretAs(PointerToReifiedType)
     }

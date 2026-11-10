@@ -12,7 +12,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
 
 /*
@@ -35,7 +34,7 @@ private val weakArrayBoxFinalizer = KotlinLlvmFunction.define<EmergeLlvmContext,
 
 private val weakArrayBoxRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.weakArrayBox_getRuntimeType",
-    EmergeFallibleCallResult.ofEmergeReference,
+    PointerToAnyEmergeValue,
 ) {
     val self by param(PointerToAnyEmergeValue)
     body {
@@ -146,7 +145,7 @@ internal val unregisterWeakReferenceToAnyValue = KotlinLlvmFunction.define<Emerg
 /** implementation of `emerge.core.Weak::toStrongOrNull` */
 internal val weakToStrongOrNull = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.core.Weak::toStrongOrNull",
-    EmergeFallibleCallResult.ofEmergeReference,
+    PointerToAnyEmergeValue,
 ) {
     val self by param(PointerToAnyEmergeValue)
     body {
@@ -158,24 +157,21 @@ internal val weakToStrongOrNull = KotlinLlvmFunction.define<EmergeLlvmContext, _
             .reinterpretAs(PointerToAnyEmergeValue)
 
         conditionalBranch(condition = isNull(referred), ifTrue = {
-            ret(fallibleSuccess(referred))
+            ret(referred)
         })
         conditionalBranch(
             condition = hasTypeinfo(referred, weakArrayBoxTypeinfo.provide(context)),
             ifTrue = {
                 val slice = pointerToBoxedSlice(referred).dereference()
                 conditionalBranch(condition = isNull(slice.sliceBase), ifTrue = {
-                    ret(fallibleSuccess(context.nullValue(PointerToAnyEmergeValue)))
+                    ret(context.nullValue(PointerToAnyEmergeValue))
                 })
                 // the box constructor creates the reference to the array object
-                ret(
-                    call(context.boxTypeArray.constructor, listOf(slice))
-                        .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
-                )
+                ret(call(context.boxTypeArray.constructor, listOf(slice)).reinterpretAs(PointerToAnyEmergeValue))
             }
         )
 
         referred.afterReferenceCreated(isNullable = false)
-        ret(fallibleSuccess(referred))
+        ret(referred)
     }
 }

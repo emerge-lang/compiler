@@ -12,7 +12,7 @@ export class ArrayList<X : Any> : Iterable<X> {
     private var storage: Array<X?> = Array.new::<X?>(20, null)
     private var _size: UWord = 0
 
-    export get fn size(self) -> UWord = self._size
+    export nothrow get fn size(self) -> UWord = self._size
 
     export fn add(self: mut _, element: X) {
         if self._size >= self.storage.size {

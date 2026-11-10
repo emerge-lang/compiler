@@ -18,7 +18,6 @@ import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.IrReturnStatementImpl
@@ -35,10 +34,13 @@ import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
+import compiler.diagnostic.ConstructorCouldBeNothrowDiagnostic
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.constructorDeclaredAsModifying
-import compiler.diagnostic.constructorDeclaredNothrow
 import compiler.diagnostic.illegalMixinRepetition
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
@@ -162,19 +164,14 @@ class BoundClassConstructor(
             boundInitCode.semanticAnalysisPhase2(diagnosis)
             boundBody.semanticAnalysisPhase2(diagnosis)
 
-            if (attributes.isDeclaredNothrow) {
-                diagnosis.constructorDeclaredNothrow(this)
-            }
+            // done regardless of the nothrow attribute; if absent, the findings are used to decide whether it could be present
+            val nothrowBoundary = NothrowViolationDiagnostic.SideEffectBoundary.Function(this)
+            boundInitCode.setNothrow(nothrowBoundary)
+            boundBody.setNothrow(nothrowBoundary)
         }
     }
 
     override val purity = attributes.purity
-
-    // this is for the memory allocation that can always throw OOM
-    override val callFrameExitEffectOnInvocation = CallFrameExit.FunctionBehavior(
-        throws = CallFrameExit.Occurrence.POSSIBLY,
-        terminates = CallFrameExit.Occurrence.NEVER,
-    )
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
@@ -183,8 +180,18 @@ class BoundClassConstructor(
             attributes.semanticAnalysisPhase3(diagnosis)
             selfVariableForInitCode.semanticAnalysisPhase3(diagnosis)
             parameters.parameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
-            boundInitCode.semanticAnalysisPhase3(diagnosis)
-            boundBody.semanticAnalysisPhase3(diagnosis)
+            if (attributes.isDeclaredNothrow) {
+                boundInitCode.semanticAnalysisPhase3(diagnosis)
+                boundBody.semanticAnalysisPhase3(diagnosis)
+            } else {
+                diagnosis.doWithTransformedFindings(
+                    { codeDiagnosis ->
+                        boundInitCode.semanticAnalysisPhase3(codeDiagnosis)
+                        boundBody.semanticAnalysisPhase3(codeDiagnosis)
+                    },
+                    ::replaceNothrowViolationsWithSuggestion,
+                )
+            }
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
                 val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
@@ -223,6 +230,20 @@ class BoundClassConstructor(
             partialInitState.getUninitializedMembers(classDef).forEach {
                 diagnosis.add(ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic(it.entryDeclaration))
             }
+        }
+    }
+
+    /**
+     * For a constructor not declared `nothrow`: nothrow violations are no problem, but the absence of any of them
+     * means the declaration could be `nothrow`.
+     */
+    private fun replaceNothrowViolationsWithSuggestion(findings: Sequence<Diagnostic>): Sequence<Diagnostic> {
+        val (nothrowViolations, otherFindings) = findings.partition { it is NothrowViolationDiagnostic }
+        val canTellThatNothingThrows = nothrowViolations.isEmpty() && otherFindings.none { it.severity >= Diagnostic.Severity.ERROR }
+        return if (canTellThatNothingThrows) {
+            otherFindings.asSequence() + ConstructorCouldBeNothrowDiagnostic(this)
+        } else {
+            otherFindings.asSequence()
         }
     }
 

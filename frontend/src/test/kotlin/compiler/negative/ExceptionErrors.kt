@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
-import compiler.diagnostic.ConstructorDeclaredNothrowDiagnostic
+import compiler.diagnostic.ConstructorCouldBeNothrowDiagnostic
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -134,13 +134,115 @@ class ExceptionErrors : FreeSpec({
             }
         }
 
-        "constructors cannot be nothrow" {
-            validateModule("""
-                class A {
-                    nothrow constructor {}
-                }
-            """.trimIndent())
-                .shouldFind<ConstructorDeclaredNothrowDiagnostic>()
+        "constructors" - {
+            "can be declared nothrow" {
+                validateModule("""
+                    class A {
+                        nothrow constructor {}
+                    }
+                    nothrow fn test() -> A = A()
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "nothrow constructor cannot invoke throwing code" {
+                validateModule("""
+                    fn mayThrow() {}
+                    class A {
+                        nothrow constructor {
+                            mayThrow()
+                        }
+                    }
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "member initializers of a nothrow constructor cannot throw" {
+                validateModule("""
+                    fn mayThrow() -> S32 = 1
+                    class A {
+                        x: S32 = mayThrow()
+                        nothrow constructor {}
+                    }
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "default constructor is nothrow" {
+                validateModule("""
+                    class A {
+                        x: S32 = init
+                    }
+                    nothrow fn test() -> A = A(1)
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "member initializers of a default constructor cannot throw" {
+                validateModule("""
+                    fn mayThrow() -> S32 = 1
+                    class A {
+                        x: S32 = mayThrow()
+                    }
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "explicit constructor without nothrow is throwing" {
+                validateModule("""
+                    fn mayThrow() {}
+                    class A {
+                        constructor {
+                            mayThrow()
+                        }
+                    }
+                    nothrow fn test() -> A = A()
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
+            }
+
+            "explicit constructor without nothrow that can throw is fine" {
+                validateModule("""
+                    fn mayThrow() {}
+                    class A {
+                        constructor {
+                            mayThrow()
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "explicit constructor without nothrow with throwing member initializer is fine" {
+                validateModule("""
+                    fn mayThrow() -> S32 = 1
+                    class A {
+                        x: S32 = mayThrow()
+                        constructor {}
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "explicit constructor that could be nothrow gets a warning" {
+                validateModule("""
+                    class A {
+                        constructor {}
+                    }
+                """.trimIndent())
+                    .shouldFind<ConstructorCouldBeNothrowDiagnostic>()
+            }
+
+            "no suggestion to declare nothrow if the constructor has errors" {
+                validateModule("""
+                    class A {
+                        constructor {
+                            doesNotExist()
+                        }
+                    }
+                """.trimIndent())
+                    .shouldNotFind<ConstructorCouldBeNothrowDiagnostic>()
+            }
         }
     }
 

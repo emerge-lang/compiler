@@ -138,4 +138,4 @@ export fn intersectionOf(capture components: const Array<const Type>) -> const T
     return IntersectionType(flat)
 }
 
-export intrinsic get fn type(self: Any) -> NamedType
+export nothrow intrinsic get fn type(self: Any) -> NamedType

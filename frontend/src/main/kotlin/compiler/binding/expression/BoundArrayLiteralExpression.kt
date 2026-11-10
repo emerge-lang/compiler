@@ -21,7 +21,6 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
@@ -154,9 +153,9 @@ class BoundArrayLiteralExpression(
             context,
             declaration.span,
             elements,
-            { args, landingpad ->
+            { args, _ ->
                 val arrayTemporary = IrCreateTemporaryValueImpl(
-                    IrNullInitializedArrayExpressionImpl(irType, irElementType, args.size.toULong(), landingpad!!)
+                    IrNullInitializedArrayExpressionImpl(irType, irElementType, args.size.toULong())
                 )
                 val arrayTemporaryRef = IrTemporaryValueReferenceImpl(arrayTemporary)
                 val instrs = mutableListOf<IrExecutable>()
@@ -187,7 +186,7 @@ class BoundArrayLiteralExpression(
                 }
                 IrImplicitEvaluationExpressionImpl(IrCodeChunkImpl(instrs), arrayTemporaryRef)
             },
-            assumeNothrow = false, // array ctor can always throw an OOM error
+            assumeNothrow = true, // running out of memory is a panic
         )
     }
 }
@@ -196,5 +195,4 @@ private class IrNullInitializedArrayExpressionImpl(
     override val evaluatesTo: IrType,
     override val elementType: IrType,
     override val size: ULong,
-    override val oomLandingpad: IrInvocationExpression.Landingpad,
 ) : IrNullInitializedArrayExpression

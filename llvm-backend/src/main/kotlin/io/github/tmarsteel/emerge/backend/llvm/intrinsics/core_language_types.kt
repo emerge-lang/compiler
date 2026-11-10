@@ -117,7 +117,7 @@ internal object EmergeAnyValueVirtualsType : LlvmNamedStructType("anyvalue_virtu
     val runtimeTypeGetterFunction by structMember(LlvmFunctionAddressType)
 
     val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue))
-    val runtimeTypeGetterFunctionType = LlvmFunctionType(EmergeFallibleCallResult.ofEmergeReference, listOf(PointerToAnyEmergeValue))
+    val runtimeTypeGetterFunctionType = LlvmFunctionType(PointerToAnyEmergeValue, listOf(PointerToAnyEmergeValue))
 }
 
 internal val PointerToAnyEmergeValue: LlvmPointerType<out EmergeHeapAllocated> by lazy { pointerTo(EmergeHeapAllocatedValueBaseType) }

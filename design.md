@@ -355,6 +355,7 @@ As D has, our language has function modifiers that restrict its behaviour. These
 * `readonly`: Denotes that the function does not modify the object or struct instance it is declared upon. Within such functions, the `this` reference becomes `readonly` (thus preventing modification of the object).
 * `immutable`: Same as `readonly`
 * `nothrow`: The function must not throw exceptions. If it invokes functions that are not modified with `nothrow`, the exceptions must be caught.
+  Running out of memory is not an exception, it is a panic, so allocating is allowed in `nothrow` code. Constructors can be `nothrow`, too. A class without an explicit `constructor` gets a `nothrow` default constructor, which means its member initializers must not throw; an explicit `constructor` without `nothrow` may throw.
 
 The type modifiers are written *before* the function declaration (as opposed to after in D):
 

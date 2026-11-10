@@ -23,6 +23,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
+import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
@@ -141,11 +142,11 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
     exceptionClass: IrClass,
     ctorArguments: List<LlvmValue<*>>,
 ): BasicBlockBuilder.Termination {
+    check(exceptionClass.constructor.hasNothrowAbi) {
+        "The constructor of ${exceptionClass.canonicalName} must be nothrow, the backend depends on it"
+    }
     val exceptionPtr = call(exceptionClass.constructor.llvmRef!!, ctorArguments)
-        .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
-        .abortOnException { exceptionCtorException ->
-            propagateOrPanic(exceptionCtorException)
-        }
+        .reinterpretAs(PointerToAnyEmergeValue)
 
     val fillStackTraceIrFn = context.throwableClazz.memberFunctions
         .single { it.canonicalName.simpleName == "fillStackTrace" }

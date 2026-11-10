@@ -456,7 +456,7 @@ class BaseTypeConstructorDeclaration(
             val span = forBaseType.declaredAt.deriveGenerated()
             return BaseTypeConstructorDeclaration(
                 AstAnnotationSet.EMPTY,
-                listOfNotNull(forBaseType.visibility),
+                listOfNotNull(forBaseType.visibility) + AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW, span = span)),
                 KeywordToken(Keyword.CONSTRUCTOR, span = span),
                 AstCodeChunk(emptyList(), span),
             )

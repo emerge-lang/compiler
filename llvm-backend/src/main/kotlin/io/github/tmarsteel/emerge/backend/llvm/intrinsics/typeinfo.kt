@@ -152,7 +152,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val canonicalNameGetter: (EmergeLlvmContext) -> String,
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
-        val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
+        val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
         val arrayElementLayoutKind: ArrayElementLayoutKind,
     ) : Provider {
@@ -235,7 +235,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
-            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
+            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
             arrayElementLayoutKind: ArrayElementLayoutKind = ArrayElementLayoutKind.REFERENCE,
         ): Provider = ProviderImpl(
@@ -251,7 +251,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
-            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
+            runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
             arrayElementLayoutKind: ArrayElementLayoutKind,
         ): Provider = ProviderImpl(

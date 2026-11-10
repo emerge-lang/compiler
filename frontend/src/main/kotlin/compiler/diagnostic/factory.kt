@@ -604,10 +604,6 @@ fun Diagnosis.throwStatementInNothrowContext(statement: BoundThrowExpression, bo
     add(NothrowViolationDiagnostic.ThrowStatement(statement.declaration, boundary))
 }
 
-fun Diagnosis.constructorDeclaredNothrow(constructor: BoundClassConstructor) {
-    add(ConstructorDeclaredNothrowDiagnostic(constructor.attributes.firstNothrowAttribute!!.sourceLocation))
-}
-
 fun Diagnosis.breakOutsideOfLoop(breakStatement: BoundBreakExpression) {
     add(BreakOutsideOfLoopDiagnostic(breakStatement.declaration))
 }

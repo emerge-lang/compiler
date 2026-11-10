@@ -30,7 +30,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArraySliceType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildArraySliceOfEntireArray
@@ -142,13 +141,7 @@ internal sealed interface Autoboxer {
             }
             with(builder) {
                 val boxedType = getBoxedType(builder.context)
-                val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                    propagateOrPanic(
-                        exceptionPtr,
-                        "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw"
-                    )
-                }
-
+                val box = call(boxedType.constructor, listOf(llvmValue))
                 return box
             }
         }
@@ -255,16 +248,7 @@ internal sealed interface Autoboxer {
                         concludeBranch()
                     },
                     ifFalse = {
-                        boxed.setBranchResult(
-                            call(
-                                boxedType.constructor,
-                                listOf(llvmValue)
-                            ).abortOnException { exceptionPtr ->
-                                propagateOrPanic(
-                                    exceptionPtr,
-                                    "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw"
-                                )
-                            })
+                        boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)))
                         concludeBranch()
                     }
                 )
@@ -344,9 +328,7 @@ internal sealed interface Autoboxer {
                         concludeBranch()
                     },
                     ifFalse = {
-                        boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                            propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
-                        })
+                        boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)))
                         concludeBranch()
                     }
                 )
@@ -476,13 +458,7 @@ internal sealed interface Autoboxer {
             with(builder) {
                 check(llvmValue.type == unboxedType)
                 val boxedType = getBoxedType(context)
-                val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                    propagateOrPanic(
-                        exceptionPtr,
-                        "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw"
-                    )
-                }
-
+                val box = call(boxedType.constructor, listOf(llvmValue))
                 return box
             }
         }
