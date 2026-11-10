@@ -18,7 +18,8 @@ class ModuleContext(
 ) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()
 
-    private val _sourceFiles: MutableSet<SourceFile> = HashSet()
+    /** keeps the order in which the files were added; the initialization order of global variables derives from it */
+    private val _sourceFiles: MutableSet<SourceFile> = LinkedHashSet()
     val sourceFiles: Set<SourceFile> = _sourceFiles
 
     fun addSourceFile(sourceFile: ASTSourceFile): SourceFile {

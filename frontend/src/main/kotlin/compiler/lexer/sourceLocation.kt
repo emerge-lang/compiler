@@ -59,6 +59,8 @@ class SourceSet(
                 .parallel()
                 .filter { it.isRegularFile() }
                 .filter { it.extension == LexerSourceFile.EXTENSION }
+                // the order of the files is the order in which global variables get initialized; keep it reproducible
+                .sorted()
                 .map { sourceFilePath ->
                     val content = BOMInputStream.builder()
                         .setInputStream(sourceFilePath.inputStream())
