@@ -423,13 +423,13 @@ class DiBuilder(
     }
 
     private var closed = false
+
     override fun close() {
         if (closed) {
             return
         }
         closed = true
 
-        diFinalize()
         Llvm.LLVMDisposeDIBuilder(ref)
     }
 
