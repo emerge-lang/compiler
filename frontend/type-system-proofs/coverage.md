@@ -31,7 +31,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | Reflexivity on type parameters and intersections | ◐ same | `FinalValues.v` |
 | Erroneous types | ✗ modelled in unify, no theorem | — |
 | The frontend's unify is the model's, over the types of `TypeGrid` | ✓ by computation, but intersections of disjoint classes, which the frontend takes below every type (step 14) | `OracleGrid.unify_agrees` |
-| Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin | `Ownership.v` |
+| Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin, and to be removed from the model (roadmap 38) | `Ownership.v` |
 
 ## Substitution (instantiating type parameters)
 

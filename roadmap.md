@@ -29,35 +29,26 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
-6a. owned and ref slots: specified and proven in the type system model (`frontend/type-system-proofs`, `Ownership.v`
-    and part (a) of `Ops.v`), not implemented in the compiler. Decide whether it goes in as modelled, before the alpha:
-    it changes how every member variable and type argument is declared
-    * a slot is a member variable or an element of a generic data structure. Each slot either owns the object in it,
-      making it part of the block of its holder, or merely refers to it:
-      ```
-      class Order {
-          customer: ref const Customer
-          lines: owned mut List<owned mut Line>
-      }
-      ```
-      `Array<owned mut Order>`, `Array<ref mut Order>`; in generic code a slot has the ownership of a type parameter
-      (`Array<T>`) or any ownership (`Array<any T>`)
-    * an owned object has no mutability of its own, it is accessed with that of the reference to its holder. A
-      reference to any object of a block counts as one to the entire block: borrowing an owned part borrows the
-      holder, capturing it captures the holder
-    * an owned slot of a mutable type takes nothing but `own` references, so a block can be frozen or handed over as
-      one. Owning only takes effect for mutable types, `owned const` and `ref const` are the same
-    * a ref slot is a captured reference to another block, of the mutability of the slot, never `own`
-    * this is the deep counterpart of `own`, which only speaks about one object: an `own` reference to a block
-      whose mutable parts are all owned is the only way to mutate any of it. That is what a `Channel<T>` or
-      `Mutex<T>` has to ask for, see item 20 and item 24 (though not all of it: a shared `const` object in a block is
-      still reference-counted from two threads)
-    * the names collide: `own` is a mutability, `owned` an ownership of a slot, and the compiler calls
-      `borrow`/`capture` the ownership of a variable (`VariableOwnership`). Pick distinct words before implementing
-    * open: syntax and defaults (which ownership does a slot without a keyword have?), how the stdlib collections
-      declare their elements, reference counting of owned objects (they could do without a count of their own), and
-      the model has no `own` slots, so taking an owned part out of a block (`extracting_an_owned_part`) needs an
-      operation in the language
+6a. internal mutability: state that can change through a `read` reference to the object holding it. Needed for
+    lazy initialization, and for classes that offer reading through something they have to mutate to do so (a
+    `read S3Bucket` sends its queries through a socket stream)
+    * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
+      `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
+      the object holding the cell
+      * with function purity, `get` is a `read fn` and `set` a `mut fn`: the purity checks reason from mutability
+        (a global of a `const` type is a compile-time constant, a write is a use as `mut`), and a cell reachable from
+        a `const` global would be global state they don't see. So cells can't be used in `pure` functions
+      * with tokens (`tokens-plan.md` on the branch `token-protected-global-state`), `token class Cell<token T>`
+        instead: never `const`, every class holding one is a token class, none is reachable from a global or from
+        another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
+        is a promise of its author, not something the compiler checks. That code without a token cannot touch
+        external state stays checked
+      * type arguments cannot be `own` (item 20), so a cell hands out references of the mutability of `T`
+    * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
+      freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
+      call. The time of that call must not show in the value, so the value is `const`, and the initializer
+      captures only `const` data and no token; being `pure` is not enough, a pure function can read mutable data it
+      captured. Needs function types (item 14) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -301,6 +292,23 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * the proofs that unfold `final_value` (it is used ~140 times in 9 files)
     * the type the call is expected to return, as one more constraint before the final values are picked
       (`TypeUnification.plusExpectedTypeForOwnValues`)
+37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
+    and not going to be: each member variable or element of a generic data structure would either own its object,
+    making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
+    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 7a) gives
+    that for much less. The frontend is modelled as the types whose type arguments are all `ref`, or of the
+    ownership of their type parameter, so nothing is wrong meanwhile; but every theorem speaks about an ownership
+    the language doesn't have, and `owned` reads like the mutability `own`. To remove:
+    * `Ownership.v`
+    * `Model.Ownership` and the ownership of `Model.TypeArgument` (~750 uses of `TypeArgument` in 29 files),
+      `parameter_ownership` and `any_ownership` (in up to 19 files)
+    * `Subtyping.ownership_is_assignable_to` and its check in `unify_type_argument`
+    * what part (a) of `Ops.v` says about owned parts: the `adopt` transition, and extracting a part
+    * the ownership `RocqGridEncoder` writes for every type argument (`RocqOracleTests.kt`)
+    * the mentions in `readme.md` and `coverage.md`
+
+    Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
+    item 37, which changes the same files
 -----
 
 ## Future features
