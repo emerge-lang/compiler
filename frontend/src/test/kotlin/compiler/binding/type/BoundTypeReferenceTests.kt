@@ -23,7 +23,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("mut Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<mut String>")
-                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("mut Array<mut String>")
+                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("mut Array<mut String>")
             }
 
             "read" {
@@ -31,7 +31,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("mut Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<read String>")
-                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("mut Array<read String>")
+                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("mut Array<read String>")
             }
 
             "const" {
@@ -39,15 +39,15 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("mut Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<const String>")
-                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("mut Array<const String>")
+                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("mut Array<const String>")
             }
 
-            "exclusive" {
-                val mutArrayOfExclString = ctx.parseType("mut Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("mut Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("mut Array<exclusive String>")
+            "own" {
+                val mutArrayOfExclString = ctx.parseType("mut Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("mut Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("mut Array<own String>")
             }
         }
 
@@ -57,7 +57,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("read Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<mut String>")
-                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("read Array<mut String>")
+                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("read Array<mut String>")
             }
 
             "read" {
@@ -65,7 +65,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("read Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<read String>")
-                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("read Array<read String>")
+                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("read Array<read String>")
             }
 
             "const" {
@@ -73,15 +73,15 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("read Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<const String>")
-                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("read Array<const String>")
+                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("read Array<const String>")
             }
 
-            "exclusive" {
-                val mutArrayOfExclString = ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("read Array<exclusive String>")
+            "own" {
+                val mutArrayOfExclString = ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("read Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("read Array<own String>")
             }
         }
 
@@ -91,7 +91,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("const Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("const Array<mut String>")
                 mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("const Array<mut String>")
-                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("const Array<mut String>")
+                mutArrayOfMutString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("const Array<mut String>")
             }
 
             "read" {
@@ -99,7 +99,7 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("const Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("const Array<read String>")
                 mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("const Array<read String>")
-                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("const Array<read String>")
+                mutArrayOfReadString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("const Array<read String>")
             }
 
             "const" {
@@ -107,20 +107,20 @@ class BoundTypeReferenceTests : FreeSpec({
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("const Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("const Array<const String>")
                 mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("const Array<const String>")
-                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("const Array<const String>")
+                mutArrayOfConstString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("const Array<const String>")
             }
 
-            "exclusive" {
-                val mutArrayOfExclString = ctx.parseType("const Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("const Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("const Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("const Array<exclusive String>")
-                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.EXCLUSIVE) shouldBe ctx.parseType("const Array<exclusive String>")
+            "own" {
+                val mutArrayOfExclString = ctx.parseType("const Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.MUTABLE) shouldBe ctx.parseType("const Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.READONLY) shouldBe ctx.parseType("const Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.IMMUTABLE) shouldBe ctx.parseType("const Array<own String>")
+                mutArrayOfExclString.withMutabilityLimitedTo(TypeMutability.OWN) shouldBe ctx.parseType("const Array<own String>")
             }
         }
 
         "excl Array of" - {
-            // no need to test because exclusive object members are not allowed
+            // no need to test because own object members are not allowed
         }
     }
 })

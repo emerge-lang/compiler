@@ -7,7 +7,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 3. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
-     require a builtin that asserts a certain stack-variable is exclusive, but that doesn't seem impossible to provide.
+     require a builtin that asserts a certain stack-variable is `own`, but that doesn't seem impossible to provide.
    * anything else to take care of?
 4. additional language constructs
    1. switch/when statement
@@ -78,7 +78,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        `Array<S8>`
     4. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
        (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error). In argument positions the
-       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `exclusive` is
+       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `own` is
        never a cast target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
        independent of type arguments
 13. Function types
@@ -116,33 +116,33 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       temporary values are BAD offenders
 17. typealiases
 18. smart casts
-19. ~~fix loophole in the typesystem: a type parameter could be bound to an `exclusive` type
-    (`Array.new::<exclusive Foo>(20, Foo())`, `Box<exclusive Foo>`, `fn g<T>(x: T) -> T` called with an exclusive
+19. ~~fix loophole in the typesystem: a type parameter could be bound to an `own` type
+    (`Array.new::<own Foo>(20, Foo())`, `Box<own Foo>`, `fn g<T>(x: T) -> T` called with an `own`
     value), though generic code makes any number of references to a value of type `T`~~
-    Type parameters are never bound to an `exclusive` type now: it is an error as a type argument or in the bound of
-    a type parameter, and where inference only has exclusive values for a type parameter it picks the mutability
-    the bound or the expected type ask for, `mut` otherwise. `exclusive T` on a parameter or return type is still
-    an exclusive reference to a value of the type argument.
+    Type parameters are never bound to an `own` type now: it is an error as a type argument or in the bound of
+    a type parameter, and where inference only has `own` values for a type parameter it picks the mutability
+    the bound or the expected type ask for, `mut` otherwise. `own T` on a parameter or return type is still
+    an `own` reference to a value of the type argument.
 
-    What remains: generic code can't hand an exclusive value through and keep it exclusive
+    What remains: generic code can't hand an `own` value through and keep it `own`
     * `Array.slice`, `Array.sliceOrPanic` and `Array.getAtIndex` with a range are declared
-      `fn slice<A : read Array<out Any?>>(capture self: A, ...) -> A`; the slice of an exclusive array used to be
-      exclusive and is `mut` now, so it can't become a `const` array anymore. Same for every function of the shape
+      `fn slice<A : read Array<out Any?>>(capture self: A, ...) -> A`; the slice of an `own` array used to be
+      `own` and is `mut` now, so it can't become a `const` array anymore. Same for every function of the shape
       `fn keep<A : read Foo>(capture self: A) -> A`.
       Possible fixes, undecided:
       * a second function with the mutability on the parameter and return type:
-        `fn slice<A : ...>(capture self: exclusive A, ...) -> exclusive A`. Needs either another name, or overload
-        resolution that prefers it for exclusive arguments; and a second intrinsic in the backends
-      * type parameters that opt in to being bound to exclusive types, in whose scope a value of that type is
-        treated like an exclusive one: capturing it ends its lifetime (compare `~Copyable` in Swift)
-      * make `exclusive` a property of the variable/parameter/return value instead of the type, like `borrow`; then
+        `fn slice<A : ...>(capture self: own A, ...) -> own A`. Needs either another name, or overload
+        resolution that prefers it for `own` arguments; and a second intrinsic in the backends
+      * type parameters that opt in to being bound to `own` types, in whose scope a value of that type is
+        treated like an `own` one: capturing it ends its lifetime (compare `~Copyable` in Swift)
+      * make `own` a property of the variable/parameter/return value instead of the type, like `borrow`; then
         the question doesn't come up in the type system at all, but every expression has to carry it
-    * a container that holds exclusive values (`Channel<T>`, `Mutex<T>` with `fn take(self: mut _) -> exclusive T`)
-      can take them through a parameter typed `exclusive T`, but can't be implemented in emerge: member variables
-      can't be exclusive, and a `T` read from one isn't. Needs exclusive member variables with a take/swap
+    * a container that holds `own` values (`Channel<T>`, `Mutex<T>` with `fn take(self: mut _) -> own T`)
+      can take them through a parameter typed `own T`, but can't be implemented in emerge: member variables
+      can't be `own`, and a `T` read from one isn't. Needs `own` member variables with a take/swap
       operation, or intrinsics
     * a variable declared without a type and initialized from such a call is `read`, not `const` as it is for an
-      exclusive initializer: `y = g(Foo())` is a `mut Foo` joined with the `const` of the declaration. The expected
+      `own` initializer: `y = g(Foo())` is a `mut Foo` joined with the `const` of the declaration. The expected
       type only takes part in inference when the variable has a declared type
 20. optional parameters
     * parameter with default value is optional
@@ -193,9 +193,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
-25. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
-    not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
-    Look for an equally concise and expressive term that says that more precisely
+25. ~~reconsider the name `exclusive`~~ it is `own` now: an `own` reference promises that no other reference can
+    mutate the object or rely on it not changing, not that there are no other references (`read` aliases are
+    allowed). The compiler still calls the `borrow`/`capture` axis "ownership" (`VariableOwnership`), which wants
+    another name now
 26. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
     `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
     instead of `read Ord<in Num>`
@@ -215,7 +216,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)
 29. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
-    The constructor ties the mutability of the object, `_M` in its return type `exclusive W & _M`, to that of each
+    The constructor ties the mutability of the object, `_M` in its return type `own W & _M`, to that of each
     decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
     object. Three things broke that:
     * a member typed as a type parameter of the class got no such parameter (it's "already generic"), so
@@ -245,7 +246,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     Transitivity needs a lemma that what an effectively-bottom intersection accepts is below every type; the lemmas
     that take a component of an accepted intersection hold only of the other intersections then:
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
-    ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
+    ~50 call sites, and the mutability lemmas need side conditions or an `own` assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
 33. runtime type information is allocated per call: a generic function calling another generic function with
     a type argument that mentions its own type parameters (`Array<T>`, `T?`) builds `NamedType`/`TypeArgument`

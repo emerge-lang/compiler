@@ -13,7 +13,7 @@ class TerminationAnalysisErrors : FreeSpec({
     "unreachable code in code block" - {
         "by throw" {
             validateModule("""
-                intrinsic fn makeEx() -> exclusive Throwable
+                intrinsic fn makeEx() -> own Throwable
                 fn test() {
                     throw makeEx()
                     other()

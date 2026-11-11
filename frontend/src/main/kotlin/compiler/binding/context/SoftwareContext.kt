@@ -192,7 +192,7 @@ class SoftwareContext {
      */
     fun getBottomType(span: Span) = nothing
         .getBoundReferenceAssertNoTypeParameters(span)
-        .withMutability(TypeMutability.EXCLUSIVE)
+        .withMutability(TypeMutability.OWN)
 
     /**
      * @return the absolute top type (the type that is a supertype of all possible types), `read Any?`.

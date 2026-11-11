@@ -56,5 +56,5 @@ export class UWordRange : Iterable<UWord> & SizedRange<UWord> & BidirectionalRan
         return self.start + index
     }
 
-    export override fn asRange(capture self) -> exclusive UWordRange = UWordRange(self.start, self.endExclusive)
+    export override fn asRange(capture self) -> own UWordRange = UWordRange(self.start, self.endExclusive)
 }

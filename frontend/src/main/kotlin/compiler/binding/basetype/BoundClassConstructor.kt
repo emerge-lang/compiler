@@ -103,18 +103,18 @@ class BoundClassConstructor(
 
     val mixins: Set<BoundMixinStatement> = constructorFunctionRootContext.mixins
 
-    private val exclusiveSelfBaseTypeRef by lazy {
+    private val ownSelfBaseTypeRef by lazy {
         parentContext.resolveType(
             buildReceiverType(declaredAt)
-                .withMutability(TypeMutability.EXCLUSIVE)
+                .withMutability(TypeMutability.OWN)
         )
     }
     override val returnType by lazy {
         if (typeParameterForDecoratorMutability == null) {
-            return@lazy exclusiveSelfBaseTypeRef
+            return@lazy ownSelfBaseTypeRef
         }
 
-        exclusiveSelfBaseTypeRef.intersect(GenericTypeReference(
+        ownSelfBaseTypeRef.intersect(GenericTypeReference(
             NamedTypeReference(IdentifierToken(typeParameterForDecoratorMutability.name, generatedSourceLocation)),
             typeParameterForDecoratorMutability,
         ))

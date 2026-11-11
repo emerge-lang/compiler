@@ -30,11 +30,11 @@ interface ValueUsage {
     /**
      * [usedWithMutability], for deciding which other references may exist at the same time
      * ([TypeMutability.mayBeAliasedWith]): a reference of a type parameter can turn out to be `mut` or `const`, so it
-     * is as demanding as an `exclusive` one, which only tolerates `read` references.
+     * is as demanding as an `own` one, which only tolerates `read` references.
      */
     val usedWithMutabilityForAliasing: TypeMutability get() {
         val mutability = usedWithMutability
-        return if (mutability == TypeMutability.READONLY && !isUsedAsReadReference) TypeMutability.EXCLUSIVE else mutability
+        return if (mutability == TypeMutability.READONLY && !isUsedAsReadReference) TypeMutability.OWN else mutability
     }
 
     /**

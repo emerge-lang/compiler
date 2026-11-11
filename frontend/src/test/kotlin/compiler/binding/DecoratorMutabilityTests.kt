@@ -20,12 +20,12 @@ class DecoratorMutabilityTests : FreeSpec({
                         var wrapper = wrapperCtor(mutNested)
                         trigger(wrapper)
                     }
-                    fn trigger(p: exclusive Wrapper) {} 
+                    fn trigger(p: own Wrapper) {} 
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the mut Wrapper type was inferred correctly
                         it.sourceType.toString() shouldBe "mut testmodule.Wrapper"
-                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "own testmodule.Wrapper"
                     }
             }
 
@@ -40,12 +40,12 @@ class DecoratorMutabilityTests : FreeSpec({
                         wrapper = wrapperCtor(constNested)
                         trigger(wrapper)
                     }
-                    fn trigger(p: exclusive Wrapper) {} 
+                    fn trigger(p: own Wrapper) {} 
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
                         it.sourceType.toString() shouldBe "const testmodule.Wrapper"
-                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "own testmodule.Wrapper"
                     }
             }
         }
@@ -62,12 +62,12 @@ class DecoratorMutabilityTests : FreeSpec({
                         var wrapper = wrapperCtor(mutNested, mutNested)
                         trigger(wrapper)
                     }
-                    fn trigger(p: exclusive Wrapper) {} 
+                    fn trigger(p: own Wrapper) {} 
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the mut Wrapper type was inferred correctly
                         it.sourceType.toString() shouldBe "mut testmodule.Wrapper"
-                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "own testmodule.Wrapper"
                     }
             }
 
@@ -82,12 +82,12 @@ class DecoratorMutabilityTests : FreeSpec({
                         wrapper = wrapperCtor(constNested, constNested)
                         trigger(wrapper)
                     }
-                    fn trigger(p: exclusive Wrapper) {} 
+                    fn trigger(p: own Wrapper) {} 
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
                         it.sourceType.toString() shouldBe "const testmodule.Wrapper"
-                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "own testmodule.Wrapper"
                     }
             }
 
@@ -103,12 +103,12 @@ class DecoratorMutabilityTests : FreeSpec({
                         wrapper = wrapperCtor(constNested, mutNested)
                         trigger(wrapper)
                     }
-                    fn trigger(p: exclusive Wrapper) {} 
+                    fn trigger(p: own Wrapper) {} 
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
                         it.sourceType.toString() shouldBe "read testmodule.Wrapper"
-                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "own testmodule.Wrapper"
                     }
             }
         }

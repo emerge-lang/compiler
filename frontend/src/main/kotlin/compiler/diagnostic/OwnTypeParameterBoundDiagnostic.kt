@@ -4,12 +4,12 @@ import compiler.ast.type.TypeParameter
 import compiler.lexer.Span
 
 /**
- * @see ExclusiveTypeArgumentDiagnostic
+ * @see OwnTypeArgumentDiagnostic
  */
-class ExclusiveTypeParameterBoundDiagnostic(
+class OwnTypeParameterBoundDiagnostic(
     val parameter: TypeParameter,
 ) : Diagnostic(
     Severity.ERROR,
-    "The bound of type parameter ${parameter.name.value} cannot be exclusive, as type arguments cannot be exclusive.",
+    "The bound of type parameter ${parameter.name.value} cannot be of the mutability own, as type arguments cannot be.",
     parameter.bound?.span ?: parameter.name.span,
 )

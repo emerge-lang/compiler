@@ -5,14 +5,14 @@ import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
-import compiler.ast.type.isDeclaredExclusive
+import compiler.ast.type.isDeclaredOwn
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.exclusiveTypeParameterBound
+import compiler.diagnostic.ownTypeParameterBound
 import compiler.diagnostic.typeParameterBoundedByItself
 import compiler.diagnostic.typeParameterNameConflict
 import compiler.lexer.Span
@@ -73,8 +73,8 @@ data class BoundTypeParameter(
         selfReferenceAtTopOfBound?.let { selfReference ->
             diagnosis.typeParameterBoundedByItself(astNode, selfReference)
         }
-        if (astNode.bound?.isDeclaredExclusive == true) {
-            diagnosis.exclusiveTypeParameterBound(this)
+        if (astNode.bound?.isDeclaredOwn == true) {
+            diagnosis.ownTypeParameterBound(this)
         }
         bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this), diagnosis)
     }

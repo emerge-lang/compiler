@@ -38,7 +38,7 @@ enum class Keyword(val text: String)
     MUTABLE("mut"),
     READONLY("read"),
     IMMUTABLE("const"),
-    EXCLUSIVE("exclusive"),
+    OWN("own"),
 
     NOTHROW("nothrow"),
     PURE("pure"),

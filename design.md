@@ -152,10 +152,10 @@ This also applies to nullability:
 
 Full overview:
 
-| re-assignable? | immutable          | readonly          | mutable      | exclusive          |
+| re-assignable? | immutable          | readonly          | mutable      | own          |
 |----------------|--------------------|-------------------|--------------|--------------------|
-| no             | a: T               | a: readonly T     | a: mutable T | a: exclusive T     |
-| yes            | var a: immutable T | var a: readonly T | var a: T     | var a: exclusive T |
+| no             | a: T               | a: readonly T     | a: mutable T | a: own T     |
+| yes            | var a: immutable T | var a: readonly T | var a: T     | var a: own T |
 
 Also, note that the re-assignability implies a mutability. The variable isn't forced to take that mutability, though,
 as some wiggle room is necessary. E.g. `x: readonly T` and `y = x` are valid, and `y` will be `readonly T`, too.
@@ -167,8 +167,8 @@ inferred from the initializer.
 |---------------------|------------------------------|----------------|----------------------------|
 | _explicitly given_  | _irrelevant_                 | _irrelevant_   | _as declared_              |
 | _unspecified_       | _explicitly known_           | _irrelevant_   | _identical to initializer_ |
-| _unspecified_       | _no initializer / exclusive_ | no             | `immutable T`              |
-| _unspecified_       | _exclusive_                  | yes            | `mutable T`                |
+| _unspecified_       | _no initializer / own_       | no             | `immutable T`              |
+| _unspecified_       | _own_                  | yes            | `mutable T`                |
 
 #### Initialization of global variables
 

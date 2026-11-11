@@ -88,7 +88,7 @@ class BoundClassDestructor(
             }
         )
             .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-            .withMutability(TypeMutability.EXCLUSIVE)
+            .withMutability(TypeMutability.OWN)
             .let { it as RootResolvedTypeReference }
     }
     override val name by lazy { "__${classDef.simpleName}__finalize" }
@@ -109,7 +109,7 @@ class BoundClassDestructor(
                     KeywordToken(Keyword.BORROW, span = generatedSourceLocation),
                 ),
                 IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
-                receiverType.original!!.withMutability(TypeMutability.EXCLUSIVE),
+                receiverType.original!!.withMutability(TypeMutability.OWN),
                 null,
             )
         ))

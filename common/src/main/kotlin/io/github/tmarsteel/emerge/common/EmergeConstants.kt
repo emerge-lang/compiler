@@ -71,7 +71,7 @@ data object EmergeConstants {
     data object IterableContract {
         /**
          * The name of the function on `emerge.core.range.Iterable` that returns a new
-         * `emerge.core.range.InputRange`; signature is `<T>(capture self: read Iterable<T>) -> exclusive InputRange<T>`
+         * `emerge.core.range.InputRange`; signature is `<T>(capture self: read Iterable<T>) -> own InputRange<T>`
          */
         val ITERABLE_AS_RANGE_FUNCTION_NAME = "asRange"
 

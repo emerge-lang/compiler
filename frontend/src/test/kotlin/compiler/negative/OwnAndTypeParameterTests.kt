@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.ExclusiveTypeArgumentDiagnostic
-import compiler.diagnostic.ExclusiveTypeParameterBoundDiagnostic
+import compiler.diagnostic.OwnTypeArgumentDiagnostic
+import compiler.diagnostic.OwnTypeParameterBoundDiagnostic
 import compiler.diagnostic.SimultaneousIncompatibleBorrowsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.VariableUsedAfterLifetimeDiagnostic
@@ -10,17 +10,17 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 
 /**
- * `exclusive` is a promise about one reference, upheld by tracking the lifetime of the variable holding it. Generic
- * code copies values of type `T` freely, so a type parameter must never be bound to an `exclusive` type.
+ * `own` is a promise about one reference, upheld by tracking the lifetime of the variable holding it. Generic
+ * code copies values of type `T` freely, so a type parameter must never be bound to an `own` type.
  */
-class ExclusiveAndTypeParameterTests : FreeSpec({
-    "inference never binds a type parameter to an exclusive type" - {
-        "an exclusive argument decays to mut" {
+class OwnAndTypeParameterTests : FreeSpec({
+    "inference never binds a type parameter to an own type" - {
+        "an own argument decays to mut" {
             validateModule("""
                 class Foo {}
                 fn g<T>(x: T) -> T = x
                 fn test() {
-                    y: exclusive Foo = g(Foo())
+                    y: own Foo = g(Foo())
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
@@ -38,11 +38,11 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
             """.trimIndent()) should haveNoDiagnostics()
         }
 
-        "passing an exclusive variable for a parameter of type T ends its lifetime" {
+        "passing an own variable for a parameter of type T ends its lifetime" {
             validateModule("""
                 class Foo {}
                 fn g<T>(x: T) -> T = x
-                fn f(x: exclusive Foo) -> exclusive Foo {
+                fn f(x: own Foo) -> own Foo {
                     y = g(x)
                     return x
                 }
@@ -101,15 +101,15 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
         }
     }
 
-    "exclusive cannot be written where a type parameter would be bound to it" - {
+    "own cannot be written where a type parameter would be bound to it" - {
         "type argument of a function call" {
             validateModule("""
                 class Foo {}
                 fn test() {
-                    arr = Array.new::<exclusive Foo>(20, Foo())
+                    arr = Array.new::<own Foo>(20, Foo())
                 }
             """.trimIndent())
-                .shouldFind<ExclusiveTypeArgumentDiagnostic>()
+                .shouldFind<OwnTypeArgumentDiagnostic>()
         }
 
         "type argument of a type" {
@@ -118,9 +118,9 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn test(b: Box<exclusive Foo>) {}
+                fn test(b: Box<own Foo>) {}
             """.trimIndent())
-                .shouldFind<ExclusiveTypeArgumentDiagnostic>()
+                .shouldFind<OwnTypeArgumentDiagnostic>()
         }
 
         "type argument of a type, with variance" {
@@ -129,9 +129,9 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn test(b: Box<out exclusive Foo>) {}
+                fn test(b: Box<out own Foo>) {}
             """.trimIndent())
-                .shouldFind<ExclusiveTypeArgumentDiagnostic>()
+                .shouldFind<OwnTypeArgumentDiagnostic>()
         }
 
         "type argument that is a type parameter" {
@@ -139,37 +139,37 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn test<T>(b: Box<exclusive T>) {}
+                fn test<T>(b: Box<own T>) {}
             """.trimIndent())
-                .shouldFind<ExclusiveTypeArgumentDiagnostic>()
+                .shouldFind<OwnTypeArgumentDiagnostic>()
         }
 
         "bound of a type parameter" {
             validateModule("""
                 class Foo {}
-                fn test<T : exclusive Foo>(x: T) {}
+                fn test<T : own Foo>(x: T) {}
             """.trimIndent())
-                .shouldFind<ExclusiveTypeParameterBoundDiagnostic>()
+                .shouldFind<OwnTypeParameterBoundDiagnostic>()
         }
 
-        "an exclusive type with type arguments is fine" {
+        "an own type with type arguments is fine" {
             validateModule("""
                 class Foo {}
-                fn test() -> exclusive Array<mut Foo> {
+                fn test() -> own Array<mut Foo> {
                     return Array.new::<mut Foo>(20, Foo())
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
     }
 
-    "exclusive on a use of a type parameter" - {
-        "is still an exclusive value of the type argument" {
+    "own on a use of a type parameter" - {
+        "is still an own value of the type argument" {
             validateModule("""
                 class Foo {}
-                fn pass<T>(x: exclusive T) -> exclusive T = x
+                fn pass<T>(x: own T) -> own T = x
                 fn test() {
-                    a: exclusive Foo = pass::<read Foo>(Foo())
-                    b: exclusive Foo = pass(Foo())
+                    a: own Foo = pass::<read Foo>(Foo())
+                    b: own Foo = pass(Foo())
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -179,7 +179,7 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn f<T>(x: exclusive T, b: mut Box<T>) -> exclusive T {
+                fn f<T>(x: own T, b: mut Box<T>) -> own T {
                     set b.value = x
                     return x
                 }
@@ -192,7 +192,7 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
         "passing it for a parameter of type T ends its lifetime" {
             validateModule("""
                 fn sink<T>(x: T) {}
-                fn f<T>(x: exclusive T) -> exclusive T {
+                fn f<T>(x: own T) -> own T {
                     sink(x)
                     return x
                 }
@@ -207,7 +207,7 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn f<T>(x: exclusive T, b: mut Box<read T>) -> exclusive T {
+                fn f<T>(x: own T, b: mut Box<read T>) -> own T {
                     set b.value = x
                     return x
                 }
@@ -220,7 +220,7 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
         "borrowing it as a T cannot go with a mut borrow, as that is a const reference for a const type argument" {
             validateModule("""
                 fn two<T>(borrow a: T, borrow b: mut Any?) {}
-                fn f<T>(x: exclusive T) {
+                fn f<T>(x: own T) {
                     two::<T>(x, x)
                 }
             """.trimIndent())
@@ -232,7 +232,7 @@ class ExclusiveAndTypeParameterTests : FreeSpec({
                 class Box<T> {
                     var value: T = init
                 }
-                fn f<T>(x: exclusive T, b: mut Box<read Any?>) -> exclusive T {
+                fn f<T>(x: own T, b: mut Box<read Any?>) -> own T {
                     set b.value = x
                     return x
                 }

@@ -31,22 +31,22 @@ class SlicingSyntaxTests : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
-        // a type parameter is never bound to an exclusive type, so the slice of an exclusive array is mut, not
-        // exclusive; see roadmap item 20
-        "exclusive gives mut" {
+        // a type parameter is never bound to an own type, so the slice of an own array is mut, not
+        // own; see roadmap item 20
+        "own gives mut" {
             validateModule("""
                 fn test() -> mut Array<S32> {
-                    a: exclusive _ = Array.new::<S32>(5, 0)
+                    a: own _ = Array.new::<S32>(5, 0)
                     return a[1..<2]
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
 
-        "exclusive does not stay exclusive" {
+        "own does not stay own" {
             validateModule("""
-                fn test() -> exclusive Array<S32> {
-                    a: exclusive _ = Array.new::<S32>(5, 0)
+                fn test() -> own Array<S32> {
+                    a: own _ = Array.new::<S32>(5, 0)
                     return a[1..<2]
                 }
             """.trimIndent())
@@ -61,10 +61,10 @@ class SlicingSyntaxTests : FreeSpec({
         }
     }
 
-    "slicing an exclusive array ends its lifetime" {
+    "slicing an own array ends its lifetime" {
         validateModule("""
-            fn test() -> exclusive Array<S32> {
-                a: exclusive _ = Array.new::<S32>(5, 0)
+            fn test() -> own Array<S32> {
+                a: own _ = Array.new::<S32>(5, 0)
                 s = a[1..<2]
                 return a
             }
@@ -138,7 +138,7 @@ class SlicingSyntaxTests : FreeSpec({
 
         "on the result of an invocation" {
             validateModule("""
-                fn make() -> exclusive Array<S32> = Array.new::<S32>(3, 0)
+                fn make() -> own Array<S32> = Array.new::<S32>(3, 0)
                 fn test() -> S32 = make()[$ - 1]
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
@@ -147,7 +147,7 @@ class SlicingSyntaxTests : FreeSpec({
         "with an operand that is computed from a range" {
             validateModule("""
                 fn test(n: UWord) -> read Array<S32> {
-                    a: exclusive _ = Array.new::<S32>(n, 0)
+                    a: own _ = Array.new::<S32>(n, 0)
                     return a[(0..<n).size - 1..<$]
                 }
             """.trimIndent())

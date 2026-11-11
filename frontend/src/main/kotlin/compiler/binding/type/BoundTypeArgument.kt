@@ -6,7 +6,7 @@ import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.ast.type.isDeclaredExclusive
+import compiler.ast.type.isDeclaredOwn
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -14,7 +14,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.exclusiveTypeArgument
+import compiler.diagnostic.ownTypeArgument
 import compiler.diagnostic.wildcardTypeArgumentWithVariance
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -47,17 +47,17 @@ class BoundTypeArgument(
         astNode,
         variance,
         type.defaultMutabilityTo(when (mutability) {
-            TypeMutability.EXCLUSIVE -> TypeMutability.READONLY
+            TypeMutability.OWN -> TypeMutability.READONLY
             else -> mutability
         }),
     )
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         forUsage.validateForTypeVariance(variance, diagnosis)
-        // Nothing has no values that could be referenced twice; `exclusive Nothing` is how the bottom type is written
+        // Nothing has no values that could be referenced twice; `own Nothing` is how the bottom type is written
         val isNothing = type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
-        if (astNode is AstSpecificTypeArgument && astNode.type.isDeclaredExclusive && !isNothing) {
-            diagnosis.exclusiveTypeArgument(this)
+        if (astNode is AstSpecificTypeArgument && astNode.type.isDeclaredOwn && !isNothing) {
+            diagnosis.ownTypeArgument(this)
         }
         type.validate(forUsage.deriveIrrelevant(), diagnosis)
         if (astNode is AstWildcardTypeArgument && astNode.variance != TypeVariance.UNSPECIFIED) {

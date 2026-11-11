@@ -37,7 +37,7 @@ class MixinErrors : FreeSpec({
             .shouldFind<MixinNotAllowedDiagnostic>()
     }
 
-    "mixin must be a exclusive value" {
+    "mixin must be an own value" {
         validateModule("""
             interface I {
                 fn test(self) -> S32
@@ -52,7 +52,7 @@ class MixinErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<ValueNotAssignableDiagnostic> {
-                it.targetType.mutability shouldBe TypeMutability.EXCLUSIVE
+                it.targetType.mutability shouldBe TypeMutability.OWN
                 it.sourceType.mutability shouldBe TypeMutability.READONLY
             }
     }
@@ -62,7 +62,7 @@ class MixinErrors : FreeSpec({
             interface I {
                 fn test(self) -> S32
             }
-            intrinsic fn provideSomeI() -> exclusive I?
+            intrinsic fn provideSomeI() -> own I?
             class Bar : I {
                 constructor {
                     mixin provideSomeI()
@@ -80,11 +80,11 @@ class MixinErrors : FreeSpec({
             interface I {
                 fn test(self) -> S32
             }
-            intrinsic fn provideSomeI() -> exclusive I
+            intrinsic fn provideSomeI() -> own I
             intrinsic fn useSomeI(borrow value: read I)
             class Bar : I {
                 constructor {
-                    mixinValue: exclusive _ = provideSomeI()
+                    mixinValue: own _ = provideSomeI()
                     mixin mixinValue
                     useSomeI(mixinValue)
                 }
@@ -100,7 +100,7 @@ class MixinErrors : FreeSpec({
             interface I {
                 fn test(self) -> S32
             }
-            intrinsic fn provideSomeI() -> exclusive I
+            intrinsic fn provideSomeI() -> own I
             class Bar : I {
                 constructor { 
                     self.bla()
@@ -121,7 +121,7 @@ class MixinErrors : FreeSpec({
                     fn test(self) -> S32
                 }
                 interface B : A { }
-                intrinsic fn provideSomeB() -> exclusive B
+                intrinsic fn provideSomeB() -> own B
                 class C : B {
                     constructor {
                         mixin provideSomeB()
@@ -180,7 +180,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 intrinsic fn flipCoin() -> Bool
                 class Bar : I {
                     constructor {
@@ -200,7 +200,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 intrinsic fn flipCoin() -> Bool
                 class Bar : I {
                     constructor {
@@ -220,7 +220,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 intrinsic fn flipCoin() -> Boolean
                 class Bar : I {
                     constructor {
@@ -245,7 +245,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 intrinsic fn flipCoin() -> Boolean
                 class Bar : I {
                     constructor {
@@ -263,7 +263,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 intrinsic fn getSomeArray() -> Array<S32>
                 class Bar : I {
                     constructor {
@@ -281,7 +281,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 class Bar : I {
                     constructor {
                         try {
@@ -299,7 +299,7 @@ class MixinErrors : FreeSpec({
                 interface I {
                     fn test(self) -> S32
                 }
-                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn provideSomeI() -> own I
                 fn doSomethingRisky() -> Bool = true
                 class Bar : I {
                     constructor {

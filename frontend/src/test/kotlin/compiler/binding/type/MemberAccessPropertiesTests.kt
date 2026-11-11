@@ -24,7 +24,7 @@ class MemberAccessPropertiesTests : FreeSpec({
         "A & X", "A? & X", "mut A & X", "X & B", "Box<X> & B", "Box<out X>? & A?",
     ).map { it to swCtx.parseTypeIn("H", it) }
 
-    val arguments = TypeGrid.types.map { it.first }.filterNot { it.startsWith("exclusive Nothing") }
+    val arguments = TypeGrid.types.map { it.first }.filterNot { it.startsWith("own Nothing") }
     val references = arguments.flatMap { a -> listOf("", "out ", "in ").map { v -> "H<$v$a>" } }
         .mapNotNull { r -> runCatching { r to swCtx.parseTypeIn("Ctx", r) }.getOrNull() }
 
@@ -35,9 +35,9 @@ class MemberAccessPropertiesTests : FreeSpec({
         else -> t
     }
 
-    /** what the type takes: an out-variant type argument nothing but `exclusive Nothing` */
+    /** what the type takes: an out-variant type argument nothing but `own Nothing` */
     fun taken(t: BoundTypeReference): BoundTypeReference = when {
-        t is BoundTypeArgument -> if (t.variance == TypeVariance.OUT) swCtx.parseType("exclusive Nothing") else t.type
+        t is BoundTypeArgument -> if (t.variance == TypeVariance.OUT) swCtx.parseType("own Nothing") else t.type
         t is NullableTypeReference && t.nested is BoundTypeArgument -> NullableTypeReference(taken(t.nested))
         else -> t
     }

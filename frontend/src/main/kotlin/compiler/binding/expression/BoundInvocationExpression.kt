@@ -430,7 +430,7 @@ class BoundInvocationExpression(
                     }
                 val unificationAfterExpectedType = expectedEvaluationResultType
                     ?.let { expectedType ->
-                        returnTypeWithVariables?.let { unificationAfterParameters.plusExpectedTypeForExclusiveValues(it, expectedType, declaration.span) }
+                        returnTypeWithVariables?.let { unificationAfterParameters.plusExpectedTypeForOwnValues(it, expectedType, declaration.span) }
                     }
                     ?: unificationAfterParameters
                 val unification = unificationAfterExpectedType.plusFinalValueChecks(declaration.span)

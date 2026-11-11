@@ -66,23 +66,23 @@ open class ValueNotAssignableDiagnostic(
         when (sourceType.mutability) {
             TypeMutability.MUTABLE -> when (targetType.mutability) {
                 TypeMutability.IMMUTABLE -> return "A const value is needed here, this one is mut."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is mut."
+                TypeMutability.OWN -> return "An own value is needed here, this one is mut."
                 TypeMutability.READONLY,
                 TypeMutability.MUTABLE -> throw InternalCompilerError("This should not have happened")
             }
             TypeMutability.READONLY -> when (targetType.mutability) {
                 TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a read reference."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here; this is a read reference."
+                TypeMutability.OWN -> return "An own value is needed here; this is a read reference."
                 TypeMutability.READONLY -> throw InternalCompilerError("This should not have happened")
                 TypeMutability.IMMUTABLE -> return "A const value is needed here. This is a read reference, immutability is not guaranteed."
             }
             TypeMutability.IMMUTABLE -> when (targetType.mutability) {
                 TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an const value."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is const."
+                TypeMutability.OWN -> return "An own value is needed here, this one is const."
                 TypeMutability.READONLY,
                 TypeMutability.IMMUTABLE -> throw InternalCompilerError("This should not have happened")
             }
-            TypeMutability.EXCLUSIVE -> throw InternalCompilerError("This should not have happened")
+            TypeMutability.OWN -> throw InternalCompilerError("This should not have happened")
         }
     }
 

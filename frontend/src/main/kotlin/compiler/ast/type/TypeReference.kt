@@ -300,9 +300,9 @@ data class AstAbsoluteTypeReference(
     }
 }
 /**
- * Whether `exclusive` is written on this type reference, or on a component of it.
+ * Whether `own` is written on this type reference, or on a component of it.
  */
-val TypeReference.isDeclaredExclusive: Boolean get() = when (this) {
-    is AstSimpleTypeReference -> mutability == TypeMutability.EXCLUSIVE
-    is AstIntersectionType -> components.any { it.isDeclaredExclusive }
+val TypeReference.isDeclaredOwn: Boolean get() = when (this) {
+    is AstSimpleTypeReference -> mutability == TypeMutability.OWN
+    is AstIntersectionType -> components.any { it.isDeclaredOwn }
 }
