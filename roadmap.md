@@ -29,6 +29,35 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
+6a. owned and ref slots: specified and proven in the type system model (`frontend/type-system-proofs`, `Ownership.v`
+    and part (a) of `Ops.v`), not implemented in the compiler. Decide whether it goes in as modelled, before the alpha:
+    it changes how every member variable and type argument is declared
+    * a slot is a member variable or an element of a generic data structure. Each slot either owns the object in it,
+      making it part of the block of its holder, or merely refers to it:
+      ```
+      class Order {
+          customer: ref const Customer
+          lines: owned mut List<owned mut Line>
+      }
+      ```
+      `Array<owned mut Order>`, `Array<ref mut Order>`; in generic code a slot has the ownership of a type parameter
+      (`Array<T>`) or any ownership (`Array<any T>`)
+    * an owned object has no mutability of its own, it is accessed with that of the reference to its holder. A
+      reference to any object of a block counts as one to the entire block: borrowing an owned part borrows the
+      holder, capturing it captures the holder
+    * an owned slot of a mutable type takes nothing but `own` references, so a block can be frozen or handed over as
+      one. Owning only takes effect for mutable types, `owned const` and `ref const` are the same
+    * a ref slot is a captured reference to another block, of the mutability of the slot, never `own`
+    * this is the deep counterpart of `own`, which only speaks about one object: an `own` reference to a block
+      whose mutable parts are all owned is the only way to mutate any of it. That is what a `Channel<T>` or
+      `Mutex<T>` has to ask for, see item 20 and item 24 (though not all of it: a shared `const` object in a block is
+      still reference-counted from two threads)
+    * the names collide: `own` is a mutability, `owned` an ownership of a slot, and the compiler calls
+      `borrow`/`capture` the ownership of a variable (`VariableOwnership`). Pick distinct words before implementing
+    * open: syntax and defaults (which ownership does a slot without a keyword have?), how the stdlib collections
+      declare their elements, reference counting of owned objects (they could do without a count of their own), and
+      the model has no `own` slots, so taking an owned part out of a block (`extracting_an_owned_part`) needs an
+      operation in the language
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -259,6 +288,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     to use the representation of the overridden function
 35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
+36. the type system model picks other final values than the frontend where a type variable only has `own` values
+    (item 20): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
+    mutability the upper bound asks for, `mut` otherwise (`VariableState.mutabilityForOwnValues`), and it is an
+    error where the upper bound asks for `own` (`VariableState.needsOwnValue`). The theorems on calls are about
+    the model's final values; nothing checks the difference, the oracle doesn't cover inference. To do:
+    * `final_value` as the frontend has it, and "no variable needs an `own` value" as a premise of the theorems
+      that take final values
+    * a new obligation of `inference_types`: a bound that takes an `own` lower bound takes it with the mutability
+      picked, too; shown for each instance (class types, generic code, generic receivers). `unify_root_mutability`,
+      `frag_with_mutability` and `tfrag_given` are close to what it needs
+    * the proofs that unfold `final_value` (it is used ~140 times in 9 files)
+    * the type the call is expected to return, as one more constraint before the final values are picked
+      (`TypeUnification.plusExpectedTypeForOwnValues`)
 -----
 
 ## Future features
