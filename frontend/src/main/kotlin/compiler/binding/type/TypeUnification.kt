@@ -12,6 +12,7 @@ import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeVariableNeedsOwnTypeDiagnostic
 import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -261,7 +262,15 @@ class TypeUnification private constructor(
         }
 
         val withExpectedType = expectedType.unify(returnType, assignmentLocation, this)
-        return if (withExpectedType.getErrorsNotIn(this).any()) this else withExpectedType
+        if (withExpectedType.getErrorsNotIn(this).any()) {
+            return this
+        }
+        if (withExpectedType.variableStates.values.any { it.needsOwnValue }) {
+            // the expected type asks for an `own` value, which a type parameter cannot give
+            return this
+        }
+
+        return withExpectedType
     }
 
     /**
@@ -279,7 +288,8 @@ class TypeUnification private constructor(
 
     /**
      * `this`, plus an error for each variable that inference can't pick a value for: one without a lower bound, whose
-     * static upper bound mentions it (`T : Comparable<T>`).
+     * static upper bound mentions it (`T : Comparable<T>`); and one that only an `own` type fits
+     * ([VariableState.needsOwnValue]).
      */
     fun plusFinalValueChecks(inferenceLocation: Span): TypeUnification {
         if (diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }) {
@@ -292,9 +302,15 @@ class TypeUnification private constructor(
                 && state.staticUpperBound.mentionsTypeVariable(parameter)
         }
 
-        return notInferable.fold(this) { carry, (parameter, _) ->
+        val withNotInferable = notInferable.fold(this) { carry, (parameter, _) ->
             carry.plusDiagnostic(TypeVariableNotInferableDiagnostic(parameter.astNode, inferenceLocation))
         }
+
+        return variableStates.entries
+            .filter { (_, state) -> state.needsOwnValue }
+            .fold(withNotInferable) { carry, (parameter, _) ->
+                carry.plusDiagnostic(TypeVariableNeedsOwnTypeDiagnostic(parameter.astNode, inferenceLocation))
+            }
     }
 
     /**
@@ -466,9 +482,17 @@ class TypeUnification private constructor(
         val mutabilityForOwnValues: TypeMutability get() = when (val ofUpperBound = upperBound.mutability) {
             TypeMutability.MUTABLE,
             TypeMutability.IMMUTABLE -> ofUpperBound
-            TypeMutability.READONLY,
+            TypeMutability.READONLY -> TypeMutability.MUTABLE
+            // see needsOwnValue
             TypeMutability.OWN -> TypeMutability.MUTABLE
         }
+
+        /**
+         * Whether only an `own` type fits this variable: there are only `own` values for it, and the other constraints
+         * ask for both `mut` and `const` (`fn f<T : mut Foo>(x: T, c: Consumer<in T>)` called with a
+         * `Consumer<in const Foo>`). There is no type to bind the variable to, then.
+         */
+        val needsOwnValue: Boolean get() = lowerBoundIsOnlyOwnValues && upperBound.mutability == TypeMutability.OWN
     }
 }
 

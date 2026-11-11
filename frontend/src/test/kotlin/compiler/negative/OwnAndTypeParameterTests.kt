@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.diagnostic.OwnTypeArgumentDiagnostic
 import compiler.diagnostic.OwnTypeParameterBoundDiagnostic
 import compiler.diagnostic.SimultaneousIncompatibleBorrowsDiagnostic
+import compiler.diagnostic.TypeVariableNeedsOwnTypeDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.VariableUsedAfterLifetimeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -88,6 +89,37 @@ class OwnAndTypeParameterTests : FreeSpec({
                     }
                 """.trimIndent()) should haveNoDiagnostics()
             }
+        }
+
+        "the expected type cannot ask for an own value" {
+            validateModule("""
+                class Foo {}
+                class Box<T> {
+                    var value: T = init
+                }
+                fn test() {
+                    b: mut Box<mut Foo> = Box(Foo())
+                    c: own Foo = unbox(Box(Foo()))
+                }
+                fn unbox<T>(b: Box<T>) -> T = b.value
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "mut testmodule.Foo"
+                }
+        }
+
+        "constraints that only an own type fits cannot be met" {
+            validateModule("""
+                class Foo {}
+                interface Consumer<T> {
+                    fn consume(self, value: T)
+                }
+                fn feed<T : mut Foo>(x: T, borrow c: Consumer<in T>) {}
+                fn test(borrow c: Consumer<in const Foo>) {
+                    feed(Foo(), c)
+                }
+            """.trimIndent())
+                .shouldFind<TypeVariableNeedsOwnTypeDiagnostic>()
         }
 
         "other arguments decide the mutability, where there are some" {
