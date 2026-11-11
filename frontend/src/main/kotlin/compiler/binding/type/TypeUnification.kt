@@ -1,6 +1,8 @@
 package compiler.binding.type
 
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
@@ -230,6 +232,7 @@ class TypeUnification private constructor(
         val state = variableStates[parameter] ?: return instantiateUnbound(parameter)
 
         val raw = state.lowerBound.takeUnless { it.isNonNullableNothing }
+            ?.let { lowerBound -> if (state.lowerBoundIsOnlyExclusiveValues) lowerBound.withMutability(state.mutabilityForExclusiveValues) else lowerBound }
             ?: when {
                 !state.staticUpperBound.mentionsTypeVariables() -> state.upperBound
                 // not inferable, see plusFinalValueChecks
@@ -238,6 +241,27 @@ class TypeUnification private constructor(
             }
 
         return raw.instantiateFreeVariables(this)
+    }
+
+    /**
+     * A type parameter is never bound to an `exclusive` type, see [VariableState.lowerBoundIsOnlyExclusiveValues]. For
+     * the variables where that matters, the type the call is expected to return can tell the mutability to pick instead:
+     * `b: Box<const Foo> = Box(Foo())`.
+     * @param returnType the return type of the function being called, with the [TypeVariable]s of this unification
+     * @return `this`, plus the constraint that [returnType] is assignable to [expectedType]; or `this` if no variable
+     * needs a mutability picked, or if [expectedType] cannot be met. The latter is for the code using the return value to complain about.
+     */
+    fun plusExpectedTypeForExclusiveValues(
+        returnType: BoundTypeReference,
+        expectedType: BoundTypeReference,
+        assignmentLocation: Span,
+    ): TypeUnification {
+        if (variableStates.values.none { it.lowerBoundIsOnlyExclusiveValues }) {
+            return this
+        }
+
+        val withExpectedType = expectedType.unify(returnType, assignmentLocation, this)
+        return if (withExpectedType.getErrorsNotIn(this).any()) this else withExpectedType
     }
 
     /**
@@ -424,7 +448,28 @@ class TypeUnification private constructor(
         val lowerBound: BoundTypeReference,
         val isExact: Boolean,
         val isCapturable: Boolean = false,
-    )
+    ) {
+        /**
+         * Whether only `exclusive` values were given for this variable. `exclusive` is a promise about a single reference,
+         * and generic code makes any number of references to a value of a type parameter, so the variable isn't bound to
+         * the `exclusive` type; it takes the [mutabilityForExclusiveValues] instead. `Nothing` is `exclusive`, too, but
+         * has no values that could be referenced twice.
+         */
+        val lowerBoundIsOnlyExclusiveValues: Boolean get() = !isExact
+            && lowerBound.mutability == TypeMutability.EXCLUSIVE
+            && !lowerBound.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
+
+        /**
+         * An exclusive value fits any mutability; this picks the one the other constraints ask for, and `mut` if they
+         * don't ask for any.
+         */
+        val mutabilityForExclusiveValues: TypeMutability get() = when (val ofUpperBound = upperBound.mutability) {
+            TypeMutability.MUTABLE,
+            TypeMutability.IMMUTABLE -> ofUpperBound
+            TypeMutability.READONLY,
+            TypeMutability.EXCLUSIVE -> TypeMutability.MUTABLE
+        }
+    }
 }
 
 class TypeVariableNotUnderInferenceException(val parameter: BoundTypeParameter) : RuntimeException("Cannot work with type variable ${parameter.name} because of missing inference context")

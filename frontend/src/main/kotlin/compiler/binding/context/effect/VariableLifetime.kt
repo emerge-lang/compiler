@@ -26,7 +26,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
     override fun fold(state: State, effect: Effect): State {
         return when (effect) {
             is Effect.ValueCaptured -> {
-                if (state is State.AliveExclusive && effect.withMutability != TypeMutability.READONLY) {
+                if (state is State.AliveExclusive && !effect.asReadReference) {
                     State.Dead(effect.subject, effect.capturedAt)
                 } else {
                     state
@@ -161,12 +161,12 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         data object AliveExclusive : State {
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
                 return when (usage.usageOwnership) {
-                    VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
+                    VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutabilityForAliasing, subject.span)
                     VariableOwnership.CAPTURED -> {
                         if (repetition.mayRepeat) {
                             diagnosis.lifetimeEndingCaptureInLoop(subject)
                         }
-                        Effect.ValueCaptured(subject.variable, usage.usedWithMutability, subject.span)
+                        Effect.ValueCaptured(subject.variable, usage.isUsedAsReadReference, subject.span)
                     }
                 }
             }
@@ -185,8 +185,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                         diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
                         null
                     }
-                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.mayBeAliasedWith(this.withMutability)) {
-                        Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
+                    VariableOwnership.BORROWED -> if (usage.usedWithMutabilityForAliasing.mayBeAliasedWith(this.withMutability)) {
+                        Effect.BorrowStarted(subject.variable, usage.usedWithMutabilityForAliasing, subject.span)
                     } else {
                         diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, usage.usedWithMutability)
                         null
@@ -224,7 +224,11 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
         data class ValueCaptured(
             override val subject: BoundVariable,
-            val withMutability: TypeMutability,
+            /**
+             * whether the capturing reference is a `read` one for certain, see [ValueUsage.isUsedAsReadReference]. Only
+             * such a capture leaves an exclusive value exclusive.
+             */
+            val asReadReference: Boolean,
             val capturedAt: Span,
         ) : Effect
 

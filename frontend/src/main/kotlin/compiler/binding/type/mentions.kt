@@ -1,5 +1,7 @@
 package compiler.binding.type
 
+import compiler.ast.type.TypeMutability
+
 /**
  * Whether this type mentions a [TypeVariable], also in the bounds of the [GenericTypeReference]s in it.
  */
@@ -37,4 +39,19 @@ internal fun BoundTypeReference.mentionsTypeParameter(parameter: BoundTypeParame
     is BoundTypeArgument -> type.mentionsTypeParameter(parameter)
     is BoundIntersectionTypeReference -> components.any { it.mentionsTypeParameter(parameter) }
     is ErroneousType -> false
+}
+
+/**
+ * Whether a reference of this type is a `read` one, whatever the type parameters in it are bound to. A mutability
+ * on a type parameter is met with that of the type argument: both `T` and `read T` are `mut` references for a `mut`
+ * type argument.
+ */
+internal fun BoundTypeReference.isReadInAllInstantiations(): Boolean = when (this) {
+    is TypeVariable -> false
+    is GenericTypeReference -> false
+    is RootResolvedTypeReference -> mutability == TypeMutability.READONLY
+    is NullableTypeReference -> nested.isReadInAllInstantiations()
+    is BoundTypeArgument -> type.isReadInAllInstantiations()
+    is BoundIntersectionTypeReference -> mutability == TypeMutability.READONLY && components.all { it.isReadInAllInstantiations() }
+    is ErroneousType -> mutability == TypeMutability.READONLY
 }

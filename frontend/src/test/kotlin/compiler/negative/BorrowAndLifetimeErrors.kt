@@ -639,6 +639,19 @@ class BorrowAndLifetimeErrors : FreeSpec({
         }
 
         "borrow into a type variable borrows with the inferred mutability" {
+            // an exclusive value takes the mutability the bound of the type parameter asks for
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: exclusive _ = C()
+                    trigger(c, c)
+                }
+                fn trigger<A : const C>(borrow a: A, borrow b: mut C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "borrow into a type variable without a mutability in its bound borrows as mut" {
             validateModule("""
                 class C {}
                 fn test() {
@@ -647,7 +660,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
                 fn trigger<A : read C>(borrow a: A, borrow b: mut C) {}
             """.trimIndent())
-                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+                .shouldHaveNoDiagnostics()
         }
     }
 })

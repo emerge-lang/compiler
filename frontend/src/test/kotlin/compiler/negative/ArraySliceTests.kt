@@ -29,14 +29,26 @@ class ArraySliceTests : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
-        "exclusive" {
+        // a type parameter is never bound to an exclusive type, so the slice of an exclusive array is mut, not
+        // exclusive; see roadmap item 20
+        "exclusive gives mut" {
+            validateModule("""
+                fn test() -> mut Array<S32> {
+                    a: exclusive _ = Array.new::<S32>(5, 0)
+                    return a.slice(1, 2)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "exclusive does not stay exclusive" {
             validateModule("""
                 fn test() -> exclusive Array<S32> {
                     a: exclusive _ = Array.new::<S32>(5, 0)
                     return a.slice(1, 2)
                 }
             """.trimIndent())
-                .shouldHaveNoDiagnostics()
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
         }
 
         "variant element types" {

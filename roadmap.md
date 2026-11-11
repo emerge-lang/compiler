@@ -116,29 +116,34 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       temporary values are BAD offenders
 17. typealiases
 18. smart casts
-19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
-    ```
-    class Foo {}
-    arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
-    v: exclusive Foo = arr[0] // compiler doesn't complain here, either
-    ```
-    Generic code does the same without an `exclusive` type argument being written: a value of type `T` is copied
-    freely, and passing an exclusive value for a parameter of type `T` doesn't end its lifetime, though `T` is
-    inferred as `exclusive Foo`:
-    ```
-    fn g<T>(x: T) -> T = x
-    fn f(x: exclusive Foo) -> exclusive Foo {
-        y = g(x) // y: exclusive Foo
-        return x // a second exclusive reference
-    }
-    fn take<T>(b: read Box<T>) -> T = b.value
-    fn h(b: Box<exclusive Foo>) {
-        x: const Foo = take(b)
-        y: mut Foo = take(b) // the same object
-    }
-    ```
-    Either type variables don't take `exclusive` values, or generic code treats values of type `T` as possibly
-    exclusive (their lifetime ends where they are captured)
+19. ~~fix loophole in the typesystem: a type parameter could be bound to an `exclusive` type
+    (`Array.new::<exclusive Foo>(20, Foo())`, `Box<exclusive Foo>`, `fn g<T>(x: T) -> T` called with an exclusive
+    value), though generic code makes any number of references to a value of type `T`~~
+    Type parameters are never bound to an `exclusive` type now: it is an error as a type argument or in the bound of
+    a type parameter, and where inference only has exclusive values for a type parameter it picks the mutability
+    the bound or the expected type ask for, `mut` otherwise. `exclusive T` on a parameter or return type is still
+    an exclusive reference to a value of the type argument.
+
+    What remains: generic code can't hand an exclusive value through and keep it exclusive
+    * `Array.slice`, `Array.sliceOrPanic` and `Array.getAtIndex` with a range are declared
+      `fn slice<A : read Array<out Any?>>(capture self: A, ...) -> A`; the slice of an exclusive array used to be
+      exclusive and is `mut` now, so it can't become a `const` array anymore. Same for every function of the shape
+      `fn keep<A : read Foo>(capture self: A) -> A`.
+      Possible fixes, undecided:
+      * a second function with the mutability on the parameter and return type:
+        `fn slice<A : ...>(capture self: exclusive A, ...) -> exclusive A`. Needs either another name, or overload
+        resolution that prefers it for exclusive arguments; and a second intrinsic in the backends
+      * type parameters that opt in to being bound to exclusive types, in whose scope a value of that type is
+        treated like an exclusive one: capturing it ends its lifetime (compare `~Copyable` in Swift)
+      * make `exclusive` a property of the variable/parameter/return value instead of the type, like `borrow`; then
+        the question doesn't come up in the type system at all, but every expression has to carry it
+    * a container that holds exclusive values (`Channel<T>`, `Mutex<T>` with `fn take(self: mut _) -> exclusive T`)
+      can take them through a parameter typed `exclusive T`, but can't be implemented in emerge: member variables
+      can't be exclusive, and a `T` read from one isn't. Needs exclusive member variables with a take/swap
+      operation, or intrinsics
+    * a variable declared without a type and initialized from such a call is `read`, not `const` as it is for an
+      exclusive initializer: `y = g(Foo())` is a `mut Foo` joined with the `const` of the declaration. The expected
+      type only takes part in inference when the variable has a declared type
 20. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
