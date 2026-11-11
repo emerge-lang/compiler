@@ -24,7 +24,7 @@ Import ListNotations.
 (* The types of the parameters are those of Substitution.v, with type variables in place of the    *)
 (* type parameters (to_generic relates the two); the types of the arguments are those of            *)
 (* Transitivity.v (in_fragment), Nothing of any mutability: it is const (wf_nothing_is_const), so   *)
-(* every `m Nothing` is assigned as `exclusive Nothing`, and there are no values of type Nothing.   *)
+(* every `m Nothing` is assigned as `own Nothing`, and there are no values of type Nothing.         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Lemma existsb_map_ext: forall {T0 T1: Type} (f0: T1 -> bool) (Q: T0 -> bool) (f1: T0 -> T1) l,

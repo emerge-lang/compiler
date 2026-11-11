@@ -77,7 +77,7 @@ Lemma remut_below: forall m x, in_fragment env x = true -> Model.is_subtype_of m
 Proof.
     intros m x Hw Hk. destruct (below_refl env wf declared declared_wf terminates x (frag_class x Hw)) as [f Hf].
     exists f. apply (unify_remut env f x x x _ [] [] (remut_refl env x Hw) (remut_with_mutability env m x Hw)); [|exact Hf].
-    destruct (fit_cases env m x Hw) as [[E _]|[E _]]; rewrite E; [exact Hk|apply exclusive_fits].
+    destruct (fit_cases env m x Hw) as [[E _]|[E _]]; rewrite E; [exact Hk|apply own_fits].
 Qed.
 
 Lemma without_null_below: forall x, in_fragment env x = true -> below env (without_null env x) x.

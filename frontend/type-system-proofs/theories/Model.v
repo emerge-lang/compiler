@@ -3,7 +3,7 @@ From Stdlib Require Import String Arith.
 Section Model.
 
 Inductive Mutability :=
-    | exclusive
+    | own
     | immutable
     | readonly
     | mutable
@@ -13,7 +13,7 @@ Scheme Equality for Mutability.
 
 Definition is_subtype_of (ma mt: Mutability): bool :=
     match ma, mt with
-    | exclusive, _ => true
+    | own, _ => true
     | immutable, immutable => true
     | immutable, readonly => true
     | mutable, mutable => true
@@ -24,8 +24,8 @@ Definition is_subtype_of (ma mt: Mutability): bool :=
 
 Definition union (m0 m1: Mutability): Mutability :=
     if Mutability_beq m0 m1 then m0 else
-    if Mutability_beq m0 exclusive then m1 else
-    if Mutability_beq m1 exclusive then m0 else
+    if Mutability_beq m0 own then m1 else
+    if Mutability_beq m1 own then m0 else
     readonly
     .
 
@@ -43,17 +43,17 @@ Definition intersect_mutability (m0 m1: Mutability): Mutability :=
     match m0, m1 with
     | mutable, mutable => mutable
     | mutable, readonly => mutable
-    | mutable, immutable => exclusive
-    | mutable, exclusive => exclusive
+    | mutable, immutable => own
+    | mutable, own => own
     | readonly, readonly => readonly
     | readonly, immutable => immutable
     | readonly, mutable => mutable
-    | readonly, exclusive => exclusive
+    | readonly, own => own
     | immutable, immutable => immutable
-    | immutable, exclusive => exclusive
+    | immutable, own => own
     | immutable, readonly => immutable
-    | immutable, mutable => exclusive
-    | exclusive, _ => exclusive
+    | immutable, mutable => own
+    | own, _ => own
     end.
 
 Theorem intersect_mutability_comm: forall m0 m1: Mutability, intersect_mutability m0 m1 = intersect_mutability m1 m0.
@@ -69,7 +69,7 @@ Qed.
 Definition mutability_allows_mutation (m: Mutability): bool :=
     match m with
     | mutable => true
-    | exclusive => true
+    | own => true
     | _ => false
     end.
 

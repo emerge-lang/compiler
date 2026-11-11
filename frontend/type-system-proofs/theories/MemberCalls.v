@@ -299,7 +299,7 @@ Qed.
 
 (* The mutabilities and `!` a reference may be given *)
 Definition ref_shapes: list (option Mutability * bool) :=
-    [(None, false); (None, true)] ++ flat_map (fun m => [(Some m, false); (Some m, true)]) [exclusive; immutable; readonly; mutable].
+    [(None, false); (None, true)] ++ flat_map (fun m => [(Some m, false); (Some m, true)]) [own; immutable; readonly; mutable].
 
 Lemma ref_shapes_complete: forall gm nn, In (gm, nn) ref_shapes.
 Proof. intros [[]|] []; simpl; tauto. Qed.

@@ -25,9 +25,9 @@ Import ListNotations.
 (* known about which programs it holds for.                                                       *)
 (*                                                                                                *)
 (* ofComponents gives each component the mutability common to all of them, as which they are      *)
-(* assigned: with a component of a const class, exclusive, as all values are its objects          *)
+(* assigned: with a component of a const class, own, as all values are its objects                *)
 (* (with_common_mutability). So, with S32 an I, `read I & U` takes `S32 & U`; with U bound to     *)
-(* `mut Foo`, the instances are `mut I & mut Foo` and `S32 & exclusive Foo`, the components of    *)
+(* `mut Foo`, the instances are `mut I & mut Foo` and `S32 & own Foo`, the components of          *)
 (* which it takes.                                                                                *)
 (* ---------------------------------------------------------------------------------------------- *)
 

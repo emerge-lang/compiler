@@ -388,7 +388,7 @@ Proof.
 Qed.
 
 Lemma bottom_in_fragment: in_fragment bottom_type = true.
-Proof. exact (nothing_in_fragment (Some exclusive)). Qed.
+Proof. exact (nothing_in_fragment (Some own)). Qed.
 
 Lemma top_in_fragment: in_fragment top_type = true.
 Proof.
@@ -840,7 +840,7 @@ Proof.
           -- rewrite (instantiate_template_argument bx output o _ Ho Hshape), Hi.
              destruct (mentions_loosely_bound bx (instantiate env bS n)); reflexivity.
           -- rewrite (instantiate_template_argument bx input o bottom_type Ho
-                  ltac:(left; exists (Some exclusive), nothing, []; reflexivity)).
+                  ltac:(left; exists (Some own), nothing, []; reflexivity)).
              reflexivity.
           -- rewrite (instantiate_template_argument bx output o _ Ho Hshape), Hi.
              destruct (mentions_loosely_bound bx (instantiate env bS n)); reflexivity.
@@ -1004,7 +1004,7 @@ Proof.
     apply both_ways in H; [|exact Hf|exact Hk]. destruct H as [H1 H2]. rewrite (Hfw H1). exact (Hbw H2).
 Qed.
 
-(* Below `exclusive Nothing` is nothing but Nothing, which is below everything *)
+(* Below `own Nothing` is nothing but Nothing, which is below everything *)
 Lemma below_bottom: forall n z s, in_fragment z = true ->
     unify env n bottom_type z (Ongoing s) = Some (Ongoing s) ->
     forall t n', in_fragment t = true -> 2 <= n' -> unify env n' t z (Ongoing s) = Some (Ongoing s).
@@ -1015,9 +1015,9 @@ Proof.
     unfold bottom_type in H. rewrite unify_classes in H.
     destruct (base_type_is_subtype_of env cz nothing) eqn:Hb; [|discriminate H].
     apply only_nothing_is_below_nothing in Hb. subst cz.
-    assert (Hmz: assignment_mutability env (RootResolved mz nothing zargs) = exclusive).
+    assert (Hmz: assignment_mutability env (RootResolved mz nothing zargs) = own).
     { destruct (Model.is_subtype_of (assignment_mutability env (RootResolved mz nothing zargs))
-          (assignment_mutability env (RootResolved (Some exclusive) nothing []))) eqn:Hm; [|discriminate H].
+          (assignment_mutability env (RootResolved (Some own) nothing []))) eqn:Hm; [|discriminate H].
       cbn [assignment_mutability]. rewrite nothing_is_const. reflexivity. }
     assert (Hclass: forall f' mt ct targs, 1 <= f' ->
         unify env f' (RootResolved mt ct targs) (RootResolved mz nothing zargs) (Ongoing s) = Some (Ongoing s)).
@@ -1032,7 +1032,7 @@ Lemma nothing_below: forall m t n s, in_fragment t = true -> 2 <= n ->
     unify env n t (RootResolved m nothing []) (Ongoing s) = Some (Ongoing s).
 Proof.
     intros m t n s Ht Hf.
-    assert (Hm: assignment_mutability env (RootResolved m nothing []) = exclusive)
+    assert (Hm: assignment_mutability env (RootResolved m nothing []) = own)
         by (cbn [assignment_mutability]; rewrite nothing_is_const; reflexivity).
     assert (Hclass: forall f' mt ct targs, 1 <= f' ->
         unify env f' (RootResolved mt ct targs) (RootResolved m nothing []) (Ongoing s) = Some (Ongoing s)).
@@ -1333,12 +1333,12 @@ Lemma compare_variances_transitive: forall (uf0 uf1 uf2: UnifyFn) v1 v2 v3 x y z
     (forall s', uf1 z y (Ongoing s) = Some (Ongoing s') -> s' = s) ->
     (uf0 y x (Ongoing s) = Some (Ongoing s) -> uf1 z y (Ongoing s) = Some (Ongoing s) -> uf2 z x (Ongoing s) = Some (Ongoing s)) ->
     (uf1 y z (Ongoing s) = Some (Ongoing s) -> uf0 x y (Ongoing s) = Some (Ongoing s) -> uf2 x z (Ongoing s) = Some (Ongoing s)) ->
-    (* the same, with `read Any?` and `exclusive Nothing` in place of x *)
+    (* the same, with `read Any?` and `own Nothing` in place of x *)
     (uf0 y top_type (Ongoing s) = Some (Ongoing s) -> uf1 z y (Ongoing s) = Some (Ongoing s) -> uf2 z top_type (Ongoing s) = Some (Ongoing s)) ->
     (uf1 y z (Ongoing s) = Some (Ongoing s) -> uf0 bottom_type y (Ongoing s) = Some (Ongoing s) -> uf2 bottom_type z (Ongoing s) = Some (Ongoing s)) ->
     (uf1 z top_type (Ongoing s) = Some (Ongoing s) -> uf2 z top_type (Ongoing s) = Some (Ongoing s)) ->
     (uf1 bottom_type z (Ongoing s) = Some (Ongoing s) -> uf2 bottom_type z (Ongoing s) = Some (Ongoing s)) ->
-    (* what takes `read Any?` takes x, and what `exclusive Nothing` takes, x takes *)
+    (* what takes `read Any?` takes x, and what `own Nothing` takes, x takes *)
     (uf1 z top_type (Ongoing s) = Some (Ongoing s) -> uf2 z x (Ongoing s) = Some (Ongoing s)) ->
     (uf1 bottom_type z (Ongoing s) = Some (Ongoing s) -> uf2 x z (Ongoing s) = Some (Ongoing s)) ->
     compare_variances uf0 v2 v1 y x s = Some (Ongoing s) ->

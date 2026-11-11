@@ -20,7 +20,7 @@ Import ListNotations.
 (*   references to the same parameter by their mutability and nullability only, which is sound    *)
 (*   for exactly that reason: their bounds are ordered the same way (bounds_ordered,              *)
 (*   ref_le_bounds). Where the values of the bound are objects of a const class (top_const), both *)
-(*   are assigned as exclusive, and the bounds are the same whatever the mutabilities: an         *)
+(*   are assigned as own, and the bounds are the same whatever the mutabilities: an               *)
 (*   intersection gives its components the mutability they are assigned as in common              *)
 (*   (with_mutability);                                                                           *)
 (* - the components of an intersection are class types and non-null references to type parameters  *)
@@ -111,7 +111,7 @@ Lemma nothing_gfrag: forall m, gfrag (RootResolved m nothing []) = true.
 Proof. intros m. apply (proj1 (in_fragment_gfrag 1)); [simpl; lia|exact (nothing_in_fragment env wf m)]. Qed.
 
 Lemma bottom_gfrag: gfrag bottom_type = true.
-Proof. exact (nothing_gfrag (Some exclusive)). Qed.
+Proof. exact (nothing_gfrag (Some own)). Qed.
 
 Lemma top_gfrag: gfrag top_type = true.
 Proof. apply (proj1 (in_fragment_gfrag 2)); [simpl; lia|exact (top_in_fragment env wf)]. Qed.
@@ -474,9 +474,9 @@ Lemma top_const_with_mutability: forall m t, top_const (with_mutability env m t)
 Proof. intros m t. exact (proj1 (with_mutability_keeps env ranked m t)). Qed.
 
 Lemma fold_intersect_const: forall (f: EType -> Mutability) m0 cs m1,
-    (forall C, In C cs -> f C = if top_const C then exclusive else m0) ->
+    (forall C, In C cs -> f C = if top_const C then own else m0) ->
     fold_left intersect_mutability (map f cs) m1
-    = intersect_mutability m1 (if existsb top_const cs then exclusive else match cs with [] => readonly | _ => m0 end).
+    = intersect_mutability m1 (if existsb top_const cs then own else match cs with [] => readonly | _ => m0 end).
 Proof.
     intros f m0 cs. induction cs as [|C cs IH]; intros m1 H; simpl.
     - destruct m1; reflexivity.
@@ -485,9 +485,9 @@ Proof.
 Qed.
 
 (* A type of the fragment, of a mutability applied to it, is assigned as that mutability, or as
-   exclusive where its values are objects of a const class *)
+   own where its values are objects of a const class *)
 Lemma assignment_with_mutability: forall m t, gfrag t = true ->
-    assignment_mutability env (with_mutability env m t) = if top_const t then exclusive else m.
+    assignment_mutability env (with_mutability env m t) = if top_const t then own else m.
 Proof.
     intros m t. destruct (ranked_exists env t) as [r Hr]. revert m t Hr. induction r as [r IHr] using lt_wf_ind.
     intros m t. remember (esize t) as k eqn:Hk. revert m t Hk. induction k as [k IH] using lt_wf_ind. intros m t -> Hr H.
@@ -507,7 +507,7 @@ Proof.
           by (intros x; destruct nn; [apply assignment_mutability_without_null|reflexivity]).
       rewrite Ht, Ha. destruct gm as [m0|]; [rewrite (top_const_with_mutability m0)|]; exact (IHr _ Hg m _ Hd Hfd).
     - destruct (intersection_gfrag_cases cs H) as [Hne [Hcs _]]. simpl in Hr.
-      assert (Hall: forall m' c, In c cs -> assignment_mutability env (with_mutability env m' c) = if top_const c then exclusive else m').
+      assert (Hall: forall m' c, In c cs -> assignment_mutability env (with_mutability env m' c) = if top_const c then own else m').
       { intros m' c Hc. pose proof (esize_in cs c Hc). rewrite forallb_forall in Hr.
         exact (IH (esize c) ltac:(cbn [esize]; lia) m' c eq_refl (Hr c Hc) (Hcs c Hc)). }
       cbn [with_mutability assignment_mutability top_const]. rewrite map_map.
@@ -550,14 +550,14 @@ Proof.
       cbn [with_mutability]. apply Hr; [exact (non_null_with_mutability m n Hn)|exact Hf'].
     - exact H.
     - destruct (intersection_gfrag_cases cs H) as [Hne [Hcf Hform]].
-      assert (Hall: forall m' c, In c cs -> assignment_mutability env (with_mutability env m' c) = if top_const c then exclusive else m')
+      assert (Hall: forall m' c, In c cs -> assignment_mutability env (with_mutability env m' c) = if top_const c then own else m')
           by (intros m' c Hc; exact (assignment_with_mutability m' c (Hcf c Hc))).
       assert (Hgf: forall k', forallb gfrag (map (with_mutability env k') cs) = true).
       { intros k'. clear Hall Hne H Hform. induction cs as [|c cs IHc]; [reflexivity|]. cbn [map forallb].
         rewrite (IH k' c (Hcf c (or_introl eq_refl))).
         apply IHc. intros c' Hc'. apply Hcf. right. exact Hc'. }
       cbn [with_mutability]. rewrite (fold_intersect_const _ m cs readonly (Hall m)).
-      set (k := intersect_mutability readonly (if existsb top_const cs then exclusive else match cs with [] => readonly | _ => m end)).
+      set (k := intersect_mutability readonly (if existsb top_const cs then own else match cs with [] => readonly | _ => m end)).
       assert (Hm: forall c', In c' (map (with_mutability env k) cs) ->
           assignment_mutability env c' = assignment_mutability env (Intersection (map (with_mutability env k) cs))).
       { intros c' Hc'. apply in_map_iff in Hc'. destruct Hc' as [c [<- Hc]].
@@ -1279,10 +1279,10 @@ Lemma assignment_with_mutability_above: forall m t,
     is_subtype_of (intersect_mutability m (assignment_mutability env t)) (assignment_mutability env (with_mutability env m t)) = true.
 Proof. intros m t. exact (proj2 (assignment_with_mutability_above_both m t)). Qed.
 
-(* An intersection of the fragment takes a mutability applied to it, or exclusive for its components
+(* An intersection of the fragment takes a mutability applied to it, or own for its components
    where one of them is const *)
 Lemma with_mutability_intersection: forall m cs, gfrag (Intersection cs) = true ->
-    with_mutability env m (Intersection cs) = Intersection (map (with_mutability env (if existsb top_const cs then exclusive else m)) cs).
+    with_mutability env m (Intersection cs) = Intersection (map (with_mutability env (if existsb top_const cs then own else m)) cs).
 Proof.
     intros m cs H. destruct (intersection_components cs H) as [Hne Hcs]. cbn [with_mutability]. f_equal. f_equal.
     rewrite (fold_intersect_const _ m cs readonly (fun c Hc => assignment_with_mutability m c (Hcs c Hc))).
@@ -1311,7 +1311,7 @@ Proof.
     assert (Hun: forall C, In C cs -> assignment_mutability env C = assignment_mutability env (Intersection cs)).
     { intros C Hc. simpl in Hu. rewrite forallb_forall in Hu. apply mutability_beq_eq, Hu, Hc. }
     destruct m0 as [m|].
-    - set (m0 := if existsb top_const cs then exclusive else m). exists (Some m0). cbn [applied].
+    - set (m0 := if existsb top_const cs then own else m). exists (Some m0). cbn [applied].
       rewrite (with_mutability_intersection m cs Hf). fold m0. split; [reflexivity|].
       intros C Hc. rewrite (assignment_with_mutability _ _ (Hcs C Hc)).
       cbn [assignment_mutability]. rewrite map_map.
@@ -1647,7 +1647,7 @@ Proof.
             is_subtype_of (assignment_mutability env a)
                 (assignment_mutability env (with_mutability env (intersect_mutability (mutability_of env x) m) x)) = true).
         { rewrite (assignment_with_mutability _ x Hx). destruct (top_const x) eqn:Et.
-          - rewrite (top_const_assigned_exclusive env ranked x Et) in Hax |- *. split; [reflexivity|exact Hax].
+          - rewrite (top_const_assigned_own env ranked x Et) in Hax |- *. split; [reflexivity|exact Hax].
           - rewrite (not_top_const x Et) in Hax |- *. split; [apply intersect_mutability_left|].
             exact (intersect_mutability_greatest _ _ _ Hax (Hgm m eq_refl)). }
         destruct Ham as [Hyx Hay]. split; [exact Hg|]. split.
@@ -1677,7 +1677,7 @@ Proof.
       - split; [exact (gfrag_with_mutability (intersect_mutability (mutability_of env x) m) x Hx)|].
         apply (applied_vle x (Some (intersect_mutability (mutability_of env x) m)) None Hx (gfrag_uniform env x Hx)).
         cbn [applied]. rewrite (assignment_with_mutability _ x Hx). destruct (top_const x) eqn:Et.
-        + rewrite (top_const_assigned_exclusive env ranked x Et). reflexivity.
+        + rewrite (top_const_assigned_own env ranked x Et). reflexivity.
         + rewrite (not_top_const x Et). apply intersect_mutability_left.
       - split; [exact Hx|]. exact (applied_vle x None None Hx (gfrag_uniform env x Hx) (mutability_is_subtype_of_refl _)). }
     destruct Hy as [Hgy Hvy]. destruct nn.
@@ -1756,7 +1756,7 @@ Proof.
               (assignment_mutability env x) = true
             /\ is_subtype_of (assignment_mutability env (with_mutability env (intersect_mutability (mutability_of env x) m) x)) m = true).
         { rewrite (assignment_with_mutability _ x Hx). destruct (top_const x) eqn:Et.
-          - rewrite (top_const_assigned_exclusive env ranked x Et). split; [reflexivity|destruct m; reflexivity].
+          - rewrite (top_const_assigned_own env ranked x Et). split; [reflexivity|destruct m; reflexivity].
           - rewrite (not_top_const x Et). split; [apply intersect_mutability_left|apply intersect_mutability_right]. }
         split; [exact (gfrag_with_mutability _ x Hx)|].
         split; [exact (applied_vle x (Some (intersect_mutability (mutability_of env x) m)) None Hx (gfrag_uniform env x Hx) (proj1 Hyx))|].
@@ -1977,15 +1977,15 @@ Proof.
     destruct ox as [| | |p], oy as [| | |q]; simpl in Hl, Ho |- *; congruence.
 Qed.
 
-(* `exclusive Nothing` and what is below it is below everything *)
+(* `own Nothing` and what is below it is below everything *)
 Lemma below_bottom_never_fails: forall n z s, gfrag z = true ->
     unify env n bottom_type z (Ongoing s) = Some (Ongoing s) -> forall t, gfrag t = true -> never_fails t z.
 Proof.
     induction n as [|n IHn]; intros z s Hz H; [discriminate H|].
-    assert (Hmz: assignment_mutability env z = exclusive).
+    assert (Hmz: assignment_mutability env z = own).
     { pose proof (accepted_mutability (S n) bottom_type z s bottom_gfrag Hz H) as Hm.
       unfold bottom_type in Hm. cbn [assignment_mutability or_readonly] in Hm. rewrite (wf_nothing_is_const env wf) in Hm.
-      apply mutability_subtype_of_exclusive, Hm. }
+      apply mutability_subtype_of_own, Hm. }
     assert (Hnz: is_nullable env z = false) by exact (accepted_not_nullable (S n) bottom_type z s bottom_gfrag Hz eq_refl H).
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IHk] using lt_wf_ind. intros t -> Ht.
     apply never_fails_step. intros f s' E.

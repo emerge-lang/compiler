@@ -156,7 +156,7 @@ Proof.
     exact (below_bottom_never_fails env wf declared declared_wf n bottom_type [] (bottom_gfrag env wf) Hn x (proj1 Hx)).
 Qed.
 
-(* Nothing, of any mutability, is below everything: it is assigned as `exclusive Nothing` *)
+(* Nothing, of any mutability, is below everything: it is assigned as `own Nothing` *)
 Lemma below_nothing: forall m x, of_fragment x -> below (RootResolved m nothing []) x.
 Proof.
     intros m x Hx. apply (below_trans _ bottom_type x (nothing_of_fragment m) bottom_of_fragment Hx); [|exact (below_bottom x Hx)].
@@ -1157,7 +1157,7 @@ Proof.
       - split.
         + rewrite (assignment_with_mutability env wf declared declared_wf m _ (proj1 Hfz)).
           destruct (top_const env (without_null env z)) eqn:Et; [|reflexivity].
-          rewrite (top_const_assigned_exclusive env ranked _ Et) in Hmz. exact (eq_sym (mutability_subtype_of_exclusive m Hmz)).
+          rewrite (top_const_assigned_own env ranked _ Et) in Hmz. exact (eq_sym (mutability_subtype_of_own m Hmz)).
         + apply (below_given A _ m HA Hfz Hbz HAm).
           exact (mutability_subtype_trans _ _ _ Hmz (assignment_mutability_below env ranked _)). }
     (* a nullable component of that mutability, too *)

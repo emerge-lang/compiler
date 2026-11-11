@@ -85,7 +85,7 @@ Definition is_generic (t: EType): bool :=
 
 (* A reference to a type parameter as written, or as the compiler applied a mutability or `!` to it:
    its effective bound is assigned as no more than the mutability given to it (`mut T`), as that or
-   as exclusive where the bound is const, and the `!` that narrowed it made the effective bound
+   as own where the bound is const, and the `!` that narrowed it made the effective bound
    non-nullable *)
 Definition as_written (given: option Mutability) (narrowed: bool) (bound: EType): bool :=
     match given with Some m => Model.is_subtype_of (assignment_mutability env bound) m | None => true end
@@ -542,7 +542,7 @@ Proof. intros x H. destruct (fragment_cases env x H) as [[m [c [args ->]]]|[m [c
 Lemma nullable_with_mutability: forall m0 x, in_fragment env x = true -> is_nullable env (with_mutability env m0 x) = is_nullable env x.
 Proof. intros m0 x H. destruct (fragment_cases env x H) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; reflexivity. Qed.
 
-(* A class type takes the mutability given; one of a const class stays immutable, and is assigned as exclusive *)
+(* A class type takes the mutability given; one of a const class stays immutable, and is assigned as own       *)
 Lemma with_mutability_cases: forall x, in_fragment env x = true ->
     (forall m0, assignment_mutability env (with_mutability env m0 x) = m0)
     \/ (forall m0, assignment_mutability env (with_mutability env m0 x) = assignment_mutability env x).
@@ -913,7 +913,7 @@ Qed.
 Definition common_mutability (ys: list EType): Mutability := fold_left intersect_mutability (map (assignment_mutability env) ys) readonly.
 
 (* Of their common mutability, the components of an intersection are all assigned as it: where one
-   is a const class, that is exclusive *)
+   is a const class, that is own *)
 Lemma with_common_mutability: forall ys y, In y ys -> in_fragment env y = true ->
     assignment_mutability env (with_mutability env (common_mutability ys) y) = common_mutability ys.
 Proof.
@@ -921,7 +921,7 @@ Proof.
     fold (common_mutability ys) in Hk.
     destruct (fragment_cases env y Hy) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; simpl in Hk |- *;
         destruct (is_const (declaration_of env c)); try reflexivity;
-        symmetry; exact (mutability_subtype_of_exclusive _ Hk).
+        symmetry; exact (mutability_subtype_of_own _ Hk).
 Qed.
 
 Lemma common_class_mutability: forall ys y, In y ys -> is_class y = true ->
@@ -929,7 +929,7 @@ Lemma common_class_mutability: forall ys y, In y ys -> is_class y = true ->
 Proof.
     intros ys y Hin Hy. pose proof (fold_intersect_below_element (map (assignment_mutability env) ys) readonly _ (in_map _ _ _ Hin)) as Hk.
     fold (common_mutability ys) in Hk. destruct y as [m c args| | | | | |]; try discriminate Hy. simpl in Hk |- *.
-    destruct (is_const (declaration_of env c)); [symmetry; exact (mutability_subtype_of_exclusive _ Hk)|reflexivity].
+    destruct (is_const (declaration_of env c)); [symmetry; exact (mutability_subtype_of_own _ Hk)|reflexivity].
 Qed.
 
 Lemma flat_map_classes: forall ys, (forall y, In y ys -> is_class y = true) -> flat_map intersected_components ys = ys.
@@ -2003,7 +2003,7 @@ Proof.
     rewrite (cfrag_keeps d0 bound x s w Hb Hx Eu). reflexivity.
 Qed.
 
-(* `exclusive Nothing` is assignable to every type of the fragment of Transitivity.v *)
+(* `own Nothing` is assignable to every type of the fragment of Transitivity.v *)
 Lemma below_all: forall x n, in_fragment env x = true -> 2 <= n -> forall m, unify env n x (RootResolved m nothing []) (Ongoing s) = Some (Ongoing s).
 Proof. intros x n Hx Hf m. exact (nothing_below env wf m x n s Hx Hf). Qed.
 

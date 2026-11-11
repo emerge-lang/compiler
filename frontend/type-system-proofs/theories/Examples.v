@@ -121,7 +121,7 @@ Definition rank (p: TypeParameterId): nat :=
 Definition is_top (t: EType): bool :=
     match t with Nullable (RootResolved (Some readonly) any []) => true | _ => false end.
 Definition is_bottom (t: EType): bool :=
-    match t with RootResolved (Some exclusive) nothing [] => true | _ => false end.
+    match t with RootResolved (Some own) nothing [] => true | _ => false end.
 
 (* Equality of types, as far as it is told; erroneous types are never equal *)
 Definition opt_mut_eqb (a b: option Mutability): bool :=
@@ -151,8 +151,8 @@ Fixpoint ety_eqb (a b: EType): bool :=
     end.
 
 (* The intersection of two types: the other where one is `read Any?`, the type where both are the
-   same; `exclusive Nothing` otherwise, which is below both. The closest common supertype: the other
-   where one is `exclusive Nothing`, the type where both are the same; `read Any?` otherwise *)
+   same; `own Nothing` otherwise, which is below both. The closest common supertype: the other
+   where one is `own Nothing`, the type where both are the same; `read Any?` otherwise *)
 Definition meet (a b: EType): EType :=
     if is_top a then b else if is_top b then a else if ety_eqb a b then a else bottom_type.
 Definition join (a b: EType): EType :=

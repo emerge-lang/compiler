@@ -260,13 +260,13 @@ Proof.
     - exact (Hup ltac:(discriminate)).
 Qed.
 
-Lemma exclusive_fits: forall m, Model.is_subtype_of exclusive m = true.
+Lemma own_fits: forall m, Model.is_subtype_of own m = true.
 Proof. intros []; reflexivity. Qed.
 
 (* A class type takes the mutability given and is assigned as it, or is of a const class *)
 Lemma fit_cases: forall m0 x, in_fragment env x = true ->
     (assignment_mutability env (with_mutability env m0 x) = m0 /\ mutability_of env x = assignment_mutability env x)
-    \/ (assignment_mutability env (with_mutability env m0 x) = exclusive /\ assignment_mutability env x = exclusive).
+    \/ (assignment_mutability env (with_mutability env m0 x) = own /\ assignment_mutability env x = own).
 Proof.
     intros m0 x H. destruct (fragment_cases env x H) as [[m [c [args ->]]]|[m [c [args [-> _]]]]];
         simpl; destruct (is_const (declaration_of env c)); first [right; split; reflexivity|left; split; reflexivity].
@@ -278,12 +278,12 @@ Lemma inst_fit_mono: forall g x y, in_fragment env x = true -> in_fragment env y
 Proof.
     intros g x y HX HY Hm. unfold inst_fit. destruct (given_mutability g) as [m|]; [|exact Hm].
     destruct (fit_cases (intersect_mutability (mutability_of env x) m) x HX) as [[EX MX]|[EX _]];
-        rewrite EX; [|apply exclusive_fits].
+        rewrite EX; [|apply own_fits].
     destruct (fit_cases (intersect_mutability (mutability_of env y) m) y HY) as [[EY MY]|[EY AY]]; rewrite EY.
     - rewrite MX, MY. apply intersect_mutability_greatest.
       + exact (mutability_subtype_trans _ _ _ (intersect_mutability_left _ _) Hm).
       + apply intersect_mutability_right.
-    - rewrite AY in Hm. apply mutability_subtype_of_exclusive in Hm. rewrite MX, Hm. destruct m; reflexivity.
+    - rewrite AY in Hm. apply mutability_subtype_of_own in Hm. rewrite MX, Hm. destruct m; reflexivity.
 Qed.
 
 (* Where Y is above X, the reference to a type parameter bound to Y is above the one bound to X *)
@@ -379,7 +379,7 @@ Proof.
     - apply (unify_fuel_monotone env n); [lia|exact H].
 Qed.
 
-(* `exclusive Nothing` is assignable to every type of the fragment *)
+(* `own Nothing` is assignable to every type of the fragment *)
 Lemma bottom_below: forall t n s, in_fragment env t = true -> 2 <= n -> unify env n t bottom_type (Ongoing s) = Some (Ongoing s).
 Proof. intros t n s Ht Hf. exact (nothing_below env wf _ t n s Ht Hf). Qed.
 

@@ -20,12 +20,12 @@ Import ListNotations.
 (* This is not implemented in the Kotlin frontend, yet.                                            *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* There are no exclusive slots. A ref slot read twice would yield two exclusive references (in terms
-   of the blocks: a ref slot is a captured reference, and those are never exclusive). An owned one
-   would add nothing to `owned mut`, which gives exclusive objects through an exclusive holder; and,
+(* There are no own slots. A ref slot read twice would yield two own references (in terms
+   of the blocks: a ref slot is a captured reference, and those are never own). An owned one
+   would add nothing to `owned mut`, which gives own objects through an own holder; and,
    viewed covariantly as `owned const`, it would claim immutable objects that the holder mutates. *)
 Definition valid_slot (o: Ownership) (m: Mutability): bool :=
-    negb (Mutability_beq m exclusive).
+    negb (Mutability_beq m own).
 
 (* The mutability of an owned object, as read through a reference to its holder: a mutable one has
    that of the holder, being part of its block; a const one is immutable anyway; a read one might
@@ -34,7 +34,7 @@ Definition owned_element_mutability (holder m: Mutability): Mutability :=
     match m with
     | immutable => immutable
     | readonly => union holder immutable
-    | mutable | exclusive => holder
+    | mutable | own => holder
     end.
 
 (* The mutability of the object in a slot, as read through a reference to the holder: owned ones as
@@ -48,16 +48,16 @@ Definition element_mutability (holder: Mutability) (o: Ownership) (m: Mutability
     end.
 
 (* The mutability of the plain values that go into a slot. Owned slots of a mutable type take
-   nothing but exclusive references: an object in such a slot has no other references than readonly
+   nothing but own references: an object in such a slot has no other references than readonly
    ones, so that the block can be frozen. Owned slots of a const or read type never give out mutable
    access, so an immutable object is as good as an adopted one. Where the ownership isn't known,
-   exclusive ones only: a slot of the ownership of a type parameter whose bound is read might be an
+   own ones only: a slot of the ownership of a type parameter whose bound is read might be an
    owned mut one, and any slot might be one of those. *)
 Definition stored_mutability (o: Ownership) (m: Mutability): Mutability :=
     match o with
-    | owned => match m with immutable | readonly => immutable | mutable | exclusive => exclusive end
+    | owned => match m with immutable | readonly => immutable | mutable | own => own end
     | ref => m
-    | any_ownership | parameter_ownership _ => exclusive
+    | any_ownership | parameter_ownership _ => own
     end.
 
 (* A value to be written into a slot *)
@@ -65,7 +65,7 @@ Inductive Value :=
     (* a value of a known mutability *)
     | plain (mutability: Mutability)
     (* a value of type T, for a type parameter T: it is what the instantiation of T makes it, an
-       exclusive reference for an owned one, a reference of the type's mutability for a ref one *)
+       own reference for an owned one, a reference of the type's mutability for a ref one *)
     | of_parameter (param: TypeParameterId)
     .
 
@@ -79,8 +79,8 @@ Definition can_store (holder: Mutability) (o: Ownership) (m: Mutability) (value:
     | of_parameter p => match o with parameter_ownership p' => param_eqb p p' | _ => false end
     end.
 
-Lemma owned_slots_of_mutable_types_take_only_exclusive: forall holder value,
-    can_store holder owned mutable value = true -> value = plain exclusive.
+Lemma owned_slots_of_mutable_types_take_only_own: forall holder value,
+    can_store holder owned mutable value = true -> value = plain own.
 Proof. intros [] [[]|p] H; unfold can_store in H; simpl in H; congruence. Qed.
 
 (* Owning only takes effect for mutable types *)
@@ -93,18 +93,18 @@ Proof. intros holder value. split; [reflexivity|]. unfold can_store. reflexivity
 (* Writing into slots, and taking parts out of a block, in terms of the blocks                     *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* All other references to a block with an exclusive owner are readonly *)
+(* All other references to a block with an own owner are readonly *)
 Lemma exclusively_owned_block_has_only_readonly_references: forall rs,
     reachable rs -> owner rs = alive ->
     forall r, In r (aliases rs) -> alias_mutability r = readonly.
 Proof.
     intros rs Hs Ho r Ha.
     pose proof (alias_coexists_with_owner rs r (references_are_conflict_free rs Hs) Ha) as H.
-    rewrite Ho in H. change (may_coexist exclusive (alias_mutability r) = true) in H.
-    apply may_coexist_exclusive, H.
+    rewrite Ho in H. change (may_coexist own (alias_mutability r) = true) in H.
+    apply may_coexist_own, H.
 Qed.
 
-(* Writing an exclusive reference into an owned slot of a mutable type: the block it owned becomes part of the
+(* Writing an own reference into an owned slot of a mutable type: the block it owned becomes part of the
    holder's block; that is the adopt transition on the holder's block, and the source block gives up
    its owner. *)
 Theorem storing_into_an_owned_slot: forall source holder,
@@ -117,8 +117,8 @@ Proof.
     - apply adopt. apply (exclusively_owned_block_has_only_readonly_references _ Hs eq_refl).
 Qed.
 
-(* Taking an owned part out of an exclusively owned block, as exclusive: the rest of the block gives
-   up its owner, and the part becomes a block of its own, with an exclusive owner. *)
+(* Taking an owned part out of an exclusively owned block, as own: the rest of the block gives
+   up its owner, and the part becomes a block of its own, with an own owner. *)
 Theorem extracting_an_owned_part: forall rs,
     reachable rs -> owner rs = alive ->
     transition rs (mkAliasing dead (aliases rs)) /\ initial (mkAliasing alive (aliases rs)).
@@ -138,7 +138,7 @@ Qed.
 (* Freezing                                                                                        *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* Once there is a const reference to a block, e.g. because its exclusive owner was captured as
+(* Once there is a const reference to a block, e.g. because its own owner was captured as
    const, no reference to any of its objects allows mutating it. *)
 Theorem frozen_block_is_immutable: forall rs,
     reachable rs -> In (captured immutable) (aliases rs) ->
@@ -255,7 +255,7 @@ Theorem any_ownership_takes_what_both_take: forall holder value,
 Proof. intros [] [[]|p]; reflexivity. Qed.
 
 (* So code that doesn't know the ownership can mutate the elements exactly if both the holder and the
-   type of the slot allow mutation. An exclusive holder alone doesn't suffice, because a ref slot may
+   type of the slot allow mutation. An own holder alone doesn't suffice, because a ref slot may
    be const or read. *)
 Corollary elements_of_any_ownership_are_mutable: forall holder m,
     mutability_allows_mutation (element_mutability holder any_ownership m)
@@ -314,7 +314,7 @@ Proof.
 Qed.
 
 (* Plain values in slots with T's ownership are right for every instantiation, too: those slots take
-   only exclusive ones, which all slots take *)
+   only own ones, which all slots take *)
 Theorem plain_values_fit_under_every_instantiation: forall holder p m0 m1 o_inst m_inst,
     can_store holder (parameter_ownership p) m0 (plain m1) = true ->
     can_store holder o_inst m_inst (plain m1) = true.
@@ -412,19 +412,19 @@ Example the_variance_rule_is_needed:
     /\ can_store mutable ref mutable (plain readonly) = false.
 Proof. split; reflexivity. Qed.
 
-(* Without the ownership rule: a ref mut slot viewed as owned would give exclusive elements through
-   an exclusive holder, where the actual slot only gives mutable ones *)
+(* Without the ownership rule: a ref mut slot viewed as owned would give own elements through
+   an own holder, where the actual slot only gives mutable ones *)
 Example the_ownership_rule_is_needed:
-    read_mutability Model.invariant exclusive owned mutable = exclusive
-    /\ element_mutability exclusive ref mutable = mutable.
+    read_mutability Model.invariant own owned mutable = own
+    /\ element_mutability own ref mutable = mutable.
 Proof. split; reflexivity. Qed.
 
-(* Without the validity of the slot: an owned exclusive slot, viewed covariantly as owned const, would
+(* Without the validity of the slot: an owned own slot, viewed covariantly as owned const, would
    claim immutable elements, which a mutable holder mutates *)
 Example the_validity_rule_is_needed:
-    mutability_conforms output exclusive immutable = true
+    mutability_conforms output own immutable = true
     /\ read_mutability output mutable owned immutable = immutable
-    /\ element_mutability mutable owned exclusive = mutable.
+    /\ element_mutability mutable owned own = mutable.
 Proof. repeat split. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -460,7 +460,7 @@ Proof.
 Qed.
 
 (* Of the opposite variance, an out-variant type argument takes an in-variant one where it takes
-   `read Any?`, and an in-variant one takes an out-variant one where it takes no more than `exclusive
+   `read Any?`, and an in-variant one takes an out-variant one where it takes no more than `own
    Nothing` *)
 Theorem unify_crosses_variances: forall fuel o o' t t' states,
     ownership_is_assignable_to o' o = true ->
@@ -473,9 +473,9 @@ Proof.
     cbn -[ownership_is_assignable_to unify]. rewrite Ho. split; reflexivity.
 Qed.
 
-(* The views `out read Any?` and `in exclusive Nothing` conform to every actual slot *)
+(* The views `out read Any?` and `in own Nothing` conform to every actual slot *)
 Theorem every_slot_conforms_to_the_top_views: forall m_actual,
-    mutability_conforms output m_actual readonly = true /\ mutability_conforms input m_actual exclusive = true.
+    mutability_conforms output m_actual readonly = true /\ mutability_conforms input m_actual own = true.
 Proof. intros []; split; reflexivity. Qed.
 
 (* A target with any ownership accepts whatever the target with the assignee's own ownership
