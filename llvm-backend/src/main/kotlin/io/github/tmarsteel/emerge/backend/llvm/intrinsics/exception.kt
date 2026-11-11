@@ -138,6 +138,18 @@ fun BasicBlockBuilder<out EmergeLlvmContext, *>.inlinePanic(message: String): Ba
     return exit(1u)
 }
 
+/**
+ * Like [inlinePanic], but doesn't print a stack trace. For situations where the code that prints stack traces
+ * cannot be relied on.
+ */
+internal fun BasicBlockBuilder<out EmergeLlvmContext, *>.inlinePanicWithoutStackTrace(message: String): BasicBlockBuilder.Termination {
+    val writeToStdErr = buildStdErrPrinter()
+    printConstantString(writeToStdErr, "PANIC! $message")
+    printLinefeed(writeToStdErr)
+
+    return exit(1u)
+}
+
 internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResult<*>>.inlineThrow(
     exceptionClass: IrClass,
     ctorArguments: List<LlvmValue<*>>,

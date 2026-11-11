@@ -66,6 +66,36 @@ class VariableErrors : FreeSpec({
                 .shouldFind<CircularVariableInitializationDiagnostic>()
         }
 
+        "circular initialization across files" {
+            val file1 = IntegrationTestModule.of(
+                moduleName = "testmodule",
+                code = """
+                    package testmodule
+                    
+                    x: UWord = y
+                """.trimIndent()
+            ).parseAsOneSourceFileOfMultiple()
+
+            val file2 = IntegrationTestModule.of(
+                moduleName = "testmodule",
+                code = """
+                    package testmodule
+                    
+                    y: UWord = x
+                """.trimIndent()
+            ).parseAsOneSourceFileOfMultiple()
+
+            val swCtx = emptySoftwareContext(validate = false)
+            val module = swCtx.registerModule(file1.expectedPackageName, emptySet())
+            module.addSourceFile(file1)
+            module.addSourceFile(file2)
+
+            val diagnosis = CollectingDiagnosis()
+            swCtx.doSemanticAnalysis(diagnosis)
+            Pair(swCtx, diagnosis.findings.toList())
+                .shouldFind<CircularVariableInitializationDiagnostic>()
+        }
+
         "double declare" - {
             "in single file" {
                 validateModule("""

@@ -64,7 +64,7 @@ object CompileCommand : CliktCommand() {
         val stdModuleDef = ConfigModuleDefinition(EmergeConstants.StdModule.NAME, toolchainConfig.frontend.stdModuleSources, uses = setOf(coreModuleDef.name))
         val targetModuleDefs = typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
         val modulesToLoad = try {
-            (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs).sortedByDependency()
+            (listOf(coreModuleDef, stdModuleDef) + projectConfig.modules + targetModuleDefs).sortedByDependency(projectConfig.modules)
         }
         catch (ex: CircularDependencyException) {
             throw CliktError("There is a circular dependency between some modules; involved module: ${ex.involvedElement}")
@@ -169,8 +169,21 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(".000", "")
 }
 
-private fun Iterable<ConfigModuleDefinition>.sortedByDependency(): List<ConfigModuleDefinition> {
-    return sortedTopologically { m, dep -> dep.name in m.uses || dep.name in m.implicitlyUses }
+/**
+ * The order of the modules is the order in which their global variables get initialized, so that the global
+ * variables of a module are initialized after those of the modules it depends on.
+ *
+ * @param projectModules these can use the platform module without declaring it, so they are sorted after it. The
+ * core and std modules use it, too; but the platform module in turn depends on them, so there is no such order
+ * for these.
+ */
+private fun Iterable<ConfigModuleDefinition>.sortedByDependency(projectModules: Collection<ConfigModuleDefinition>): List<ConfigModuleDefinition> {
+    val projectModuleNames = projectModules.map { it.name }.toSet()
+    return sortedTopologically { m, dep ->
+        dep.name in m.uses
+            || dep.name in m.implicitlyUses
+            || (dep.name == EmergeConstants.PlatformModule.NAME && m.name in projectModuleNames)
+    }
 }
 
 private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, Closeable {

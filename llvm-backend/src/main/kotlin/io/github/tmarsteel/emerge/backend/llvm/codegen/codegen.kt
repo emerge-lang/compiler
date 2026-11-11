@@ -72,6 +72,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
@@ -734,21 +735,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(autoboxedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
-        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName) {
-            EmergeConstants.CoreModule.S8_TYPE_NAME -> context.s8(expression.value.byteValueExact())
-            EmergeConstants.CoreModule.U8_TYPE_NAME -> context.u8(expression.value.shortValueExact().toUByte())
-            EmergeConstants.CoreModule.S16_TYPE_NAME -> context.s16(expression.value.shortValueExact())
-            EmergeConstants.CoreModule.U16_TYPE_NAME -> context.u16(expression.value.intValueExact().toUShort())
-            EmergeConstants.CoreModule.S32_TYPE_NAME -> context.s32(expression.value.intValueExact())
-            EmergeConstants.CoreModule.U32_TYPE_NAME -> context.u32(expression.value.longValueExact().toUInt())
-            EmergeConstants.CoreModule.S64_TYPE_NAME -> context.s64(expression.value.longValueExact())
-            EmergeConstants.CoreModule.U64_TYPE_NAME -> context.u64(expression.value.toLong().toULong())
-            EmergeConstants.CoreModule.SWORD_TYPE_NAME -> context.sWord(expression.value.longValueExact())
-            EmergeConstants.CoreModule.UWORD_TYPE_NAME -> context.uWord(expression.value.toLong().toULong())
-            else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
-        })
-        is IrBooleanLiteralExpression -> return ExpressionResult.Value(context.i1(expression.value))
-        is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
+        is IrIntegerLiteralExpression,
+        is IrBooleanLiteralExpression,
+        is IrNullLiteralExpression -> return ExpressionResult.Value(context.literalConstant(expression)!!)
         is IrNullInitializedArrayExpression -> {
             val elementCount = context.uWord(expression.size)
             val arrayType = context.getArrayObjectType(expression.evaluatesTo)
@@ -1223,4 +1212,26 @@ private enum class ArrayAccessor {
     SET_FALLIBLE,
     SET_PANIC,
     ;
+}
+
+/**
+ * @return the value of [expression] if it is a literal that needs no code to be evaluated, `null` otherwise.
+ */
+internal fun EmergeLlvmContext.literalConstant(expression: IrExpression): LlvmConstant<*>? = when (expression) {
+    is IrIntegerLiteralExpression -> when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName) {
+        EmergeConstants.CoreModule.S8_TYPE_NAME -> s8(expression.value.byteValueExact())
+        EmergeConstants.CoreModule.U8_TYPE_NAME -> u8(expression.value.shortValueExact().toUByte())
+        EmergeConstants.CoreModule.S16_TYPE_NAME -> s16(expression.value.shortValueExact())
+        EmergeConstants.CoreModule.U16_TYPE_NAME -> u16(expression.value.intValueExact().toUShort())
+        EmergeConstants.CoreModule.S32_TYPE_NAME -> s32(expression.value.intValueExact())
+        EmergeConstants.CoreModule.U32_TYPE_NAME -> u32(expression.value.longValueExact().toUInt())
+        EmergeConstants.CoreModule.S64_TYPE_NAME -> s64(expression.value.longValueExact())
+        EmergeConstants.CoreModule.U64_TYPE_NAME -> u64(expression.value.toLong().toULong())
+        EmergeConstants.CoreModule.SWORD_TYPE_NAME -> sWord(expression.value.longValueExact())
+        EmergeConstants.CoreModule.UWORD_TYPE_NAME -> uWord(expression.value.toLong().toULong())
+        else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
+    }
+    is IrBooleanLiteralExpression -> i1(expression.value)
+    is IrNullLiteralExpression -> nullValue(getReferenceSiteType(expression.evaluatesTo))
+    else -> null
 }

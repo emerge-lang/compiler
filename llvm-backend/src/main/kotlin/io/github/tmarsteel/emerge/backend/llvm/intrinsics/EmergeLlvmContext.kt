@@ -33,6 +33,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
+import io.github.tmarsteel.emerge.backend.llvm.codegen.literalConstant
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -56,6 +57,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
@@ -71,6 +73,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.typeOfTypeArgum
 import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
@@ -408,7 +411,12 @@ class EmergeLlvmContext(
                 val declaredType = llvmParameterTypes[paramIndex]
                 assert(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
             }
-            assert(intrinsic.type.returnType.isAssignableTo(returnLlvmType))
+            // an intrinsic cannot name the LLVM type of a specific emerge class statically; it returns any emerge reference instead
+            val returnsClassAsAnyReference = intrinsic.type.returnType == PointerToAnyEmergeValue
+                && (returnLlvmType as? LlvmPointerType<*>)?.pointed is EmergeClassType
+            assert(returnsClassAsAnyReference || intrinsic.type.returnType.isAssignableTo(returnLlvmType)) {
+                "${fn.canonicalName} return type; intrinsic ${intrinsic.type.returnType}, declared $returnLlvmType"
+            }
 
             fn.llvmRef = intrinsic
             fn.llvmName = intrinsic.name
@@ -514,27 +522,123 @@ class EmergeLlvmContext(
         return fn.llvmRef!!
     }
 
-    private val globalVariables = ArrayList<IrGlobalVariable>()
+    /**
+     * the functions that assure the initialization of the global variables that need code to be initialized,
+     * in the order the variables were registered.
+     */
+    private val globalVariableInitializers = ArrayList<KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>>()
+
+    /**
+     * Global variables that are initialized to a literal need no code, they are initialized by the loader.
+     * All others are initialized on first access: the initializer of a global variable can depend on any other
+     * global variable (also through the functions it calls), so there is no order that could be determined upfront.
+     * [threadInitializerFn] accesses all of them, so all globals are initialized by the time `main` runs.
+     */
     fun registerGlobal(global: IrGlobalVariable) {
         val globalType = getReferenceSiteType(global.declaration.type)
-        val allocation = addGlobal(
-            LlvmConstant(
-                Llvm.LLVMGetUndef(globalType.getRawInContext(this)),
-                globalType,
-            ),
-            LlvmThreadLocalMode.LOCAL_DYNAMIC,
-            global.name.toString(),
-        )
+        val name = global.name.toString()
+        if (name == "emerge.platform.StandardError") {
+            standardErrorStreamGlobalVar = global
+        }
+
+        val literalInitializer = literalConstant(global.initializer)
+            ?.takeIf { it.type.getRawInContext(this).pointer == globalType.getRawInContext(this).pointer }
+        if (literalInitializer != null) {
+            val allocation = addGlobal(
+                LlvmConstant(literalInitializer.raw, globalType),
+                LlvmThreadLocalMode.LOCAL_DYNAMIC,
+                name,
+            )
+            global.declaration.emitRead = {
+                allocation.dereference()
+            }
+            global.declaration.emitWrite = { newValue ->
+                store(newValue, allocation)
+            }
+            return
+        }
+
+        val allocation = addGlobal(nullValue(globalType), LlvmThreadLocalMode.LOCAL_DYNAMIC, name)
+        val initState = addGlobal(s8(GLOBAL_INIT_STATE_UNINITIALIZED), LlvmThreadLocalMode.LOCAL_DYNAMIC, "$name\$initState")
+
+        val runInitializerFn = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>(
+            "$name\$initializer",
+            EmergeFallibleCallResult.OfVoid,
+        ) {
+            body {
+                (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
+                val initResult = emitExpressionCode(
+                    global.initializer,
+                    IrSimpleTypeImpl(context.unitType.irClass, IrTypeMutability.READONLY, false),
+                    functionHasNothrowAbi = false,
+                    expressionResultUsed = true,
+                    null,
+                )
+                when (initResult) {
+                    is ExpressionResult.Value -> {
+                        store(initResult.value, allocation)
+                        retFallibleVoid()
+                    }
+                    is ExpressionResult.Terminated -> initResult.termination
+                }
+            }
+        }
+
+        val assureInitializedFn = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
+            "$name\$init",
+            LlvmVoidType,
+        ) {
+            body {
+                val stateOnEntry = initState.dereference()
+                conditionalBranch(
+                    condition = icmp(stateOnEntry, LlvmIntPredicate.EQUAL, context.s8(GLOBAL_INIT_STATE_INITIALIZED)),
+                    ifTrue = { retVoid() },
+                )
+                conditionalBranch(
+                    condition = icmp(stateOnEntry, LlvmIntPredicate.EQUAL, context.s8(GLOBAL_INIT_STATE_IN_PROGRESS)),
+                    ifTrue = {
+                        // printing the stack trace accesses global variables, too. Should that lead back here,
+                        // the FAILED state stops the recursion
+                        store(context.s8(GLOBAL_INIT_STATE_FAILED), initState)
+                        inlinePanic("circular initialization of global variable $name")
+                    },
+                )
+                conditionalBranch(
+                    condition = icmp(stateOnEntry, LlvmIntPredicate.EQUAL, context.s8(GLOBAL_INIT_STATE_FAILED)),
+                    ifTrue = {
+                        inlinePanicWithoutStackTrace("circular initialization of global variable $name")
+                    },
+                )
+
+                store(context.s8(GLOBAL_INIT_STATE_IN_PROGRESS), initState)
+                callIntrinsic(runInitializerFn, emptyList()).abortOnException { exceptionPtr ->
+                    callIntrinsic(panicOnThrowable, listOf(exceptionPtr))
+                    unreachable()
+                }
+                store(context.s8(GLOBAL_INIT_STATE_INITIALIZED), initState)
+                retVoid()
+            }
+        }
+        val assureInitializedFnInContext = registerIntrinsic(assureInitializedFn)
+        globalVariableInitializers.add(assureInitializedFn)
+
+        val emitAssureInitialized: BasicBlockBuilder<EmergeLlvmContext, *>.() -> Unit = {
+            conditionalBranch(
+                condition = icmp(initState.dereference(), LlvmIntPredicate.NOT_EQUAL, context.s8(GLOBAL_INIT_STATE_INITIALIZED)),
+                ifTrue = {
+                    call(assureInitializedFnInContext, emptyList())
+                    concludeBranch()
+                },
+            )
+        }
         global.declaration.emitRead = {
+            emitAssureInitialized()
             allocation.dereference()
         }
         global.declaration.emitWrite = { newValue ->
+            // otherwise the initializer would overwrite the value written here, later
+            emitAssureInitialized()
             store(newValue, allocation)
-        }
-        globalVariables.add(global)
-
-        if (global.name.toString() == "emerge.platform.StandardError") {
-            standardErrorStreamGlobalVar = global
         }
     }
 
@@ -615,7 +719,11 @@ class EmergeLlvmContext(
     }
 
     lateinit var globalInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
-    internal lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>
+    /**
+     * Initializes all global variables of the current thread that are not initialized yet. Panics if an
+     * initializer throws.
+     */
+    internal lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
         private set
     private var completed = false
     fun complete() {
@@ -662,26 +770,13 @@ class EmergeLlvmContext(
 
         threadInitializerFn = KotlinLlvmFunction.define(
             "_emerge_thread_init",
-            EmergeFallibleCallResult.OfVoid,
+            LlvmVoidType,
         ) {
             body {
-                for (global in globalVariables) {
-                    (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    val initResult = emitExpressionCode(
-                        global.initializer,
-                        IrSimpleTypeImpl(context.unitType.irClass, IrTypeMutability.READONLY, false),
-                        functionHasNothrowAbi = false,
-                        expressionResultUsed = true,
-                        null,
-                    )
-                    if (initResult is ExpressionResult.Value) {
-                        global.declaration.emitWrite!!(initResult.value)
-                    } else {
-                        check(initResult is ExpressionResult.Terminated)
-                        return@body initResult.termination
-                    }
+                for (assureInitializedFn in globalVariableInitializers) {
+                    callIntrinsic(assureInitializedFn, emptyList())
                 }
-                retFallibleVoid()
+                retVoid()
             }
         }
 
@@ -967,3 +1062,9 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
     )
         .associateByErrorOnDuplicate { it.name }
 }
+
+private const val GLOBAL_INIT_STATE_UNINITIALIZED: Byte = 0
+private const val GLOBAL_INIT_STATE_IN_PROGRESS: Byte = 1
+private const val GLOBAL_INIT_STATE_INITIALIZED: Byte = 2
+/** a circular initialization was detected and the program is about to exit */
+private const val GLOBAL_INIT_STATE_FAILED: Byte = 3

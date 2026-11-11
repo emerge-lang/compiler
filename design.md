@@ -170,6 +170,32 @@ inferred from the initializer.
 | _unspecified_       | _no initializer / exclusive_ | no             | `immutable T`              |
 | _unspecified_       | _exclusive_                  | yes            | `mutable T`                |
 
+#### Initialization of global variables
+
+A variable declared at the top level of a file must have an initializer. Each thread has its own instance of
+every global variable.
+
+The initializer of a global variable is evaluated once per thread, at the latest when the variable is first
+accessed. So an initializer can use any other global variable, regardless of the file or module it is
+declared in, also through the functions it invokes:
+
+    // a.em
+    a = computeFromB()
+    fn computeFromB() = b + 1
+
+    // b.em
+    b = expensive()
+
+All global variables are initialized before `main` runs, unless an initializer accesses one of them earlier:
+the variables of a module after those of the modules it depends on, and the variables of a file in the order
+of their declaration. The order among the files of a module is not specified, but it is the same every time the
+same sources are compiled. The core, std and platform modules depend on each other, so there is no such order
+among these three; they are all initialized before the modules of a project.
+
+An initializer that needs the value of its own variable is an error. If the initializer names the variable, be
+it through other global variables, the compiler reports it. If the cycle goes through a function, the
+program panics when the variable is initialized. The program also panics if an initializer throws.
+
 #### Why this syntax
 
 Immutability should be the default. This includes non-reassignable variables. If you don't reassign

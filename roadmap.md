@@ -2,8 +2,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 1. ~~signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
-2. global variables are initialized in declaration order within a source file, but not in dependency order across
-   files: a global that reads a global of another file can see it uninitialized
+2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
+   files: a global that reads a global of another file can see it uninitialized~~
 3. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
@@ -16,11 +16,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    3. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
       type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
 5. Stdlib basics
-6. Static initialization order
-   Currently, static initializers (e.g. top level variable initializer expressions) are executed in an
-   undefined order. Circular dependencies within one file are prevented currently; across files is possible
-   currently and that can lead to reading uninitialized memory. This either needs to be prevented.
-7. Stdlib basics
+6. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
       * hashCodes: Java-style is overkill, have an explicit Hashable interface
@@ -33,25 +29,25 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
-8. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
+7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
-9. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
+8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
     The unit tests in the frontend test the negative cases; these should test the positive ones. E.g. that 2+3=5,
     refcounting, control flow + exceptions, ...
-10. integrate valgrind into the integration tests and check every test case. Fix the memory leaks that are discovered;
-    already known:
-    1. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
-       `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
-       the arguments that were reference-counted to begin with. A `capture` parameter passed on is such an argument:
-       `fn f(capture a: read Array<S32>) = a.slice(1, 2)` leaks a reference to the array, and so does `arr[r]` with a
-       range value `r`, because `Array.getAtIndex(UWordRange)` is such a function
-    2. `f()!!.member` leaks the result of `f()`: the temporary from the invocation is never dropped when the
-       not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
-    3. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
-       of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
-       dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
-       returns and invocation results move or drop their boxes correctly
-11. documentation and presentation
+9. integrate valgrind into the integration tests and check every test case. Fix the memory leaks that are discovered;
+   already known:
+   1. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
+      `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
+      the arguments that were reference-counted to begin with. A `capture` parameter passed on is such an argument:
+      `fn f(capture a: read Array<S32>) = a.slice(1, 2)` leaks a reference to the array, and so does `arr[r]` with a
+      range value `r`, because `Array.getAtIndex(UWordRange)` is such a function
+   2. `f()!!.member` leaks the result of `f()`: the temporary from the invocation is never dropped when the
+      not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
+   3. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
+      of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
+      dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
+      returns and invocation results move or drop their boxes correctly
+10. documentation and presentation
     * from a user perspective. Github pages?
       * language syntax and semantics, maybe a good tutorial
       * design decisions, philosophy and reasoning
@@ -60,7 +56,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * llvm patterns
       * debugging techniques
     * add fix suggestions to diagnostics; this should also make them much more comprehensible
-12. user tooling
+11. user tooling
     * language server and VSCode plugin
     * think about an assistant, e.g. taking care of these tasks
       * manage installed toolchain versions, at least on linux
@@ -68,7 +64,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * setting up a new project including bazel build
         * adding modules or dependencies to existing projects
         * if emerge ecosystem/libraries are already a thing: manage dependencies
-13. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
+12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
     type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
     `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` still only check the base type
@@ -85,7 +81,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `exclusive` is
        never a cast target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
        independent of type arguments
-14. Function types
+13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
@@ -108,19 +104,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
     6. implement last-argument lambdas like in Kotlin?
        * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
-15. functional-style collection operations (possible because the higher-order function purity problem is solved)
+14. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-16. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-17. optimize reference counting; see [](refcounting optimizations.md)
+15. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+16. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-18. typealiases
-19. smart casts
-20. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+17. typealiases
+18. smart casts
+19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
@@ -143,24 +139,24 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     Either type variables don't take `exclusive` values, or generic code treats values of type `T` as possibly
     exclusive (their lifetime ends where they are captured)
-21. optional parameters
+20. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-22. Declaration-Site variance
+21. Declaration-Site variance
     * support declaration-site variance: `class Pair<out A, out B> { ... }`. Anticipated problems:
       * assignment to member vars that have a generic type referencing an in/out type parameter can only
         be assigned on construction -> must not be "var"
       * the code generated in the constructor for the assignment won't validate, precisely because it's
         not generally valid to assign to an out-variant/in-variant member var -> needs an exception
       * it was partially supported before; some test-cases are already present but disabled
-23. named arguments
+22. named arguments
     * allow to change the order of arguments? It's important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-24. threading
+23. threading
     A big point with the explicit-mutability types is to simplify multithreading (though, the other
     big benefit of them is the assemble-then-return-as-const pattern). Avoiding the complexity of 
     having a `shared` mutability like D allows to infer some properties necessary for multithreading:
@@ -189,16 +185,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
-25. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
+24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
-26. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
+25. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
     not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
     Look for an equally concise and expressive term that says that more precisely
-27. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
+26. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
     `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
     instead of `read Ord<in Num>`
-28. a member function with type parameters of its own can't be overridden: findOverriddenFunctions compares the
+27. a member function with type parameters of its own can't be overridden: findOverriddenFunctions compares the
     parameter types by equality, and the type parameters of the override are never those of the overridden function
     ```
     interface Base {
@@ -210,10 +206,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The type parameters would have to be matched up by position, their bounds compared, before comparing the
     parameter types. This is a usability problem, not a soundness one
-29. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
+28. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)
-30. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
+29. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
     The constructor ties the mutability of the object, `_M` in its return type `exclusive W & _M`, to that of each
     decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
     object. Three things broke that:
@@ -230,13 +226,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     `_M` likely wants to be a mutability-only parameter rather than an intersection component. The tests in
     `ClassErrors` ("decorated members") and `DecoratorMutabilityTests` describe the intended behaviour
-31. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
+30. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
     slice's size, so the rest of the base array can be freed. `U64.toString` returns a slice of its 21-byte buffer,
     keeping the entire buffer alive for as long as the string lives
-32. various optimizations collected over time
+31. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
-33. model the frontend's rule that an intersection of disjoint classes (`N & M`, `N & Box<A>`) is below every type, as
+32. model the frontend's rule that an intersection of disjoint classes (`N & M`, `N & Box<A>`) is below every type, as
     the bottom type it simplifies to (`BoundIntersectionTypeReference.flippedUnify`, coverage step 14): in the model,
     `Subtyping.intersection_flipped_unify` returning the carry where `is_effectively_bottom_type` holds of the
     components. It is the one entry of `OracleGrid.unify_excuses` (1049 pairs of `TypeGrid`) and the excuse of
@@ -246,16 +242,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
     ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
-34. runtime type information is allocated per call: a generic function calling another generic function with
+33. runtime type information is allocated per call: a generic function calling another generic function with
     a type argument that mentions its own type parameters (`Array<T>`, `T?`) builds `NamedType`/`TypeArgument`
     objects on every call (`lowerReifiedType` in the LLVM backend). Cache them per call site, or intern
     structurally equal types
-35. a virtual function overriding an interface function whose return type is a type parameter (`fn make(self) -> R`)
+34. a virtual function overriding an interface function whose return type is a type parameter (`fn make(self) -> R`)
     with an array return type (`override fn make(self) -> Array<U>` for `Maker<Array<U>>`) crashes: the interface
     returns a boxed reference, the override returns an `arrayslice` struct, so the LLVM signatures differ and the
     override misreads its `self`. Needs a bridge like the ones `emerge.platform.ArrayBox` has, or the override has
     to use the representation of the overridden function
-36. if interfaces ever get default method implementations, their type parameters need runtime type information
+35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
 -----
 

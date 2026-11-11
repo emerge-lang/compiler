@@ -8,7 +8,6 @@ import emerge.ffi.c.COpaquePointer
 import emerge.std.io.IOException
 import emerge.std.collections.ArrayList
 
-// declared here so they are initialized before the streams below
 FD_STDIN: S32 = 0
 FD_STDOUT: S32 = 1
 FD_STDERR: S32 = 2
