@@ -159,10 +159,10 @@ enum class TypeMutability(
     }
 
     fun toBackendIr(): IrTypeMutability = when (this) {
-        IMMUTABLE -> IrTypeMutability.EXCLUSIVE
+        IMMUTABLE -> IrTypeMutability.IMMUTABLE
         READONLY -> IrTypeMutability.READONLY
         MUTABLE -> IrTypeMutability.MUTABLE
-        OWN -> IrTypeMutability.EXCLUSIVE
+        OWN -> IrTypeMutability.OWN
     }
 
     override fun toString() = keyword.text

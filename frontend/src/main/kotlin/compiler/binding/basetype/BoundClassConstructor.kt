@@ -375,7 +375,7 @@ private class IrDefaultConstructorImpl(
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val typeParameters by lazy { ctor.declaredTypeParameters.map { it.toBackendIr() } }
     override val declaresReceiver = false
-    override val returnType = IrClassSimpleType(ctor.classDef, IrTypeMutability.EXCLUSIVE)
+    override val returnType = IrClassSimpleType(ctor.classDef, IrTypeMutability.OWN)
     override val isExternalC = false
     override val isNothrow = ctor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = ctor.classDef.toBackendIr()
@@ -387,7 +387,7 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAl
         require(classDef.kind == BoundBaseType.Kind.CLASS)
     }
     override val clazz: IrClass by lazy { classDef.toBackendIr() as IrClass }
-    override val evaluatesTo = IrClassSimpleType(classDef, IrTypeMutability.EXCLUSIVE)
+    override val evaluatesTo = IrClassSimpleType(classDef, IrTypeMutability.OWN)
 }
 
 private class IrRegisterWeakReferenceStatementImpl(

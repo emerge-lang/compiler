@@ -178,7 +178,7 @@ class BoundCastExpression(
                     emptyMap(),
                     IrSimpleTypeImpl(
                         classCastErrorBoundType.toBackendIr(),
-                        IrTypeMutability.EXCLUSIVE,
+                        IrTypeMutability.OWN,
                         isNullable = false,
                     ),
                     landingpad,
