@@ -33,6 +33,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
+import io.github.tmarsteel.emerge.backend.llvm.codegen.literalConstant
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -56,6 +57,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
@@ -71,6 +73,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.typeOfTypeArgum
 import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
@@ -81,9 +84,6 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
 import io.github.tmarsteel.emerge.backend.llvm.reifiedTypeArgumentValues
-import io.github.tmarsteel.emerge.backend.llvm.codegen.literalConstant
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import java.util.Collections
@@ -411,7 +411,12 @@ class EmergeLlvmContext(
                 val declaredType = llvmParameterTypes[paramIndex]
                 assert(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
             }
-            assert(intrinsic.type.returnType.isAssignableTo(returnLlvmType))
+            // an intrinsic cannot name the LLVM type of a specific emerge class statically; it returns any emerge reference instead
+            val returnsClassAsAnyReference = intrinsic.type.returnType == PointerToAnyEmergeValue
+                && (returnLlvmType as? LlvmPointerType<*>)?.pointed is EmergeClassType
+            assert(returnsClassAsAnyReference || intrinsic.type.returnType.isAssignableTo(returnLlvmType)) {
+                "${fn.canonicalName} return type; intrinsic ${intrinsic.type.returnType}, declared $returnLlvmType"
+            }
 
             fn.llvmRef = intrinsic
             fn.llvmName = intrinsic.name
