@@ -31,7 +31,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | Reflexivity on type parameters and intersections | ◐ same | `FinalValues.v` |
 | Erroneous types | ✗ modelled in unify, no theorem | — |
 | The frontend's unify is the model's, over the types of `TypeGrid` | ✓ by computation, but intersections of disjoint classes, which the frontend takes below every type (step 14) | `OracleGrid.unify_agrees` |
-| Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin, and to be removed from the model (roadmap 38) | `Ownership.v` |
+| Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin, and to be removed from the model (roadmap 37) | `Ownership.v` |
 
 ## Substitution (instantiating type parameters)
 
@@ -101,7 +101,7 @@ free and member functions, and in generic code. So are intersections, nullable o
 with † for free and member functions, and in generic code: the argument is below the instance of the whole
 intersection, as ofComponents makes it.
 
-Not as the frontend has it (roadmap 37): where a type variable only has `own` values, the frontend doesn't bind it
+Not as the frontend has it (roadmap 36): where a type variable only has `own` values, the frontend doesn't bind it
 to the `own` type the model's `final_value` is. It gives the lower bound the mutability the upper bound asks for,
 `mut` otherwise, and reports an error where only an `own` type fits; with the type the call is expected to return as
 one more constraint. What is proven below is about the model's final values.

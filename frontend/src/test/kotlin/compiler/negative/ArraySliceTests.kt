@@ -30,7 +30,7 @@ class ArraySliceTests : FreeSpec({
         }
 
         // a type parameter is never bound to an own type, so the slice of an own array is mut, not
-        // own; see roadmap item 20
+        // own; see roadmap item 19
         "own gives mut" {
             validateModule("""
                 fn test() -> mut Array<S32> {

@@ -43,12 +43,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
         is a promise of its author, not something the compiler checks. That code without a token cannot touch
         external state stays checked
-      * type arguments cannot be `own` (item 20), so a cell hands out references of the mutability of `T`
+      * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
     * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
       freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
       call. The time of that call must not show in the value, so the value is `const`, and the initializer
       captures only `const` data and no token; being `pure` is not enough, a pure function can read mutable data it
-      captured. Needs function types (item 14) that can say so
+      captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -280,7 +280,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
 36. the type system model picks other final values than the frontend where a type variable only has `own` values
-    (item 20): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
+    (item 19): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
     mutability the upper bound asks for, `mut` otherwise (`VariableState.mutabilityForOwnValues`), and it is an
     error where the upper bound asks for `own` (`VariableState.needsOwnValue`). The theorems on calls are about
     the model's final values; nothing checks the difference, the oracle doesn't cover inference. To do:
@@ -295,7 +295,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
     and not going to be: each member variable or element of a generic data structure would either own its object,
     making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
-    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 7a) gives
+    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 6a) gives
     that for much less. The frontend is modelled as the types whose type arguments are all `ref`, or of the
     ownership of their type parameter, so nothing is wrong meanwhile; but every theorem speaks about an ownership
     the language doesn't have, and `owned` reads like the mutability `own`. To remove:
@@ -308,7 +308,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * the mentions in `readme.md` and `coverage.md`
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
-    item 37, which changes the same files
+    item 36, which changes the same files
 -----
 
 ## Future features
