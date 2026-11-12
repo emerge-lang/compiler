@@ -392,7 +392,7 @@ State outside of the program (standard output, the clock, where objects are in m
 objects of a `token class`. A token cannot be made `const` and cannot be forgotten in a type that is no token, so a
 signature without a token parameter says that the function has no effect on the outside. The platform hands the
 root token `emerge.platform.World` to `main`; a `unique class` such as `StandardOut` hands out its one instance
-through `take(world)`. See [tokens-plan.md](tokens-plan.md) for the rules.
+through `take(world)`. See [docs/tokens.md](docs/tokens.md) for the rules.
 
     fn main(world: mut World) {
         out = StandardOut.take(world)!!

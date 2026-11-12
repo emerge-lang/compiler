@@ -25,7 +25,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
    files: a global that reads a global of another file can see it uninitialized~~
-3. ~~isolate thread-unsafe global state~~ done with tokens, see [tokens-plan.md](tokens-plan.md): there is no
+3. ~~isolate thread-unsafe global state~~ done with tokens, see [docs/tokens.md](docs/tokens.md): there is no
    mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
    which `main` obtains from the root token it is given.
 4. additional language constructs
@@ -54,12 +54,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
       `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
       the object holding the cell
-      * with function purity, `get` is a `read fn` and `set` a `mut fn`: the purity checks reason from mutability
-        (a global of a `const` type is a compile-time constant, a write is a use as `mut`), and a cell reachable from
-        a `const` global would be global state they don't see. So cells can't be used in `pure` functions
-      * with tokens (`tokens-plan.md` on the branch `token-protected-global-state`), `token class Cell<token T>`
-        instead: never `const`, every class holding one is a token class, none is reachable from a global or from
-        another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
+      * it is a `token class Cell<T>` (see [docs/tokens.md](docs/tokens.md), internal mutability): never `const`,
+        every class holding one is a token class, none is reachable from a global or from another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
         is a promise of its author, not something the compiler checks. That code without a token cannot touch
         external state stays checked
       * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
@@ -126,7 +122,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
     2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
        left of the problem is a rule for closures: a closure that captures a token is a token
-       (rule 6 in [tokens-plan.md](tokens-plan.md)).
+       (rule 6 in [docs/tokens.md](docs/tokens.md)).
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
        * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
@@ -359,7 +355,7 @@ with algebraic data types to form Java-Like enums:
     typealias Enum = A | B | C
 
 State external to the program is not a case for atoms: it is modelled by tokens, and a resource there is one of
-per process by a `unique class` (see [tokens-plan.md](tokens-plan.md)).
+per process by a `unique class` (see [docs/tokens.md](docs/tokens.md)).
 
 ### Feed LLVM with all info available
 
