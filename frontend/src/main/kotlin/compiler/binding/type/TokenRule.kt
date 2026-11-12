@@ -10,32 +10,12 @@ import compiler.lexer.Span
  * [BoundTypeReference.unify] that decide assignability by more than delegating to another one.
  */
 internal object TokenRule {
-    private val assigneeKnownToBeNoToken: ThreadLocal<Int> = ThreadLocal.withInitial { 0 }
-
-    /**
-     * Runs [action], in which the components of an intersection are assigned one by one. Where the intersection
-     * as a whole cannot be a token (`Animal & NonToken`), neither can the value, though a component alone
-     * (`Animal`) doesn't say so.
-     */
-    fun <R> forComponentsOf(intersection: BoundIntersectionTypeReference, action: () -> R): R {
-        if (intersection.mayBeToken) {
-            return action()
-        }
-
-        assigneeKnownToBeNoToken.set(assigneeKnownToBeNoToken.get() + 1)
-        try {
-            return action()
-        } finally {
-            assigneeKnownToBeNoToken.set(assigneeKnownToBeNoToken.get() - 1)
-        }
-    }
-
     /**
      * @return the reason why a value of [assigneeType] cannot be assigned to [targetType] by this rule, `null` if
      * the rule has no objection.
      */
-    fun check(targetType: BoundTypeReference, assigneeType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
-        if (assigneeKnownToBeNoToken.get() > 0 || !assigneeType.mayBeToken || targetType.mayBeToken) {
+    fun check(targetType: BoundTypeReference, assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): ValueNotAssignableDiagnostic? {
+        if (carry.assigneeIsKnownToBeNoToken || !assigneeType.mayBeToken || targetType.mayBeToken) {
             return null
         }
         if (targetType.mentionsTypeVariables() || assigneeType.mentionsTypeVariables()) {

@@ -194,12 +194,14 @@ class BoundIntersectionTypeReference private constructor(
             return carry
         }
 
-        return TokenRule.forComponentsOf(this) {
-            components.asSequence()
-                .map { targetType.unify(it, assignmentLocation, carry) }
-                .filter { it.getErrorsNotIn(carry).none() }
-                .firstOrNull()
-        }
+        // where this intersection cannot be a token as a whole (Animal & NonToken), neither can the value, though
+        // a component alone (Animal) doesn't say so
+        val componentCarry = if (mayBeToken) carry else carry.withAssigneeKnownToBeNoToken(true)
+        return components.asSequence()
+            .map { targetType.unify(it, assignmentLocation, componentCarry) }
+            .filter { it.getErrorsNotIn(carry).none() }
+            .firstOrNull()
+            ?.withAssigneeKnownToBeNoToken(carry.assigneeIsKnownToBeNoToken)
             ?: carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                 targetType,
                 this,

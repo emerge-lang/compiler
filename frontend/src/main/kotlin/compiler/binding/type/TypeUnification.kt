@@ -27,9 +27,25 @@ import compiler.lexer.Span
 class TypeUnification private constructor(
     private val variableStates: Map<BoundTypeParameter, TypeUnification.VariableState>,
     val diagnostics: Set<Diagnostic>,
+    /**
+     * Whether the value being assigned is known to be no token, though the type being unified at the moment
+     * doesn't say so: it is a component of an intersection that cannot be a token as a whole (`Animal` of
+     * `Animal & NonToken`). See [TokenRule].
+     */
+    val assigneeIsKnownToBeNoToken: Boolean = false,
 ) {
-    /** what of this unification steers unify: the states of the variables, not the diagnostics */
-    internal val stateOfVariables: Any get() = variableStates
+    /** what of this unification steers unify: the states of the variables and what is known of the assignee, not the diagnostics */
+    internal val stateOfVariables: Any get() = Pair(variableStates, assigneeIsKnownToBeNoToken)
+
+    /**
+     * @return this unification, with [assigneeIsKnownToBeNoToken] as given
+     */
+    fun withAssigneeKnownToBeNoToken(known: Boolean): TypeUnification {
+        if (known == assigneeIsKnownToBeNoToken) {
+            return this
+        }
+        return TypeUnification(variableStates, diagnostics, known)
+    }
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
         return diagnostics.asSequence()
@@ -38,7 +54,7 @@ class TypeUnification private constructor(
     }
 
     fun plusDiagnostic(diagnostic: Diagnostic): TypeUnification {
-        return TypeUnification(variableStates, this.diagnostics + diagnostic)
+        return TypeUnification(variableStates, this.diagnostics + diagnostic, assigneeIsKnownToBeNoToken)
     }
 
     /**
@@ -76,6 +92,7 @@ class TypeUnification private constructor(
         return TypeUnification(
             unificationWithLowerBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = newUpperBound)),
             diagnostics,
+            assigneeIsKnownToBeNoToken,
         )
     }
 
@@ -120,6 +137,7 @@ class TypeUnification private constructor(
         return TypeUnification(
             unificationWithStaticBound.variableStates + mapOf(parameter to stateBefore.copy(lowerBound = newLowerBound)),
             diagnostics,
+            assigneeIsKnownToBeNoToken,
         )
     }
 
@@ -185,6 +203,7 @@ class TypeUnification private constructor(
         return TypeUnification(
             unificationWithStaticBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = binding, lowerBound = binding, isExact = true)),
             diagnostics,
+            assigneeIsKnownToBeNoToken,
         )
     }
 
@@ -203,6 +222,7 @@ class TypeUnification private constructor(
         return TypeUnification(
             resultStates,
             this.diagnostics + other.diagnostics + diagnosis.findings,
+            assigneeIsKnownToBeNoToken,
         )
     }
 
@@ -282,7 +302,7 @@ class TypeUnification private constructor(
         }
 
         val top = invariantArgument(parameter.context.swCtx.getTopType(parameter.astNode.span))
-        val selfAsTop = TypeUnification(variableStates + mapOf(parameter to VariableState(top, top, top, true)), diagnostics)
+        val selfAsTop = TypeUnification(variableStates + mapOf(parameter to VariableState(top, top, top, true)), diagnostics, assigneeIsKnownToBeNoToken)
         return parameter.bound.instantiateAllParameters(selfAsTop)
     }
 
