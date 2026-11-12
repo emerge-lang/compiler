@@ -12,8 +12,17 @@ FD_STDIN: S32 = 0
 FD_STDOUT: S32 = 1
 FD_STDERR: S32 = 2
 
-export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
-export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
+export unique class StandardOut : PrintStream {
+    export nothrow constructor {
+        mixin FileDescriptorPrintStream(FD_STDOUT)
+    }
+}
+
+export unique class StandardError : PrintStream {
+    export nothrow constructor {
+        mixin FileDescriptorPrintStream(FD_STDERR)
+    }
+}
 
 token class FileDescriptorPrintStream : PrintStream {
     private fd: S32 = init

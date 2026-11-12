@@ -264,6 +264,13 @@ interface IrReifiedTypeExpression : IrExpression {
 }
 
 /**
+ * Evaluates to the `emerge.platform.StackTraceCollector` that the runtime holds for the current thread. The
+ * reference is borrowed from the runtime: it is valid for as long as the thread runs and is not to be counted.
+ * Emerge source code has no way to write this; the frontend generates it for `throw`.
+ */
+interface IrRuntimeStackTraceCollectorExpression : IrExpression
+
+/**
  * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
  * but are not actually expressions. Prime candidate: assignment statements.
  *

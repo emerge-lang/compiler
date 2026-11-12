@@ -7,7 +7,7 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
+read fn collectStackTrace(borrow collector: mut StackTraceCollector, nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
@@ -34,7 +34,7 @@ read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own
         }
     
         if nSkipped >= nFramesToSkip {
-            ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
+            ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst(), collector.registerBuffer)
 
             stackList.add(StackTraceElement(ip, procName))
         } else {
@@ -171,10 +171,9 @@ private read fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     return true
 }
 
-private prealloc_getRegisterBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
-private read nothrow fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> UWord {
-    errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, prealloc_getRegisterBuffer.addressOfFirst())
-    return prealloc_getRegisterBuffer.getOrPanic(0)
+private read nothrow fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer, borrow registerBuffer: mut Array<UWord>) -> UWord {
+    errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, registerBuffer.addressOfFirst())
+    return registerBuffer.getOrPanic(0)
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at
@@ -201,23 +200,33 @@ private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const
 // allocations, avoiding OOM problems during a panic
 // this code does, by all my reasoning, not throw. However, the compiler cannot be convinced
 // of that right now because some features are lacking. Hence, the functions are not all nothrow
-private prealloc_backtraceContextBuffer: mut _ = Array.new::<S8>(unwind_context_size(), 0 as S8)
-private prealloc_backtraceCursorBuffer: mut _ = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
-private prealloc_procedureNameBuffer: mut _ = Array.new::<S8>(256, 0 as S8)
-private prealloc_relativeIpBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
+// Collects stack traces. It owns the buffers the unwinder works in; they are allocated when the collector is
+// created, so that a stack trace can still be printed when no memory is left.
+// The runtime holds one per thread, for `throw` and for panics. Other code obtains one from the root.
+export token class StackTraceCollector {
+    registerBuffer: mut Array<UWord> = Array.new::<UWord>(1, 0 as UWord)
+    backtraceContextBuffer: mut Array<S8> = Array.new::<S8>(unwind_context_size(), 0 as S8)
+    backtraceCursorBuffer: mut Array<S8> = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
+    procedureNameBuffer: mut Array<S8> = Array.new::<S8>(256, 0 as S8)
+    relativeIpBuffer: mut Array<UWord> = Array.new::<UWord>(1, 0 as UWord)
+
+    private nothrow constructor {}
+
+    export fn create(borrow world: read World) -> own StackTraceCollector = StackTraceCollector()
+}
 
 private intrinsic nothrow fn writeMemoryAddress(address: UWord, fd: S32)
 
-private mut fn writeProcedureName(cursorPtr: COpaquePointer, fd: S32) {
-    errorCode = unw_get_proc_name(cursorPtr, prealloc_procedureNameBuffer.addressOfFirst(), prealloc_procedureNameBuffer.size, prealloc_relativeIpBuffer.addressOfFirst())
+private mut fn writeProcedureName(borrow collector: mut StackTraceCollector, cursorPtr: COpaquePointer, fd: S32) {
+    errorCode = unw_get_proc_name(cursorPtr, collector.procedureNameBuffer.addressOfFirst(), collector.procedureNameBuffer.size, collector.relativeIpBuffer.addressOfFirst())
     if errorCode == UNWIND_ERROR_SUCCESS {
         // TODO: use safe array access to enable nothrow
         var actualNameLength = 0 as UWord
-        while prealloc_procedureNameBuffer[actualNameLength] != 0 and actualNameLength < prealloc_procedureNameBuffer.size {
+        while collector.procedureNameBuffer[actualNameLength] != 0 and actualNameLength < collector.procedureNameBuffer.size {
             // TODO: use safe/modular math to enable nothrow
             set actualNameLength = actualNameLength + 1
         }
-        write(fd, prealloc_procedureNameBuffer.addressOfFirst(), actualNameLength)
+        write(fd, collector.procedureNameBuffer.addressOfFirst(), actualNameLength)
     } else {
         // TODO: use early return; currently not possible because just "return;" requires a reference to Unit
         replacement = "<unknown function>"
@@ -227,8 +236,8 @@ private mut fn writeProcedureName(cursorPtr: COpaquePointer, fd: S32) {
 
 // prints the stack to FD_STDERR. Is effectively nothrow.
 // @return whether the stack could be traced. If false, an error message will be written to FD_STDERR
-mut fn printStackTraceToStandardError() -> Bool {
-    var errorCode = unw_getcontext(prealloc_backtraceContextBuffer.addressOfFirst())
+mut fn printStackTraceToStandardError(borrow collector: mut StackTraceCollector) -> Bool {
+    var errorCode = unw_getcontext(collector.backtraceContextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
         printError("  !! failed to backtrace; unw_getcontext errored: ")
         printError(unwindErrorToStringSafe(errorCode))
@@ -236,7 +245,7 @@ mut fn printStackTraceToStandardError() -> Bool {
         return false
     }
 
-    set errorCode = unw_init_local(prealloc_backtraceCursorBuffer.addressOfFirst(), prealloc_backtraceContextBuffer.addressOfFirst())
+    set errorCode = unw_init_local(collector.backtraceCursorBuffer.addressOfFirst(), collector.backtraceContextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
         printError("  !! failed to backtrace; unw_init_local errored: ")
         printError(unwindErrorToStringSafe(errorCode))
@@ -244,22 +253,22 @@ mut fn printStackTraceToStandardError() -> Bool {
         return false
     }
     
-    couldSkipSelf = unwindCursorTryStepUp(prealloc_backtraceCursorBuffer.addressOfFirst())
+    couldSkipSelf = unwindCursorTryStepUp(collector.backtraceCursorBuffer.addressOfFirst())
     if not couldSkipSelf {
         printError("  !! failed to backtrace; could not unw_step past the printing infrastructure frames\n")
         return false
     }
 
     while true {
-        ip = unwindCursorGetInstructionPointer(prealloc_backtraceCursorBuffer.addressOfFirst())
+        ip = unwindCursorGetInstructionPointer(collector.backtraceCursorBuffer.addressOfFirst(), collector.registerBuffer)
         
         printError("  at ")
-        writeProcedureName(prealloc_backtraceCursorBuffer.addressOfFirst(), FD_STDERR)
+        writeProcedureName(collector, collector.backtraceCursorBuffer.addressOfFirst(), FD_STDERR)
         printError(" (")
         writeMemoryAddress(ip, FD_STDERR)
         printError(")\n")
         
-        hasNext = unwindCursorTryStepUp(prealloc_backtraceCursorBuffer.addressOfFirst())
+        hasNext = unwindCursorTryStepUp(collector.backtraceCursorBuffer.addressOfFirst())
         if not hasNext {
             break
         }

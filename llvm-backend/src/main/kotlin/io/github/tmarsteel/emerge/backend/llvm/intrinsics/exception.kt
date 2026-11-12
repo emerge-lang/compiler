@@ -81,7 +81,7 @@ private val LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.typeName: LlvmVa
 }
 
 private fun BasicBlockBuilder<out EmergeLlvmContext, *>.printStackTraceToStdErr() {
-    call(context.printStackTraceToStdErrFunction, emptyList())
+    call(context.printStackTraceToStdErrFunction, listOf(context.runtimeStackTraceCollectorSlot.dereference()))
 }
 
 private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
@@ -172,8 +172,8 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
 
     call(
         fillStackTraceFnAddress,
-        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue)),
-        listOf(exceptionPtr),
+        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue, PointerToAnyEmergeValue)),
+        listOf(exceptionPtr, context.runtimeStackTraceCollectorSlot.dereference()),
     )
         .abortOnException { _ ->
             // ignore this one
@@ -193,7 +193,7 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
         val writeToStdErr = buildStdErrPrinter()
         val printToResult = call(
             context.printThrowableFunction,
-            listOf(exceptionPtr, context.standardErrorStreamGlobalVar.declaration.emitRead!!(this)),
+            listOf(exceptionPtr, context.runtimePanicStreamSlot.dereference()),
         )
 
         if (printToResult.type is EmergeFallibleCallResult<*>) {

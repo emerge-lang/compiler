@@ -238,8 +238,22 @@ class EmergeLlvmContext(
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
     internal lateinit var pointerToUnitInstance: LlvmGlobal<EmergeClassType>
-    /** `emerge.platform.StandardError` */
-    internal lateinit var standardErrorStreamGlobalVar: IrGlobalVariable
+    /** `emerge.platform.StackTraceCollector`, set by [registerClass] */
+    internal lateinit var stackTraceCollectorType: EmergeClassType
+    /** `emerge.platform.FileDescriptorPrintStream`, set by [registerClass] */
+    internal lateinit var fileDescriptorPrintStreamType: EmergeClassType
+
+    /**
+     * What the runtime holds per thread so that `throw` and panics work without a token in the signature of the
+     * code that triggers them: a stack trace collector, and a stream to standard error. Emerge code cannot refer
+     * to these slots; [threadInitializerFn] fills them before anything else runs on the thread.
+     */
+    internal val runtimeStackTraceCollectorSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
+        addGlobal(nullValue(PointerToAnyEmergeValue), LlvmThreadLocalMode.LOCAL_DYNAMIC, "_emerge_runtime_stack_trace_collector")
+    }
+    internal val runtimePanicStreamSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
+        addGlobal(nullValue(PointerToAnyEmergeValue), LlvmThreadLocalMode.LOCAL_DYNAMIC, "_emerge_runtime_panic_stream")
+    }
     /** an `emerge.core.reflection.Type` of itself */
     internal val metaReifiedTypeGlobal: LlvmGlobal<EmergeClassType> by lazy {
         addGlobal(undefValue(reifiedNamedTypeClass), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "meta_reified_type")
@@ -323,6 +337,8 @@ class EmergeLlvmContext(
             "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
             "emerge.core.Weak" -> weakType = emergeClassType
             EmergeConstants.PlatformModule.WORLD_TYPE_NAME.toString() -> worldType = emergeClassType
+            EmergeConstants.PlatformModule.STACK_TRACE_COLLECTOR_TYPE_NAME.toString() -> stackTraceCollectorType = emergeClassType
+            "emerge.platform.FileDescriptorPrintStream" -> fileDescriptorPrintStreamType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -509,7 +525,7 @@ class EmergeLlvmContext(
         }
 
         if (fn.canonicalName.parent.toString() == "emerge.platform") {
-            if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.isEmpty()) {
+            if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.size == 1) {
                 printStackTraceToStdErrFunction = fn.llvmRef!!
             }
         }
@@ -546,9 +562,6 @@ class EmergeLlvmContext(
     fun registerGlobal(global: IrGlobalVariable) {
         val globalType = getReferenceSiteType(global.declaration.type)
         val name = global.name.toString()
-        if (name == "emerge.platform.StandardError") {
-            standardErrorStreamGlobalVar = global
-        }
 
         val literalInitializer = literalConstant(global.initializer)
             ?.takeIf { it.type.getRawInContext(this).pointer == globalType.getRawInContext(this).pointer }
@@ -782,6 +795,21 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
+                // first, so that the initializers of the global variables can throw and panic
+                fun construct(type: EmergeClassType, arguments: List<LlvmValue<*>>): LlvmValue<LlvmPointerType<out EmergeHeapAllocated>> {
+                    val result = call(type.irClass.constructor.llvmRef!!, arguments)
+                    val instance = if (result.type is EmergeFallibleCallResult<*>) {
+                        @Suppress("UNCHECKED_CAST")
+                        (result as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                            callIntrinsic(panicOnThrowable, listOf(exceptionPtr))
+                            unreachable()
+                        }
+                    } else result
+                    return instance.reinterpretAs(PointerToAnyEmergeValue)
+                }
+                store(construct(stackTraceCollectorType, emptyList()), runtimeStackTraceCollectorSlot)
+                store(construct(fileDescriptorPrintStreamType, listOf(s32(2))), runtimePanicStreamSlot)
+
                 for (assureInitializedFn in globalVariableInitializers) {
                     callIntrinsic(assureInitializedFn, emptyList())
                 }

@@ -3,6 +3,7 @@ package emerge.core
 import emerge.core.range.Iterable
 import emerge.core.unwind.collectStackTrace
 import emerge.core.unwind.StackTraceElement
+import emerge.platform.StackTraceCollector
 
 export interface Throwable {
     export nothrow get fn message(self) -> String?
@@ -11,7 +12,7 @@ export interface Throwable {
     // to be later returned from stackTrace
     // called by the throw keyword, so that user-code doesn't need to
     // deal with the necessary read side-effect of collectStackTrace
-    export read fn fillStackTrace(self: mut _)
+    export read fn fillStackTrace(self: mut _, borrow collector: mut StackTraceCollector)
     
     // @return the stack trace collected on the first call to [fillStackTrace], or `null` if
     // it was never called or didn't succeed
@@ -28,8 +29,8 @@ export class ThrowableTrait : Error {
 
     private var _stackTrace: const Iterable<const StackTraceElement>? = null
 
-    export override read fn fillStackTrace(self: mut _) {
-        set self._stackTrace = self._stackTrace ?: collectStackTrace(3 as U32, false)
+    export override read fn fillStackTrace(self: mut _, borrow collector: mut StackTraceCollector) {
+        set self._stackTrace = self._stackTrace ?: collectStackTrace(collector, 3 as U32, false)
     }
 
     export override nothrow get fn stackTrace(self) -> const Iterable<const StackTraceElement>? {

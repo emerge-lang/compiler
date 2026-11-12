@@ -1064,4 +1064,25 @@ class TokenErrors : FreeSpec({
             }
         """.trimIndent()) should haveNoDiagnostics()
     }
+
+    "a stack trace collector is obtained from the root and passed to fillStackTrace" {
+        validateModule("""
+            import emerge.platform.World
+            import emerge.platform.StackTraceCollector
+            read fn test(world: read World, e: mut Throwable) {
+                collector = StackTraceCollector.create(world)
+                e.fillStackTrace(collector)
+            }
+        """.trimIndent()) should haveNoDiagnostics()
+    }
+
+    "an address is read through an AddressSpace, which is obtained from the root" {
+        validateModule("""
+            import emerge.platform.World
+            fn test(world: read World, value: Any) -> UWord {
+                space = AddressSpace.create(world)
+                return space.addressOf(value)
+            }
+        """.trimIndent()) should haveNoDiagnostics()
+    }
 })

@@ -17,7 +17,10 @@ val isNullBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType
     }
 }
 
-internal val addressOfBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>("emerge.core.addressOf", EmergeUWordType) {
+internal val addressOfBuiltin = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>("emerge.core.AddressSpace::addressOf", EmergeUWordType) {
+    // the token; it only proves that the caller may see addresses
+    @Suppress("UNUSED_VARIABLE")
+    val addressSpace by param(pointerTo(LlvmVoidType))
     val ptr by param(pointerTo(LlvmVoidType))
 
     instructionAliasAttributes()
