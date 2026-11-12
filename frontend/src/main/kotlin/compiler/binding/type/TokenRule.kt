@@ -14,8 +14,8 @@ internal object TokenRule {
      * @return the reason why a value of [assigneeType] cannot be assigned to [targetType] by this rule, `null` if
      * the rule has no objection.
      */
-    fun check(targetType: BoundTypeReference, assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): ValueNotAssignableDiagnostic? {
-        if (carry.assigneeIsKnownToBeNoToken || !assigneeType.mayBeToken || targetType.mayBeToken) {
+    fun check(targetType: BoundTypeReference, assigneeType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
+        if (!assigneeType.mayBeToken || targetType.mayBeToken) {
             return null
         }
         if (targetType.mentionsTypeVariables() || assigneeType.mentionsTypeVariables()) {

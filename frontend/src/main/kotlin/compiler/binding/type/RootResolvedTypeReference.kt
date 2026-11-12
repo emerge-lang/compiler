@@ -310,19 +310,17 @@ class RootResolvedTypeReference private constructor(
                     val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
                     val selfArgs = this.arguments ?: emptyList()
                     val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
-                    // what is known of the value being assigned is not known of the values it holds
                     val afterArguments = selfArgs
                         .zip(assigneeArgs)
-                        .fold(carry.withAssigneeKnownToBeNoToken(false)) { innerCarry, (targetArg, sourceArg) ->
+                        .fold(carry) { innerCarry, (targetArg, sourceArg) ->
                             targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                         }
-                        .withAssigneeKnownToBeNoToken(carry.assigneeIsKnownToBeNoToken)
                     if (afterArguments.getErrorsNotIn(carry).any()) {
                         return afterArguments
                     }
 
                     // it is a subtype. Still, a token is never frozen, and stays visible in the type of every reference to it
-                    return TokenRule.check(this, assigneeType, assignmentLocation, carry)?.let(afterArguments::plusDiagnostic) ?: afterArguments
+                    return TokenRule.check(this, assigneeType, assignmentLocation)?.let(afterArguments::plusDiagnostic) ?: afterArguments
                 } finally {
                     inProgress.remove(goal)
                 }

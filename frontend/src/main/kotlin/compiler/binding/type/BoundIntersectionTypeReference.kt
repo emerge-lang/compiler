@@ -194,14 +194,19 @@ class BoundIntersectionTypeReference private constructor(
             return carry
         }
 
-        // where this intersection cannot be a token as a whole (Animal & NonToken), neither can the value, though
-        // a component alone (Animal) doesn't say so
-        val componentCarry = if (mayBeToken) carry else carry.withAssigneeKnownToBeNoToken(true)
-        return components.asSequence()
-            .map { targetType.unify(it, assignmentLocation, componentCarry) }
+        // Where this intersection cannot be a token as a whole (own Animal & NonToken), the value may freeze, though
+        // a component alone (own Animal) doesn't say so. So such a component is also tried as the const it can become.
+        val candidates = if (mayBeToken) components.asSequence() else components.asSequence().flatMap { component ->
+            if (component.assignmentMutability == TypeMutability.OWN && component.mayBeToken) {
+                sequenceOf(component, component.withMutability(TypeMutability.IMMUTABLE))
+            } else {
+                sequenceOf(component)
+            }
+        }
+        return candidates
+            .map { targetType.unify(it, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
             .firstOrNull()
-            ?.withAssigneeKnownToBeNoToken(carry.assigneeIsKnownToBeNoToken)
             ?: carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                 targetType,
                 this,

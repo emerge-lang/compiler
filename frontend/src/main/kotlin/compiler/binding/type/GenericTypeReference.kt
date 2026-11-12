@@ -166,7 +166,7 @@ class GenericTypeReference private constructor(
                     }
                 } else if (assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability) && (!assigneeType.isNullable || this.isNullable)) {
                     // the same type parameter; an own value of it must not freeze where it may be a token
-                    return TokenRule.check(this, assigneeType, assignmentLocation, carry)?.let(carry::plusDiagnostic) ?: carry
+                    return TokenRule.check(this, assigneeType, assignmentLocation)?.let(carry::plusDiagnostic) ?: carry
                 }
                 return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
