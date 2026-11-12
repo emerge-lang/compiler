@@ -54,6 +54,8 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override val isPartiallyUnresolved get()= components.any { it.isPartiallyUnresolved }
+    override val isTokenType get() = components.any { it.isTokenType }
+    override val mentionsTokenType get() = components.any { it.mentionsTokenType }
 
     override val inherentTypeBindings: TypeUnification by lazy {
         components.asSequence()

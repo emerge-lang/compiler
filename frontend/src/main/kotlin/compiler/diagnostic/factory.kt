@@ -296,6 +296,18 @@ fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 
+fun Diagnosis.missingTokenModifier(baseType: BoundBaseType, reason: MissingTokenModifierDiagnostic.Reason) {
+    add(MissingTokenModifierDiagnostic(baseType.declaration, reason))
+}
+
+fun Diagnosis.constTokenBaseType(baseType: BoundBaseType) {
+    add(ConstTokenDiagnostic(baseType.simpleName, baseType.superTypes.span.takeUnless { it == Span.UNKNOWN } ?: baseType.declaration.declaredAt))
+}
+
+fun Diagnosis.constTokenReference(baseType: BoundBaseType, referenceAt: Span) {
+    add(ConstTokenDiagnostic(baseType.simpleName, referenceAt))
+}
+
 fun Diagnosis.mutabilityOnSupertype(ref: AstSimpleTypeReference) {
     add(MutabilityOnSupertypeDiagnostic(ref))
 }

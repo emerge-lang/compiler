@@ -57,6 +57,8 @@ class GenericTypeReference private constructor(
     override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
     override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
+    override val isTokenType get() = throughBound(false) { effectiveBound.isTokenType }
+    override val mentionsTokenType get() = throughBound(false) { effectiveBound.mentionsTokenType }
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         if (mutability == givenMutability) {

@@ -71,6 +71,18 @@ sealed interface BoundTypeReference {
     val isPartiallyUnresolved: Boolean
 
     /**
+     * Whether the values of this type are tokens ([BoundBaseType.isToken]). A reference of such a type is never
+     * `const`, and cannot be assigned to a type that is not a token type.
+     */
+    val isTokenType: Boolean
+
+    /**
+     * Whether this type [isTokenType], or has a type argument that does, at any depth. An object with a member
+     * variable of such a type holds a token, or holds an object that does.
+     */
+    val mentionsTokenType: Boolean
+
+    /**
      * @return this type, with the given mutability if it doesn't explicitly have one. Also applied to type arguments,
      * though type arguments will never get [TypeMutability.OWN] and instead will get [TypeMutability.READONLY].
      */

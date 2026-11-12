@@ -14,6 +14,7 @@ import compiler.binding.context.CTContext
 import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.constTokenReference
 import compiler.diagnostic.hiddenTypeExposed
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -43,6 +44,8 @@ class RootResolvedTypeReference private constructor(
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
     override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
+    override val isTokenType get() = baseType.isToken
+    override val mentionsTokenType get() = baseType.isToken || arguments?.any { it.mentionsTokenType } == true
 
     override val inherentTypeBindings by lazy {
         val params = baseType.typeParameters ?: emptyList()
@@ -146,6 +149,10 @@ class RootResolvedTypeReference private constructor(
         arguments?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
         inherentTypeBindings.diagnostics.forEach(diagnosis::add)
         baseType.validateAccessFrom(forUsage.usageLocation, diagnosis)
+        if (baseType.isToken && !baseType.isConst && mutability == TypeMutability.IMMUTABLE) {
+            // a token type that is declared const is reported on its declaration
+            diagnosis.constTokenReference(baseType, span ?: forUsage.usageLocation)
+        }
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
                 diagnosis.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN)
@@ -266,6 +273,20 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
+                // a token stays visible in the type of every reference to it
+                if (assigneeType.baseType.isToken && !this.baseType.isToken) {
+                    return carry.plusDiagnostic(
+                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a token type and ${this.baseType.simpleName} is not; a token cannot be assigned to a non-token type", assignmentLocation)
+                    )
+                }
+
+                // and is never const; own is assignable to const, otherwise
+                if (assigneeType.baseType.isToken && this.mutability == TypeMutability.IMMUTABLE) {
+                    return carry.plusDiagnostic(
+                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a token type; tokens cannot be const", assignmentLocation)
+                    )
+                }
+
                 // the modifiers must be compatible
                 if (!(assigneeType.assignmentMutability isAssignableTo this.assignmentMutability)) {
                     return carry.plusDiagnostic(
@@ -316,6 +337,12 @@ class RootResolvedTypeReference private constructor(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
             is BoundIntersectionTypeReference -> {
+                // one component being assignable suffices, otherwise; that would forget the token of another one
+                if (assigneeType.isTokenType && !assigneeType.isNonNullableNothing && !this.baseType.isToken) {
+                    return carry.plusDiagnostic(
+                        ValueNotAssignableDiagnostic(this, assigneeType, "$assigneeType is a token type and ${this.baseType.simpleName} is not; a token cannot be assigned to a non-token type", assignmentLocation)
+                    )
+                }
                 return assigneeType.flippedUnify(
                     this,
                     assignmentLocation,

@@ -43,6 +43,9 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.MissingTokenModifierDiagnostic
+import compiler.diagnostic.constTokenBaseType
+import compiler.diagnostic.missingTokenModifier
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
@@ -189,6 +192,7 @@ class BoundBaseType(
                 }
             }
             superTypes.semanticAnalysisPhase1(diagnosis)
+            sean1ValidateTokenModifier(diagnosis)
 
             entries.forEach {
                 it.semanticAnalysisPhase1(diagnosis)
@@ -473,6 +477,25 @@ class BoundBaseType(
      * references to it are immutable.
      */
     val isConst: Boolean get() = superTypes.isConst
+
+    /**
+     * Whether this is a token type: declared `token`, or a subtype of a type that is.
+     */
+    val isToken: Boolean get() = declaration.tokenKeyword != null || superTypes.inheritsToken
+
+    private fun sean1ValidateTokenModifier(diagnosis: Diagnosis) {
+        if (declaration.tokenKeyword == null) {
+            superTypes.clauses
+                .firstOrNull { it.resolvedReference?.baseType?.isToken == true }
+                ?.let { tokenSupertype ->
+                    diagnosis.missingTokenModifier(this, MissingTokenModifierDiagnostic.Reason.Supertype(tokenSupertype.resolvedReference!!.baseType))
+                }
+        }
+
+        if (isToken && isConst) {
+            diagnosis.constTokenBaseType(this)
+        }
+    }
 
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(supertype: BoundBaseType): Boolean {

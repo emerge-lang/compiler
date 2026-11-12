@@ -55,6 +55,15 @@ class BoundSupertypeList(
         )
     }
 
+    /** whether any of the supertypes is a token type, see [BoundBaseType.isToken] */
+    val inheritsToken: Boolean by lazy {
+        handleCyclicInvocation(
+            context = this,
+            action = { clauses.any { it.resolvedReference?.baseType?.isToken == true } },
+            onCycle = { false /* cyclic inheritance is reported in phase 1 */ },
+        )
+    }
+
     /**
      * initialized in [semanticAnalysisPhase1]
      */

@@ -30,6 +30,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.MissingTokenModifierDiagnostic
+import compiler.diagnostic.missingTokenModifier
 import compiler.diagnostic.decoratedMemberVariablesNotSupported
 import compiler.diagnostic.decoratingMemberVariableWithNonReadType
 import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
@@ -99,6 +101,11 @@ class BoundBaseTypeMemberVariable(
                 TypeUseSite.OutUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
             }
             type?.validate(typeUseSite, diagnosis)
+
+            val typeDef = getTypeDef()
+            if (type?.mentionsTokenType == true && typeDef.declaration.tokenKeyword == null) {
+                diagnosis.missingTokenModifier(typeDef, MissingTokenModifierDiagnostic.Reason.MemberVariable(this))
+            }
 
             if (isDecorated) {
                 type?.mutability?.let { typeMutability ->

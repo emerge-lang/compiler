@@ -47,6 +47,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BaseTypeDeclaration(
     val annotations: AstAnnotationSet,
+    val tokenKeyword: KeywordToken?,
     val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,

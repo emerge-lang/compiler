@@ -493,6 +493,17 @@ class BoundVariable(
             ): Sean1Stage = object : Sean1Stage {
                 private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
 
+                /**
+                 * [implicitMutability], except that a token is never `const`: where a variable of any other type
+                 * defaults to that, a variable of a token type defaults to `mut`.
+                 */
+                private fun implicitMutabilityFor(type: BoundTypeReference?): TypeMutability {
+                    if (implicitMutability == TypeMutability.IMMUTABLE && type?.isTokenType == true) {
+                        return TypeMutability.MUTABLE
+                    }
+                    return implicitMutability
+                }
+
                 override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
                     val shouldInferBaseType = when {
                         declaredType == null -> true
@@ -518,7 +529,7 @@ class BoundVariable(
                         override val typeAfterSean1: BoundTypeReference? = declaredType
                             ?.takeUnless { shouldInferBaseType }
                             ?.let(context::resolveType)
-                            ?.defaultMutabilityTo(implicitMutability)
+                            ?.let { it.defaultMutabilityTo(implicitMutabilityFor(it)) }
 
                         override val expectedInitializerEvaluationType: BoundTypeReference?
                             get() = when {
@@ -536,9 +547,10 @@ class BoundVariable(
                             var typeAfterSean2: BoundTypeReference?
                             if (declaredType == null) {
                                 // full inference
-                                typeAfterSean2 = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
+                                typeAfterSean2 = initializerExpression.type?.let { it.withMutabilityUnionedWith(implicitMutabilityFor(it)) }
                             } else {
                                 val finalNullability = declaredType.nullability
+                                val implicitMutability = implicitMutabilityFor(if (shouldInferBaseType) initializerExpression.type else typeAfterSean1)
                                 val finalMutability = declaredType.mutability
                                     ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
 
