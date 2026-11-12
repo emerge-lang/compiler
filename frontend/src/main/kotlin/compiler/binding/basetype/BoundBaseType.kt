@@ -57,6 +57,7 @@ import compiler.diagnostic.multipleAccessorsOnBaseType
 import compiler.diagnostic.unconventionalTypeName
 import compiler.diagnostic.unsupportedVarianceOnBaseTypeTypeParameter
 import compiler.diagnostic.unusedMixin
+import compiler.diagnostic.IllegalUniqueDeclarationDiagnostic
 import compiler.diagnostic.virtualAndActualMemberVariableNameClash
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -488,7 +489,13 @@ class BoundBaseType(
      * A base type that is neither this nor [isNonToken] says nothing about its instances; only interfaces do
      * that. See [BoundTypeReference.mayBeToken] for what that means for a type.
      */
-    val isToken: Boolean get() = declaration.tokenKeyword != null || superTypes.inheritsToken
+    val isToken: Boolean get() = declaration.tokenKeyword != null || declaration.uniqueKeyword != null || superTypes.inheritsToken
+
+    /**
+     * Whether this is a `unique class`: a token class of which there is at most one instance per process. The
+     * instance is obtained with the function `take` that the compiler adds, see [compiler.ast.UniqueClassCode].
+     */
+    val isUnique: Boolean get() = declaration.uniqueKeyword != null
 
     /**
      * Whether this type says in writing that its instances are no tokens: it is `NonToken`, inherits from it,
@@ -516,7 +523,21 @@ class BoundBaseType(
     }
 
     private fun sean1ValidateTokenModifier(diagnosis: Diagnosis) {
-        if (declaration.tokenKeyword == null) {
+        if (isUnique) {
+            if (kind != Kind.CLASS) {
+                diagnosis.add(IllegalUniqueDeclarationDiagnostic(
+                    "Only classes can be unique; $simpleName is an interface",
+                    declaration.uniqueKeyword!!.span,
+                ))
+            } else if (!typeParameters.isNullOrEmpty()) {
+                diagnosis.add(IllegalUniqueDeclarationDiagnostic(
+                    "A unique class cannot have type parameters: there is one instance of $simpleName, not one per type argument",
+                    typeParameters.first().astNode.span,
+                ))
+            }
+        }
+
+        if (declaration.tokenKeyword == null && !isUnique) {
             superTypes.clauses
                 .firstOrNull { it.resolvedReference?.baseType?.isToken == true }
                 ?.let { tokenSupertype ->

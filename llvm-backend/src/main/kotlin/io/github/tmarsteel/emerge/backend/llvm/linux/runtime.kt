@@ -11,12 +11,21 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.panicOnThrowable
+import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 
 val EmergeEntrypoint = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("main", LlvmVoidType) {
     body {
         callIntrinsic(context.globalInitializerFn, emptyList())
         callIntrinsic(context.threadInitializerFn, emptyList())
-        val mainResult = call(context.mainFunction, emptyList())
+        val mainArguments: List<LlvmValue<*>> = if (context.mainFunctionTakesWorld) {
+            // the one instance of the root token there is in this process
+            val worldResult = call(context.worldType.irClass.constructor.llvmRef!!, emptyList())
+            check(worldResult.type !is EmergeFallibleCallResult<*>) { "the constructor of emerge.platform.World must be nothrow" }
+            listOf(worldResult)
+        } else {
+            emptyList()
+        }
+        val mainResult = call(context.mainFunction, mainArguments)
         if (mainResult.type is EmergeFallibleCallResult<*>) {
             (mainResult as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
                 callIntrinsic(panicOnThrowable, listOf(exceptionPtr))

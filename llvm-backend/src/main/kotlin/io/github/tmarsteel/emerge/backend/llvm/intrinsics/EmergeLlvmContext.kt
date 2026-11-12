@@ -120,6 +120,13 @@ class EmergeLlvmContext(
      */
     internal lateinit var mainFunction: LlvmFunction<*>
 
+    /** whether [mainFunction] takes the root token (`emerge.platform.World`) as its only parameter */
+    internal var mainFunctionTakesWorld: Boolean = false
+        private set
+
+    /** `emerge.platform.World`, set by [registerClass]; the entrypoint constructs the one instance of it */
+    internal lateinit var worldType: EmergeClassType
+
     /**
      * `emerge.platform.printStackTraceToStandardError()`, set by [registerFunction]
      */
@@ -315,6 +322,7 @@ class EmergeLlvmContext(
             "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
             "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
             "emerge.core.Weak" -> weakType = emergeClassType
+            EmergeConstants.PlatformModule.WORLD_TYPE_NAME.toString() -> worldType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -488,9 +496,10 @@ class EmergeLlvmContext(
             if (this::mainFunction.isInitialized) {
                 throw CodeGenerationException("Found multiple main functions!")
             }
-            if (fn.parameters.isNotEmpty()) {
-                throw CodeGenerationException("Main function must not declare parameters")
+            if (fn.parameters.size > 1) {
+                throw CodeGenerationException("Main function must declare no parameter, or one of type ${EmergeConstants.PlatformModule.WORLD_TYPE_NAME}")
             }
+            mainFunctionTakesWorld = fn.parameters.isNotEmpty()
             if (!fn.returnType.isUnit) {
                 throw CodeGenerationException("Main function ${fn.canonicalName} must return Unit")
             }

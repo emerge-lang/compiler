@@ -18,6 +18,8 @@
 
 package compiler.binding.expression
 
+import compiler.binding.basetype.BoundClassConstructor
+import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
 import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
@@ -177,6 +179,10 @@ class BoundInvocationExpression(
             }
 
             chosenOverload = selectOverload(availableOverloads, diagnosis) ?: return@phase2
+
+            (chosenOverload!!.candidate as? BoundClassConstructor)
+                ?.takeIf { it.classDef.isUnique && !declaration.span.generated }
+                ?.let { diagnosis.add(UniqueClassConstructorInvocationDiagnostic(it.classDef.simpleName, declaration.span)) }
 
             _modifiedContext.trackSideEffect(CallFrameExit.Effect.InvokesFunction(chosenOverload!!.candidate.callFrameExitEffectOnInvocation))
 

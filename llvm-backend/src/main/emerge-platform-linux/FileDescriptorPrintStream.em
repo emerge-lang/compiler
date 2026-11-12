@@ -15,7 +15,7 @@ FD_STDERR: S32 = 2
 export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
 export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
 
-class FileDescriptorPrintStream : PrintStream {
+token class FileDescriptorPrintStream : PrintStream {
     private fd: S32 = init
     
     override fn put(self: mut _, str: String) {

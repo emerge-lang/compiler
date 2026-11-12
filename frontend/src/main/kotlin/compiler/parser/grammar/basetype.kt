@@ -40,6 +40,7 @@ import compiler.lexer.Keyword.DECORATES
 import compiler.lexer.Keyword.DESTRUCTOR
 import compiler.lexer.Keyword.INTERFACE_DEFINITION
 import compiler.lexer.Keyword.TOKEN
+import compiler.lexer.Keyword.UNIQUE
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.CBRACE_CLOSE
 import compiler.lexer.Operator.CBRACE_OPEN
@@ -139,7 +140,10 @@ val BaseTypeDefinition = sequence("base type definition") {
         ref(Visibility)
     }
     optional {
-        keyword(TOKEN)
+        eitherOf {
+            keyword(TOKEN)
+            keyword(UNIQUE)
+        }
     }
     eitherOf {
         keyword(CLASS_DEFINITION)
@@ -171,12 +175,14 @@ val BaseTypeDefinition = sequence("base type definition") {
             visibility = null
         }
 
-        val tokenKeyword: KeywordToken?
+        var tokenKeyword: KeywordToken? = null
+        var uniqueKeyword: KeywordToken? = null
         if (next is KeywordToken && next.keyword == TOKEN) {
             tokenKeyword = next
             next = tokens.next()!!
-        } else {
-            tokenKeyword = null
+        } else if (next is KeywordToken && next.keyword == UNIQUE) {
+            uniqueKeyword = next
+            next = tokens.next()!!
         }
 
         val declarationKeyword = next as KeywordToken // class keyword
@@ -210,6 +216,7 @@ val BaseTypeDefinition = sequence("base type definition") {
         BaseTypeDeclaration(
             annotations,
             tokenKeyword,
+            uniqueKeyword,
             declarationKeyword,
             visibility,
             name,

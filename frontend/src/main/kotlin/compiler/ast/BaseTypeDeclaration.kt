@@ -48,6 +48,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
 class BaseTypeDeclaration(
     val annotations: AstAnnotationSet,
     val tokenKeyword: KeywordToken?,
+    val uniqueKeyword: KeywordToken?,
     val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,
@@ -56,6 +57,23 @@ class BaseTypeDeclaration(
     val typeParameters: List<TypeParameter>?,
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.span
+
+    private var cachedUniqueClassCode: UniqueClassCode? = null
+    /** @return the code the compiler adds if this is a `unique class`, `null` otherwise */
+    fun uniqueClassCode(inPackage: CanonicalElementName.Package): UniqueClassCode? {
+        if (uniqueKeyword == null || declarationKeyword.keyword != Keyword.CLASS_DEFINITION) {
+            return null
+        }
+        cachedUniqueClassCode?.let { return it }
+        val code = UniqueClassCode(
+            this,
+            CanonicalElementName.BaseType(inPackage, name.value),
+            entryDeclarations.filterIsInstance<BaseTypeConstructorDeclaration>().firstOrNull()
+                ?: BaseTypeConstructorDeclaration.generateDefault(this),
+        )
+        cachedUniqueClassCode = code
+        return code
+    }
 
     fun bindTo(fileContext: CTContext): BoundBaseType {
         /*
@@ -119,7 +137,7 @@ class BaseTypeDeclaration(
             bindTimeDiagnosis = bindTimeDiagnosis,
         )
 
-        val boundNonVarEntries = nonVarEntryDecls
+        val boundNonVarEntries = (nonVarEntryDecls + listOfNotNull(uniqueClassCode(fileContext.packageName)?.takeFunction))
             .asSequence()
             .filter { it !is BaseTypeConstructorDeclaration } // they are irrelevant here
             .map { entry ->

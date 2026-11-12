@@ -55,7 +55,25 @@ data object EmergeConstants {
 
     data object PlatformModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "platform"))
+
+        /**
+         * The root token: a token class with one instance per process, which the platform constructs and passes
+         * to the main function of the program if that declares a parameter for it.
+         */
+        val WORLD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "World")
     }
+
+    /**
+     * The name of the static function the compiler adds to every `unique class`. It hands out the one instance of
+     * the class; signature is `(world: mut emerge.platform.World, <constructor parameters>) -> own C?`
+     */
+    const val UNIQUE_CLASS_TAKE_FUNCTION_NAME = "take"
+
+    /**
+     * Identifiers the compiler generates for its own use start with this, e.g. the variable that knows whether the
+     * instance of a `unique class` was handed out.
+     */
+    const val COMPILER_INTERNAL_IDENTIFIER_PREFIX = "__"
 
     /**
      * the identifier to use in the initialization expression for member variables to indicate that the
