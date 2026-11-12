@@ -1,11 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.ConstTokenDiagnostic
-import compiler.diagnostic.ElementNotAccessibleDiagnostic
-import compiler.diagnostic.IllegalMainSignatureDiagnostic
-import compiler.diagnostic.IllegalUniqueDeclarationDiagnostic
-import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
-import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.string.shouldContain
@@ -128,6 +123,21 @@ class UniqueClassErrors : FreeSpec({
             validateModule("""
                 token interface Stream {}
                 unique class StandardOut : Stream {}
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "the standard streams of the platform are taken from the root" {
+            validateModule("""
+                import emerge.platform.World
+                import emerge.platform.StandardOut
+                import emerge.platform.StandardError
+                import emerge.std.println
+                fn main(world: mut World) {
+                    stdout = StandardOut.take(world)!!
+                    stderr = StandardError.take(world)!!
+                    stdout.println("Hello")
+                    stderr.println("World")
+                }
             """.trimIndent()) should haveNoDiagnostics()
         }
     }
