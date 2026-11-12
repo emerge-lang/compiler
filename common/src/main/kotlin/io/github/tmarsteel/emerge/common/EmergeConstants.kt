@@ -49,6 +49,20 @@ data object EmergeConstants {
         const val VARIANCE_OUT: UByte = 2u
     }
 
+    data object UnwindModule {
+        val NAME = CanonicalElementName.Package(listOf("emerge", "core", "unwind"))
+
+        /**
+         * `(borrow throwable: mut Throwable) -> Unit`; what `throw` invokes before the throwable propagates. An
+         * intrinsic: the backend passes the throwable and the stack trace collector of the runtime to
+         * [FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME].
+         */
+        val FILL_STACK_TRACE_ON_THROW_FN_NAME = CanonicalElementName.Function(NAME, "fillStackTraceOnThrow")
+
+        /** `(borrow throwable: mut Throwable, borrow collector: read StackTraceCollector) -> Unit` */
+        val FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME = CanonicalElementName.Function(NAME, "fillStackTraceUsing")
+    }
+
     data object StdModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "std"))
     }

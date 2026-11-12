@@ -1066,14 +1066,15 @@ class TokenErrors : FreeSpec({
     }
 
     "stack traces" - {
-        "filling takes no token, reading takes a StackTraceCollector from the root" {
+        "setting takes no token, reading takes a StackTraceCollector from the root" {
             validateModule("""
                 import emerge.platform.World
                 import emerge.platform.StackTraceCollector
+                import emerge.core.unwind.collectStackTrace
                 fn test(world: read World, e: mut Throwable) -> Bool {
-                    e.fillStackTrace()
                     collector = StackTraceCollector.create(world)
-                    return isNull(e.stackTrace(collector))
+                    e.setStackTrace(collectStackTrace(collector, 0 as U32, false))
+                    return isNull(e.getStackTrace(collector))
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -1081,24 +1082,27 @@ class TokenErrors : FreeSpec({
         "cannot be read without the collector" {
             validateModule("""
                 fn test(e: read Throwable) -> Bool {
-                    return isNull(e.stackTrace())
+                    return isNull(e.getStackTrace())
                 }
             """.trimIndent())
                 .shouldFind<compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic>()
-
-            validateModule("""
-                fn test(e: read Throwable) -> Bool {
-                    return isNull(e.stackTrace)
-                }
-            """.trimIndent())
-                .second.any { it.severity >= compiler.diagnostic.Diagnostic.Severity.ERROR } shouldBe true
         }
 
-        "cannot be collected directly by code outside of emerge.core" {
+        "cannot be collected without the collector" {
             validateModule("""
                 import emerge.core.unwind.collectStackTrace
                 fn test() {
                     trace = collectStackTrace(0 as U32, false)
+                }
+            """.trimIndent())
+                .shouldFind<compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic>()
+        }
+
+        "the function throw uses to lend the collector of the runtime is not accessible" {
+            validateModule("""
+                import emerge.core.unwind.fillStackTraceOnThrow
+                fn test(e: mut Throwable) {
+                    fillStackTraceOnThrow(e)
                 }
             """.trimIndent())
                 .shouldFind<compiler.diagnostic.ElementNotAccessibleDiagnostic>(allowMultiple = true)

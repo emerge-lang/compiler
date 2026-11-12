@@ -160,21 +160,14 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
     val exceptionPtr = call(exceptionClass.constructor.llvmRef!!, ctorArguments)
         .reinterpretAs(PointerToAnyEmergeValue)
 
-    val fillStackTraceIrFn = context.throwableClazz.memberFunctions
-        .single { it.canonicalName.simpleName == "fillStackTrace" }
-        .overloads
-        .single()
-
-    val fillStackTraceFnAddress = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
-        exceptionPtr,
-        context.uWord(fillStackTraceIrFn.signatureHashes.first()),
-    ))
-
     call(
-        fillStackTraceFnAddress,
-        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue)),
-        listOf(exceptionPtr),
+        context.fillStackTraceUsingCollectorFunction,
+        listOf(exceptionPtr, context.runtimeStackTraceCollectorSlot.dereference()),
     )
+        .let {
+            @Suppress("UNCHECKED_CAST")
+            it as LlvmValue<EmergeFallibleCallResult.OfVoid>
+        }
         .abortOnException { _ ->
             // ignore this one
             propagateOrPanic(exceptionPtr)

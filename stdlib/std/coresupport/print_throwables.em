@@ -5,14 +5,14 @@ import emerge.std.io.PrintStream
 import emerge.platform.StackTraceCollector
 import emerge.core.reflection.type
 
-// takes the collector because it prints the stack trace, see Throwable.stackTrace
+// takes the collector because it prints the stack trace, see Throwable.getStackTrace
 export fn printTo(self: Throwable, borrow target: mut PrintStream, borrow collector: read StackTraceCollector) {
     target.put(self.type.baseType.canonicalName)
     target.put(": ")
     target.put(self.message ?: "<no message>")
     target.putEndOfLine()
 
-    stackTrace = self.stackTrace(collector)
+    stackTrace = self.getStackTrace(collector)
     if isNull(stackTrace) {
         target.put("  ! stack trace not set")
         return

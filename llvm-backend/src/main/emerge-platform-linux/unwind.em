@@ -7,7 +7,7 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
+fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> const Iterable<const StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function

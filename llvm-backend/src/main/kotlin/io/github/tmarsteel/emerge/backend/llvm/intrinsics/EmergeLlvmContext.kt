@@ -136,6 +136,9 @@ class EmergeLlvmContext(
      */
     internal lateinit var printThrowableFunction: LlvmFunction<*>
 
+    /** `emerge.core.unwind.fillStackTraceUsing(Throwable, StackTraceCollector)`, set by [registerFunction] */
+    internal lateinit var fillStackTraceUsingCollectorFunction: LlvmFunction<*>
+
     /**
      * the implementation for `emerge.core.unwind.collectStackTrace(U32, Boolean)`.
      * Must be set by the backend class after [registerIntrinsic]
@@ -243,8 +246,8 @@ class EmergeLlvmContext(
     internal lateinit var fileDescriptorPrintStreamType: EmergeClassType
 
     /**
-     * What the runtime holds per thread so that a panic works without a token in the signature of the code that
-     * triggers it: a stack trace collector, and a stream to standard error. Emerge code cannot refer
+     * What the runtime holds per thread so that `throw` and a panic work without a token in the signature of the
+     * code that triggers them: a stack trace collector, and a stream to standard error. Emerge code cannot refer
      * to these slots; [threadInitializerFn] fills them before anything else runs on the thread.
      */
     internal val runtimeStackTraceCollectorSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
@@ -527,6 +530,9 @@ class EmergeLlvmContext(
             if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.size == 1) {
                 printStackTraceToStdErrFunction = fn.llvmRef!!
             }
+        }
+        if (fn.canonicalName == EmergeConstants.UnwindModule.FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME) {
+            fillStackTraceUsingCollectorFunction = fn.llvmRef!!
         }
         if (fn.canonicalName.parent.toString() == "emerge.std.coresupport") {
             if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 3) {
@@ -1092,6 +1098,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arrayRuntimeTypeGetter,
             unitInstance,
             collectStackTrace,
+            fillStackTraceOnThrow,
         )
             + intrinsicNumberOperations
     )
