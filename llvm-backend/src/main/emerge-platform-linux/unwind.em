@@ -7,7 +7,7 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-read fn collectStackTrace(borrow collector: mut StackTraceCollector, nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
+fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
@@ -26,6 +26,7 @@ read fn collectStackTrace(borrow collector: mut StackTraceCollector, nFramesToSk
         panic("unw_init_local errored: " + unwindErrorToString(errorCode))
     }
 
+    registerBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
     var nSkipped = 0 as U32
     do {
         procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
@@ -34,7 +35,7 @@ read fn collectStackTrace(borrow collector: mut StackTraceCollector, nFramesToSk
         }
     
         if nSkipped >= nFramesToSkip {
-            ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst(), collector.registerBuffer)
+            ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst(), registerBuffer)
 
             stackList.add(StackTraceElement(ip, procName))
         } else {
@@ -136,18 +137,18 @@ private intrinsic nothrow fn unwind_cursor_size() -> UWord
 // initializes the context
 // @param context must point to a region of at least [unwind_context_size] size
 // @returns an error code
-private external(C) read nothrow fn unw_getcontext(context: COpaquePointer) -> S32
+private external(C) nothrow fn unw_getcontext(context: COpaquePointer) -> S32
 
 // initializes an unwind cursor
 // @param cursor the cursor to initialize; must point to a region of at least [unwind_cursor_size] size
 // @param context a cursor that was initialized with [unw_getcontext]
 // @returns an error code
-private external(C) read nothrow fn unw_init_local(cursor: COpaquePointer, context: COpaquePointer) -> S32
+private external(C) nothrow fn unw_init_local(cursor: COpaquePointer, context: COpaquePointer) -> S32
 
 // advances the cursor to the previous, less deeply nested stack frame / walks up the stack
 // @param cursor a cursor previously initialized with [unw_init_local]
 // @return a positive value on success, 0 if there are no more stack frames, or a negative value for an error code
-private external(C) read nothrow fn unw_step(cursor: COpaquePointer) -> S32
+private external(C) nothrow fn unw_step(cursor: COpaquePointer) -> S32
 
 private external(C) nothrow fn unw_get_reg(cursor: COpaquePointer, register: S32, buf: COpaquePointer) -> S32
 
@@ -157,8 +158,8 @@ private external(C) nothrow fn unw_get_proc_info(cursor: COpaquePointer, buf: CO
 
 // attempts to move the cursor to the next, less deeply nested tack frame
 // @return true if the cursor was successfully moved, false if there are no more stack frames left
-// TODO: make pure, change parameter to mut COpaquePointer; needs parameterized mutability for Array.addressOfFirst()
-private read fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
+// TODO: change parameter to mut COpaquePointer; needs parameterized mutability for Array.addressOfFirst()
+private fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     errorCode = unw_step(cursorPtr)
     if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {
         return false
@@ -171,13 +172,13 @@ private read fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     return true
 }
 
-private read nothrow fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer, borrow registerBuffer: mut Array<UWord>) -> UWord {
+private nothrow fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer, borrow registerBuffer: mut Array<UWord>) -> UWord {
     errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, registerBuffer.addressOfFirst())
     return registerBuffer.getOrPanic(0)
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at
-private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const String {
+private fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const String {
     var nameBuf = Array.new::<S8>(256, 0 as S8)
     offpBuf = Array.new::<UWord>(1, 0 as UWord)
 
@@ -200,9 +201,10 @@ private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const
 // allocations, avoiding OOM problems during a panic
 // this code does, by all my reasoning, not throw. However, the compiler cannot be convinced
 // of that right now because some features are lacking. Hence, the functions are not all nothrow
-// Collects stack traces. It owns the buffers the unwinder works in; they are allocated when the collector is
-// created, so that a stack trace can still be printed when no memory is left.
-// The runtime holds one per thread, for `throw` and for panics. Other code obtains one from the root.
+// The token it takes to read a stack trace: which code called which, and where that code is in memory.
+// It also owns the buffers the unwinder works in when a panic prints the stack trace; they are allocated when
+// the collector is created, so that this still works when no memory is left.
+// The runtime holds one per thread, for panics. Other code obtains one from the root.
 export token class StackTraceCollector {
     registerBuffer: mut Array<UWord> = Array.new::<UWord>(1, 0 as UWord)
     backtraceContextBuffer: mut Array<S8> = Array.new::<S8>(unwind_context_size(), 0 as S8)
@@ -217,7 +219,7 @@ export token class StackTraceCollector {
 
 private intrinsic nothrow fn writeMemoryAddress(address: UWord, fd: S32)
 
-private mut fn writeProcedureName(borrow collector: mut StackTraceCollector, cursorPtr: COpaquePointer, fd: S32) {
+private fn writeProcedureName(borrow collector: mut StackTraceCollector, cursorPtr: COpaquePointer, fd: S32) {
     errorCode = unw_get_proc_name(cursorPtr, collector.procedureNameBuffer.addressOfFirst(), collector.procedureNameBuffer.size, collector.relativeIpBuffer.addressOfFirst())
     if errorCode == UNWIND_ERROR_SUCCESS {
         // TODO: use safe array access to enable nothrow
@@ -236,7 +238,7 @@ private mut fn writeProcedureName(borrow collector: mut StackTraceCollector, cur
 
 // prints the stack to FD_STDERR. Is effectively nothrow.
 // @return whether the stack could be traced. If false, an error message will be written to FD_STDERR
-mut fn printStackTraceToStandardError(borrow collector: mut StackTraceCollector) -> Bool {
+fn printStackTraceToStandardError(borrow collector: mut StackTraceCollector) -> Bool {
     var errorCode = unw_getcontext(collector.backtraceContextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
         printError("  !! failed to backtrace; unw_getcontext errored: ")

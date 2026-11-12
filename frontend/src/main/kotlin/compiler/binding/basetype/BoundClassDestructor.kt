@@ -120,7 +120,6 @@ class BoundClassDestructor(
         entryDeclaration.code.bindTo(parameters.modifiedContext)
     }
 
-    override val purity = BoundFunction.Purity.MODIFYING
     override val callFrameExitEffectOnInvocation = CallFrameExit.FunctionBehavior(
         throws = CallFrameExit.Occurrence.NEVER,
         terminates = CallFrameExit.Occurrence.POSSIBLY,

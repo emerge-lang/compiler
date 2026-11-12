@@ -172,8 +172,8 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
 
     call(
         fillStackTraceFnAddress,
-        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue, PointerToAnyEmergeValue)),
-        listOf(exceptionPtr, context.runtimeStackTraceCollectorSlot.dereference()),
+        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue)),
+        listOf(exceptionPtr),
     )
         .abortOnException { _ ->
             // ignore this one
@@ -193,7 +193,7 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
         val writeToStdErr = buildStdErrPrinter()
         val printToResult = call(
             context.printThrowableFunction,
-            listOf(exceptionPtr, context.runtimePanicStreamSlot.dereference()),
+            listOf(exceptionPtr, context.runtimePanicStreamSlot.dereference(), context.runtimeStackTraceCollectorSlot.dereference()),
         )
 
         if (printToResult.type is EmergeFallibleCallResult<*>) {

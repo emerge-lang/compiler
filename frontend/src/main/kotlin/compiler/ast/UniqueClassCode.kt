@@ -7,7 +7,6 @@ import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundFunction
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -49,7 +48,7 @@ class UniqueClassCode(
 
     /**
      * ```
-     * mut fn take(world: mut World, <constructor parameters>) -> own C? {
+     * fn take(world: mut World, <constructor parameters>) -> own C? {
      *     if taken { return null }
      *     instance = C(<constructor parameters>)
      *     if taken { return null } // the constructor obtained the instance itself
@@ -133,9 +132,7 @@ class UniqueClassCode(
         BaseTypeMemberFunctionDeclaration(FunctionDeclaration(
             annotations = AstAnnotationSet.EMPTY,
             declarationKeyword = KeywordToken(Keyword.FUNCTION, span = span),
-            attributes = constructorDeclaration.attributes.filterIsInstance<AstVisibility>() + listOf(
-                AstFunctionAttribute.EffectCategory(BoundFunction.Purity.MODIFYING, KeywordToken(Keyword.MUTABLE, span = span)),
-            ),
+            attributes = constructorDeclaration.attributes.filterIsInstance<AstVisibility>(),
             name = IdentifierToken(EmergeConstants.UNIQUE_CLASS_TAKE_FUNCTION_NAME, span),
             typeParameters = emptyList(),
             parameters = ParameterList(listOf(worldParameter) + forwardedParameters),

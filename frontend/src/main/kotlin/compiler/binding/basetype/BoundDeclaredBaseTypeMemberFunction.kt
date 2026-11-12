@@ -23,7 +23,6 @@ import compiler.diagnostic.incompatibleReturnTypeOnOverride
 import compiler.diagnostic.missingFunctionBody
 import compiler.diagnostic.nonVirtualMemberFunctionWithReceiver
 import compiler.diagnostic.overrideAccessorDeclarationMismatch
-import compiler.diagnostic.overrideAddsSideEffects
 import compiler.diagnostic.overrideDropsNothrow
 import compiler.diagnostic.overrideRestrictsVisibility
 import compiler.diagnostic.overridingParameterExtendsOwnership
@@ -215,9 +214,6 @@ class BoundDeclaredBaseTypeMemberFunction(
             }
 
             for (inheritedFn in overrides ?: emptyList()) {
-                if (!inheritedFn.purity.contains(this.purity)) {
-                    diagnosis.overrideAddsSideEffects(this, inheritedFn)
-                }
                 if (inheritedFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
                     diagnosis.overrideDropsNothrow(this, inheritedFn)
                 }

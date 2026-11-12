@@ -11,18 +11,17 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class AnnotationErrors : FreeSpec({
-    "mutates or reads global state" {
-        for (kw in listOf("mut", "read")) {
-            validateModule("""
-                intrinsic $kw fn x() -> S32
-                #[x()]
-                class A {
-                }
-            """.trimIndent())
-                .shouldFind<PurityViolationDiagnostic> {
-                    it.boundary.shouldBeInstanceOf<PurityViolationDiagnostic.SideEffectBoundary.Annotation>()
-                }
-        }
+    "cannot read a variable whose value the compiler does not know" {
+        validateModule("""
+            external(C) nothrow fn compute() -> S32
+            LIMIT: S32 = compute()
+            #[LIMIT]
+            class A {
+            }
+        """.trimIndent())
+            .shouldFind<PurityViolationDiagnostic> {
+                it.boundary.shouldBeInstanceOf<PurityViolationDiagnostic.SideEffectBoundary.Annotation>()
+            }
     }
 
     "recognition" - {

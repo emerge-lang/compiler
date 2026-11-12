@@ -1065,15 +1065,44 @@ class TokenErrors : FreeSpec({
         """.trimIndent()) should haveNoDiagnostics()
     }
 
-    "a stack trace collector is obtained from the root and passed to fillStackTrace" {
-        validateModule("""
-            import emerge.platform.World
-            import emerge.platform.StackTraceCollector
-            read fn test(world: read World, e: mut Throwable) {
-                collector = StackTraceCollector.create(world)
-                e.fillStackTrace(collector)
-            }
-        """.trimIndent()) should haveNoDiagnostics()
+    "stack traces" - {
+        "filling takes no token, reading takes a StackTraceCollector from the root" {
+            validateModule("""
+                import emerge.platform.World
+                import emerge.platform.StackTraceCollector
+                fn test(world: read World, e: mut Throwable) -> Bool {
+                    e.fillStackTrace()
+                    collector = StackTraceCollector.create(world)
+                    return isNull(e.stackTrace(collector))
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "cannot be read without the collector" {
+            validateModule("""
+                fn test(e: read Throwable) -> Bool {
+                    return isNull(e.stackTrace())
+                }
+            """.trimIndent())
+                .shouldFind<compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic>()
+
+            validateModule("""
+                fn test(e: read Throwable) -> Bool {
+                    return isNull(e.stackTrace)
+                }
+            """.trimIndent())
+                .second.any { it.severity >= compiler.diagnostic.Diagnostic.Severity.ERROR } shouldBe true
+        }
+
+        "cannot be collected directly by code outside of emerge.core" {
+            validateModule("""
+                import emerge.core.unwind.collectStackTrace
+                fn test() {
+                    trace = collectStackTrace(0 as U32, false)
+                }
+            """.trimIndent())
+                .shouldFind<compiler.diagnostic.ElementNotAccessibleDiagnostic>(allowMultiple = true)
+        }
     }
 
     "an address is read through an AddressSpace, which is obtained from the root" {

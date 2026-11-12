@@ -18,16 +18,67 @@ class ConditionErrors : FreeSpec({
         }
 
         "if containing mutation" - {
-            "global" {
+            "token used as mut" {
                 validateModule("""
-                    intrinsic mut fn modify() -> Bool 
-                    fn test() {
-                        if modify() {
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
+                        if modify(counter) {
                             
                         }
                     }
                 """.trimIndent())
                     .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token reached through a field, used as mut" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    token class Holder {
+                        counter: mut Counter = init
+                    }
+                    fn test(borrow holder: mut Holder) {
+                        if modify(holder.counter) {
+                            
+                        }
+                    }
+                """.trimIndent())
+                    .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token used as read" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn check(borrow c: read Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
+                        if check(counter) {
+                            
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "token created inside the condition" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test() {
+                        if modify(Counter()) {
+                            
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
             }
 
             "local" {
@@ -60,15 +111,63 @@ class ConditionErrors : FreeSpec({
         }
 
         "while containing mutation" - {
-            "global" {
+            "token used as mut" {
                 validateModule("""
-                    intrinsic mut fn modify() -> Bool 
-                    fn test() {
-                        while modify() {
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
+                        while modify(counter) {
                         }
                     }
                 """.trimIndent())
                     .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token reached through a field, used as mut" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    token class Holder {
+                        counter: mut Counter = init
+                    }
+                    fn test(borrow holder: mut Holder) {
+                        while modify(holder.counter) {
+                        }
+                    }
+                """.trimIndent())
+                    .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token used as read" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn check(borrow c: read Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
+                        while check(counter) {
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "token created inside the condition" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test() {
+                        while modify(Counter()) {
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
             }
 
             "local" {
@@ -101,15 +200,63 @@ class ConditionErrors : FreeSpec({
         }
 
         "do-while containing mutation" - {
-            "global" {
+            "token used as mut" {
                 validateModule("""
-                    intrinsic mut fn modify() -> Bool 
-                    fn test() {
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
                         do {
-                        } while modify()
+                        } while modify(counter)
                     }
                 """.trimIndent())
                     .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token reached through a field, used as mut" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    token class Holder {
+                        counter: mut Counter = init
+                    }
+                    fn test(borrow holder: mut Holder) {
+                        do {
+                        } while modify(holder.counter)
+                    }
+                """.trimIndent())
+                    .shouldFind<MutationInConditionDiagnostic>()
+            }
+
+            "token used as read" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn check(borrow c: read Counter) -> Bool
+                    fn test(borrow counter: mut Counter) {
+                        do {
+                        } while check(counter)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "token created inside the condition" {
+                validateModule("""
+                    token class Counter {
+                        var n: S32 = 0
+                    }
+                    intrinsic fn modify(borrow c: mut Counter) -> Bool
+                    fn test() {
+                        do {
+                        } while modify(Counter())
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
             }
 
             "local" {

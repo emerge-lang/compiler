@@ -10,14 +10,16 @@ export interface Throwable {
     
     // on the first invocation of this function, saves information on the stack trace
     // to be later returned from stackTrace
-    // called by the throw keyword, so that user-code doesn't need to
-    // deal with the necessary read side-effect of collectStackTrace
-    export read fn fillStackTrace(self: mut _, borrow collector: mut StackTraceCollector)
+    // called by the throw keyword. Takes no token: it only writes into this object, and what it writes can
+    // only be read with a StackTraceCollector
+    export fn fillStackTrace(self: mut _)
     
     // @return the stack trace collected on the first call to [fillStackTrace], or `null` if
     // it was never called or didn't succeed
     // TODO: return type Iterable<...>
-    export nothrow get fn stackTrace(self) -> const Iterable<const StackTraceElement>?
+    // Reading takes a StackTraceCollector: the stack trace tells who called the code that threw, and where
+    // that code is in memory. Without the token, a function could behave differently depending on its caller.
+    export nothrow fn stackTrace(self, borrow collector: read StackTraceCollector) -> const Iterable<const StackTraceElement>?
 }
 export interface Error : Throwable {}
 
@@ -29,11 +31,11 @@ export class ThrowableTrait : Error {
 
     private var _stackTrace: const Iterable<const StackTraceElement>? = null
 
-    export override read fn fillStackTrace(self: mut _, borrow collector: mut StackTraceCollector) {
-        set self._stackTrace = self._stackTrace ?: collectStackTrace(collector, 3 as U32, false)
+    export override fn fillStackTrace(self: mut _) {
+        set self._stackTrace = self._stackTrace ?: collectStackTrace(3 as U32, false)
     }
 
-    export override nothrow get fn stackTrace(self) -> const Iterable<const StackTraceElement>? {
+    export override nothrow fn stackTrace(self, borrow collector: read StackTraceCollector) -> const Iterable<const StackTraceElement>? {
         return self._stackTrace
     }
 

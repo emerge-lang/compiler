@@ -1,8 +1,5 @@
 package compiler.binding.expression
 
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import compiler.binding.type.IrSimpleTypeImpl
-import io.github.tmarsteel.emerge.backend.api.ir.IrRuntimeStackTraceCollectorExpression
 import compiler.ast.AstThrowExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
@@ -141,17 +138,14 @@ internal fun buildIrThrow(
         )),
     )
 
-    val stackTraceCollector = IrCreateTemporaryValueImpl(object : IrRuntimeStackTraceCollectorExpression {
-        override val evaluatesTo = IrSimpleTypeImpl(context.swCtx.stackTraceCollector.toBackendIr(), IrTypeMutability.MUTABLE, false)
-    })
     val fillStackTraceCall = IrExpressionSideEffectsStatementImpl(IrDynamicDispatchFunctionInvocationImpl(
         IrTemporaryValueReferenceImpl(throwableInstance),
         context.swCtx.throwable.memberFunctions
-            .single { it.canonicalName.simpleName == "fillStackTrace" && it.parameterCount == 2 }
+            .single { it.canonicalName.simpleName == "fillStackTrace" && it.parameterCount == 1 }
             .overloads
             .single()
             .toBackendIr(),
-        listOf(IrTemporaryValueReferenceImpl(throwableInstance), IrTemporaryValueReferenceImpl(stackTraceCollector)),
+        listOf(IrTemporaryValueReferenceImpl(throwableInstance)),
         emptyMap(),
         context.swCtx.unit.irReadNotNullReference,
         fillStackTraceLandingpad,
@@ -165,7 +159,6 @@ internal fun buildIrThrow(
         IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableInstanceIsReferenceCounted },
     ) + cleanupCode + listOf(
         throwLocationStatement,
-        stackTraceCollector,
         fillStackTraceCall,
         throwLocationStatement,
         IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))

@@ -162,9 +162,6 @@ val ParameterList = sequence("parenthesised parameter list") {
     }
 
 val FunctionAttribute = eitherOf {
-    keyword(Keyword.MUTABLE)
-    keyword(Keyword.READONLY)
-    keyword(Keyword.PURE)
     keyword(Keyword.NOTHROW)
     keyword(Keyword.OPERATOR)
     keyword(Keyword.INTRINSIC)
@@ -186,9 +183,6 @@ val FunctionAttribute = eitherOf {
         }
         val nameToken = next as KeywordToken
         when(nameToken.keyword) {
-            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.MODIFYING, nameToken)
-            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.READONLY, nameToken)
-            Keyword.PURE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.PURE, nameToken)
             Keyword.NOTHROW -> AstFunctionAttribute.Nothrow(nameToken)
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)

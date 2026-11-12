@@ -18,6 +18,11 @@
 
 package compiler.binding
 
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import compiler.diagnostic.MutableGlobalVariableDiagnostic
+import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.NullableTypeReference
+import compiler.binding.type.BoundTypeArgument
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
@@ -214,7 +219,45 @@ class BoundVariable(
             annotations.semanticAnalysisPhase3(diagnosis)
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
+            validateGlobalIsConstant(diagnosis)
         }
+    }
+
+    /**
+     * Global variables are constants: not re-assignable and of a type that is `const` all the way down. Excepted
+     * are the variables the compiler generates for its own use, see
+     * [EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX].
+     */
+    private fun validateGlobalIsConstant(diagnosis: Diagnosis) {
+        if (!isGlobal || (declaration.span.generated && name.startsWith(EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX))) {
+            return
+        }
+
+        if (isReAssignable) {
+            diagnosis.add(MutableGlobalVariableDiagnostic(name, "cannot be re-assignable", declaration.varToken?.span ?: declaration.span))
+            return
+        }
+
+        val type = typeAtDeclarationTime ?: return
+        if (!type.isDeeplyImmutable()) {
+            diagnosis.add(MutableGlobalVariableDiagnostic(name, "has the type $type, which is not const throughout", declaration.type?.span ?: declaration.span))
+        }
+    }
+
+    /**
+     * `const` on the outside; and no type argument that is `mut` or `own`, as a member function could hand such a
+     * value out as it is. A `read` type argument is fine: nothing can change the value through it.
+     */
+    private fun BoundTypeReference.isDeeplyImmutable(isTypeArgument: Boolean = false): Boolean = when (this) {
+        is RootResolvedTypeReference -> {
+            val mutabilityIsFine = mutability == TypeMutability.IMMUTABLE || (isTypeArgument && mutability == TypeMutability.READONLY)
+            mutabilityIsFine && (arguments ?: emptyList()).all { it.isDeeplyImmutable(true) }
+        }
+        is BoundTypeArgument -> type.isDeeplyImmutable(true)
+        is NullableTypeReference -> nested.isDeeplyImmutable(isTypeArgument)
+        is BoundIntersectionTypeReference -> components.all { it.isDeeplyImmutable(isTypeArgument) }
+        is ErroneousType -> true
+        else -> false
     }
 
     override val modifiedContext: ExecutionScopedCTContext by lazy {

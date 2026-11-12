@@ -22,7 +22,6 @@ import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
-import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrReifiedTypeExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -39,8 +38,6 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
-import compiler.diagnostic.constructorDeclaredAsModifying
 import compiler.diagnostic.illegalMixinRepetition
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
@@ -171,8 +168,6 @@ class BoundClassConstructor(
         }
     }
 
-    override val purity = attributes.purity
-
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             allTypeParameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
@@ -191,39 +186,6 @@ class BoundClassConstructor(
                     },
                     ::replaceNothrowViolationsWithSuggestion,
                 )
-            }
-
-            if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
-                handleCyclicInvocation(
-                    context = this,
-                    action = {
-                        boundInitCode.visitWritesBeyond(
-                            functionRootContext,
-                            diagnosingVisitor
-                        )
-                        boundBody.visitWritesBeyond(functionRootContext, diagnosingVisitor)
-                    },
-                    onCycle = {},
-                )
-
-                if (BoundFunction.Purity.PURE.contains(this.purity)) {
-                    handleCyclicInvocation(
-                        context = this,
-                        action = {
-                            boundInitCode.visitReadsBeyond(
-                                functionRootContext,
-                                diagnosingVisitor
-                            )
-                            boundBody.visitReadsBeyond(functionRootContext, diagnosingVisitor)
-                        },
-                        onCycle = {},
-                    )
-                }
-            }
-
-            if (purity.contains(BoundFunction.Purity.MODIFYING)) {
-                diagnosis.constructorDeclaredAsModifying(this)
             }
 
             val partialInitState = boundBody.modifiedContext.getEphemeralState(PartialObjectInitialization, selfVariableForInitCode)

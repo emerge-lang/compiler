@@ -63,8 +63,7 @@ data object EmergeConstants {
         val WORLD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "World")
 
         /**
-         * A token class that collects stack traces. The runtime holds an instance per thread and passes it to
-         * `Throwable.fillStackTrace` on `throw`.
+         * The token class it takes to read a stack trace. The runtime holds an instance per thread, for panics.
          */
         val STACK_TRACE_COLLECTOR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "StackTraceCollector")
     }

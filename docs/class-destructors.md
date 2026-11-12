@@ -4,44 +4,45 @@ random notes i want to persist for future inclusion in proper language documenta
 
 ## Destructors
 
-Destructors don't take a side effect classifier (like `pure` or `readonly`). They can always have side
-effects. Side effects are their only purpose: closing externally managed resources (e.g. GPU memory, a file
-handle, a window in a window manager) that would be otherwise impractical to manage through the program stack.
+Destructors have side effects as their only purpose: closing externally managed resources (e.g. GPU memory, a
+file handle, a window in a window manager) that would be otherwise impractical to manage through the program
+stack.
 
 It is still preferred to use try-with-resources style stack controlled resource management wherever practical,
 like Javas `AutoCloseable`.
 
-But doesn't that lead the entire pure/readonly/mutating classification of other code ad-absurdum?
-Yes, one would think so. Destructors could run any time, and are as such out of the control of
-code that is classified as pure or readonly. So, any pure or readonly function can have side effects
-injected into it through a destructor.  
-**That is wrong!** Destructors cannot run _just whenever_. They run when a reference that is stored on the
-heap gets changed or removed. Doing so requires mutable access to things. `pure` and `readonly` functions cannot
-do that to any global variables. So no danger from that angle. For parameters its more tricky. But again,
-to trigger a reference count decrease and thus a potential destructor call, the code needs to change data on 
-the heap. And that requires a `mutable` reference. This means that a straightforward pure or readonly function
-does not run the danger of having hidden side-effects. This can only happen when it takes `mutable` parameters.
-And that seems fine to me as of writing this. E.g.:
+But doesn't that lead the reasoning about effects by tokens ad-absurdum? A function without a token in its
+signature is supposed to have no effect on the outside, and a destructor could run inside of it.  
+**It doesn't.** A destructor takes no parameter but `self`. So it reaches the outside only through what the
+object holds, and an object that holds a token is a token itself (or calls an `external(C)` function, which is
+the trust boundary anyhow). A value that is no token has a destructor without effects, wherever it runs.
+
+And a token cannot get into a function unseen: it cannot be forgotten in a type that is no token. So the
+destructor of a token can only run in a function whose signature shows that token, or something that holds it.
+Even then, destructors cannot run _just whenever_: they run when the last reference goes away, which takes
+an `own` value handed to the function, or `mut` access to the place the reference is stored in. E.g.:
 
 ```
-class SideEffectOnEndOfLife {
+token class SideEffectOnEndOfLife {
+    out: mut PrintStream = init
     destructor {
-        println("Side effect!")
+        self.out.println("Side effect!")
     }
 }
 
-pure fun a(p: Array<SideEffectOnEndOfLife>) {
+fn a(borrow p: read Array<SideEffectOnEndOfLife>) {
     // cannot have side effects. Even if references are created to elements in the array
     // and then removed again, it cannot possibly drop the refcounter to 0. No destructor
     // will ever be invoked here
 }
 
-pure fun b(p: mutable Array<SideEffectOnEndOfLife>) {
-    set a[0] = SideEffectOnEndOfLife()
+fn b(borrow p: mut Array<SideEffectOnEndOfLife>, replacement: SideEffectOnEndOfLife) {
+    set p[0] = replacement
     // this is a different story now. The function can change the contents of the parameter
     // and if there are no other references than that in the array, the assignment will trigger
     // the destructor and the side effect
-    
-    // i think this is acceptable, as the side effect must be explicitly and actively marked
-    // by the programmer in the public-facing API signature
+
+    // this is acceptable, as the side effect is explicitly and actively marked
+    // by the programmer in the public-facing API signature: a mut parameter that holds tokens
 }
+```

@@ -218,30 +218,6 @@ class VirtualMemberVariableErrors : FreeSpec({
                         it.accessor.name.value shouldBe "bla"
                     }
             }
-
-            "must be pure" - {
-                "explicitly declared read" {
-                    validateModule("""
-                        interface I {
-                            read get fn bla(self) -> S32
-                        }
-                    """.trimIndent())
-                        .shouldFind<AccessorContractViolationDiagnostic> {
-                            it.accessor.name.value shouldBe "bla"
-                        }
-                }
-
-                "explicitly declared mut" {
-                    validateModule("""
-                        interface I {
-                            mut get fn bla(self) -> S32
-                        }
-                    """.trimIndent())
-                        .shouldFind<AccessorContractViolationDiagnostic> {
-                            it.accessor.name.value shouldBe "bla"
-                        }
-                }
-            }
         }
         "setters" - {
             "must take two arguments, the first being a receiver" - {
@@ -341,30 +317,6 @@ class VirtualMemberVariableErrors : FreeSpec({
                     validateModule("""
                         interface I {
                             set fn bla(self: own _, v: S32)
-                        }
-                    """.trimIndent())
-                        .shouldFind<AccessorContractViolationDiagnostic> {
-                            it.accessor.name.value shouldBe "bla"
-                        }
-                }
-            }
-
-            "must be pure" - {
-                "explicitly declared read" {
-                    validateModule("""
-                        interface I {
-                            read set fn bla(self: mut _, v: S32)
-                        }
-                    """.trimIndent())
-                        .shouldFind<AccessorContractViolationDiagnostic> {
-                            it.accessor.name.value shouldBe "bla"
-                        }
-                }
-
-                "explicitly declared mut" {
-                    validateModule("""
-                        interface I {
-                            mut set fn bla(self: mut _, v: S32)
                         }
                     """.trimIndent())
                         .shouldFind<AccessorContractViolationDiagnostic> {

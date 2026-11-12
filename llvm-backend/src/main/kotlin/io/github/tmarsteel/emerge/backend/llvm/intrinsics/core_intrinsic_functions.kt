@@ -444,12 +444,11 @@ internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>
     functionAttribute(LlvmFunctionAttribute.NoRecurse)
     functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
-    val collector by param(PointerToAnyEmergeValue)
     val nFrames by param(LlvmU32Type)
     val includeRuntimeFrames by param(LlvmBooleanType)
 
     body {
-        ret(call(context.collectStackTraceImpl, listOf(collector, nFrames, includeRuntimeFrames)))
+        ret(call(context.collectStackTraceImpl, listOf(nFrames, includeRuntimeFrames)))
     }
 }
 

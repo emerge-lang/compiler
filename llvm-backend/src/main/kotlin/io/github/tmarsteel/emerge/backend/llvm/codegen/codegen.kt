@@ -31,7 +31,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIsNullExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrRuntimeStackTraceCollectorExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
@@ -951,9 +950,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 is ExpressionResult.Value -> ExpressionResult.Value(autoBoxOrUnbox(expression.implicitValue, expression.implicitValue.type))
                 is ExpressionResult.Terminated -> result
             }
-        }
-        is IrRuntimeStackTraceCollectorExpression -> {
-            return ExpressionResult.Value(context.runtimeStackTraceCollectorSlot.dereference())
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }

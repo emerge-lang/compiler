@@ -41,7 +41,6 @@ enum class Keyword(val text: String)
     OWN("own"),
 
     NOTHROW("nothrow"),
-    PURE("pure"),
     OPERATOR("operator"),
     INTRINSIC("intrinsic"),
     EXTERNAL("external"),

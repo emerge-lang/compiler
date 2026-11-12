@@ -24,7 +24,7 @@ class UniqueClassErrors : FreeSpec({
                     set self.resets = self.resets + 1
                 }
             }
-            mut fn test(world: mut World) {
+            fn test(world: mut World) {
                 usb: mut Usb = Usb.take(world)!!
                 usb.reset()
             }
@@ -38,7 +38,7 @@ class UniqueClassErrors : FreeSpec({
                 logLevel: S32 = init
                 name: String = init
             }
-            mut fn test(world: mut World) -> own Usb? {
+            fn test(world: mut World) -> own Usb? {
                 return Usb.take(world, 3, "main")
             }
         """.trimIndent()) should haveNoDiagnostics()
@@ -48,7 +48,7 @@ class UniqueClassErrors : FreeSpec({
         validateModule("""
             import emerge.platform.World
             unique class Usb {}
-            mut fn test(world: read World) {
+            fn test(world: read World) {
                 usb = Usb.take(world)
             }
         """.trimIndent())
@@ -88,7 +88,7 @@ class UniqueClassErrors : FreeSpec({
                 export unique class Usb {
                     private constructor {}
                 }
-                export mut fn open(world: mut World) -> own Usb? = Usb.take(world)
+                export fn open(world: mut World) -> own Usb? = Usb.take(world)
             """.trimIndent()),
             IntegrationTestModule.of("app", """
                 package app
@@ -97,8 +97,8 @@ class UniqueClassErrors : FreeSpec({
                 import lib.Usb
                 import lib.open
 
-                mut fn viaLibrary(world: mut World) -> own Usb? = open(world)
-                mut fn direct(world: mut World) -> own Usb? = Usb.take(world)
+                fn viaLibrary(world: mut World) -> own Usb? = open(world)
+                fn direct(world: mut World) -> own Usb? = Usb.take(world)
             """.trimIndent(), uses = setOf(io.github.tmarsteel.emerge.common.CanonicalElementName.Package(listOf("lib")))),
         )
             .shouldFind<ElementNotAccessibleDiagnostic>()
@@ -109,7 +109,7 @@ class UniqueClassErrors : FreeSpec({
             validateModule("""
                 import emerge.platform.World
                 unique class Usb {}
-                mut fn test(world: mut World) {
+                fn test(world: mut World) {
                     n: read NonToken? = Usb.take(world)
                 }
             """.trimIndent())

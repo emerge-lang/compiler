@@ -25,11 +25,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
    files: a global that reads a global of another file can see it uninitialized~~
-3. isolate thread-unsafe global state
-   * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
-     that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
-     require a builtin that asserts a certain stack-variable is `own`, but that doesn't seem impossible to provide.
-   * anything else to take care of?
+3. ~~isolate thread-unsafe global state~~ done with tokens, see [tokens-plan.md](tokens-plan.md): there is no
+   mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
+   which `main` obtains from the root token it is given.
 4. additional language constructs
    1. switch/when statement
    2. union types: `TypeA | TypeB | TypeC`
@@ -126,15 +124,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
-    2. deal with the higher-order function purity problem: do functions need to be generic on purity?
-       * probably not. The compiler needs to implement parameteric side effects internally, but in the emerge language
-         we can probably void that complexity. The trick is: we have the language concept of `borrow` already. If a
-         function borrows a value of a function type, it HAS to invoke that function zero-or-more times during its own
-         execution, and cannot possibly invoke it later. So the side-effect only needs to be tracked during the invocation
-         of the higher-order function. Thus, we get a simple heuristic: 
-         if a function receives a parameter that is of a function type, and that parameter is borrowed: add a hidden
-         side-effect parameter to the function that is also applied to the parameter;
-         e.g. `fn foo(borrow a: () -> Unit)` gets an internal representation of `E fun foo<effect E>(borrow a: E () -> Unit)`
+    2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
+       left of the problem is a rule for closures: a closure that captures a token is a token
+       (rule 6 in [tokens-plan.md](tokens-plan.md)).
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
        * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
@@ -145,7 +137,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
     6. implement last-argument lambdas like in Kotlin?
        * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
-14. functional-style collection operations (possible because the higher-order function purity problem is solved)
+14. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
@@ -231,6 +223,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
+    * the `take` function of a `unique class` has to be thread-safe: one instance per _process_, whichever thread
+      asks first. Today the flag that knows whether the instance was handed out is a global variable like any
+      other, which makes it thread-local (the LLVM backend emits globals as such), and `take` reads and sets it
+      in separate steps. With threads the flag has to be one per process, and checking and setting it one atomic
+      step; a constructor that throws has to release it again. See `UniqueClassCode` in the frontend.
 24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
@@ -361,15 +358,8 @@ with algebraic data types to form Java-Like enums:
     atom C {}
     typealias Enum = A | B | C
 
-Implementing interfaces is handy for modelling state external to the program:
-_!! how to prevent race conditions in the external resource when multiple emerge threads/actors are mutating
-the same atom?_
-
-    atom StandardOut : PrintStream {
-        override fn put(self: mut _, string: String) {
-            // ...
-        }
-    }
+State external to the program is not a case for atoms: it is modelled by tokens, and a resource there is one of
+per process by a `unique class` (see [tokens-plan.md](tokens-plan.md)).
 
 ### Feed LLVM with all info available
 

@@ -30,7 +30,7 @@ token class FileDescriptorPrintStream : PrintStream {
     override fn put(self: mut _, str: String) {
         var bufToWrite: read Array<S8> = str.utf8Data
         while bufToWrite.size > 0 {
-            writeResult = pureWrite(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
+            writeResult = write(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
             if writeResult <= 0 {
                 throw WriteFailedException(getErrno())
             }
@@ -43,8 +43,6 @@ token class FileDescriptorPrintStream : PrintStream {
         self.put("\n")
     }
 }
-
-private intrinsic nothrow fn pureWrite(fd: S32, buf: COpaquePointer, count: UWord) -> SWord
 
 private class WriteFailedException : IOException {
     errno: S32 = init

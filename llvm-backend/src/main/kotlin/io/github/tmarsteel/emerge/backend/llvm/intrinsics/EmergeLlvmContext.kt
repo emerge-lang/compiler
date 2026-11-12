@@ -64,7 +64,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCurso
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.addressOfBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectAnyTypeFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
@@ -244,8 +243,8 @@ class EmergeLlvmContext(
     internal lateinit var fileDescriptorPrintStreamType: EmergeClassType
 
     /**
-     * What the runtime holds per thread so that `throw` and panics work without a token in the signature of the
-     * code that triggers them: a stack trace collector, and a stream to standard error. Emerge code cannot refer
+     * What the runtime holds per thread so that a panic works without a token in the signature of the code that
+     * triggers it: a stack trace collector, and a stream to standard error. Emerge code cannot refer
      * to these slots; [threadInitializerFn] fills them before anything else runs on the thread.
      */
     internal val runtimeStackTraceCollectorSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
@@ -530,7 +529,7 @@ class EmergeLlvmContext(
             }
         }
         if (fn.canonicalName.parent.toString() == "emerge.std.coresupport") {
-            if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 2) {
+            if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 3) {
                 val firstParamType = fn.parameters[0].type
                 val secondParamType = fn.parameters[1].type
                 if (firstParamType is IrSimpleType && firstParamType.baseType.canonicalName == EmergeConstants.CoreModule.THROWABLE_TYPE_NAME
@@ -1086,7 +1085,6 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             addressOfBuiltin,
             panicOnThrowable,
             writeMemoryAddress,
-            pureWrite,
             typeOfTypeArgument,
             reflectAnyTypeFunction,
             reflectionBaseTypeFunction,
