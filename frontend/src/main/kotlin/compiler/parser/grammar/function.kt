@@ -19,33 +19,20 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.AstAnnotationSet
-import compiler.ast.AstCodeChunk
-import compiler.ast.AstFunctionAttribute
-import compiler.ast.AstVisibility
-import compiler.ast.FunctionDeclaration
-import compiler.ast.ParameterList
-import compiler.ast.TypeParameterBundle
-import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
+import compiler.ast.*
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.AccessorKind
-import compiler.binding.BoundFunction
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.Token
+import compiler.lexer.*
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
-import java.util.LinkedList
+import java.util.*
 import compiler.ast.Expression as AstExpression
 
 val Parameter = sequence("parameter declaration") {
+    ref(AnnotationSet)
     optional {
         ref(VariableOwnership)
     }
@@ -63,6 +50,7 @@ val Parameter = sequence("parameter declaration") {
     }
 }
     .astTransformation { tokens ->
+        val annotations = tokens.next()!! as AstAnnotationSet
         var next: Any? = tokens.next()!!
 
         val varKeywordToken: KeywordToken?
@@ -100,7 +88,7 @@ val Parameter = sequence("parameter declaration") {
 
         VariableDeclaration(
             name.span,
-            AstAnnotationSet.EMPTY,
+            annotations,
             null,
             varKeywordToken,
             ownership,

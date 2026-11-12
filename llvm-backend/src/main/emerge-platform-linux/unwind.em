@@ -158,7 +158,6 @@ private external(C) nothrow fn unw_get_proc_info(cursor: COpaquePointer, buf: CO
 
 // attempts to move the cursor to the next, less deeply nested tack frame
 // @return true if the cursor was successfully moved, false if there are no more stack frames left
-// TODO: change parameter to mut COpaquePointer; needs parameterized mutability for Array.addressOfFirst()
 private fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     errorCode = unw_step(cursorPtr)
     if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {

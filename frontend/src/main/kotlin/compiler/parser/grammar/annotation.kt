@@ -13,14 +13,12 @@ val Annotation = sequence("annotation") {
     operator(Operator.SBRACE_OPEN)
     ref(Expression)
     operator(Operator.SBRACE_CLOSE)
-    operator(Operator.NEWLINE)
 }
     .astTransformation { tokens ->
         val hashOp = tokens.next() as OperatorToken
         tokens.next() as OperatorToken // sbrace_open
         val expression = tokens.next() as AstExpression
         val cbraceClose = tokens.next() as OperatorToken
-        tokens.next() as OperatorToken // newline
 
         val span = hashOp.span .. cbraceClose.span
         AstAnnotation(expression, span)
