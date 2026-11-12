@@ -44,14 +44,30 @@ class LinuxLinker(val linkerBinary: Path) {
     }
 
     companion object {
+        /**
+         * Looks for a linker that can link ELF files on any host, in this order:
+         * 1. `ld.lld` of the given LLVM installation
+         * 2. `ld.lld` of an lld installed next to it, as homebrew does (`llvm@20` and `lld@20`)
+         * 3. `ld.lld-20` and `ld.lld` on the path
+         * 4. `ld` on the path, which only does where it is that of a linux system
+         */
         fun fromLlvmInstallationDirectory(llvmInstallationDirectory: Path): LinuxLinker {
-            return LinuxLinker(
-                ToolDiscoverer.INSTANCE.discover(
-                    llvmInstallationDirectory.resolve("bin").resolve("ld.lld").toString(),
-                    "ld.lld-20",
-                    "ld",
-                )
+            val candidates = mutableListOf(
+                llvmInstallationDirectory.resolve("bin").resolve("ld.lld").toString(),
             )
+            val llvmDirectoryName = llvmInstallationDirectory.fileName?.toString()
+            if (llvmDirectoryName != null && llvmDirectoryName.startsWith("llvm")) {
+                candidates += llvmInstallationDirectory
+                    .resolveSibling("lld" + llvmDirectoryName.removePrefix("llvm"))
+                    .resolve("bin")
+                    .resolve("ld.lld")
+                    .toString()
+            }
+            candidates += "ld.lld-20"
+            candidates += "ld.lld"
+            candidates += "ld"
+
+            return LinuxLinker(ToolDiscoverer.INSTANCE.discover(*candidates.toTypedArray()))
         }
     }
 }
