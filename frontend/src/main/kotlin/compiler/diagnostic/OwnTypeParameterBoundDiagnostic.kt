@@ -10,6 +10,6 @@ class OwnTypeParameterBoundDiagnostic(
     val parameter: TypeParameter,
 ) : Diagnostic(
     Severity.ERROR,
-    "The bound of type parameter ${parameter.name.value} cannot be of the mutability own, as type arguments cannot be.",
+    "Type arguments cannot be of the mutability own: it would allow generic code to duplicate the reference, which is not allowed for own values. Use mut, const or read here.",
     parameter.bound?.span ?: parameter.name.span,
 )
