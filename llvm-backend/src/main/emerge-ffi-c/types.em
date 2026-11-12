@@ -1,6 +1,7 @@
 package emerge.ffi.c
 
-export class COpaquePointer {
+// an address, and as such no token: what it takes to read or write the memory there is another matter
+export class COpaquePointer : NonToken {
     private pointed: Any = init
 }
 
