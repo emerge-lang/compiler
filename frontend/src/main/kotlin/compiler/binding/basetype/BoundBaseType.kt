@@ -34,6 +34,7 @@ import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeParameter
@@ -46,6 +47,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.MissingTokenModifierDiagnostic
 import compiler.diagnostic.constTokenBaseType
 import compiler.diagnostic.missingTokenModifier
+import compiler.diagnostic.tokenInheritsNonToken
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
@@ -479,9 +481,39 @@ class BoundBaseType(
     val isConst: Boolean get() = superTypes.isConst
 
     /**
-     * Whether this is a token type: declared `token`, or a subtype of a type that is.
+     * Whether the instances of this type are tokens: it is declared `token`, or a subtype of a type that is (which
+     * has to be declared `token` as well, see [sean1ValidateTokenModifier]; it counts as one either way, so that a
+     * missing modifier doesn't open a hole in the rules).
+     *
+     * A base type that is neither this nor [isNonToken] says nothing about its instances; only interfaces do
+     * that. See [BoundTypeReference.mayBeToken] for what that means for a type.
      */
     val isToken: Boolean get() = declaration.tokenKeyword != null || superTypes.inheritsToken
+
+    /**
+     * Whether this type says in writing that its instances are no tokens: it is `NonToken`, inherits from it,
+     * or [isConst], as a token is never const.
+     */
+    val isDeclaredNonToken: Boolean get() = this === context.swCtx.nonToken || isConst || superTypes.inheritsNonToken
+
+    /**
+     * Whether the instances of this type are no tokens: [isDeclaredNonToken], or a class that is not [isToken].
+     * Such a type is a subtype of `NonToken`.
+     */
+    val isNonToken: Boolean get() = !isToken && (kind == Kind.CLASS || isDeclaredNonToken)
+
+    /**
+     * @return the type a member variable of this type has, when [declaredType] is what its declaration says. In a
+     * class that is no token class, a type that may be a token is narrowed to `NonToken`. Not so for the type
+     * parameters of this class: what they are bound to decides, see [BoundTypeReference.mayBeToken].
+     */
+    fun narrowMemberVariableType(declaredType: BoundTypeReference): BoundTypeReference {
+        if (isToken || !declaredType.mayBeTokenUnless(typeParameters ?: emptyList())) {
+            return declaredType
+        }
+
+        return with(BoundIntersectionTypeReference) { declaredType.asNoToken() }
+    }
 
     private fun sean1ValidateTokenModifier(diagnosis: Diagnosis) {
         if (declaration.tokenKeyword == null) {
@@ -494,6 +526,8 @@ class BoundBaseType(
 
         if (isToken && isConst) {
             diagnosis.constTokenBaseType(this)
+        } else if (isToken && isDeclaredNonToken) {
+            diagnosis.tokenInheritsNonToken(this)
         }
     }
 
@@ -503,6 +537,7 @@ class BoundBaseType(
         if (supertype === context.swCtx.any) return true
         if (supertype === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
+        if (supertype === context.swCtx.nonToken) return isNonToken
 
         return supertype in this.superTypes.preprocessedInheritanceTree.parameterizedSupertypes.keys
     }

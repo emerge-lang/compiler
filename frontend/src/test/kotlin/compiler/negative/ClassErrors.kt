@@ -260,7 +260,7 @@ class ClassErrors : FreeSpec({
             "cannot use decorated member as mut nor const in constructor" {
                 validateModule("""
                     interface N {}
-                    class W {
+                    token class W {
                         decorates n: N = init
                         
                         constructor {
@@ -276,7 +276,7 @@ class ClassErrors : FreeSpec({
 
                 validateModule("""
                     interface N {}
-                    class W {
+                    token class W {
                         decorates n: N = init
                         
                         constructor {

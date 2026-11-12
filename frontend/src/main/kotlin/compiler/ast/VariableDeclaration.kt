@@ -22,6 +22,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -52,8 +53,14 @@ data class VariableDeclaration(
         return bindTo(context, context, typeInferenceStrategy, BoundVariable.Kind.PARAMETER)
     }
 
-    fun bindToAsConstructorParameter(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.TypeInferenceStrategy.NoInference, BoundVariable.Kind.CONSTRUCTOR_PARAMETER)
+    /**
+     * @param typeTransform see [BoundBaseType.narrowMemberVariableType]
+     */
+    fun bindToAsConstructorParameter(
+        context: ExecutionScopedCTContext,
+        typeTransform: (BoundTypeReference) -> BoundTypeReference = { it },
+    ): BoundVariable {
+        return bindTo(context, context, BoundVariable.TypeInferenceStrategy.NoInference, BoundVariable.Kind.CONSTRUCTOR_PARAMETER, typeTransform = typeTransform)
     }
 
     fun bindToAsLocalVariable(context: ExecutionScopedCTContext): BoundVariable {
@@ -76,6 +83,7 @@ data class VariableDeclaration(
         typeInferenceStrategy: BoundVariable.TypeInferenceStrategy,
         kind: BoundVariable.Kind,
         bindInitializer: Boolean = true,
+        typeTransform: (BoundTypeReference) -> BoundTypeReference = { it },
     ): BoundVariable {
         lateinit var boundVar: BoundVariable
         boundVar = BoundVariable(
@@ -86,6 +94,7 @@ data class VariableDeclaration(
             initializerExpression?.takeIf { bindInitializer }?.bindTo(initializerContext),
             typeInferenceStrategy,
             kind,
+            typeTransform,
         )
 
         return boundVar

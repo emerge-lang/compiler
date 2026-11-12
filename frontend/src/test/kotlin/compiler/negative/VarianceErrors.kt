@@ -549,7 +549,7 @@ class VarianceErrors : FreeSpec({
                 interface A {}
                 interface B : A {}
                 interface Box<T> {}
-                class Holder<T> {
+                token class Holder<T> {
                     box: Box<out T> = init
                 }
                 fn test(h: Holder<out B>) -> Box<out B> {
@@ -564,7 +564,7 @@ class VarianceErrors : FreeSpec({
                 interface A {}
                 interface B : A {}
                 interface Box<T> {}
-                class Holder<T> {
+                token class Holder<T> {
                     box: Box<in T> = init
                 }
                 fn test(h: Holder<in B>) -> Box<in B> {
@@ -652,7 +652,7 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> {
+            token class Holder<T> {
                 consumer: Consumer<in Box<T>> = init
             }
             fn test(exact: Holder<A>, variant: Holder<out A>) {
@@ -670,7 +670,7 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> {
+            token class Holder<T> {
                 consumer: Consumer<in Box<T>> = init
             }
             fn test(variant: Holder<out A>) {
@@ -685,7 +685,7 @@ class VarianceErrors : FreeSpec({
                 var value: T = init
             }
             interface Consumer<T> {}
-            class Holder<T> {
+            token class Holder<T> {
                 consumer: Consumer<in Box<T>> = init
             }
             fn test(variant: Holder<out A>) {

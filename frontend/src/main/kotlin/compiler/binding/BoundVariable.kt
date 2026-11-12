@@ -70,6 +70,8 @@ class BoundVariable(
     val initializerExpression: BoundExpression<*>?,
     private val typeInferenceStrategy: TypeInferenceStrategy,
     val kind: Kind,
+    /** applied to the type of this variable as declared or inferred; see [BoundBaseType.narrowMemberVariableType] */
+    private val typeTransform: (BoundTypeReference) -> BoundTypeReference = { it },
 ) : BoundStatement<VariableDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
@@ -92,8 +94,8 @@ class BoundVariable(
      */
     val typeAtDeclarationTime: BoundTypeReference?
         get() = when {
-            seanHelper.phase2Done -> typeInferenceStage3.typeAfterSean2
-            seanHelper.phase1Done -> typeInferenceStage2.typeAfterSean1
+            seanHelper.phase2Done -> typeInferenceStage3.typeAfterSean2?.let(typeTransform)
+            seanHelper.phase1Done -> typeInferenceStage2.typeAfterSean1?.let(typeTransform)
             else -> null
         }
 
@@ -495,10 +497,10 @@ class BoundVariable(
 
                 /**
                  * [implicitMutability], except that a token is never `const`: where a variable of any other type
-                 * defaults to that, a variable of a token type defaults to `mut`.
+                 * defaults to that, a variable of a type that may be a token defaults to `mut`.
                  */
                 private fun implicitMutabilityFor(type: BoundTypeReference?): TypeMutability {
-                    if (implicitMutability == TypeMutability.IMMUTABLE && type?.isTokenType == true) {
+                    if (implicitMutability == TypeMutability.IMMUTABLE && type?.mayBeToken == true) {
                         return TypeMutability.MUTABLE
                     }
                     return implicitMutability

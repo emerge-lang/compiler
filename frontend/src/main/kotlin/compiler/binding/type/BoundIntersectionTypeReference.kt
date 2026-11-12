@@ -54,8 +54,8 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override val isPartiallyUnresolved get()= components.any { it.isPartiallyUnresolved }
-    override val isTokenType get() = components.any { it.isTokenType }
-    override val mentionsTokenType get() = components.any { it.mentionsTokenType }
+    // one component that cannot be a token decides it
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = components.all { it.mayBeTokenUnless(nonTokenParameters) }
 
     override val inherentTypeBindings: TypeUnification by lazy {
         components.asSequence()
@@ -194,10 +194,12 @@ class BoundIntersectionTypeReference private constructor(
             return carry
         }
 
-        return components.asSequence()
-            .map { targetType.unify(it, assignmentLocation, carry) }
-            .filter { it.getErrorsNotIn(carry).none() }
-            .firstOrNull()
+        return TokenRule.forComponentsOf(this) {
+            components.asSequence()
+                .map { targetType.unify(it, assignmentLocation, carry) }
+                .filter { it.getErrorsNotIn(carry).none() }
+                .firstOrNull()
+        }
             ?: carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                 targetType,
                 this,
@@ -267,11 +269,16 @@ class BoundIntersectionTypeReference private constructor(
         val commonMutability = mutabilityOfComponents(mappedComponents)
         val mutabilityAdjustedComponents = mappedComponents.map { it.withMutability(commonMutability) }
 
-        return BoundIntersectionTypeReference(
+        val mapped = BoundIntersectionTypeReference(
             context,
             astNode,
             mutabilityAdjustedComponents,
         )
+        if (mapped.mayBeToken && mappedComponents.any { !it.mayBeToken }) {
+            // see ofComponents
+            return mapped.asNoToken()
+        }
+        return mapped
     }
 
     /**
@@ -359,6 +366,22 @@ class BoundIntersectionTypeReference private constructor(
             simplify: Boolean = false,
         ): BoundTypeReference {
             components.singleOrNull()?.let { return it }
+
+            val intersection = ofComponentsKeepingMutabilities(context, ref, components, simplify)
+            if (intersection.mayBeToken && components.any { !it.mayBeToken }) {
+                // the components take the mutability they have in common, and a const one, which is no token for
+                // being const, becomes own with a mut one. That the value is no token must not get lost with it.
+                return intersection.asNoToken()
+            }
+            return intersection
+        }
+
+        private fun ofComponentsKeepingMutabilities(
+            context: CTContext,
+            ref: AstIntersectionType?,
+            components: List<BoundTypeReference>,
+            simplify: Boolean,
+        ): BoundTypeReference {
             val nullability = nullabilityOfComponents(components)
             val mutability = mutabilityOfComponents(components)
             var intersection: BoundTypeReference = BoundIntersectionTypeReference(
@@ -427,6 +450,27 @@ class BoundIntersectionTypeReference private constructor(
                     return ofComponents(context, null, this.intersectedComponents() + other.intersectedComponents(), true)
                 }
             }
+        }
+
+        /**
+         * @return this type, of values that are no tokens: itself if it cannot be one ([mayBeToken]), its intersection
+         * with `NonToken` otherwise.
+         */
+        fun BoundTypeReference.asNoToken(): BoundTypeReference {
+            if (!mayBeToken || this is ErroneousType) {
+                return this
+            }
+            if (this is BoundTypeArgument) {
+                // the argument stays one, of the narrowed type
+                val narrowedType = type.asNoToken()
+                return BoundTypeArgument(context, AstSpecificTypeArgument(variance, narrowedType.asAstReference()), variance, narrowedType)
+            }
+
+            var nonToken: BoundTypeReference = context.swCtx.nonToken.getBoundReferenceAssertNoTypeParameters(span ?: Span.UNKNOWN)
+            if (isNullable) {
+                nonToken = nonToken.withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            }
+            return ofComponents(context, null, this.intersectedComponents() + nonToken, true)
         }
 
         /**

@@ -11,6 +11,18 @@ class ConstTokenDiagnostic(
     span: Span,
 ) : Diagnostic(
     Severity.ERROR,
-    "$tokenTypeName is a token type; tokens cannot be const because they represent mutable external or global state",
+    "$tokenTypeName is a token type; tokens cannot be const",
+    span,
+)
+
+/**
+ * A token type cannot inherit from `NonToken`.
+ */
+class TokenInheritsNonTokenDiagnostic(
+    val tokenTypeName: String,
+    span: Span,
+) : Diagnostic(
+    Severity.ERROR,
+    "$tokenTypeName is a token type; it cannot inherit from NonToken",
     span,
 )

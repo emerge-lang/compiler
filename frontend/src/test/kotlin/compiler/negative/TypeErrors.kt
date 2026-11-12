@@ -662,10 +662,10 @@ class TypeErrors : FreeSpec({
             2. the numeric literal 2 conforms to S32 -> all good
             3. the boolean literal false doesn't conform to S32
                but the type of the literal conforms to the bound of T (which is read Any?),
-               so rebind T to the closest common supertype of Bool and S32, which is Any;
-               hence now T = Any
-            4. The return type of the constructor invocation is (correctly!!) determined to be A<Any>
-            5. the return value of the constructor doesn't conform to the expected A<S32> -> report an error ("Any is not a subtype of S32")
+               so rebind T to the closest common supertype of Bool and S32, which is NonToken;
+               hence now T = NonToken
+            4. The return type of the constructor invocation is (correctly!!) determined to be A<NonToken>
+            5. the return value of the constructor doesn't conform to the expected A<S32> -> report an error ("NonToken is not a subtype of S32")
              */
 
             validateModule("""
@@ -676,7 +676,7 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Any"
+                    it.sourceType.toString() shouldBe "const NonToken"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }

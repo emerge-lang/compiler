@@ -44,8 +44,12 @@ class RootResolvedTypeReference private constructor(
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
     override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
-    override val isTokenType get() = baseType.isToken
-    override val mentionsTokenType get() = baseType.isToken || arguments?.any { it.mentionsTokenType } == true
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
+        if (mutability == TypeMutability.IMMUTABLE) {
+            return false
+        }
+        return !baseType.isNonToken || arguments?.any { it.mayBeTokenUnless(nonTokenParameters) } == true
+    }
 
     override val inherentTypeBindings by lazy {
         val params = baseType.typeParameters ?: emptyList()
@@ -223,7 +227,11 @@ class RootResolvedTypeReference private constructor(
                 if (this.equalsExceptMutability(other)) {
                     return withMutability(this.mutability.union(other.mutability))
                 }
-                val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                var commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                if (commonSuperBaseType === context.swCtx.any && this.baseType.isNonToken && other.baseType.isNonToken && !this.mayBeToken && !other.mayBeToken) {
+                    // two values that are no tokens have that in common
+                    commonSuperBaseType = context.swCtx.nonToken
+                }
                 val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
                     val commonSupertypeFromThis = this.getInstantiatedSupertype(commonSuperBaseType)
                     val commonSupertypeFromOther = other.getInstantiatedSupertype(commonSuperBaseType)
@@ -273,20 +281,6 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                // a token stays visible in the type of every reference to it
-                if (assigneeType.baseType.isToken && !this.baseType.isToken) {
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a token type and ${this.baseType.simpleName} is not; a token cannot be assigned to a non-token type", assignmentLocation)
-                    )
-                }
-
-                // and is never const; own is assignable to const, otherwise
-                if (assigneeType.baseType.isToken && this.mutability == TypeMutability.IMMUTABLE) {
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is a token type; tokens cannot be const", assignmentLocation)
-                    )
-                }
-
                 // the modifiers must be compatible
                 if (!(assigneeType.assignmentMutability isAssignableTo this.assignmentMutability)) {
                     return carry.plusDiagnostic(
@@ -316,11 +310,17 @@ class RootResolvedTypeReference private constructor(
                     val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
                     val selfArgs = this.arguments ?: emptyList()
                     val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
-                    return selfArgs
+                    val afterArguments = selfArgs
                         .zip(assigneeArgs)
                         .fold(carry) { innerCarry, (targetArg, sourceArg) ->
                             targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                         }
+                    if (afterArguments.getErrorsNotIn(carry).any()) {
+                        return afterArguments
+                    }
+
+                    // it is a subtype. Still, a token is never frozen, and stays visible in the type of every reference to it
+                    return TokenRule.check(this, assigneeType, assignmentLocation)?.let(afterArguments::plusDiagnostic) ?: afterArguments
                 } finally {
                     inProgress.remove(goal)
                 }
@@ -337,12 +337,6 @@ class RootResolvedTypeReference private constructor(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
             is BoundIntersectionTypeReference -> {
-                // one component being assignable suffices, otherwise; that would forget the token of another one
-                if (assigneeType.isTokenType && !assigneeType.isNonNullableNothing && !this.baseType.isToken) {
-                    return carry.plusDiagnostic(
-                        ValueNotAssignableDiagnostic(this, assigneeType, "$assigneeType is a token type and ${this.baseType.simpleName} is not; a token cannot be assigned to a non-token type", assignmentLocation)
-                    )
-                }
                 return assigneeType.flippedUnify(
                     this,
                     assignmentLocation,

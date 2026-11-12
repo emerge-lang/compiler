@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.diagnostic.ConstTokenDiagnostic
 import compiler.diagnostic.MissingTokenModifierDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.TokenInheritsNonTokenDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -11,8 +12,10 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
- * A token type is one whose instances stand for state outside of themselves. The `token` modifier marks them;
- * these are the rules that keep a token visible in the type of every reference to it.
+ * A token is an object that stands for state outside of itself; a `token class` makes them. A type says whether
+ * its values are tokens (`token class`, `token interface`), are none (any other class, `NonToken` and what
+ * inherits from it), or may be either (any other interface, `Any`). These are the rules that keep a token from
+ * being forgotten or frozen.
  */
 class TokenErrors : FreeSpec({
     "declaration" - {
@@ -55,9 +58,7 @@ class TokenErrors : FreeSpec({
                 fn test(`token`: S32) -> S32 = `token`
             """.trimIndent()) should haveNoDiagnostics()
         }
-    }
 
-    "explicit propagation" - {
         "class implementing a token interface must be declared token" {
             validateModule("""
                 token interface Stream {}
@@ -79,107 +80,21 @@ class TokenErrors : FreeSpec({
                 }
         }
 
-        "through a supertype that is not token itself" {
+        "token class cannot inherit from NonToken" {
             validateModule("""
-                token interface Stream {}
-                interface Other {}
-                class Sink : Other & Stream {}
+                token class Clock : NonToken {}
             """.trimIndent())
-                .shouldFind<MissingTokenModifierDiagnostic> {
-                    it.baseType.name.value shouldBe "Sink"
-                }
-        }
-
-        "class with a member variable of a token type must be declared token" {
-            validateModule("""
-                token class Clock {}
-                class Timer {
-                    clock: read Clock = init
-                }
-            """.trimIndent())
-                .shouldFind<MissingTokenModifierDiagnostic> {
-                    it.baseType.name.value shouldBe "Timer"
-                    it.reason.shouldBeInstanceOf<MissingTokenModifierDiagnostic.Reason.MemberVariable>().memberVariable.name shouldBe "clock"
-                }
-        }
-
-        "nullable member variable" {
-            validateModule("""
-                token class Clock {}
-                class Timer {
-                    clock: read Clock? = init
-                }
-            """.trimIndent())
-                .shouldFind<MissingTokenModifierDiagnostic> {
-                    it.baseType.name.value shouldBe "Timer"
-                }
-        }
-
-        "member variable with inferred type" {
-            validateModule("""
-                token class Clock {}
-                class Timer {
-                    clock = Clock()
-                }
-            """.trimIndent())
-                .shouldFind<MissingTokenModifierDiagnostic> {
-                    it.baseType.name.value shouldBe "Timer"
-                }
-        }
-
-        "member variable of a type that is missing the modifier itself" {
-            validateModule("""
-                token interface Stream {}
-                class Sink : Stream {}
-                class Holder {
-                    sink: read Sink = init
-                }
-            """.trimIndent())
-                .shouldFind<MissingTokenModifierDiagnostic>(allowMultiple = true) {
-                    it.baseType.name.value shouldBe "Holder"
-                }
-        }
-    }
-
-    "never const" - {
-        "const reference to a token class" {
-            validateModule("""
-                token class Clock {}
-                fn test(c: const Clock) {}
-            """.trimIndent())
-                .shouldFind<ConstTokenDiagnostic> {
+                .shouldFind<TokenInheritsNonTokenDiagnostic> {
                     it.tokenTypeName shouldBe "Clock"
                 }
         }
 
-        "const reference to a token interface" {
+        "token class cannot implement an interface that inherits from NonToken" {
             validateModule("""
-                token interface Stream {}
-                fn test(c: const Stream?) {}
+                interface Shape : NonToken {}
+                token class Clock : Shape {}
             """.trimIndent())
-                .shouldFind<ConstTokenDiagnostic> {
-                    it.tokenTypeName shouldBe "Stream"
-                }
-        }
-
-        "const member variable" {
-            validateModule("""
-                token class Clock {}
-                token class Timer {
-                    clock: const Clock = init
-                }
-            """.trimIndent())
-                .shouldFind<ConstTokenDiagnostic> {
-                    it.tokenTypeName shouldBe "Clock"
-                }
-        }
-
-        "const return type" {
-            validateModule("""
-                token class Clock {}
-                intrinsic fn getClock() -> const Clock
-            """.trimIndent())
-                .shouldFind<ConstTokenDiagnostic> {
+                .shouldFind<TokenInheritsNonTokenDiagnostic> {
                     it.tokenTypeName shouldBe "Clock"
                 }
         }
@@ -202,39 +117,334 @@ class TokenErrors : FreeSpec({
                     it.tokenTypeName shouldBe "Clock"
                 }
         }
+    }
 
-        "own token does not freeze into an inferred const" {
+    "an interface says nothing by default" - {
+        "a token class and another class implement the same interface" {
+            validateModule("""
+                interface Named {
+                    fn getName(self) -> String
+                }
+                token class Clock : Named {
+                    override fn getName(self) -> String = "clock"
+                }
+                class Person : Named {
+                    override fn getName(self) -> String = "person"
+                }
+                fn nameOf(n: read Named) -> String = n.getName()
+                fn test(c: read Clock, p: read Person) {
+                    nameOf(c)
+                    nameOf(p)
+                    a: read Any = c
+                    b: read Any = p
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "through an intersection and through a bound" {
+            validateModule("""
+                interface Named {
+                    fn getName(self) -> String
+                }
+                token interface SomeToken {}
+                fn viaIntersection(t: read SomeToken & Named) -> String = t.getName()
+                fn viaBound<T : SomeToken & Named>(t: T) -> String = t.getName()
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+    }
+
+    "no forgetting" - {
+        "token class to NonToken" {
             validateModule("""
                 token class Clock {}
-                class Plain {}
-                fn takeConst<T : const Any>(v: T) {}
-                fn test() {
-                    takeConst(Plain())
-                    takeConst(Clock())
+                fn test(c: read Clock) {
+                    a: read NonToken = c
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldContain "Clock"
+                    it.reason shouldBe "Clock is not a subtype of NonToken"
                 }
         }
 
-        "non-token own still freezes" {
+        "a class that is no token class is a NonToken" {
+            validateModule("""
+                class Plain {}
+                fn test(p: read Plain) {
+                    a: read NonToken = p
+                    b: read NonToken? = p
+                    c: read Any = a
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "Any to NonToken" {
+            validateModule("""
+                fn test(a: read Any) {
+                    n: read NonToken = a
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldBe "Any is not a subtype of NonToken"
+                }
+        }
+
+        "an interface to NonToken" {
+            validateModule("""
+                interface Named {}
+                fn test(n: read Named) {
+                    a: read NonToken = n
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldBe "Named is not a subtype of NonToken"
+                }
+        }
+
+        "an interface that inherits from NonToken" {
+            validateModule("""
+                interface Shape : NonToken {}
+                interface Square : Shape {}
+                class UnitSquare : Square {}
+                fn test(s: read Square) {
+                    a: read NonToken = s
+                    b: read Shape = UnitSquare()
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "narrowed with & NonToken" {
+            validateModule("""
+                interface Named {}
+                class Person : Named {}
+                fn test(n: read Named & NonToken, p: read Person) {
+                    a: read NonToken = n
+                    b: read Named & NonToken = p
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a token does not fit a type narrowed with & NonToken" {
+            validateModule("""
+                interface Named {}
+                token class Clock : Named {}
+                fn test(c: read Clock) {
+                    n: read Named & NonToken = c
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "as an argument" {
+            validateModule("""
+                token class Clock {}
+                fn observe(a: read NonToken) {}
+                fn test(c: read Clock) {
+                    observe(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "as a return value" {
+            validateModule("""
+                interface Named {}
+                fn forget(n: read Named) -> read NonToken {
+                    return n
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
+        }
+
+        "through a type argument: a box of tokens is no NonToken" {
+            validateModule("""
+                token class Clock {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn test(b: read Box<read Clock>) {
+                    n: read NonToken = b
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldBe "a value of type read testmodule.Box<read testmodule.Clock> may be a token, and read NonToken cannot be one"
+                }
+        }
+
+        "a box of what is no token is a NonToken" {
+            validateModule("""
+                class Plain {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn test(b: read Box<read Plain>, c: read Box<S32>) {
+                    n: read NonToken = b
+                    m: read NonToken = c
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a type parameter may be bound to a token type" {
+            validateModule("""
+                token class Clock {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn test(c: mut Clock) {
+                    b = Box(c)
+                    d: mut Clock = b.value
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "generic code cannot forget a T" {
+            validateModule("""
+                fn forget<T>(v: T) {
+                    n: read NonToken? = v
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "generic code can forget a T : NonToken" {
+            validateModule("""
+                fn forget<T : NonToken>(v: T) {
+                    n: read NonToken = v
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a token type does not fit T : NonToken" {
+            validateModule("""
+                token class Clock {}
+                fn take<T : NonToken>(v: T) {}
+                fn test(c: read Clock) {
+                    take(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+    }
+
+    "a token is never frozen" - {
+        "const reference to a token class" {
+            validateModule("""
+                token class Clock {}
+                fn test(c: const Clock) {}
+            """.trimIndent())
+                .shouldFind<ConstTokenDiagnostic> {
+                    it.tokenTypeName shouldBe "Clock"
+                }
+        }
+
+        "const reference to a token interface" {
+            validateModule("""
+                token interface Stream {}
+                fn test(c: const Stream?) {}
+            """.trimIndent())
+                .shouldFind<ConstTokenDiagnostic> {
+                    it.tokenTypeName shouldBe "Stream"
+                }
+        }
+
+        "const reference to an interface is fine, and is no token" {
+            validateModule("""
+                interface Named {}
+                class Holder {
+                    name: const Named = init
+                }
+                fn test(n: const Named) {
+                    h: const Holder = Holder(n)
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an own value of a class freezes" {
             validateModule("""
                 class Plain {}
                 fn test() {
                     p: const Plain = Plain()
+                    a: const Any = Plain()
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an own value of an interface type does not freeze" {
+            validateModule("""
+                interface Named {}
+                intrinsic fn create() -> own Named
+                fn test() {
+                    n: const Named = create()
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldBe "a value of type own testmodule.Named may be a token, and a token cannot become const"
+                }
+        }
+
+        "an own value of an interface type narrowed with & NonToken freezes" {
+            validateModule("""
+                interface Named {}
+                intrinsic fn create() -> own Named & NonToken
+                fn test() {
+                    n: const Named = create()
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an own box of tokens does not freeze" {
+            validateModule("""
+                token class Clock {}
+                class Box<T> {
+                    value: T = init
+                }
+                intrinsic fn create() -> own Box<mut Clock>
+                fn test() {
+                    b: const Box<mut Clock> = create()
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldContain "a token cannot become const"
+                }
+        }
+
+        "generic code cannot freeze a T" {
+            validateModule("""
+                fn freeze<T>(v: own T) {
+                    c: const T = v
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.reason shouldContain "a token cannot become const"
+                }
+        }
+
+        "generic code can freeze a T : NonToken" {
+            validateModule("""
+                fn freeze<T : NonToken>(v: own T) {
+                    c: const T = v
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
     }
 
-    "variables of a token type default to mut where others default to const" - {
-        "inferred from an own value" {
+    "variables default to mut where their type may be a token, to const otherwise" - {
+        "inferred from an own token" {
             validateModule("""
                 token class Clock {}
                 fn test() {
                     c = Clock()
                     d: mut Clock = c
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "inferred from an own value of an interface type" {
+            validateModule("""
+                interface Named {}
+                intrinsic fn create() -> own Named
+                fn test() {
+                    n = create()
+                    m: mut Named = n
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -262,16 +472,6 @@ class TokenErrors : FreeSpec({
             """.trimIndent()) should haveNoDiagnostics()
         }
 
-        "declared without mutability, read initializer" {
-            validateModule("""
-                token class Clock {}
-                fn test(p: read Clock) {
-                    c: Clock = p
-                    d: read Clock = c
-                }
-            """.trimIndent()) should haveNoDiagnostics()
-        }
-
         "inferred base type" {
             validateModule("""
                 token class Clock {}
@@ -295,23 +495,7 @@ class TokenErrors : FreeSpec({
             """.trimIndent()) should haveNoDiagnostics()
         }
 
-        "member variable initialized by the constructor is read, like that of any other type" {
-            validateModule("""
-                token class Clock {}
-                token class Timer {
-                    clock: Clock = init
-                }
-                fn test(c: mut Clock) {
-                    t = Timer(c)
-                    d: mut Clock = t.clock
-                }
-            """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "read testmodule.Clock"
-                }
-        }
-
-        "non-token variables still default to const" {
+        "a variable of a class that is no token class still defaults to const" {
             validateModule("""
                 class Plain {}
                 fn test() {
@@ -325,155 +509,226 @@ class TokenErrors : FreeSpec({
         }
     }
 
-    "no forgetting" - {
-        "token class to Any" {
+    "a class says what it holds" - {
+        "member variable of a token type" {
             validateModule("""
                 token class Clock {}
-                fn test(c: read Clock) {
-                    a: read Any = c
+                class Timer {
+                    clock: read Clock = init
                 }
             """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldBe "Clock is a token type and Any is not; a token cannot be assigned to a non-token type"
+                .shouldFind<MissingTokenModifierDiagnostic> {
+                    it.baseType.name.value shouldBe "Timer"
+                    it.reason.shouldBeInstanceOf<MissingTokenModifierDiagnostic.Reason.MemberVariable>().memberVariable.name shouldBe "clock"
                 }
         }
 
-        "own token to mut Any" {
+        "member variable of an interface type" {
             validateModule("""
-                token class Clock {}
-                fn test() {
-                    a: mut Any = Clock()
+                interface Animal {}
+                class Person {
+                    pet: read Animal = init
                 }
             """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldContain "a token cannot be assigned to a non-token type"
+                .shouldFind<MissingTokenModifierDiagnostic> {
+                    it.baseType.name.value shouldBe "Person"
                 }
         }
 
-        "nullable token to nullable Any" {
+        "member variable of type Any" {
             validateModule("""
-                token class Clock {}
-                fn test(c: read Clock?) {
-                    a: read Any? = c
-                }
-            """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldContain "a token cannot be assigned to a non-token type"
-                }
-        }
-
-        "token class to a non-token interface it implements" {
-            validateModule("""
-                interface Named {
-                    fn name(self) -> String
-                }
-                token class Clock : Named {
-                    override fn name(self) -> String = "clock"
-                }
-                fn test(c: read Clock) {
-                    n: read Named = c
-                }
-            """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldBe "Clock is a token type and Named is not; a token cannot be assigned to a non-token type"
-                }
-        }
-
-        "as an argument" {
-            validateModule("""
-                token class Clock {}
-                fn observe(a: read Any) {}
-                fn test(c: read Clock) {
-                    observe(c)
-                }
-            """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldContain "a token cannot be assigned to a non-token type"
-                }
-        }
-
-        "as a return value" {
-            validateModule("""
-                token class Clock {}
-                fn forget(c: read Clock) -> read Any {
-                    return c
-                }
-            """.trimIndent())
-                .shouldFind<ReturnTypeMismatchDiagnostic> {
-                    it.message shouldContain "a token cannot be assigned to a non-token type"
-                }
-        }
-
-        "into a member variable of a non-token type" {
-            validateModule("""
-                token class Clock {}
                 class Holder {
-                    value: read Any = init
-                }
-                fn test(c: read Clock) {
-                    h = Holder(c)
+                    value: read Any? = init
                 }
             """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldContain "a token cannot be assigned to a non-token type"
+                .shouldFind<MissingTokenModifierDiagnostic> {
+                    it.baseType.name.value shouldBe "Holder"
                 }
         }
 
-        "to a plain type parameter" {
+        "member variable with a type argument that may be a token" {
             validateModule("""
-                token class Clock {}
+                interface Animal {}
                 class Box<T> {
                     value: T = init
                 }
-                fn test(c: read Clock) {
-                    b = Box(c)
+                class Person {
+                    pets: read Box<read Animal> = init
                 }
             """.trimIndent())
-                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+                .shouldFind<MissingTokenModifierDiagnostic> {
+                    it.baseType.name.value shouldBe "Person"
+                }
         }
 
-        "intersection with a token component to the non-token component" {
+        "member variable with inferred type" {
             validateModule("""
+                token class Clock {}
+                class Timer {
+                    clock = Clock()
+                }
+            """.trimIndent())
+                .shouldFind<MissingTokenModifierDiagnostic>(allowMultiple = true) {
+                    it.baseType.name.value shouldBe "Timer"
+                }
+        }
+
+        "a token class holds what it likes" {
+            validateModule("""
+                interface Animal {}
+                token class Clock {}
+                token class Person {
+                    pet: read Animal = init
+                    clock: mut Clock = init
+                    anything: read Any? = init
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a member variable of the type of a type parameter needs nothing" {
+            validateModule("""
+                class Box<T> {
+                    value: T = init
+                }
+                class Pair<A, B> {
+                    first: Box<A> = init
+                    second: B = init
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "types that cannot be tokens need nothing" {
+            validateModule("""
+                interface Shape : NonToken {}
                 interface Named {}
-                token interface Stream {}
-                fn test(v: read Stream & Named) {
-                    n: read Named = v
+                class Plain {}
+                class Holder {
+                    shape: read Shape = init
+                    plain: mut Plain = init
+                    number: S32 = init
+                    name: const Named = init
+                    narrowed: read Named & NonToken = init
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "inheriting from NonToken narrows the member variables" - {
+            "is accepted" {
+                validateModule("""
+                    interface Animal {}
+                    class Dog : Animal {}
+                    class Person : NonToken {
+                        pet: read Animal = init
+                    }
+                    fn test(d: read Dog) {
+                        p = Person(d)
+                        n: read NonToken = p.pet
+                        a: read Animal = p.pet
+                        f: const Person = Person(d)
+                    }
+                """.trimIndent()) should haveNoDiagnostics()
+            }
+
+            "through an interface that inherits from it" {
+                validateModule("""
+                    interface Animal {}
+                    interface Shape : NonToken {}
+                    class Person : Shape {
+                        pet: read Animal = init
+                    }
+                """.trimIndent()) should haveNoDiagnostics()
+            }
+
+            "the constructor does not take a token" {
+                validateModule("""
+                    interface Animal {}
+                    token class Robot : Animal {}
+                    class Person : NonToken {
+                        pet: read Animal = init
+                    }
+                    fn test(r: read Robot) {
+                        p = Person(r)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "the constructor does not take what may be a token" {
+                validateModule("""
+                    interface Animal {}
+                    class Person : NonToken {
+                        pet: read Animal = init
+                    }
+                    fn test(a: read Animal) {
+                        p = Person(a)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+
+            "an assignment does not take what may be a token" {
+                validateModule("""
+                    interface Animal {}
+                    class Person : NonToken {
+                        var pet: read Animal = init
+                    }
+                    fn test(p: mut Person, a: read Animal) {
+                        set p.pet = a
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+    }
+
+    "common supertype" - {
+        "of a token and a value that is none is Any" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                fn test(c: read Clock, p: read Plain, cond: Bool) {
+                    x = if cond c else p
+                    a: read Any = x
+                    n: read NonToken = x
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldContain "a token cannot be assigned to a non-token type"
+                    it.reason shouldBe "Any is not a subtype of NonToken"
                 }
         }
 
-        "token to a token supertype is fine" {
+        "of two values that are no tokens is NonToken" {
             validateModule("""
-                token interface Stream {}
-                token interface BufferedStream : Stream {}
-                token class Sink : BufferedStream {}
-                fn test(s: mut Sink) {
-                    a: mut BufferedStream = s
-                    b: mut Stream = a
-                    c: read Stream = s
-                    d: read Stream? = s
+                class Plain {}
+                class Other {}
+                fn test(o: read Other, p: read Plain, cond: Bool) {
+                    x = if cond o else p
+                    n: read NonToken = x
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
+    }
 
-        "methods of a token class are callable" {
-            validateModule("""
-                token class Counters {
-                    var requests: S32 = 0
-                    fn increment(self: mut _) {
-                        set self.requests = self.requests + 1
-                    }
-                    fn current(self) -> S32 = self.requests
-                }
-                fn test() -> S32 {
-                    c = Counters()
-                    c.increment()
-                    return c.current()
-                }
-            """.trimIndent()) should haveNoDiagnostics()
-        }
+    "casts are not checked for tokens yet" {
+        // a cast doesn't check type arguments at runtime, so it can forget a token; that is left to the day casts
+        // become sound
+        validateModule("""
+            interface Animal {}
+            interface Named {}
+            interface Shape : NonToken {}
+            class Dog : Animal {}
+            class Box<T> {
+                value: T = init
+            }
+            token interface Stream {}
+            fn test(a: read Animal, any: read Any, s: read Stream) {
+                d: read Dog = a as read Dog
+                n = any as read NonToken
+                sh = any as read Shape
+                b = any as read Box<S32>
+                named = s as read Named
+                isNamed = s is Named
+            }
+        """.trimIndent()) should haveNoDiagnostics()
     }
 })

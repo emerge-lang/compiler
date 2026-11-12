@@ -232,6 +232,7 @@ class BaseTypeMemberVariableDeclaration(
         fun generateConstructorParameter(
             contextInCtor: ExecutionScopedCTContext,
             span: Span,
+            getTypeDef: () -> BoundBaseType,
         ): BoundVariable? {
             check(needsCtorTypeParameter != null) { "call ${this::generateTypeParameterForConstructor.name} first" }
 
@@ -249,7 +250,7 @@ class BaseTypeMemberVariableDeclaration(
                         ?: AstAbsoluteTypeReference(typeRootContext.swCtx.any.canonicalName, span = span)
                 },
             )
-            ctorParam = astNode.bindToAsConstructorParameter(contextInCtor)
+            ctorParam = astNode.bindToAsConstructorParameter(contextInCtor) { getTypeDef().narrowMemberVariableType(it) }
             return ctorParam
         }
 
@@ -375,7 +376,7 @@ class BaseTypeConstructorDeclaration(
         var constructorContextWithAllArguments: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(selfVariableForInitCode.modifiedContext)
         val constructorParameters = mutableListOf<BoundVariable>()
         for (binder in memberVariableBinders) {
-            val boundParam = binder.generateConstructorParameter(constructorContextWithAllArguments, ctorGeneratedSpan)
+            val boundParam = binder.generateConstructorParameter(constructorContextWithAllArguments, ctorGeneratedSpan, typeDefAccessor)
                 ?: continue
             constructorParameters.add(boundParam)
             constructorContextWithAllArguments = boundParam.modifiedContext

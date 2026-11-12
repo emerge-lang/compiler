@@ -55,6 +55,15 @@ class BoundSupertypeList(
         )
     }
 
+    /** whether any of the supertypes is `NonToken` or inherits from it, see [BoundBaseType.isDeclaredNonToken] */
+    val inheritsNonToken: Boolean by lazy {
+        handleCyclicInvocation(
+            context = this,
+            action = { clauses.any { it.resolvedReference?.baseType?.isDeclaredNonToken == true } },
+            onCycle = { false /* cyclic inheritance is reported in phase 1 */ },
+        )
+    }
+
     /** whether any of the supertypes is a token type, see [BoundBaseType.isToken] */
     val inheritsToken: Boolean by lazy {
         handleCyclicInvocation(
@@ -96,6 +105,10 @@ class BoundSupertypeList(
         // getInheritanceChains breaks on Any because the implicit subtyping from Any isn't mentioned in superTypes.clauses
         if (superBaseType == context.swCtx.any) {
             return context.swCtx.any.getBoundReferenceAssertNoTypeParameters()
+        }
+        // like Any, NonToken is a supertype of classes that don't mention it
+        if (superBaseType == context.swCtx.nonToken && superBaseType !in preprocessedInheritanceTree.parameterizedSupertypes) {
+            return context.swCtx.nonToken.getBoundReferenceAssertNoTypeParameters()
         }
 
         return preprocessedInheritanceTree.parameterizedSupertypes[superBaseType]

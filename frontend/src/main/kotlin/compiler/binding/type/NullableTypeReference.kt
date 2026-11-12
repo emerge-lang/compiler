@@ -21,8 +21,7 @@ class NullableTypeReference private constructor(
     override val isNullable = true
     override val isNonNullableNothing = false
     override val isPartiallyUnresolved get()= nested.isPartiallyUnresolved
-    override val isTokenType get() = nested.isTokenType
-    override val mentionsTokenType get() = nested.mentionsTokenType
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = nested.mayBeTokenUnless(nonTokenParameters)
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))

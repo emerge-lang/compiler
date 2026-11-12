@@ -304,6 +304,10 @@ fun Diagnosis.constTokenBaseType(baseType: BoundBaseType) {
     add(ConstTokenDiagnostic(baseType.simpleName, baseType.superTypes.span.takeUnless { it == Span.UNKNOWN } ?: baseType.declaration.declaredAt))
 }
 
+fun Diagnosis.tokenInheritsNonToken(baseType: BoundBaseType) {
+    add(TokenInheritsNonTokenDiagnostic(baseType.simpleName, baseType.superTypes.span.takeUnless { it == Span.UNKNOWN } ?: baseType.declaration.declaredAt))
+}
+
 fun Diagnosis.constTokenReference(baseType: BoundBaseType, referenceAt: Span) {
     add(ConstTokenDiagnostic(baseType.simpleName, referenceAt))
 }

@@ -92,8 +92,14 @@ class BoundBaseTypeMemberVariable(
         seanHelper.phase2(diagnosis) {
             annotations.semanticAnalysisPhase2(diagnosis)
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase2(diagnosis)
-            type = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
+            val typeDef = getTypeDef()
+            val declaredType = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
                 ?: entryDeclaration.variableDeclaration.type?.let(typeRootContext::resolveType)
+            type = declaredType?.let(typeDef::narrowMemberVariableType)
+            if (declaredType != null && type != declaredType && !typeDef.isDeclaredNonToken) {
+                // narrowed, without the class having asked for it
+                diagnosis.missingTokenModifier(typeDef, MissingTokenModifierDiagnostic.Reason.MemberVariable(this))
+            }
 
             val typeUseSite = if (entryDeclaration.variableDeclaration.isReAssignable) {
                 TypeUseSite.InvariantUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
@@ -101,11 +107,6 @@ class BoundBaseTypeMemberVariable(
                 TypeUseSite.OutUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)
             }
             type?.validate(typeUseSite, diagnosis)
-
-            val typeDef = getTypeDef()
-            if (type?.mentionsTokenType == true && typeDef.declaration.tokenKeyword == null) {
-                diagnosis.missingTokenModifier(typeDef, MissingTokenModifierDiagnostic.Reason.MemberVariable(this))
-            }
 
             if (isDecorated) {
                 type?.mutability?.let { typeMutability ->

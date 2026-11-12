@@ -71,16 +71,20 @@ sealed interface BoundTypeReference {
     val isPartiallyUnresolved: Boolean
 
     /**
-     * Whether the values of this type are tokens ([BoundBaseType.isToken]). A reference of such a type is never
-     * `const`, and cannot be assigned to a type that is not a token type.
+     * Whether a value of this type may be a token ([BoundBaseType.isToken]), or hold one. It cannot where
+     * * the type is `const`, as a token is never frozen;
+     * * its base type is no token ([BoundBaseType.isNonToken]) and neither is any of its type arguments, at any
+     *   depth: a `Box<SystemClock>` may hold a token, though `Box` is no token class.
+     *
+     * A value of a type that may be a token is not assignable to a type that cannot be one, and does not become
+     * `const`.
      */
-    val isTokenType: Boolean
+    val mayBeToken: Boolean get() = mayBeTokenUnless(emptySet())
 
     /**
-     * Whether this type [isTokenType], or has a type argument that does, at any depth. An object with a member
-     * variable of such a type holds a token, or holds an object that does.
+     * [mayBeToken], taking the given type parameters to never be bound to a token type.
      */
-    val mentionsTokenType: Boolean
+    fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean
 
     /**
      * @return this type, with the given mutability if it doesn't explicitly have one. Also applied to type arguments,
