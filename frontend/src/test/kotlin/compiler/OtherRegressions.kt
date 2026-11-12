@@ -120,7 +120,7 @@ class OtherRegressions : FreeSpec({
         "termination by either return or throw" {
             validateModule("""
                 intrinsic fn fallibleFn() -> S32
-                intrinsic fn rewrap(e: Throwable) -> exclusive Throwable
+                intrinsic fn rewrap(e: Throwable) -> own Throwable
                 
                 fn test() -> S32 {
                     try {
@@ -136,7 +136,7 @@ class OtherRegressions : FreeSpec({
         "termination by return try {}" {
             validateModule("""
                 intrinsic fn fallibleFn() -> S32
-                intrinsic fn rewrap(e: Throwable) -> exclusive Throwable
+                intrinsic fn rewrap(e: Throwable) -> own Throwable
                 
                 fn test() -> S32 {
                     return try {

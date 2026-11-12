@@ -479,8 +479,8 @@ Proof.
     apply IH; [apply intersect_monotone; [exact Ha|exact (H x (or_introl eq_refl))]|intros y Hy; exact (H y (or_intror Hy))].
 Qed.
 
-Lemma fold_meet_exclusive: forall ms m, In exclusive ms -> fold_left intersect_mutability ms m = exclusive.
-Proof. intros ms m H. apply mutability_subtype_of_exclusive. exact (fold_intersect_below_element ms m exclusive H). Qed.
+Lemma fold_meet_own: forall ms m, In own ms -> fold_left intersect_mutability ms m = own.
+Proof. intros ms m H. apply mutability_subtype_of_own. exact (fold_intersect_below_element ms m own H). Qed.
 
 (* The type a type parameter of the caller is bound to is assigned as no more than its bound *)
 Lemma binding_below_bound: forall q o y, In q ps -> lookup_binding sigma q = Some (TypeArgument Model.invariant o y) ->
@@ -501,7 +501,7 @@ Qed.
 (* A class type, nullable or not, of a mutability given to it: of that mutability, but where it is const *)
 Lemma frag_with_mutability: forall m1 y, in_fragment env y = true ->
     mutability_of env (with_mutability env m1 y) = (if top_const env y then immutable else m1)
-    /\ assignment_mutability env (with_mutability env m1 y) = (if top_const env y then exclusive else m1)
+    /\ assignment_mutability env (with_mutability env m1 y) = (if top_const env y then own else m1)
     /\ (top_const env y = true -> forall m2, with_mutability env m1 y = with_mutability env m2 y)
     /\ (top_const env y = false -> mutability_of env y = assignment_mutability env y).
 Proof.
@@ -548,7 +548,7 @@ Proof.
       destruct gm as [m'|].
       - rewrite (proj1 (frag_with_mutability _ y Hy)), Ety.
         destruct (top_const env D) eqn:EtD.
-        + rewrite (top_const_assigned_exclusive env ranked D EtD) in Hyb. rewrite (mutability_subtype_of_exclusive _ Hyb).
+        + rewrite (top_const_assigned_own env ranked D EtD) in Hyb. rewrite (mutability_subtype_of_own _ Hyb).
           destruct (mutability_of env (with_mutability env m' D)), m', m; reflexivity.
         + assert (EmD: mutability_of env (with_mutability env m' D) = m').
           { rewrite <- (not_top_const env wf (with_mutability env m' D) ltac:(rewrite (top_const_with_mutability env wf); exact EtD)).
@@ -565,7 +565,7 @@ Qed.
 
 (* A class type of a mutability given to it: of that mutability, but where it is const *)
 Lemma class_with_mutability: forall m1 y, is_class y = true ->
-    assignment_mutability env (with_mutability env m1 y) = (if top_const env y then exclusive else m1)
+    assignment_mutability env (with_mutability env m1 y) = (if top_const env y then own else m1)
     /\ mutability_of env (with_mutability env m1 y) = (if top_const env y then immutable else m1)
     /\ top_const env (with_mutability env m1 y) = top_const env y
     /\ (top_const env y = false -> mutability_of env y = assignment_mutability env y).
@@ -575,14 +575,14 @@ Proof.
 Qed.
 
 (* The instance of a reference to a type parameter of the caller: no more mutable than the reference,
-   but where it is const; exclusive or const where the bound is const *)
+   but where it is const; own or const where the bound is const *)
 Lemma generic_instance_mutability: forall gm nn q, caller (Generic (mkGenericRef gm nn q [])) ->
     (top_const env (instantiate env sigma (Generic (mkGenericRef gm nn q []))) = false ->
         Model.is_subtype_of (mutability_of env (instantiate env sigma (Generic (mkGenericRef gm nn q []))))
             (mutability_of env (Generic (mkGenericRef gm nn q []))) = true)
     /\ (top_const env (Generic (mkGenericRef gm nn q [])) = true ->
         top_const env (instantiate env sigma (Generic (mkGenericRef gm nn q []))) = true
-        \/ mutability_of env (instantiate env sigma (Generic (mkGenericRef gm nn q []))) = exclusive).
+        \/ mutability_of env (instantiate env sigma (Generic (mkGenericRef gm nn q []))) = own).
 Proof.
     intros gm nn q Hc. destruct Hc as [_ [_ [Hq _]]].
     destruct (Hwithin q Hq) as [o [y [Ey [Ho _]]]]. pose proof (Hsf q o y Ey) as Hy. pose proof (in_fragment_is_gfrag env y Hy) as Gy.
@@ -605,15 +605,15 @@ Proof.
       destruct gm as [m'|].
       + rewrite (proj1 (frag_with_mutability _ y Hy)), Hty.
         destruct (top_const env D) eqn:EtD'.
-        * rewrite (top_const_assigned_exclusive env ranked D EtD') in Hyb. rewrite (mutability_subtype_of_exclusive _ Hyb). reflexivity.
+        * rewrite (top_const_assigned_own env ranked D EtD') in Hyb. rewrite (mutability_subtype_of_own _ Hyb). reflexivity.
         * rewrite <- (not_top_const env wf (with_mutability env m' D) ltac:(rewrite (top_const_with_mutability env wf); exact EtD')).
           rewrite (assignment_with_mutability env wf declared declared_wf m' D (parameter_bound_gfrag env declared declared_wf q)), EtD'.
           apply intersect_mutability_right.
       + exact (mutability_subtype_trans _ _ _ Hyb (assignment_mutability_below env ranked D)).
     - intros EtD'. destruct (top_const env y) eqn:Hty; [left; reflexivity|right].
       pose proof (proj2 (proj2 (proj2 (frag_with_mutability readonly y Hy))) Hty) as Emy.
-      rewrite (top_const_assigned_exclusive env ranked D EtD') in Hyb. rewrite <- Emy in Hyb.
-      pose proof (mutability_subtype_of_exclusive _ Hyb) as Ex.
+      rewrite (top_const_assigned_own env ranked D EtD') in Hyb. rewrite <- Emy in Hyb.
+      pose proof (mutability_subtype_of_own _ Hyb) as Ex.
       destruct gm as [m'|]; [rewrite (proj1 (frag_with_mutability _ y Hy)), Hty, Ex; reflexivity|exact Ex].
 Qed.
 
@@ -677,14 +677,14 @@ Proof.
       assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
       pose proof (fun c Hin => caller_component env declared ps cs c Hc Hin) as Hcc.
       set (k := intersect_mutability (mutability_of env (Intersection cs)) m).
-      assert (HC: forall c, In c cs -> assignment_mutability env (with_mutability env k c) = if top_const env c then exclusive else k).
+      assert (HC: forall c, In c cs -> assignment_mutability env (with_mutability env k c) = if top_const env c then own else k).
       { intros c Hin. destruct (Hcomp c Hin) as [Hsh Hwc].
         destruct (wfrag_cases env wf c Hwc) as [[m0 [cl [args [-> _]]]]|[[m_bot ->]|[[m0 [cl [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
             try discriminate Hsh.
         - cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
         - unfold bottom_type. cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
         - exact (assignment_given env wf (S (tdepth env (Generic g))) (Generic g) k (le_n _) (sfrag_tfrag env _ Hwc)). }
-      set (C := if existsb (top_const env) cs then exclusive else k).
+      set (C := if existsb (top_const env) cs then own else k).
       assert (EC: with_mutability env k (Intersection cs) = Intersection (map (with_mutability env C) cs))
           by (cbn [with_mutability]; unfold C; rewrite (common_given env k cs Hne HC); reflexivity).
       pose proof (common_below env k cs (intersect_mutability_left _ _)) as HCb. fold C in HCb.
@@ -697,7 +697,7 @@ Proof.
       (* the components, instantiated: no more mutable than in generic code, but where they are const *)
       assert (Hmc: forall c, In c cs -> (top_const env (instantiate env sigma c) = false ->
               Model.is_subtype_of (mutability_of env (instantiate env sigma c)) (mutability_of env c) = true)
-          /\ (top_const env c = true -> top_const env (instantiate env sigma c) = true \/ mutability_of env (instantiate env sigma c) = exclusive)).
+          /\ (top_const env c = true -> top_const env (instantiate env sigma c) = true \/ mutability_of env (instantiate env sigma c) = own)).
       { intros c Hin. destruct (Hcomp c Hin) as [Hsh Hwc].
         destruct (wfrag_cases env wf c Hwc) as [[m0 [cl [args [-> _]]]]|[[m_bot ->]|[[m0 [cl [args [-> _]]]]|[[[gm nn q vs] [-> Hg]]|[g [-> Hg]]]]]];
             try discriminate Hsh.
@@ -719,29 +719,29 @@ Proof.
       assert (Ecl: forall c, In c cs -> is_class (instantiate env sigma c) = true) by (intros c Hin; exact (proj2 (Hall0 c Hin))).
       (* the mutability they take in common, either way *)
       assert (E01: c1 = C').
-      { assert (Ec1: c1 = fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then exclusive
+      { assert (Ec1: c1 = fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then own
                 else intersect_mutability (mutability_of env (instantiate env sigma c)) C) cs) readonly).
         { unfold c1, common_mutability. rewrite !map_map. f_equal. apply map_ext_in. intros c Hin. cbv beta.
           rewrite (Ecomp c Hin). exact (proj1 (class_with_mutability _ _ (Ecl c Hin))). }
-        assert (EC': C' = fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then exclusive else J) cs)
+        assert (EC': C' = fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then own else J) cs)
             readonly).
         { unfold C'. rewrite !map_map. f_equal. apply map_ext_in. intros c Hin. cbv beta.
           rewrite with_mutability_twice. exact (proj1 (class_with_mutability _ _ (Ecl c Hin))). }
         rewrite Ec1, EC'.
         destruct (existsb (fun c => top_const env (instantiate env sigma c)) cs) eqn:Eex.
         - apply existsb_exists in Eex. destruct Eex as [cj [Hj Ej]].
-          rewrite !fold_meet_exclusive; [reflexivity| |];
+          rewrite !fold_meet_own; [reflexivity| |];
               apply in_map_iff; exists cj; (split; [rewrite Ej; reflexivity|exact Hj]).
         - assert (Hnc: forall c, In c cs -> top_const env (instantiate env sigma c) = false).
           { intros c Hin. destruct (top_const env (instantiate env sigma c)) eqn:E; [|reflexivity].
             assert (Ht: existsb (fun c => top_const env (instantiate env sigma c)) cs = true)
                 by (apply existsb_exists; exists c; split; [exact Hin|exact E]).
             rewrite Ht in Eex. discriminate Eex. }
-          assert (E1': fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then exclusive
+          assert (E1': fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then own
                   else intersect_mutability (mutability_of env (instantiate env sigma c)) C) cs) readonly
               = fold_left intersect_mutability (map (fun c => intersect_mutability (mutability_of env (instantiate env sigma c)) C) cs) readonly)
               by (f_equal; apply map_ext_in; intros c Hin; rewrite (Hnc c Hin); reflexivity).
-          assert (E2': fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then exclusive else J) cs) readonly
+          assert (E2': fold_left intersect_mutability (map (fun c => if top_const env (instantiate env sigma c) then own else J) cs) readonly
               = fold_left intersect_mutability (map (fun _ => J) cs) readonly)
               by (f_equal; apply map_ext_in; intros c Hin; rewrite (Hnc c Hin); reflexivity).
           rewrite E1', E2'.
@@ -761,10 +761,10 @@ Proof.
               apply in_map_iff in Hz. destruct Hz as [z' [<- Hz']]. apply in_map_iff in Hz'. destruct Hz' as [c [<- Hin]].
               rewrite (proj1 (proj2 (proj2 (class_with_mutability c0 _ (Ecl c Hin))))), (Hnc c Hin) in Ez. discriminate Ez. }
           rewrite EJ. unfold C, k. destruct (existsb (top_const env) cs) eqn:Etc.
-          + (* a component of a const bound: its instance, not const, is exclusive *)
+          + (* a component of a const bound: its instance, not const, is own *)
             apply existsb_exists in Etc. destruct Etc as [cj [Hj Ej]].
             destruct (proj2 (Hmc cj Hj) Ej) as [Et|Ex]; [rewrite (Hnc cj Hj) in Et; discriminate Et|].
-            assert (EF: F = exclusive) by (apply fold_meet_exclusive; apply in_map_iff; exists cj; split; [exact Ex|exact Hj]).
+            assert (EF: F = own) by (apply fold_meet_own; apply in_map_iff; exists cj; split; [exact Ex|exact Hj]).
             rewrite EF. destruct m; reflexivity.
           + cbn [mutability_of]. rewrite Etc.
             assert (HFG: Model.is_subtype_of F (fold_left intersect_mutability (map (mutability_of env) cs) readonly) = true)
@@ -875,11 +875,11 @@ Proof.
         split.
         + apply (applied_vle env wf declared declared_wf z (Some (intersect_mutability (mutability_of env z) m)) None Gz (gfrag_uniform env z Gz)).
           cbn [applied]. rewrite (assignment_with_mutability env wf declared declared_wf _ z Gz). destruct (top_const env z) eqn:Et.
-          * rewrite (top_const_assigned_exclusive env ranked z Et). reflexivity.
+          * rewrite (top_const_assigned_own env ranked z Et). reflexivity.
           * rewrite (not_top_const env wf z Et). apply intersect_mutability_left.
         + split; [|exact (is_nullable_with_mutability env wf _ z)].
           rewrite (assignment_with_mutability env wf declared declared_wf _ z Gz). destruct (top_const env z) eqn:Et.
-          * rewrite (top_const_assigned_exclusive env ranked z Et) in Haz. exact Haz.
+          * rewrite (top_const_assigned_own env ranked z Et) in Haz. exact Haz.
           * apply intersect_mutability_greatest; [|exact (Hgm m eq_refl)].
             exact (mutability_subtype_trans _ _ _ Haz (assignment_mutability_below env ranked z)).
       - split; [exact Gz|]. split; [|split; [exact Haz|reflexivity]].

@@ -128,7 +128,7 @@ sealed interface IrInvocationExpression : IrExpression {
      *
      * | key | value                            |
      * |-----|----------------------------------|
-     * | T   | `exclusive Array<const Int>`     |
+     * | T   | `own Array<const Int>`     |
      * | E   | `const String`                   |
      *
      * Contains type parameters declared on the function itself, **and** ones inherited from

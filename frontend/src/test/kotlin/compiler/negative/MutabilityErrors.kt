@@ -175,48 +175,48 @@ class MutabilityErrors : FreeSpec({
                 }
         }
 
-        "mut value to exclusive parameter" {
+        "mut value to own parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fn foo(p: exclusive S) {}
+                fn foo(p: own S) {}
                 fn test(p: mut S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.message shouldBe "An exclusive value is needed here, this one is mut."
+                    it.message shouldBe "An own value is needed here, this one is mut."
                 }
         }
 
-        "read value to exclusive parameter" {
+        "read value to own parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fn foo(p: exclusive S) {}
+                fn foo(p: own S) {}
                 fn test(p: read S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.message shouldBe "An exclusive value is needed here; this is a read reference."
+                    it.message shouldBe "An own value is needed here; this is a read reference."
                 }
         }
 
-        "const value to exclusive parameter" {
+        "const value to own parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fn foo(p: exclusive S) {}
+                fn foo(p: own S) {}
                 fn test(p: const S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.message shouldBe "An exclusive value is needed here, this one is const."
+                    it.message shouldBe "An own value is needed here, this one is const."
                 }
         }
     }
@@ -227,11 +227,11 @@ class MutabilityErrors : FreeSpec({
                 class Foo : const Any {}
                 fn test(s: S32, f: Foo) {
                     a: mut Any = s
-                    b: exclusive Any = s
+                    b: own Any = s
                     c: read Any = s
                     d: const Any = s
                     e: mut Any = f
-                    g: exclusive Any = f
+                    g: own Any = f
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -286,7 +286,7 @@ class MutabilityErrors : FreeSpec({
         "a type variable of a given mutability takes a value of a const class" {
             validateModule("""
                 fn foo<T>(p: mut T) {}
-                fn bar<T>(p: exclusive T) {}
+                fn bar<T>(p: own T) {}
                 fn test(s: S32) {
                     foo(s)
                     bar(s)
@@ -298,21 +298,21 @@ class MutabilityErrors : FreeSpec({
             validateModule("""
                 interface Number : const Any {}
                 fn test<T : Number>(a: read T, b: mut T) {
-                    x: exclusive T = a
+                    x: own T = a
                     y: mut T = a
-                    z: exclusive Number = b
+                    z: own Number = b
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
 
-        "a type parameter bound to an intersection with a const component is const, its values fit exclusive" {
+        "a type parameter bound to an intersection with a const component is const, its values fit own" {
             validateModule("""
                 interface Number : const Any {}
                 interface Foo {}
                 fn test<T : Number & Foo>(a: read T) {
-                    x: exclusive T = a
-                    y: exclusive Foo = x
-                    z: exclusive Foo = a
+                    x: own T = a
+                    y: own Foo = x
+                    z: own Foo = a
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -322,8 +322,8 @@ class MutabilityErrors : FreeSpec({
                 interface Number : const Any {}
                 interface Foo {}
                 fn test(a: Number & Foo) {
-                    x: exclusive Foo = a
-                    y: exclusive Number = a
+                    x: own Foo = a
+                    y: own Number = a
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }

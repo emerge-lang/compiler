@@ -16,8 +16,8 @@ import compiler.lexer.Span
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
     override fun getInitialState(subject: BoundVariable): State {
-        if (subject.typeAtDeclarationTime?.mutability == TypeMutability.EXCLUSIVE) {
-            return State.AliveExclusive
+        if (subject.typeAtDeclarationTime?.mutability == TypeMutability.OWN) {
+            return State.AliveOwn
         }
 
         return State.Untracked
@@ -26,7 +26,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
     override fun fold(state: State, effect: Effect): State {
         return when (effect) {
             is Effect.ValueCaptured -> {
-                if (state is State.AliveExclusive && effect.withMutability != TypeMutability.READONLY) {
+                if (state is State.AliveOwn && !effect.asReadReference) {
                     State.Dead(effect.subject, effect.capturedAt)
                 } else {
                     state
@@ -36,12 +36,12 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             is Effect.BorrowStarted -> when (state) {
                 is State.Untracked,
                 is State.Dead -> state
-                is State.AliveExclusive -> State.AliveExclusiveWithActiveBorrow(
+                is State.AliveOwn -> State.AliveOwnWithActiveBorrow(
                     effect.withMutability,
                     effect.borrowStartedAt,
                     false,
                 )
-                is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusiveWithActiveBorrow(
+                is State.AliveOwnWithActiveBorrow -> State.AliveOwnWithActiveBorrow(
                     state.withMutability.intersect(effect.withMutability),
                     state.borrowStartedAt,
                     false,
@@ -54,8 +54,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         return when (afterArguments) {
             // the borrows started for the arguments end when the invoked function returns; the ones from
             // before the invocation remain active, as they may belong to an enclosing invocation
-            is State.AliveExclusive,
-            is State.AliveExclusiveWithActiveBorrow -> beforeInvocation as? State.AliveExclusiveWithActiveBorrow ?: State.AliveExclusive
+            is State.AliveOwn,
+            is State.AliveOwnWithActiveBorrow -> beforeInvocation as? State.AliveOwnWithActiveBorrow ?: State.AliveOwn
             // captures by the arguments remain in effect
             is State.Dead,
             is State.Untracked -> afterArguments
@@ -68,17 +68,17 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                 check(advancedMaybe is State.Untracked) { "variables cannot suddenly become tracked" }
                 state
             }
-            is State.AliveExclusive -> when (advancedMaybe) {
+            is State.AliveOwn -> when (advancedMaybe) {
                 is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
-                is State.AliveExclusive -> state
-                is State.AliveExclusiveWithActiveBorrow -> state.maybe()
+                is State.AliveOwn -> state
+                is State.AliveOwnWithActiveBorrow -> state.maybe()
                 is State.Dead -> advancedMaybe.maybe()
             }
-            is State.AliveExclusiveWithActiveBorrow -> when (advancedMaybe) {
+            is State.AliveOwnWithActiveBorrow -> when (advancedMaybe) {
                 is State.Dead -> advancedMaybe.maybe()
                 is State.Untracked -> state.maybe()
-                is State.AliveExclusive -> state.maybe()
-                is State.AliveExclusiveWithActiveBorrow -> state
+                is State.AliveOwn -> state.maybe()
+                is State.AliveOwnWithActiveBorrow -> state
             }
             is State.Dead -> state
         }
@@ -90,22 +90,22 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                 check(stateTwo is State.Untracked) { "variables cannot suddenly become tracked" }
                 stateOne
             }
-            is State.AliveExclusive -> when (stateTwo) {
+            is State.AliveOwn -> when (stateTwo) {
                 is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
-                is State.AliveExclusive -> stateOne
-                is State.AliveExclusiveWithActiveBorrow -> stateTwo.maybe()
+                is State.AliveOwn -> stateOne
+                is State.AliveOwnWithActiveBorrow -> stateTwo.maybe()
                 is State.Dead -> stateTwo.maybe()
             }
-            is State.AliveExclusiveWithActiveBorrow -> when (stateTwo) {
+            is State.AliveOwnWithActiveBorrow -> when (stateTwo) {
                 is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
-                is State.AliveExclusive -> stateOne.maybe()
-                is State.AliveExclusiveWithActiveBorrow -> stateOne
+                is State.AliveOwn -> stateOne.maybe()
+                is State.AliveOwnWithActiveBorrow -> stateOne
                 is State.Dead -> stateTwo.maybe()
             }
             is State.Dead -> when (stateTwo) {
                 is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
-                is State.AliveExclusive -> stateOne.maybe()
-                is State.AliveExclusiveWithActiveBorrow -> stateOne.maybe()
+                is State.AliveOwn -> stateOne.maybe()
+                is State.AliveOwnWithActiveBorrow -> stateOne.maybe()
                 is State.Dead -> stateOne
             }
         }
@@ -158,26 +158,26 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             }
         }
 
-        data object AliveExclusive : State {
+        data object AliveOwn : State {
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
                 return when (usage.usageOwnership) {
-                    VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
+                    VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutabilityForAliasing, subject.span)
                     VariableOwnership.CAPTURED -> {
                         if (repetition.mayRepeat) {
                             diagnosis.lifetimeEndingCaptureInLoop(subject)
                         }
-                        Effect.ValueCaptured(subject.variable, usage.usedWithMutability, subject.span)
+                        Effect.ValueCaptured(subject.variable, usage.isUsedAsReadReference, subject.span)
                     }
                 }
             }
         }
 
-        data class AliveExclusiveWithActiveBorrow(
+        data class AliveOwnWithActiveBorrow(
             val withMutability: TypeMutability,
             val borrowStartedAt: Span,
             val maybe: Boolean = false,
         ) : State {
-            override fun maybe() = if (maybe) this else AliveExclusiveWithActiveBorrow(withMutability, borrowStartedAt, maybe = true)
+            override fun maybe() = if (maybe) this else AliveOwnWithActiveBorrow(withMutability, borrowStartedAt, maybe = true)
 
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
                 return when (usage.usageOwnership) {
@@ -185,8 +185,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                         diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
                         null
                     }
-                    VariableOwnership.BORROWED -> if (usage.usedWithMutability.mayBeAliasedWith(this.withMutability)) {
-                        Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
+                    VariableOwnership.BORROWED -> if (usage.usedWithMutabilityForAliasing.mayBeAliasedWith(this.withMutability)) {
+                        Effect.BorrowStarted(subject.variable, usage.usedWithMutabilityForAliasing, subject.span)
                     } else {
                         diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, usage.usedWithMutability)
                         null
@@ -224,7 +224,11 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
         data class ValueCaptured(
             override val subject: BoundVariable,
-            val withMutability: TypeMutability,
+            /**
+             * whether the capturing reference is a `read` one for certain, see [ValueUsage.isUsedAsReadReference]. Only
+             * such a capture leaves an `own` value `own`.
+             */
+            val asReadReference: Boolean,
             val capturedAt: Span,
         ) : Effect
 

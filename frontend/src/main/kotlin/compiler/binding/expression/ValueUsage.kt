@@ -5,6 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.isReadInAllInstantiations
 import compiler.lexer.Span
 
 /**
@@ -19,6 +20,22 @@ interface ValueUsage {
     val usedAsType: BoundTypeReference?
 
     val usedWithMutability: TypeMutability get() = usedAsType?.mutability ?: TypeMutability.READONLY
+
+    /**
+     * Whether the using side refers to the value through a `read` reference for certain. It doesn't if [usedAsType]
+     * is a type parameter, as that can be bound to a type of any mutability.
+     */
+    val isUsedAsReadReference: Boolean get() = usedAsType?.isReadInAllInstantiations() ?: true
+
+    /**
+     * [usedWithMutability], for deciding which other references may exist at the same time
+     * ([TypeMutability.mayBeAliasedWith]): a reference of a type parameter can turn out to be `mut` or `const`, so it
+     * is as demanding as an `own` one, which only tolerates `read` references.
+     */
+    val usedWithMutabilityForAliasing: TypeMutability get() {
+        val mutability = usedWithMutability
+        return if (mutability == TypeMutability.READONLY && !isUsedAsReadReference) TypeMutability.OWN else mutability
+    }
 
     /**
      * ownership semantics of how the value is used. E.g. assigning to an object member definitely is

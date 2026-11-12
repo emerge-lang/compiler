@@ -7,7 +7,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 3. isolate thread-unsafe global state
    * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
      that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
-     require a builtin that asserts a certain stack-variable is exclusive, but that doesn't seem impossible to provide.
+     require a builtin that asserts a certain stack-variable is `own`, but that doesn't seem impossible to provide.
    * anything else to take care of?
 4. additional language constructs
    1. switch/when statement
@@ -29,6 +29,26 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
+6a. internal mutability: state that can change through a `read` reference to the object holding it. Needed for
+    lazy initialization, and for classes that offer reading through something they have to mutate to do so (a
+    `read S3Bucket` sends its queries through a socket stream)
+    * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
+      `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
+      the object holding the cell
+      * with function purity, `get` is a `read fn` and `set` a `mut fn`: the purity checks reason from mutability
+        (a global of a `const` type is a compile-time constant, a write is a use as `mut`), and a cell reachable from
+        a `const` global would be global state they don't see. So cells can't be used in `pure` functions
+      * with tokens (`tokens-plan.md` on the branch `token-protected-global-state`), `token class Cell<token T>`
+        instead: never `const`, every class holding one is a token class, none is reachable from a global or from
+        another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
+        is a promise of its author, not something the compiler checks. That code without a token cannot touch
+        external state stays checked
+      * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
+    * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
+      freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
+      call. The time of that call must not show in the value, so the value is `const`, and the initializer
+      captures only `const` data and no token; being `pure` is not enough, a pure function can read mutable data it
+      captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -78,7 +98,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        `Array<S8>`
     4. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
        (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error). In argument positions the
-       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `exclusive` is
+       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `own` is
        never a cast target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
        independent of type arguments
 13. Function types
@@ -116,29 +136,34 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       temporary values are BAD offenders
 17. typealiases
 18. smart casts
-19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
-    ```
-    class Foo {}
-    arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
-    v: exclusive Foo = arr[0] // compiler doesn't complain here, either
-    ```
-    Generic code does the same without an `exclusive` type argument being written: a value of type `T` is copied
-    freely, and passing an exclusive value for a parameter of type `T` doesn't end its lifetime, though `T` is
-    inferred as `exclusive Foo`:
-    ```
-    fn g<T>(x: T) -> T = x
-    fn f(x: exclusive Foo) -> exclusive Foo {
-        y = g(x) // y: exclusive Foo
-        return x // a second exclusive reference
-    }
-    fn take<T>(b: read Box<T>) -> T = b.value
-    fn h(b: Box<exclusive Foo>) {
-        x: const Foo = take(b)
-        y: mut Foo = take(b) // the same object
-    }
-    ```
-    Either type variables don't take `exclusive` values, or generic code treats values of type `T` as possibly
-    exclusive (their lifetime ends where they are captured)
+19. ~~fix loophole in the typesystem: a type parameter could be bound to an `own` type
+    (`Array.new::<own Foo>(20, Foo())`, `Box<own Foo>`, `fn g<T>(x: T) -> T` called with an `own`
+    value), though generic code makes any number of references to a value of type `T`~~
+    Type parameters are never bound to an `own` type now: it is an error as a type argument or in the bound of
+    a type parameter, and where inference only has `own` values for a type parameter it picks the mutability
+    the bound or the expected type ask for, `mut` otherwise. `own T` on a parameter or return type is still
+    an `own` reference to a value of the type argument.
+
+    What remains: generic code can't hand an `own` value through and keep it `own`
+    * `Array.slice`, `Array.sliceOrPanic` and `Array.getAtIndex` with a range are declared
+      `fn slice<A : read Array<out Any?>>(capture self: A, ...) -> A`; the slice of an `own` array used to be
+      `own` and is `mut` now, so it can't become a `const` array anymore. Same for every function of the shape
+      `fn keep<A : read Foo>(capture self: A) -> A`.
+      Possible fixes, undecided:
+      * a second function with the mutability on the parameter and return type:
+        `fn slice<A : ...>(capture self: own A, ...) -> own A`. Needs either another name, or overload
+        resolution that prefers it for `own` arguments; and a second intrinsic in the backends
+      * type parameters that opt in to being bound to `own` types, in whose scope a value of that type is
+        treated like an `own` one: capturing it ends its lifetime (compare `~Copyable` in Swift)
+      * make `own` a property of the variable/parameter/return value instead of the type, like `borrow`; then
+        the question doesn't come up in the type system at all, but every expression has to carry it
+    * a container that holds `own` values (`Channel<T>`, `Mutex<T>` with `fn take(self: mut _) -> own T`)
+      can take them through a parameter typed `own T`, but can't be implemented in emerge: member variables
+      can't be `own`, and a `T` read from one isn't. Needs `own` member variables with a take/swap
+      operation, or intrinsics
+    * a variable declared without a type and initialized from such a call is `read`, not `const` as it is for an
+      `own` initializer: `y = g(Foo())` is a `mut Foo` joined with the `const` of the declaration. The expected
+      type only takes part in inference when the variable has a declared type
 20. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
@@ -188,9 +213,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
-25. reconsider the name `exclusive`: an `exclusive` reference promises that no other reference can mutate the object,
-    not that there are no other references (`read` aliases are allowed, and a const object fits `exclusive` too).
-    Look for an equally concise and expressive term that says that more precisely
+25. ~~reconsider the name `exclusive`~~ it is `own` now: an `own` reference promises that no other reference can
+    mutate the object or rely on it not changing, not that there are no other references (`read` aliases are
+    allowed). The compiler still calls the `borrow`/`capture` axis "ownership" (`VariableOwnership`), which wants
+    another name now
 26. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
     `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
     instead of `read Ord<in Num>`
@@ -210,7 +236,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)
 29. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
-    The constructor ties the mutability of the object, `_M` in its return type `exclusive W & _M`, to that of each
+    The constructor ties the mutability of the object, `_M` in its return type `own W & _M`, to that of each
     decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
     object. Three things broke that:
     * a member typed as a type parameter of the class got no such parameter (it's "already generic"), so
@@ -240,7 +266,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     Transitivity needs a lemma that what an effectively-bottom intersection accepts is below every type; the lemmas
     that take a component of an accepted intersection hold only of the other intersections then:
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
-    ~50 call sites, and the mutability lemmas need side conditions or an exclusive assignment mutability for such
+    ~50 call sites, and the mutability lemmas need side conditions or an `own` assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
 33. runtime type information is allocated per call: a generic function calling another generic function with
     a type argument that mentions its own type parameters (`Array<T>`, `T?`) builds `NamedType`/`TypeArgument`
@@ -253,6 +279,36 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     to use the representation of the overridden function
 35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
+36. the type system model picks other final values than the frontend where a type variable only has `own` values
+    (item 19): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
+    mutability the upper bound asks for, `mut` otherwise (`VariableState.mutabilityForOwnValues`), and it is an
+    error where the upper bound asks for `own` (`VariableState.needsOwnValue`). The theorems on calls are about
+    the model's final values; nothing checks the difference, the oracle doesn't cover inference. To do:
+    * `final_value` as the frontend has it, and "no variable needs an `own` value" as a premise of the theorems
+      that take final values
+    * a new obligation of `inference_types`: a bound that takes an `own` lower bound takes it with the mutability
+      picked, too; shown for each instance (class types, generic code, generic receivers). `unify_root_mutability`,
+      `frag_with_mutability` and `tfrag_given` are close to what it needs
+    * the proofs that unfold `final_value` (it is used ~140 times in 9 files)
+    * the type the call is expected to return, as one more constraint before the final values are picked
+      (`TypeUnification.plusExpectedTypeForOwnValues`)
+37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
+    and not going to be: each member variable or element of a generic data structure would either own its object,
+    making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
+    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 6a) gives
+    that for much less. The frontend is modelled as the types whose type arguments are all `ref`, or of the
+    ownership of their type parameter, so nothing is wrong meanwhile; but every theorem speaks about an ownership
+    the language doesn't have, and `owned` reads like the mutability `own`. To remove:
+    * `Ownership.v`
+    * `Model.Ownership` and the ownership of `Model.TypeArgument` (~750 uses of `TypeArgument` in 29 files),
+      `parameter_ownership` and `any_ownership` (in up to 19 files)
+    * `Subtyping.ownership_is_assignable_to` and its check in `unify_type_argument`
+    * what part (a) of `Ops.v` says about owned parts: the `adopt` transition, and extracting a part
+    * the ownership `RocqGridEncoder` writes for every type argument (`RocqOracleTests.kt`)
+    * the mentions in `readme.md` and `coverage.md`
+
+    Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
+    item 36, which changes the same files
 -----
 
 ## Future features

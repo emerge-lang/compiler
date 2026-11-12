@@ -10,7 +10,7 @@ Hypothesis ranked: bounds_ranked env.
 
 Definition can_reassign_fields_on (t: EType): bool :=
     match (mutability_of env t) with
-    | exclusive => true
+    | own => true
     | mutable => true
     | readonly => false
     | immutable => false
@@ -78,7 +78,7 @@ Proof. intros [] [] []; simpl; congruence. Qed.
 Lemma mutability_subtype_of_readonly: forall m, is_subtype_of m readonly = true.
 Proof. intros []; reflexivity. Qed.
 
-Lemma mutability_subtype_of_exclusive: forall m, is_subtype_of m exclusive = true -> m = exclusive.
+Lemma mutability_subtype_of_own: forall m, is_subtype_of m own = true -> m = own.
 Proof. intros []; simpl; congruence. Qed.
 
 Lemma intersect_mutability_left: forall m0 m1, is_subtype_of (intersect_mutability m0 m1) m0 = true.
@@ -95,11 +95,11 @@ Proof. intros [] [] []; simpl; congruence. Qed.
 (*
  * Whether two references to the same object can exist at the same time without one breaking the
  * promises of the other: a readonly reference promises nothing and allows nothing, mutable
- * references allow each other's mutations, immutable references can't mutate. An exclusive
+ * references allow each other's mutations, immutable references can't mutate. An own
  * reference promises that it is the only one that can mutate or rely on immutability.
  * This is assured by the subtyping rules on assignment, and variable lifetime rules:
- * * copying an exclusive reference into a non-readonly reference ends the lifetime of the exclusive reference
- * * while an exclusive reference is borrowed, it can only be borrowed again by references that may
+ * * copying an own reference into a non-readonly reference ends the lifetime of the own reference
+ * * while an own reference is borrowed, it can only be borrowed again by references that may
  *   coexist with all active borrows. The borrows end when the invocation they were created for returns.
  *)
 Definition may_coexist (a b: Mutability): bool :=
@@ -126,12 +126,12 @@ Lemma may_coexist_supertype: forall m0 m1 m1',
     may_coexist m0 m1 = true -> is_subtype_of m1 m1' = true -> may_coexist m0 m1' = true.
 Proof. intros [] [] []; simpl; congruence. Qed.
 
-(* A reference coexists with the one it was created from, unless that is exclusive. *)
+(* A reference coexists with the one it was created from, unless that is own. *)
 Lemma may_coexist_with_source: forall m m',
-    m <> exclusive -> is_subtype_of m m' = true -> may_coexist m m' = true.
+    m <> own -> is_subtype_of m m' = true -> may_coexist m m' = true.
 Proof. intros [] [] H; simpl; congruence. Qed.
 
-Lemma may_coexist_exclusive: forall m, may_coexist exclusive m = true -> m = readonly.
+Lemma may_coexist_own: forall m, may_coexist own m = true -> m = readonly.
 Proof. intros []; simpl; congruence. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -145,16 +145,16 @@ Proof. intros []; simpl; congruence. Qed.
 (* from an owned slot is a use of the holder in the same way: borrowing an owned part borrows the   *)
 (* holder, capturing it captures the holder.                                                       *)
 (* A `ref` slot, on the other hand, is a reference of its own to another block: one captured with  *)
-(* the slot's mutability, which never is exclusive.                                                *)
+(* the slot's mutability, which never is own.                                                      *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* The variable holding the exclusive reference, as long as there is one *)
+(* The variable holding the own reference, as long as there is one *)
 Inductive Owner :=
-    (* VariableLifetime.State.AliveExclusive *)
+    (* VariableLifetime.State.AliveOwn *)
     | alive
-    (* VariableLifetime.State.AliveExclusiveWithActiveBorrow; tracked is its withMutability *)
+    (* VariableLifetime.State.AliveOwnWithActiveBorrow; tracked is its withMutability *)
     | borrowed (tracked: Mutability)
-    (* VariableLifetime.State.Dead: the exclusive reference has been given up *)
+    (* VariableLifetime.State.Dead: the own reference has been given up *)
     | dead
     .
 
@@ -175,7 +175,7 @@ Record Aliasing := mkAliasing {
 (* While the owner is borrowed it can do nothing but lend itself out again, so it acts as readonly *)
 Definition owner_mutability (o: Owner): Mutability :=
     match o with
-    | alive => exclusive
+    | alive => own
     | borrowed _ | dead => readonly
     end.
 
@@ -205,8 +205,8 @@ Inductive transition: Aliasing -> Aliasing -> Prop :=
     (* the owner is captured as readonly: its lifetime goes on *)
     | capture_owner_as_readonly: forall l,
         transition (mkAliasing alive l) (mkAliasing alive (captured readonly :: l))
-    (* the owner is captured as mutable or immutable: its lifetime ends. (Captured as exclusive,
-       the exclusive reference merely moves to another variable, which changes nothing here.) *)
+    (* the owner is captured as mutable or immutable: its lifetime ends. (Captured as own,
+       the own reference merely moves to another variable, which changes nothing here.) *)
     | capture_owner: forall l m,
         m = mutable \/ m = immutable ->
         transition (mkAliasing alive l) (mkAliasing dead (captured m :: l))
@@ -222,23 +222,23 @@ Inductive transition: Aliasing -> Aliasing -> Prop :=
     | add_borrow: forall b l m,
         may_coexist m b = true ->
         transition (mkAliasing (borrowed b) l) (mkAliasing (borrowed (intersect_mutability b m)) (borrow m :: l))
-    (* a borrowed parameter is lent on. An exclusive one is an owner of its own in the called
+    (* a borrowed parameter is lent on. An own one is an owner of its own in the called
        function, which this model leaves out. *)
     | reborrow: forall o l1 l2 m m',
-        m <> exclusive ->
+        m <> own ->
         is_subtype_of m m' = true ->
         transition (mkAliasing o (l1 ++ borrow m :: l2)) (mkAliasing o (borrow m' :: l1 ++ borrow m :: l2))
     (* an alias goes out of scope *)
     | drop: forall o l1 a l2,
         transition (mkAliasing o (l1 ++ a :: l2)) (mkAliasing o (l1 ++ l2))
-    (* an exclusive reference to another block is written into an owned slot of this one. Only
-       exclusive references can be: the other block becomes part of this one, and it can't be
+    (* an own reference to another block is written into an owned slot of this one. Only
+       own references can be: the other block becomes part of this one, and it can't be
        reachable through anything but readonly references from elsewhere. *)
     | adopt: forall o l l',
         (forall a, In a l' -> alias_mutability a = readonly) ->
         transition (mkAliasing o l) (mkAliasing o (l' ++ l))
     (* the owner moves into an owned slot of another block, or an owned part is extracted from the
-       block as exclusive. Either way, the block is no longer reachable through the owner. *)
+       block as own. Either way, the block is no longer reachable through the owner. *)
     | give_up_owner: forall l,
         transition (mkAliasing alive l) (mkAliasing dead l)
     .
@@ -271,10 +271,10 @@ Scheme step_mut := Minimality for step Sort Prop
 with evaluates_mut := Minimality for evaluates Sort Prop.
 Combined Scheme step_evaluates_mut from step_mut, evaluates_mut.
 
-(* How a block comes into existence: with an exclusive owner, and no other references than readonly
-   ones. Either it is the exclusive result of a constructor, without any other references; the axiom
+(* How a block comes into existence: with an own owner, and no other references than readonly
+   ones. Either it is the own result of a constructor, without any other references; the axiom
    that panic never returns means that Nothing is never one of them. Or an owned part of an
-   exclusively owned block is extracted as exclusive: the other references to that block were all
+   exclusively owned block is extracted as own: the other references to that block were all
    readonly. *)
 Definition initial (s: Aliasing): Prop :=
     owner s = alive /\ forall a, In a (aliases s) -> alias_mutability a = readonly.
@@ -366,8 +366,8 @@ Proof. intros []; reflexivity. Qed.
 (* What keeps the references conflict-free from one step to the next *)
 Definition invariant (s: Aliasing): Prop :=
     conflict_free s = true
-    (* exclusive references are never captured as anything but the owner *)
-    /\ (forall m, In (captured m) (aliases s) -> m <> exclusive)
+    (* own references are never captured as anything but the owner *)
+    /\ (forall m, In (captured m) (aliases s) -> m <> own)
     (* as long as there is an owner, all captured references are readonly *)
     /\ (owner s <> dead -> forall m, In (captured m) (aliases s) -> m = readonly)
     (* the tracked mutability is a lower bound of the active borrows *)
@@ -397,7 +397,7 @@ Proof. intros ow rs Ho Hp. unfold conflict_free. simpl. apply andb_true_iff. spl
 (* Adding an alias created from the existing alias `source`, keeping the source. *)
 Lemma conflict_free_derived: forall ow rs1 rs2 source r,
     conflict_free (mkAliasing ow (rs1 ++ source :: rs2)) = true ->
-    alias_mutability source <> exclusive ->
+    alias_mutability source <> own ->
     is_subtype_of (alias_mutability source) (alias_mutability r) = true ->
     conflict_free (mkAliasing ow (r :: rs1 ++ source :: rs2)) = true.
 Proof.
@@ -462,17 +462,17 @@ Proof.
       repeat split; simpl.
       + apply make_conflict_free; [intros; reflexivity|].
         apply pairwise_cons; [|exact Hpairs].
-        intros y Hy. rewrite (may_coexist_exclusive _ (Howner y Hy)). destruct m; reflexivity.
+        intros y Hy. rewrite (may_coexist_own _ (Howner y Hy)). destruct m; reflexivity.
       + intros m0 [Heq|Hin]; [injection Heq as <-; destruct Hm as [->| ->]; discriminate|apply Hexcl, Hin].
       + intros Hdead. exfalso. apply Hdead. reflexivity.
       + intros b0 Hb0. discriminate Hb0.
       + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hborrows; [reflexivity|exact Hin]].
     - (* capture_alias *)
-      assert (Hm: m <> exclusive). { apply Hexcl, in_or_app. right. left. reflexivity. }
+      assert (Hm: m <> own). { apply Hexcl, in_or_app. right. left. reflexivity. }
       repeat split; simpl.
       + apply (conflict_free_derived _ _ _ (captured m) (captured m')); assumption.
       + intros m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hexcl, Hin].
-        injection Heq as ->. intros ->. apply Hm, mutability_subtype_of_exclusive, Hsub.
+        injection Heq as ->. intros ->. apply Hm, mutability_subtype_of_own, Hsub.
       + intros Ho m0 Hin. apply in_derived in Hin. destruct Hin as [Heq|Hin]; [|apply Hreadonly; assumption].
         injection Heq as ->. assert (Hro: m = readonly). { apply Hreadonly; [exact Ho|]. apply in_or_app. right. left. reflexivity. }
         subst m. destruct m'; simpl in Hsub; congruence.
@@ -484,12 +484,12 @@ Proof.
       repeat split; simpl.
       + apply make_conflict_free; [intros; reflexivity|].
         apply pairwise_cons; [|exact Hpairs].
-        intros y Hy. rewrite (may_coexist_exclusive _ (Howner y Hy)). destruct m; reflexivity.
+        intros y Hy. rewrite (may_coexist_own _ (Howner y Hy)). destruct m; reflexivity.
       + intros m0 [Heq|Hin]; [discriminate Heq|apply Hexcl, Hin].
       + intros _ m0 [Heq|Hin]; [discriminate Heq|apply Hreadonly; [discriminate|exact Hin]].
       + intros b0 Hb0 m0 Hin. injection Hb0 as <-. destruct Hin as [Heq|Hin].
         * injection Heq as <-. apply mutability_is_subtype_of_refl.
-        * pose proof (may_coexist_exclusive _ (Howner _ Hin)) as Hro. simpl in Hro. rewrite Hro.
+        * pose proof (may_coexist_own _ (Howner _ Hin)) as Hro. simpl in Hro. rewrite Hro.
           apply mutability_subtype_of_readonly.
       + intros Hb. discriminate Hb.
     - (* add_borrow *)
@@ -823,8 +823,8 @@ Proof.
     apply fold_intersect_below_element, in_map, Hc.
 Qed.
 
-(* An object of a const class is assigned as exclusive *)
-Lemma top_const_assigned_exclusive: forall t, top_const env t = true -> assignment_mutability env t = exclusive.
+(* An object of a const class is assigned as own *)
+Lemma top_const_assigned_own: forall t, top_const env t = true -> assignment_mutability env t = own.
 Proof.
     intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
     fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk H.
@@ -839,12 +839,12 @@ Proof.
     - simpl in H, Hk |- *. revert H Hk. generalize readonly as acc. induction cs as [|c rest IHl]; intros acc H Hk; simpl in H, Hk |- *; [discriminate H|].
       apply andb_true_iff in Hk. destruct Hk as [Hc Hrest].
       destruct (top_const env c) eqn:E.
-      + rewrite (IH c Hc E). apply mutability_subtype_of_exclusive.
+      + rewrite (IH c Hc E). apply mutability_subtype_of_own.
         eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
       + exact (IHl _ H Hrest).
 Qed.
 
-(* A value is assigned as no more than its mutability: as exclusive, where it is an object of a const
+(* A value is assigned as no more than its mutability: as own, where it is an object of a const
    class *)
 Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
 Proof.
@@ -859,7 +859,7 @@ Proof.
     - rewrite (assignment_mutability_type_variable env ranked), (mutability_of_type_variable env ranked).
       exact (IHk _ (ref_ranked env k g Hk) _ (effective_bound_ranked env ranked g)).
     - simpl. destruct (existsb (top_const env) cs) eqn:E.
-      { pose proof (top_const_assigned_exclusive (Intersection cs) E) as Hx. simpl in Hx. rewrite Hx. reflexivity. }
+      { pose proof (top_const_assigned_own (Intersection cs) E) as Hx. simpl in Hx. rewrite Hx. reflexivity. }
       assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
           is_subtype_of (intersect_mutability a b) (intersect_mutability a' b') = true).
       { intros x x' y y' Hx Hy. apply intersect_mutability_greatest.
@@ -922,7 +922,7 @@ Qed.
 (*
  * If a value can be assigned to a reference, and both types can refer to an object, then the
  * mutability of the reference is a supertype of the mutability the value is assigned as: its own,
- * or exclusive for an object of a const class.
+ * or own for an object of a const class.
  *)
 Theorem unify_respects_mutability: forall fuel target assignee states s,
     unify env fuel target assignee (Ongoing states) = Some (Ongoing s) ->

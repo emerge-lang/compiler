@@ -43,7 +43,7 @@ class BoundMixinStatement(
 
     private val expectedType: BoundTypeReference by lazy {
         context.swCtx.any.getBoundReferenceAssertNoTypeParameters(declaration.mixinKeyword.span)
-            .withMutability(TypeMutability.EXCLUSIVE)
+            .withMutability(TypeMutability.OWN)
             .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
     }
 

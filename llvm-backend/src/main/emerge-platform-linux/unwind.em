@@ -7,13 +7,13 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> exclusive Iterable<const StackTraceElement> {
+read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> own Iterable<const StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
     // returns, any unwind cursor has to have been unwound past that stackframe, otherwise unwinding will be UB
 
-    stackList: exclusive _ = ArrayList::<const StackTraceElement>()
+    stackList: own _ = ArrayList::<const StackTraceElement>()
     var contextBuffer = Array.new::<S8>(unwind_context_size(), 0 as S8)
     var errorCode = unw_getcontext(contextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
@@ -192,7 +192,7 @@ private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const
         set actualNameLength = actualNameLength + 1
     }
 
-    trimmedName: exclusive _ = Array.new::<S8>(actualNameLength, 0 as S8)
+    trimmedName: own _ = Array.new::<S8>(actualNameLength, 0 as S8)
     Array.copy(nameBuf, 0, trimmedName, 0, actualNameLength)
     return String(trimmedName)
 }
@@ -277,7 +277,7 @@ private class UnwindProcedureInfo {
     private addressOfPersonalityFunction: UWord = init
     private globalPointer: UWord = init
 
-    private fn fromCursor(cursorPtr: read COpaquePointer) -> exclusive UnwindProcedureInfo {
+    private fn fromCursor(cursorPtr: read COpaquePointer) -> own UnwindProcedureInfo {
         // there are additional members in the struct that are not mapped here
         buf = Array.new::<UWord>(8, 0 as UWord)
 

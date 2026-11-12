@@ -24,7 +24,7 @@ Import ListNotations.
 (*                                                                                                *)
 (* That holds for a reference of a mutability const classes don't have (`mut T`) to a type        *)
 (* parameter bound to one, too: its references are immutable, but its values are assigned as      *)
-(* exclusive, below every mutability (inst_fit_below_given).                                      *)
+(* own, below every mutability (inst_fit_below_given).                                            *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Section WithinBounds.
@@ -209,7 +209,7 @@ Proof.
 Qed.
 
 (* Of the mutability given, the instance of a reference is assigned as no more than it: the type
-   argument of that mutability, or an object of a const class, exclusive *)
+   argument of that mutability, or an object of a const class, own *)
 Lemma inst_fit_below_given: forall g x m, in_fragment env x = true -> given_mutability g = Some m ->
     Model.is_subtype_of (assignment_mutability env (inst_fit env g x)) m = true.
 Proof.
@@ -743,7 +743,7 @@ Qed.
 
 (* The mutabilities and `!` a reference may be given *)
 Definition shapes: list (option Mutability * bool) :=
-    [(None, false); (None, true)] ++ flat_map (fun m => [(Some m, false); (Some m, true)]) [exclusive; immutable; readonly; mutable].
+    [(None, false); (None, true)] ++ flat_map (fun m => [(Some m, false); (Some m, true)]) [own; immutable; readonly; mutable].
 
 Lemma shapes_complete: forall gm nn, In (gm, nn) shapes.
 Proof. intros [[]|] []; simpl; tauto. Qed.

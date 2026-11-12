@@ -103,8 +103,8 @@ Definition is_type_variable (t: EType): bool :=
 (* swCtx.getTopType: read Any? *)
 Definition top_type: EType := Nullable (RootResolved (Some readonly) any []).
 
-(* swCtx.getBottomType: exclusive Nothing *)
-Definition bottom_type: EType := RootResolved (Some exclusive) nothing [].
+(* swCtx.getBottomType: own Nothing *)
+Definition bottom_type: EType := RootResolved (Some own) nothing [].
 
 (* ErroneousType.asAny and ErroneousType.asNothing *)
 Definition as_any (m: Mutability): EType := RootResolved (Some m) any [].
@@ -186,7 +186,7 @@ Fixpoint mutability_of_h (t: EType): Mutability :=
 
 Fixpoint assignment_mutability_h (t: EType): Mutability :=
     match t with
-    | RootResolved m c _ => if is_const (declaration_of env c) then exclusive else or_readonly m
+    | RootResolved m c _ => if is_const (declaration_of env c) then own else or_readonly m
     | Nullable n => assignment_mutability_h n
     | Generic g | TypeVariable g => h_assignment_mutability H g
     | Error m _ => or_readonly m
@@ -328,13 +328,13 @@ Fixpoint mutability_of (t: EType): Mutability :=
     end.
 
 (* BoundTypeReference.assignmentMutability: the mutability a value of the type is assigned as. That
-   is its own, but exclusive for an object of a const class: nothing can mutate it, so it keeps what a
+   is its own, but own for an object of a const class: nothing can mutate it, so it keeps what a
    reference of any mutability promises, and it fits all of them. Its references stay immutable
    (mutability_of), so that nothing reads or writes them as mutable. *)
 Fixpoint assignment_mutability (t: EType): Mutability :=
     match t with
     | RootResolved m c _ =>
-        if is_const (declaration_of env c) then exclusive else or_readonly m
+        if is_const (declaration_of env c) then own else or_readonly m
     | Nullable n => assignment_mutability n
     | Generic g | TypeVariable g => ref_assignment_mutability g
     | Error m _ => or_readonly m
@@ -402,7 +402,7 @@ Fixpoint without_null (t: EType): EType :=
 
 (* BoundTypeReference.withMutability. An intersection (BoundIntersectionTypeReference.mapComponents)
    gives its components the mutability they are assigned as in common once they took the given one:
-   exclusive, where one of them is a const class, as in of_components. Kotlin applies that to the
+   own, where one of them is a const class, as in of_components. Kotlin applies that to the
    components it applied the given mutability to; applying a mutability replaces the one before.
    A reference to a type parameter takes it as its given mutability, which applies to its bound. *)
 Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
@@ -499,7 +499,7 @@ Definition intersected_components (t: EType): list EType :=
     end.
 
 (* BoundIntersectionTypeReference.ofComponents, without simplifying: the components of their common
-   mutability, the mutability they are assigned as in common: exclusive, where one of them is a const
+   mutability, the mutability they are assigned as in common: own, where one of them is a const
    class, as the values are its objects. Where one of them isn't nullable, neither is the
    intersection, and its components are non-null; where all of them are `X?`, it is the nullable
    intersection of them non-null. Otherwise some of them may be null only as their instance may be, a

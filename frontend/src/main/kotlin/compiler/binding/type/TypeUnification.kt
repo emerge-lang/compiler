@@ -1,6 +1,8 @@
 package compiler.binding.type
 
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.CollectingDiagnosis
@@ -10,6 +12,7 @@ import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeVariableNeedsOwnTypeDiagnostic
 import compiler.diagnostic.TypeVariableNotInferableDiagnostic
 import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -230,6 +233,7 @@ class TypeUnification private constructor(
         val state = variableStates[parameter] ?: return instantiateUnbound(parameter)
 
         val raw = state.lowerBound.takeUnless { it.isNonNullableNothing }
+            ?.let { lowerBound -> if (state.lowerBoundIsOnlyOwnValues) lowerBound.withMutability(state.mutabilityForOwnValues) else lowerBound }
             ?: when {
                 !state.staticUpperBound.mentionsTypeVariables() -> state.upperBound
                 // not inferable, see plusFinalValueChecks
@@ -238,6 +242,35 @@ class TypeUnification private constructor(
             }
 
         return raw.instantiateFreeVariables(this)
+    }
+
+    /**
+     * A type parameter is never bound to an `own` type, see [VariableState.lowerBoundIsOnlyOwnValues]. For
+     * the variables where that matters, the type the call is expected to return can tell the mutability to pick instead:
+     * `b: Box<const Foo> = Box(Foo())`.
+     * @param returnType the return type of the function being called, with the [TypeVariable]s of this unification
+     * @return `this`, plus the constraint that [returnType] is assignable to [expectedType]; or `this` if no variable
+     * needs a mutability picked, or if [expectedType] cannot be met. The latter is for the code using the return value to complain about.
+     */
+    fun plusExpectedTypeForOwnValues(
+        returnType: BoundTypeReference,
+        expectedType: BoundTypeReference,
+        assignmentLocation: Span,
+    ): TypeUnification {
+        if (variableStates.values.none { it.lowerBoundIsOnlyOwnValues }) {
+            return this
+        }
+
+        val withExpectedType = expectedType.unify(returnType, assignmentLocation, this)
+        if (withExpectedType.getErrorsNotIn(this).any()) {
+            return this
+        }
+        if (withExpectedType.variableStates.values.any { it.needsOwnValue }) {
+            // the expected type asks for an `own` value, which a type parameter cannot give
+            return this
+        }
+
+        return withExpectedType
     }
 
     /**
@@ -255,7 +288,8 @@ class TypeUnification private constructor(
 
     /**
      * `this`, plus an error for each variable that inference can't pick a value for: one without a lower bound, whose
-     * static upper bound mentions it (`T : Comparable<T>`).
+     * static upper bound mentions it (`T : Comparable<T>`); and one that only an `own` type fits
+     * ([VariableState.needsOwnValue]).
      */
     fun plusFinalValueChecks(inferenceLocation: Span): TypeUnification {
         if (diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }) {
@@ -268,9 +302,15 @@ class TypeUnification private constructor(
                 && state.staticUpperBound.mentionsTypeVariable(parameter)
         }
 
-        return notInferable.fold(this) { carry, (parameter, _) ->
+        val withNotInferable = notInferable.fold(this) { carry, (parameter, _) ->
             carry.plusDiagnostic(TypeVariableNotInferableDiagnostic(parameter.astNode, inferenceLocation))
         }
+
+        return variableStates.entries
+            .filter { (_, state) -> state.needsOwnValue }
+            .fold(withNotInferable) { carry, (parameter, _) ->
+                carry.plusDiagnostic(TypeVariableNeedsOwnTypeDiagnostic(parameter.astNode, inferenceLocation))
+            }
     }
 
     /**
@@ -424,7 +464,36 @@ class TypeUnification private constructor(
         val lowerBound: BoundTypeReference,
         val isExact: Boolean,
         val isCapturable: Boolean = false,
-    )
+    ) {
+        /**
+         * Whether only `own` values were given for this variable. `own` is a promise about a single reference,
+         * and generic code makes any number of references to a value of a type parameter, so the variable isn't bound to
+         * the `own` type; it takes the [mutabilityForOwnValues] instead. `Nothing` is `own`, too, but
+         * has no values that could be referenced twice.
+         */
+        val lowerBoundIsOnlyOwnValues: Boolean get() = !isExact
+            && lowerBound.mutability == TypeMutability.OWN
+            && !lowerBound.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
+
+        /**
+         * An `own` value fits any mutability; this picks the one the other constraints ask for, and `mut` if they
+         * don't ask for any.
+         */
+        val mutabilityForOwnValues: TypeMutability get() = when (val ofUpperBound = upperBound.mutability) {
+            TypeMutability.MUTABLE,
+            TypeMutability.IMMUTABLE -> ofUpperBound
+            TypeMutability.READONLY -> TypeMutability.MUTABLE
+            // see needsOwnValue
+            TypeMutability.OWN -> TypeMutability.MUTABLE
+        }
+
+        /**
+         * Whether only an `own` type fits this variable: there are only `own` values for it, and the other constraints
+         * ask for both `mut` and `const` (`fn f<T : mut Foo>(x: T, c: Consumer<in T>)` called with a
+         * `Consumer<in const Foo>`). There is no type to bind the variable to, then.
+         */
+        val needsOwnValue: Boolean get() = lowerBoundIsOnlyOwnValues && upperBound.mutability == TypeMutability.OWN
+    }
 }
 
 class TypeVariableNotUnderInferenceException(val parameter: BoundTypeParameter) : RuntimeException("Cannot work with type variable ${parameter.name} because of missing inference context")

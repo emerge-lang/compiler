@@ -39,7 +39,7 @@ class LoopErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "exclusive testmodule.NotAnIterable"
+                    it.sourceType.toString() shouldBe "own testmodule.NotAnIterable"
                     it.targetType.toString() shouldBe "read emerge.core.range.Iterable<out read Any?>"
                 }
         }

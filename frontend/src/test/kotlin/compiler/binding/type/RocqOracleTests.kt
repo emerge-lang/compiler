@@ -63,7 +63,7 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
         TypeMutability.MUTABLE -> "mu"
         TypeMutability.READONLY -> "ro"
         TypeMutability.IMMUTABLE -> "im"
-        TypeMutability.EXCLUSIVE -> "ex"
+        TypeMutability.OWN -> "ex"
     }
 
     private fun variance(v: TypeVariance) = when (v) {
@@ -110,7 +110,7 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
         TypeMutability.MUTABLE -> "m"
         TypeMutability.READONLY -> "r"
         TypeMutability.IMMUTABLE -> "i"
-        TypeMutability.EXCLUSIVE -> "e"
+        TypeMutability.OWN -> "e"
     }
 
     private fun classLetter(id: String) = when (id) {

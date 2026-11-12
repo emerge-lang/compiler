@@ -25,7 +25,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
  * Models the mutability aspect of a type. The logic in this class works as if the enum instances were types
  * themselves, e.g.: [MUTABLE] is the set of all mutable objects, [IMMUTABLE] is the set of all immutable objects.
  * Hence, `MUTABLE.union(IMMUTABLE)` is the union-set of all mutable objects and all immutable objects; or, more simply,
- * the set of all [EXCLUSIVE] objects.
+ * the set of all [OWN] objects.
  */
 enum class TypeMutability(
     val keyword: Keyword,
@@ -34,14 +34,14 @@ enum class TypeMutability(
     MUTABLE(Keyword.MUTABLE, isMutable = true),
     READONLY(Keyword.READONLY, isMutable = false),
     IMMUTABLE(Keyword.IMMUTABLE, isMutable = false),
-    EXCLUSIVE(Keyword.EXCLUSIVE, isMutable = true),
+    OWN(Keyword.OWN, isMutable = true),
     ;
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
         this == targetMutability
             ||
         when (this) {
-            EXCLUSIVE -> true
+            OWN -> true
             MUTABLE, IMMUTABLE -> targetMutability == READONLY
             READONLY -> false
         }
@@ -58,19 +58,19 @@ enum class TypeMutability(
      * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
      * |`MUTABLE`  |`READONLY` |`READONLY` |
      * |`MUTABLE`  |`IMMUTABLE`|`READONLY` |
-     * |`MUTABLE`  |`EXCLUSIVE`|`MUTABLE`  |
+     * |`MUTABLE`  |`OWN`|`MUTABLE`  |
      * |`READONLY` |`MUTABLE`  |`READONLY` |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`READONLY` |
-     * |`READONLY` |`EXCLUSIVE`|`READONLY` |
+     * |`READONLY` |`OWN`|`READONLY` |
      * |`IMMUTABLE`|`MUTABLE`  |`READONLY` |
      * |`IMMUTABLE`|`READONLY` |`READONLY` |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
-     * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE`|
-     * |`EXCLUSIVE`|`MUTABLE`  |`MUTABLE`  |
-     * |`EXCLUSIVE`|`READONLY` |`READONLY` |
-     * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
-     * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     * |`IMMUTABLE`|`OWN`|`IMMUTABLE`|
+     * |`OWN`|`MUTABLE`  |`MUTABLE`  |
+     * |`OWN`|`READONLY` |`READONLY` |
+     * |`OWN`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`OWN`|`OWN`|`OWN`|
      *
      * @return The [TypeMutability] that applies to the union of the sets of objects being described
      * by `this` and [other]. In other words: returns the mutability that expresses all abilities & guarantees that are
@@ -78,8 +78,8 @@ enum class TypeMutability(
      */
     fun union(other: TypeMutability?): TypeMutability = when {
         other == null || other == this -> this
-        this == EXCLUSIVE -> other
-        other == EXCLUSIVE -> this
+        this == OWN -> other
+        other == OWN -> this
         else -> READONLY
     }
 
@@ -89,8 +89,8 @@ enum class TypeMutability(
      * of the object member (`this`) is limited to the mutability of the reference through which it is accessed ([limitingMutability]).
      */
     fun limitedTo(limitingMutability: TypeMutability?): TypeMutability {
-        if (this == EXCLUSIVE) {
-            // exclusive object members are not allowed, so this should never happen.
+        if (this == OWN) {
+            // `own` object members are not allowed, so this should never happen.
             // If it does happen still, READONLY mutability will limit the damage.
             return READONLY
         }
@@ -104,11 +104,11 @@ enum class TypeMutability(
                 MUTABLE -> MUTABLE
                 READONLY -> READONLY
                 IMMUTABLE -> READONLY
-                EXCLUSIVE -> MUTABLE
+                OWN -> MUTABLE
             }
             READONLY -> READONLY
             IMMUTABLE -> IMMUTABLE
-            EXCLUSIVE -> error("unreachable")
+            OWN -> error("unreachable")
         }
     }
 
@@ -121,7 +121,7 @@ enum class TypeMutability(
      * |`READONLY` |`MUTABLE`  |`MUTABLE`  |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`IMMUTABLE`|
-     * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
+     * |`IMMUTABLE`|`MUTABLE`  |`OWN`|
      * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
      * @return the [TypeMutability] that describes the intersection-set of `this` and [other]. In other words,
@@ -131,8 +131,8 @@ enum class TypeMutability(
         MUTABLE -> when(other) {
             MUTABLE -> MUTABLE
             READONLY -> MUTABLE
-            IMMUTABLE -> EXCLUSIVE
-            EXCLUSIVE -> EXCLUSIVE
+            IMMUTABLE -> OWN
+            OWN -> OWN
         }
         READONLY -> when(other) {
             READONLY -> READONLY
@@ -143,7 +143,7 @@ enum class TypeMutability(
             IMMUTABLE -> IMMUTABLE
             else -> other.intersect(this)
         }
-        EXCLUSIVE -> EXCLUSIVE
+        OWN -> OWN
     }
 
     fun mayBeAliasedWith(other: TypeMutability): Boolean {
@@ -159,10 +159,10 @@ enum class TypeMutability(
     }
 
     fun toBackendIr(): IrTypeMutability = when (this) {
-        IMMUTABLE -> IrTypeMutability.EXCLUSIVE
+        IMMUTABLE -> IrTypeMutability.IMMUTABLE
         READONLY -> IrTypeMutability.READONLY
         MUTABLE -> IrTypeMutability.MUTABLE
-        EXCLUSIVE -> IrTypeMutability.EXCLUSIVE
+        OWN -> IrTypeMutability.OWN
     }
 
     override fun toString() = keyword.text

@@ -236,11 +236,11 @@ class ClassErrors : FreeSpec({
                         .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
                 }
 
-                "with exclusive" {
+                "with own" {
                     validateModule("""
                         class A {}
                         class Test {
-                            decorates n: exclusive A = init
+                            decorates n: own A = init
                         }
                     """.trimIndent())
                         .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
@@ -998,10 +998,10 @@ class ClassErrors : FreeSpec({
                 }
         }
 
-        "exclusive on a supertype" {
+        "own on a supertype" {
             validateModule("""
                 interface A {}
-                class B : exclusive A {}
+                class B : own A {}
             """.trimIndent())
                 .shouldFind<MutabilityOnSupertypeDiagnostic>()
         }

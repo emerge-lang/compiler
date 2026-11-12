@@ -121,6 +121,14 @@ fun Diagnosis.variableTypeNotDeclared(kind: BoundVariable.Kind, name: String, de
     add(MissingVariableTypeDiagnostic(kind, name, declaredAt))
 }
 
+fun Diagnosis.ownTypeArgument(argument: BoundTypeArgument) {
+    add(OwnTypeArgumentDiagnostic(argument.span ?: Span.UNKNOWN))
+}
+
+fun Diagnosis.ownTypeParameterBound(parameter: BoundTypeParameter) {
+    add(OwnTypeParameterBoundDiagnostic(parameter.astNode))
+}
+
 fun Diagnosis.wildcardTypeArgumentWithVariance(argument: BoundTypeArgument) {
     add(WildcardTypeArgumentWithVarianceDiagnostic(argument.astNode))
 }

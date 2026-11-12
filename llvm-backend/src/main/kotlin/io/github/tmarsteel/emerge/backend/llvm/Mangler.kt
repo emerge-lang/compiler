@@ -110,25 +110,25 @@ object Mangler {
                                 IrTypeMutability.IMMUTABLE -> 'a'
                                 IrTypeMutability.READONLY  -> 'b'
                                 IrTypeMutability.MUTABLE -> 'c'
-                                IrTypeMutability.EXCLUSIVE -> 'd'
+                                IrTypeMutability.OWN -> 'd'
                             }
                             IrTypeVariance.OUT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'e'
                                 IrTypeMutability.READONLY  -> 'f'
                                 IrTypeMutability.MUTABLE -> 'g'
-                                IrTypeMutability.EXCLUSIVE -> 'h'
+                                IrTypeMutability.OWN -> 'h'
                             }
                             IrTypeVariance.INVARIANT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'i'
                                 IrTypeMutability.READONLY  -> 'j'
                                 IrTypeMutability.MUTABLE -> 'k'
-                                IrTypeMutability.EXCLUSIVE -> 'l'
+                                IrTypeMutability.OWN -> 'l'
                             }
                             null -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'm'
                                 IrTypeMutability.READONLY  -> 'n'
                                 IrTypeMutability.MUTABLE -> 'o'
-                                IrTypeMutability.EXCLUSIVE -> 'p'
+                                IrTypeMutability.OWN -> 'p'
                             }
                         }
                         false -> when (variance) {
@@ -136,25 +136,25 @@ object Mangler {
                                 IrTypeMutability.IMMUTABLE -> 'q'
                                 IrTypeMutability.READONLY  -> 'r'
                                 IrTypeMutability.MUTABLE -> 's'
-                                IrTypeMutability.EXCLUSIVE -> 't'
+                                IrTypeMutability.OWN -> 't'
                             }
                             IrTypeVariance.OUT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'u'
                                 IrTypeMutability.READONLY  -> 'v'
                                 IrTypeMutability.MUTABLE -> 'w'
-                                IrTypeMutability.EXCLUSIVE -> 'x'
+                                IrTypeMutability.OWN -> 'x'
                             }
                             IrTypeVariance.INVARIANT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'y'
                                 IrTypeMutability.READONLY  -> 'z'
                                 IrTypeMutability.MUTABLE -> '0'
-                                IrTypeMutability.EXCLUSIVE -> '1'
+                                IrTypeMutability.OWN -> '1'
                             }
                             null -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> '2'
                                 IrTypeMutability.READONLY  -> '3'
                                 IrTypeMutability.MUTABLE -> '4'
-                                IrTypeMutability.EXCLUSIVE -> '5'
+                                IrTypeMutability.OWN -> '5'
                             }
                         }
                     }
@@ -164,25 +164,25 @@ object Mangler {
                                 IrTypeMutability.IMMUTABLE -> 'A'
                                 IrTypeMutability.READONLY  -> 'B'
                                 IrTypeMutability.MUTABLE -> 'C'
-                                IrTypeMutability.EXCLUSIVE -> 'D'
+                                IrTypeMutability.OWN -> 'D'
                             }
                             IrTypeVariance.OUT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'E'
                                 IrTypeMutability.READONLY  -> 'F'
                                 IrTypeMutability.MUTABLE -> 'G'
-                                IrTypeMutability.EXCLUSIVE -> 'H'
+                                IrTypeMutability.OWN -> 'H'
                             }
                             IrTypeVariance.INVARIANT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'I'
                                 IrTypeMutability.READONLY  -> 'J'
                                 IrTypeMutability.MUTABLE -> 'K'
-                                IrTypeMutability.EXCLUSIVE -> 'L'
+                                IrTypeMutability.OWN -> 'L'
                             }
                             null -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'M'
                                 IrTypeMutability.READONLY  -> 'N'
                                 IrTypeMutability.MUTABLE -> 'O'
-                                IrTypeMutability.EXCLUSIVE -> 'P'
+                                IrTypeMutability.OWN -> 'P'
                             }
                         }
                         false -> when (variance) {
@@ -190,25 +190,25 @@ object Mangler {
                                 IrTypeMutability.IMMUTABLE -> 'Q'
                                 IrTypeMutability.READONLY  -> 'R'
                                 IrTypeMutability.MUTABLE -> 'S'
-                                IrTypeMutability.EXCLUSIVE -> 'T'
+                                IrTypeMutability.OWN -> 'T'
                             }
                             IrTypeVariance.OUT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'U'
                                 IrTypeMutability.READONLY  -> 'V'
                                 IrTypeMutability.MUTABLE -> 'W'
-                                IrTypeMutability.EXCLUSIVE -> 'X'
+                                IrTypeMutability.OWN -> 'X'
                             }
                             IrTypeVariance.INVARIANT -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> 'Y'
                                 IrTypeMutability.READONLY  -> 'Z'
                                 IrTypeMutability.MUTABLE -> '6'
-                                IrTypeMutability.EXCLUSIVE -> '7'
+                                IrTypeMutability.OWN -> '7'
                             }
                             null -> when(mutability) {
                                 IrTypeMutability.IMMUTABLE -> '8'
                                 IrTypeMutability.READONLY  -> '9'
                                 IrTypeMutability.MUTABLE -> '.'
-                                IrTypeMutability.EXCLUSIVE -> '_'
+                                IrTypeMutability.OWN -> '_'
                             }
                         }
                     }

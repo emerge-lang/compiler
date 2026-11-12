@@ -185,10 +185,10 @@ class VirtualMemberVariableErrors : FreeSpec({
                         }
                 }
 
-                "explicitly declared exclusive" {
+                "explicitly declared own" {
                     validateModule("""
                         interface I {
-                            get fn bla(self: exclusive _) -> S32
+                            get fn bla(self: own _) -> S32
                         }
                     """.trimIndent())
                         .shouldFind<AccessorContractViolationDiagnostic> {
@@ -337,10 +337,10 @@ class VirtualMemberVariableErrors : FreeSpec({
                         }
                 }
 
-                "explicitly declared exclusive" {
+                "explicitly declared own" {
                     validateModule("""
                         interface I {
-                            set fn bla(self: exclusive _, v: S32)
+                            set fn bla(self: own _, v: S32)
                         }
                     """.trimIndent())
                         .shouldFind<AccessorContractViolationDiagnostic> {

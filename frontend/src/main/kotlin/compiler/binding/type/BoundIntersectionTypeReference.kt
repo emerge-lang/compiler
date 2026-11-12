@@ -385,7 +385,7 @@ class BoundIntersectionTypeReference private constructor(
         private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.assignmentMutability }.reduce(TypeMutability::intersect)
 
         private val BoundTypeReference.isOfConstClass: Boolean
-            get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.EXCLUSIVE
+            get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.OWN
 
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,
@@ -396,7 +396,7 @@ class BoundIntersectionTypeReference private constructor(
          * | input type            | simplification |
          * |-----------------------|----------------|
          * |`mut T & read Any`     | `mut T`        |
-         * |`mut T & const T`      | `exclusive T`  |
+         * |`mut T & const T`      | `own T`  |
          * |`read T & const Any`   | `mut T`        |
          */
         fun BoundTypeReference.intersect(other: BoundTypeReference): BoundTypeReference {
@@ -540,7 +540,7 @@ class BoundIntersectionTypeReference private constructor(
                 return listOf(
                     context.swCtx.getBottomType(components.firstNotNullOfOrNull { it.span } ?: Span.UNKNOWN)
                         .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-                        .withMutability(TypeMutability.EXCLUSIVE)
+                        .withMutability(TypeMutability.OWN)
                 )
             }
 

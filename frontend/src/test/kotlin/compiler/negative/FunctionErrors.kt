@@ -183,7 +183,7 @@ class FunctionErrors : FreeSpec({
             }
             diagnostics.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableDiagnostic>().also {
-                    it.sourceType.toString() shouldBe "exclusive testmodule.B"
+                    it.sourceType.toString() shouldBe "own testmodule.B"
                     it.targetType.toString() shouldBe "const S32"
                 }
             }

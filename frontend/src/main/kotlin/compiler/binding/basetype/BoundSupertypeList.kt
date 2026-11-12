@@ -134,7 +134,7 @@ class BoundSupertypeList(
                 null -> {}
                 TypeMutability.READONLY -> diagnosis.redundantMutabilityOnSupertype(clause.astNode, "supertypes are read by default")
                 TypeMutability.MUTABLE,
-                TypeMutability.EXCLUSIVE -> diagnosis.mutabilityOnSupertype(clause.astNode)
+                TypeMutability.OWN -> diagnosis.mutabilityOnSupertype(clause.astNode)
                 TypeMutability.IMMUTABLE -> {
                     val otherConst = constBaseTypes.firstOrNull { it != baseType }
                     when {

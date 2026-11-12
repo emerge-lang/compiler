@@ -37,7 +37,7 @@ class RootResolvedTypeReference private constructor(
 ) : BoundTypeReference {
     override val isNullable = false
     override val mutability get() = if (baseType.isConst) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
-    override val assignmentMutability get() = if (baseType.isConst) TypeMutability.EXCLUSIVE else mutability
+    override val assignmentMutability get() = if (baseType.isConst) TypeMutability.OWN else mutability
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: (original as? NamedTypeReference)?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType

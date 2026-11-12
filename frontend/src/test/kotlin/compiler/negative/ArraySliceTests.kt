@@ -29,14 +29,26 @@ class ArraySliceTests : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
-        "exclusive" {
+        // a type parameter is never bound to an own type, so the slice of an own array is mut, not
+        // own; see roadmap item 19
+        "own gives mut" {
             validateModule("""
-                fn test() -> exclusive Array<S32> {
-                    a: exclusive _ = Array.new::<S32>(5, 0)
+                fn test() -> mut Array<S32> {
+                    a: own _ = Array.new::<S32>(5, 0)
                     return a.slice(1, 2)
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+
+        "own does not stay own" {
+            validateModule("""
+                fn test() -> own Array<S32> {
+                    a: own _ = Array.new::<S32>(5, 0)
+                    return a.slice(1, 2)
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
         }
 
         "variant element types" {
@@ -70,10 +82,10 @@ class ArraySliceTests : FreeSpec({
         }
     }
 
-    "slicing an exclusive array ends its lifetime" {
+    "slicing an own array ends its lifetime" {
         validateModule("""
-            fn test() -> exclusive Array<S32> {
-                a: exclusive _ = Array.new::<S32>(5, 0)
+            fn test() -> own Array<S32> {
+                a: own _ = Array.new::<S32>(5, 0)
                 s = a.slice(1, 2)
                 return a
             }

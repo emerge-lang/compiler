@@ -299,3 +299,10 @@ data class AstAbsoluteTypeReference(
         }
     }
 }
+/**
+ * Whether `own` is written on this type reference, or on a component of it.
+ */
+val TypeReference.isDeclaredOwn: Boolean get() = when (this) {
+    is AstSimpleTypeReference -> mutability == TypeMutability.OWN
+    is AstIntersectionType -> components.any { it.isDeclaredOwn }
+}

@@ -17,7 +17,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     m: S32 = 0
                 }
                 fn test() -> S32 {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     v2 = v
                     return v.m
                 }
@@ -34,7 +34,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     get fn m(self) -> S32
                 }
                 fn test() -> S32 {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     v2 = v
                     return v.m
                 }
@@ -51,7 +51,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     var m: S32 = 0
                 }
                 fn test() {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     v2 = v
                     set v.m = 1
                 }
@@ -68,7 +68,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     set fn m(self: mut _, v: S32)
                 }
                 fn test() {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     v2 = v
                     set v.m = 1
                 }
@@ -83,7 +83,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fn test() -> const Test {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     v2 = v
                     return v
                 }
@@ -100,7 +100,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             class Test {}
             fn test() -> Test {
                 var v2: const _ = Test()
-                v: exclusive _ = Test()
+                v: own _ = Test()
                 set v2 = v
                 return v
             }
@@ -115,7 +115,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         validateModule("""
             class Test {}
             fn test() -> Test {
-                v: exclusive _ = Test()
+                v: own _ = Test()
                 captureValue(v)
                 return v
             }
@@ -133,7 +133,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: Test) {}
                 fn test(cond: Bool) {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     if (cond) {
                         v2 = v
                     }
@@ -151,7 +151,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: Test) {}
                 fn test(cond: Bool) {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     if (cond) {
                         v2 = v
                     } else {
@@ -170,7 +170,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: Test) {}
                 fn test(cond: Bool) {
-                    v: exclusive _ = Test()
+                    v: own _ = Test()
                     if (cond) {
                         v2 = v
                     } else {
@@ -187,10 +187,10 @@ class BorrowAndLifetimeErrors : FreeSpec({
     }
 
     "loops" - {
-        "capturing exclusive in while loop" {
+        "capturing own in while loop" {
             validateModule("""
                 class C {}
-                fn test(p: exclusive C) {
+                fn test(p: own C) {
                     while true {
                         captureValue(p)
                     }
@@ -200,10 +200,10 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<LifetimeEndingCaptureInLoopDiagnostic>()
         }
 
-        "capturing exclusive in foreach loop" {
+        "capturing own in foreach loop" {
             validateModule("""
                 class C {}
-                fn test(p: exclusive C, l: Array<S32>) {
+                fn test(p: own C, l: Array<S32>) {
                     foreach e in l {
                         captureValue(p)
                     }
@@ -293,7 +293,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         }
     }
 
-    "exclusive value can be borrowed both mutably and immutably" {
+    "own value can be borrowed both mutably and immutably" {
         validateModule("""
             class Test {
                 m: S32 = 0
@@ -301,7 +301,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             fn borrowMut(borrow p1: mut Test) {}
             fn borrowImm(borrow p2: const Test) {}
             fn test() -> Test {
-                v: exclusive _ = Test()
+                v: own _ = Test()
                 borrowMut(v)
                 borrowImm(v)
                 return v
@@ -333,7 +333,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     cA: const A = A()
                 }
                 fn test() {
-                    c: exclusive C = C()
+                    c: own C = C()
                     trigger(c.mA, c.cA)
                 }
                 fn trigger(borrow p1: mut A, borrow p2: const A) {}
@@ -349,7 +349,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             }
             fn captureRead(p1: read Test) {}
             fn test() -> Test {
-                v: exclusive _ = Test()
+                v: own _ = Test()
                 captureRead(v)
                 return v
             }
@@ -363,7 +363,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: const Any) {}
                 fn test() {
-                    var v1: exclusive _ = Test()
+                    var v1: own _ = Test()
                     captureValue(v1)
                     set v1 = Test()
                     captureValue(v1)
@@ -377,7 +377,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: const Any) {}
                 fn test(cond: Bool) {
-                    var v1: exclusive _ = Test()
+                    var v1: own _ = Test()
                     captureValue(v1)
                     if cond {
                         set v1 = Test()
@@ -395,7 +395,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {}
                 fn captureValue(p: const Any) {}
                 fn test(cond: Bool) {
-                    var v1: exclusive _ = Test()
+                    var v1: own _ = Test()
                     captureValue(v1)
                     if cond {
                         set v1 = Test()
@@ -438,7 +438,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger(borrow a: read C, borrow b: mut C) {}
@@ -450,7 +450,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger(borrow a: mut C, borrow b: read C) {}
@@ -462,7 +462,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger(borrow a: mut C, borrow b: mut C) {}
@@ -474,7 +474,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger(borrow a: const C, borrow b: mut C) {}
@@ -486,7 +486,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger(borrow a: mut C, borrow b: const C) {}
@@ -494,38 +494,38 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
 
-        "first exclusive, then mut borrow - ERROR" {
+        "first own, then mut borrow - ERROR" {
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
-                fn trigger(borrow a: exclusive C, borrow b: mut C) {}
+                fn trigger(borrow a: own C, borrow b: mut C) {}
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
 
-        "first exclusive, then const borrow - ERROR" {
+        "first own, then const borrow - ERROR" {
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
-                fn trigger(borrow a: exclusive C, borrow b: const C) {}
+                fn trigger(borrow a: own C, borrow b: const C) {}
             """.trimIndent())
                 .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
         }
 
-        "first exclusive, then read - OK" {
+        "first own, then read - OK" {
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c)
                 }
-                fn trigger(borrow a: exclusive C, borrow b: read C) {}
+                fn trigger(borrow a: own C, borrow b: read C) {}
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
@@ -534,7 +534,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c, c, c)
                 }
                 fn trigger(borrow a: read C, borrow b: mut C, borrow c: read C, borrow d: mut C) {}
@@ -546,7 +546,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     borrowConst(c)
                     borrowMut(c)
                 }
@@ -556,10 +556,10 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
-        "re-borrowing an exclusive borrow incompatibly" {
+        "re-borrowing an own borrow incompatibly" {
             validateModule("""
                 class C {}
-                fn test(borrow p: exclusive C) {
+                fn test(borrow p: own C) {
                     trigger(p, p)
                 }
                 fn trigger(borrow a: mut C, borrow b: const C) {}
@@ -571,7 +571,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, c, c)
                 }
                 fn trigger(borrow a: read C, borrow b: mut C, borrow c: const C) {}
@@ -585,7 +585,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 intrinsic fn inner(borrow x: read C) -> S32
                 fn trigger(borrow a: mut C, n: S32, borrow b: const C) {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     trigger(c, inner(c), c)
                 }
             """.trimIndent())
@@ -598,7 +598,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     intrinsic fn trigger(borrow self: mut _, borrow alias: const C)
                 }
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
                     c.trigger(c)
                 }
             """.trimIndent())
@@ -607,14 +607,14 @@ class BorrowAndLifetimeErrors : FreeSpec({
     }
 
     "parameters typed by a type variable use the inferred mutability" - {
-        "capture into a type variable ends the lifetime of an exclusive argument" {
+        "capture into a type variable ends the lifetime of an own argument" {
             validateModule("""
                 class Test {}
                 fn keep<A : read Test>(capture p: A) -> A = p
                 fn test() {
-                    a: exclusive _ = Test()
-                    s: exclusive _ = keep(a)
-                    t: exclusive _ = a
+                    a: own _ = Test()
+                    s: own _ = keep(a)
+                    t: own _ = a
                 }
             """.trimIndent())
                 .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
@@ -622,13 +622,13 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
         }
 
-        "capture into a generic receiver ends the lifetime of an exclusive argument" {
+        "capture into a generic receiver ends the lifetime of an own argument" {
             validateModule("""
                 class Test {
                     fn keep<A : read Test>(capture self: A) -> A = self
                 }
-                fn test() -> exclusive Test {
-                    a: exclusive _ = Test()
+                fn test() -> own Test {
+                    a: own _ = Test()
                     s = a.keep()
                     return a
                 }
@@ -639,15 +639,28 @@ class BorrowAndLifetimeErrors : FreeSpec({
         }
 
         "borrow into a type variable borrows with the inferred mutability" {
+            // an own value takes the mutability the bound of the type parameter asks for
             validateModule("""
                 class C {}
                 fn test() {
-                    c: exclusive _ = C()
+                    c: own _ = C()
+                    trigger(c, c)
+                }
+                fn trigger<A : const C>(borrow a: A, borrow b: mut C) {}
+            """.trimIndent())
+                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+        }
+
+        "borrow into a type variable without a mutability in its bound borrows as mut" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    c: own _ = C()
                     trigger(c, c)
                 }
                 fn trigger<A : read C>(borrow a: A, borrow b: mut C) {}
             """.trimIndent())
-                .shouldFind<SimultaneousIncompatibleBorrowsDiagnostic>()
+                .shouldHaveNoDiagnostics()
         }
     }
 })

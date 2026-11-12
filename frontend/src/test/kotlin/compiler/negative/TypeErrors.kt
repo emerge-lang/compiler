@@ -217,7 +217,7 @@ class TypeErrors : FreeSpec({
             "of a fitting mutability" {
                 validateModule("""
                     interface A {}
-                    fn f<T : mut A>(n: exclusive Nothing) -> T {
+                    fn f<T : mut A>(n: own Nothing) -> T {
                         return n
                     }
                 """.trimIndent())
@@ -1049,7 +1049,7 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
 
-            "exclusive arguments are rejected" {
+            "own arguments are rejected" {
                 validateModule(ord + "\n" + """
                     fn max<T : Ord<T>>(a: T) -> T {
                         return a

@@ -63,7 +63,7 @@ private fun IrType.independentToString(insideBound: Boolean): String {
         IrTypeMutability.IMMUTABLE -> "const"
         IrTypeMutability.READONLY -> "read"
         IrTypeMutability.MUTABLE -> "mut"
-        IrTypeMutability.EXCLUSIVE -> "exclusive"
+        IrTypeMutability.OWN -> "own"
     }
     return when (this) {
         is IrSimpleType -> "$mutabilityStr ${baseType.canonicalName}${if (isNullable) "?" else ""}"

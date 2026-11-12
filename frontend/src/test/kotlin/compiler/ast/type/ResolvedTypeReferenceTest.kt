@@ -44,7 +44,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val mutableA = swCtx.parseType("mut A")
         val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
         val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
-        val exclusiveA = readonlyA.withMutability(TypeMutability.EXCLUSIVE)
+        val ownA = readonlyA.withMutability(TypeMutability.OWN)
 
         val mutableB = swCtx.parseType("mut B")
         val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
@@ -172,9 +172,9 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                 immutableNothing.closestCommonSupertypeWith(immutableA) shouldBe immutableA
             }
 
-            "exclusive A and read Nothing is exclusive A" {
-                exclusiveA.closestCommonSupertypeWith(readonlyNothing) shouldBe exclusiveA
-                readonlyNothing.closestCommonSupertypeWith(exclusiveA) shouldBe exclusiveA
+            "own A and read Nothing is own A" {
+                ownA.closestCommonSupertypeWith(readonlyNothing) shouldBe ownA
+                readonlyNothing.closestCommonSupertypeWith(ownA) shouldBe ownA
             }
         }
     }

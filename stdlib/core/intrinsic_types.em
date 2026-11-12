@@ -398,7 +398,7 @@ export class UWord : const Any & Printable {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
-    export operator fn rangeToExclusive(capture self, endExclusive: UWord) -> exclusive UWordRange = UWordRange(self, endExclusive)
+    export operator fn rangeToExclusive(capture self, endExclusive: UWord) -> own UWordRange = UWordRange(self, endExclusive)
 
     export fn toString(self) = self.asU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
@@ -432,7 +432,7 @@ export class Array<Element> : Iterable<Element> {
     export operator intrinsic fn slice<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
     export nothrow intrinsic fn sliceOrPanic<A : read Array<out Any?>>(capture self: A, fromIndex: UWord, toIndexExclusive: UWord) -> A
 
-    export nothrow intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
+    export nothrow intrinsic fn new<T>(size: UWord, initialValue: T) -> own Array<T>
 
     export fn copy<T>(borrow source: read Array<out T>, sourceOffset: UWord, borrow dest: mut Array<in T>, destOffset: UWord, length: UWord) {
         if sourceOffset + length > source.size {
@@ -455,7 +455,7 @@ export class Array<Element> : Iterable<Element> {
         }
     }
 
-    export override fn asRange(capture self) -> exclusive ArrayRange<Element> = ArrayRange(self)
+    export override fn asRange(capture self) -> own ArrayRange<Element> = ArrayRange(self)
     
     // TODO: equals. Due to lack of a Any::equals (and its good that this isn't present!!)
     // this needs the equals fn as a parameter. The signature would be

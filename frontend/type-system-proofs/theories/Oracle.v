@@ -50,7 +50,7 @@ Definition class_pair_beq (left right: Class * Class): bool := class_beq (fst le
 
 (* A total order on types, for finding one among many in a search tree *)
 Definition mutability_rank (m: option Mutability): nat :=
-    match m with None => 0 | Some exclusive => 1 | Some immutable => 2 | Some readonly => 3 | Some mutable => 4 end.
+    match m with None => 0 | Some own => 1 | Some immutable => 2 | Some readonly => 3 | Some mutable => 4 end.
 Definition class_rank (c: Class): nat := match c with any => 0 | nothing => 1 | some_class n => S (S n) end.
 Definition variance_rank (v: Variance): nat := match v with Model.invariant => 0 | Model.input => 1 | Model.output => 2 end.
 Definition ownership_rank (o: Ownership): nat :=
@@ -168,7 +168,7 @@ Abbreviation K := some_class (only parsing).
 Abbreviation mu := (Some mutable) (only parsing).
 Abbreviation ro := (Some readonly) (only parsing).
 Abbreviation im := (Some immutable) (only parsing).
-Abbreviation ex := (Some exclusive) (only parsing).
+Abbreviation ex := (Some own) (only parsing).
 Abbreviation iv := Model.invariant (only parsing).
 Abbreviation ii := Model.input (only parsing).
 Abbreviation oo := Model.output (only parsing).
@@ -188,7 +188,7 @@ Definition show_mutability (m: option Mutability): string :=
     | Some mutable => "mut "
     | Some readonly => "read "
     | Some immutable => "const "
-    | Some exclusive => "exclusive "
+    | Some own => "own "
     end.
 
 Fixpoint join (sep: string) (l: list string): string :=
@@ -424,7 +424,7 @@ Definition tables_found (intersections common_supertypes: list (list EType)): bo
    assignment mutability, nullable, Nothing without null, the base type of the lower bound. Where the
    encoding of a type lost something the frontend takes into account, these are likely to differ *)
 Definition mutability_letter (m: Mutability): ascii :=
-    match m with mutable => "m"%char | readonly => "r"%char | immutable => "i"%char | exclusive => "e"%char end.
+    match m with mutable => "m"%char | readonly => "r"%char | immutable => "i"%char | own => "e"%char end.
 Definition bool_letter (e: bool): ascii := if e then "1"%char else "0"%char.
 Definition class_letter (c: Class): ascii :=
     match c with

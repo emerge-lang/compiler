@@ -171,7 +171,7 @@ class VarianceErrors : FreeSpec({
     "opposite variances meet at the top" - {
         val outTop = swCtx.parseTypeArgument("out read Any?")
         val outConstTop = swCtx.parseTypeArgument("out const Any?")
-        val inBottom = swCtx.parseTypeArgument("in exclusive Nothing")
+        val inBottom = swCtx.parseTypeArgument("in own Nothing")
         val inReadBottom = swCtx.parseTypeArgument("in read Nothing")
 
         "in Child to out read Any?" {
@@ -182,7 +182,7 @@ class VarianceErrors : FreeSpec({
             inChild shouldNot beAssignableTo(outConstTop)
         }
 
-        "out Child to in exclusive Nothing" {
+        "out Child to in own Nothing" {
             outChild should beAssignableTo(inBottom)
         }
 
@@ -656,8 +656,8 @@ class VarianceErrors : FreeSpec({
                 consumer: Consumer<in Box<T>> = init
             }
             fn test(exact: Holder<A>, variant: Holder<out A>) {
-                x: Consumer<in exclusive Nothing> = variant.consumer
-                y: Consumer<in exclusive Nothing> = exact.consumer
+                x: Consumer<in own Nothing> = variant.consumer
+                y: Consumer<in own Nothing> = exact.consumer
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()

@@ -82,7 +82,7 @@ Proof.
 Qed.
 
 Lemma caller_bottom: caller_type bottom_type.
-Proof. exact (caller_nothing (Some exclusive)). Qed.
+Proof. exact (caller_nothing (Some own)). Qed.
 
 (* A type argument of generic code: of a type of it, of an ownership of the caller *)
 Definition caller_argument (a: EType): Prop :=
@@ -195,7 +195,7 @@ Qed.
 (* A mutability no more than its own keeps a type of the fragment one: for Nothing, as Nothing it   *)
 (* stays; for a reference to a type parameter, as its effective bound takes the                     *)
 (* mutability given (effective_bound_given); for an intersection, as its components take the one   *)
-(* they are assigned as in common, exclusive where one of them is const.                           *)
+(* they are assigned as in common, own where one of them is const.                                 *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 Lemma with_mutability_rewrap: forall m0 y, with_mutability env m0 (rewrap_nullable y) = rewrap_nullable (with_mutability env m0 y).
@@ -248,35 +248,35 @@ Qed.
 
 (* The mutability the components of an intersection take *)
 Lemma common_given: forall m cs, cs <> [] ->
-    (forall C, In C cs -> assignment_mutability env (with_mutability env m C) = if top_const env C then exclusive else m) ->
+    (forall C, In C cs -> assignment_mutability env (with_mutability env m C) = if top_const env C then own else m) ->
     fold_left intersect_mutability (map (fun C => assignment_mutability env (with_mutability env m C)) cs) readonly
-    = if existsb (top_const env) cs then exclusive else m.
+    = if existsb (top_const env) cs then own else m.
 Proof.
     intros m cs Hne H. rewrite (fold_intersect_const env _ m cs readonly H).
     destruct (existsb (top_const env) cs), cs; try contradiction; destruct m; reflexivity.
 Qed.
 
 Lemma common_below: forall m cs, Model.is_subtype_of m (mutability_of env (Intersection cs)) = true ->
-    forall C, In C cs -> Model.is_subtype_of (if existsb (top_const env) cs then exclusive else m) (mutability_of env C) = true.
+    forall C, In C cs -> Model.is_subtype_of (if existsb (top_const env) cs then own else m) (mutability_of env C) = true.
 Proof.
     intros m cs Hk C Hc. cbn [mutability_of] in Hk. destruct (existsb (top_const env) cs); [destruct (mutability_of env C); reflexivity|].
     apply (mutability_subtype_trans _ _ _ Hk). apply fold_intersect_below_element. apply in_map, Hc.
 Qed.
 
 (* A type of the fragment, of a mutability applied to it, is assigned as that mutability, or as
-   exclusive where its values are objects of a const class *)
+   own where its values are objects of a const class *)
 Lemma assignment_given: forall n t m0, tdepth env t < n -> tfrag env t = true ->
-    assignment_mutability env (with_mutability env m0 t) = if top_const env t then exclusive else m0.
+    assignment_mutability env (with_mutability env m0 t) = if top_const env t then own else m0.
 Proof.
     induction n as [|n IH]; [intros; lia|].
     assert (Hgen: forall gm nn p vs m0, tdepth env (Generic (mkGenericRef gm nn p vs)) < S n -> generic_sfrag env (mkGenericRef gm nn p vs) ->
         assignment_mutability env (with_mutability env m0 (Generic (mkGenericRef gm nn p vs)))
-        = if top_const env (Generic (mkGenericRef gm nn p vs)) then exclusive else m0).
+        = if top_const env (Generic (mkGenericRef gm nn p vs)) then own else m0).
     { intros gm nn p vs m0 Hd [Hf [_ [Hv _]]]. destruct vs; [|discriminate Hv]. rewrite (tdepth_bound env wf) in Hd.
       cbn [with_mutability]. rewrite !(assignment_mutability_generic env ranked), (top_const_generic env ranked), (effective_bound_given m0 gm nn p).
       exact (IH (effective_bound env (mkGenericRef gm nn p [])) m0 ltac:(lia) Hf). }
     assert (Hs: forall t m0, tdepth env t < S n -> sfrag env t = true ->
-        assignment_mutability env (with_mutability env m0 t) = if top_const env t then exclusive else m0).
+        assignment_mutability env (with_mutability env m0 t) = if top_const env t then own else m0).
     { intros t m0 Hd Ht.
       destruct (sfrag_cases env wf t Ht) as [[m [c [args [-> _]]]]|[[m_bot ->]|[[m [c [args [-> _]]]]|[[[gm nn p vs] [-> Hg]]|[[gm nn p vs] [-> Hg]]]]]].
       - cbn [with_mutability assignment_mutability top_const]. destruct (is_const _); reflexivity.
@@ -287,7 +287,7 @@ Proof.
     intros t m0 Hd Ht. destruct (tfrag_cases env t Ht) as [Hs'|[[cs [-> Hcs]]|[cs [-> Hcs]]]]; [exact (Hs t m0 Hd Hs')| |].
     all: destruct (components_sfrag_facts env cs Hcs) as [Hlen Hc].
     all: assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
-    all: assert (Hall: forall j c, In c cs -> assignment_mutability env (with_mutability env j c) = if top_const env c then exclusive else j)
+    all: assert (Hall: forall j c, In c cs -> assignment_mutability env (with_mutability env j c) = if top_const env c then own else j)
         by (intros j c Hin; pose proof (tdepth_component env cs c Hin); cbn [tdepth] in *;
             exact (Hs c j ltac:(lia) (proj2 (Hc c Hin)))).
     all: cbn [with_mutability rewrap_nullable assignment_mutability top_const].
@@ -320,7 +320,7 @@ Proof.
       assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
       assert (Hdc: forall c, In c cs -> tdepth env c < n)
           by (intros c Hin; pose proof (tdepth_component env cs c Hin); lia).
-      set (C := if existsb (top_const env) cs then exclusive else m0).
+      set (C := if existsb (top_const env) cs then own else m0).
       exists (map (with_mutability env C) cs). split.
       - cbn [with_mutability]. unfold C. rewrite (common_given m0 cs Hne).
         + reflexivity.
@@ -366,7 +366,7 @@ Proof.
     { intros [gm nn p vs] m0 H Hk. change (sfrag env (Generic (mkGenericRef gm nn p vs)) = true) in H.
       exact (tfrag_given (S (tdepth env (Generic (mkGenericRef gm nn p vs)))) _ m0 (le_n _) (sfrag_tfrag env _ H) Hk). }
     assert (Hassign: forall c j, wfrag env c = true -> is_component_shape env c = true ->
-        assignment_mutability env (with_mutability env j c) = if top_const env c then exclusive else j).
+        assignment_mutability env (with_mutability env j c) = if top_const env c then own else j).
     { intros c j Hw Hsh.
       destruct (wfrag_cases env wf c Hw) as [[m [cl [args [-> _]]]]|[[m_bot ->]|[[m [cl [args [-> _]]]]|[[g [-> Hg]]|[g [-> Hg]]]]]];
           try discriminate Hsh.
@@ -377,7 +377,7 @@ Proof.
         exists cs', with_mutability env m0 (Intersection cs) = Intersection cs' /\ wcomponents env cs' = true).
     { intros cs m0 Hcs Hk. destruct (wcomponents_facts env cs Hcs) as [Hlen Hc].
       assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
-      set (C := if existsb (top_const env) cs then exclusive else m0).
+      set (C := if existsb (top_const env) cs then own else m0).
       exists (map (with_mutability env C) cs). split.
       - cbn [with_mutability]. unfold C. rewrite (common_given m0 cs Hne); [reflexivity|].
         intros c Hin. exact (Hassign c m0 (proj2 (Hc c Hin)) (proj1 (Hc c Hin))).
@@ -418,7 +418,7 @@ Lemma kept_given: forall cs m0, kcomponents env cs = true -> Model.is_subtype_of
 Proof.
     intros cs m0 Hcs Hk. destruct (kcomponents_facts env cs Hcs) as [Hlen [Hc _]].
     assert (Hne: cs <> []) by (intros ->; simpl in Hlen; lia).
-    assert (Hassign: forall c j, In c cs -> assignment_mutability env (with_mutability env j c) = if top_const env c then exclusive else j).
+    assert (Hassign: forall c j, In c cs -> assignment_mutability env (with_mutability env j c) = if top_const env c then own else j).
     { intros c j Hin. destruct (Hc c Hin) as [Hkc Hwc].
       destruct c as [m d args|n|g|me msg|v o n|g|cs']; cbn [is_kept_shape] in Hkc; try discriminate Hkc.
       - assert (Hwn: wfrag env n = true) by (cbn [wfrag] in Hwc; apply andb_true_iff in Hwc; exact (proj2 Hwc)).
@@ -445,7 +445,7 @@ Proof.
           cbn [with_mutability] in Hnn. rewrite Hnn. reflexivity.
       - destruct g as [gm nn p vs]. cbn [with_mutability] in Hw' |- *. split; [|split; [exact Hw'|reflexivity]].
         rewrite <- (is_nullable_with_mutability env wf j (Generic (mkGenericRef gm nn p vs))) in Hkc. exact Hkc. }
-    set (C := if existsb (top_const env) cs then exclusive else m0).
+    set (C := if existsb (top_const env) cs then own else m0).
     exists (map (with_mutability env C) cs). split.
     - cbn [with_mutability]. unfold C. rewrite (common_given m0 cs Hne); [reflexivity|].
       intros c Hin. exact (Hassign c m0 Hin).

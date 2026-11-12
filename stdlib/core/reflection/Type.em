@@ -58,7 +58,7 @@ export class IntersectionType : const Type {
     export components: const Array<NamedType> = init
 
     export override fn withNullability(capture self, nullable: Bool) -> const Type {
-        newComponents: exclusive Array<NamedType> = Array.new::<NamedType>(self.components.size, self.components[0])
+        newComponents: own Array<NamedType> = Array.new::<NamedType>(self.components.size, self.components[0])
         foreach i in 0..<self.components.size {
             set newComponents[i] = self.components[i].withNullability(nullable)
         }
@@ -121,7 +121,7 @@ export fn intersectionOf(capture components: const Array<const Type>) -> const T
         return components[0]
     }
 
-    flat: exclusive Array<NamedType> = Array.new::<NamedType>(count, components[0].firstComponent())
+    flat: own Array<NamedType> = Array.new::<NamedType>(count, components[0].firstComponent())
     var flatIndex: UWord = 0
     foreach component in components {
         if component is IntersectionType {
