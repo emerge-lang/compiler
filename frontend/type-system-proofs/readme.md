@@ -56,7 +56,7 @@ it shows and why; the tables below are the map.
 | `Explicit.v`         | explicit type arguments for a function whose type parameters are bounded by types mentioning them, bound in turn and checked against their bounds | `explicit_invocation_with_bounded_variables_sound` |
 | `Oracle.v`           | the machinery of the oracle: an `Environment` made of the frontend's tables, the comparison of answers, the checks of the conjectures, each shown to be the conjecture restricted to a grid | `report_sound`, `checked`, `mentions_only_b_iff` |
 | `Generated/Grid.v`   | written by `RocqOracleTests`, not in git: `TypeGrid` as an `Environment`, and the frontend's answers over it | |
-| `OracleGrid.v`       | the model evaluated on the grid, against the frontend; the allowlist of known divergences | `unify_agrees`, `conjectures_checked`, `encoding_agrees` |
+| `OracleGrid.v`       | the model evaluated on the grid, against the frontend; the allowlist of known divergences | `unify_agrees`, `conjectures_checked`, `encoding_agrees`, `tokens_stay_visible`, `token_rules_only_reject` |
 
 ### Fragments
 
@@ -200,7 +200,11 @@ both by Rocq, as part of `./rocq.sh`:
    - `encoding_agrees`: the model derives of every encoded type what the frontend does. An encoding that
      drops what those take into account (an explicit mutability, a `!`, the nullability of a component)
      shows here, rather than as an agreement that means nothing.
-   - `unify_agrees`: `is_assignable_to` with a fuel of 200 gives the frontend's answer for every pair.
+   - `unify_agrees`: `is_assignable_to_with_tokens` with a fuel of 200 gives the frontend's answer for every pair.
+     That is unify with the token rules on top (`Subtyping.unify_with_tokens`); the proofs are about unify
+     without them, see coverage #19.
+   - `tokens_stay_visible`: no type of the grid that may be a token is assignable to one that cannot be.
+     `token_rules_only_reject`: every pair the frontend accepts, unify without the token rules accepts.
      Where unify gives no answer with the fuel, that is reported as such (`model := None`), not taken
      for either answer.
    - `conjectures_checked`: every conjecture about `intersect` and `closestCommonSupertypeWith` of

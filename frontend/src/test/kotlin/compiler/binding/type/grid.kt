@@ -24,6 +24,10 @@ internal object TypeGrid {
         class IntSeq : Seq<A> {}
         class Nest<E> : Seq<Box<E>> {}
         class Swap<K, V> : Duo<V, K> {}
+        token interface Tok {}
+        token class Clk : Tok & A {}
+        interface Shp : NonToken {}
+        class Pl : Shp & A {}
         class Ctx<P, Q : A, R : A?, F : Ord<in F>, S : Seq<out P>, T : A & B, U : R> {}
     """.trimIndent())
 
@@ -88,6 +92,12 @@ internal object TypeGrid {
         "S", "S?", "mut S", "S!", "Box<S>", "Box<out S>", "S & B", "Seq<out P> & S",
         "T", "T?", "mut T", "T!", "T & Q", "Box<out T>", "Box<T>",
         "U", "U!", "U?", "mut U", "U & R", "A? & U", "Box<U>", "Box<in U!>", "U & P", "U & T",
+        // tokens (Tok, Clk), what is none (NonToken, Shp, Pl), and what may be either, which is every type above
+        // but the classes and what is const
+        "Tok", "mut Tok", "own Tok", "Tok?", "Clk", "mut Clk", "own Clk", "Tok & A",
+        "NonToken", "mut NonToken", "NonToken?", "Shp", "own Shp", "const Shp", "Pl", "mut Pl", "own Pl",
+        "A & NonToken", "own A & NonToken", "P & NonToken", "own Q & NonToken",
+        "Box<Clk>", "own Box<Clk>", "Box<out Tok>", "Box<in Clk>", "Box<Pl>", "own Box<Pl>", "Box<out NonToken>", "own Box<A>",
     ).map { it to swCtx.parseTypeIn("Ctx", it) }
 
     /** the type parameters of Ctx, bound in ways that tell their mutability and nullability apart, each within its bound */

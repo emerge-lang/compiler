@@ -85,6 +85,15 @@ Proof. vm_compute. reflexivity. Qed.
 Lemma unify_agrees: comparison env fuel grid unify_excuses frontend_below = ([], []).
 Proof. vm_compute. reflexivity. Qed.
 
+(* No value that may be a token is assignable to a type that cannot be one: it is not forgotten, and
+   not frozen *)
+Lemma tokens_stay_visible: tokens_forgotten env fuel grid = [].
+Proof. vm_compute. reflexivity. Qed.
+
+(* Whatever the frontend accepts, unify without the token rules accepts *)
+Lemma token_rules_only_reject: accepted_by_the_token_rules_only env fuel grid = [].
+Proof. vm_compute. reflexivity. Qed.
+
 (* ---------------------------------------------------------------------------------------------- *)
 (* The conjectures about intersect and closestCommonSupertypeWith                                  *)
 (* ---------------------------------------------------------------------------------------------- *)
