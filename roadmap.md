@@ -1,5 +1,26 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
+0. **bug:** `catch` does not catch an exception thrown by a function that the `try` block calls; the program
+   panics with "unhandled exception". Reproduces on linux-x86_64 with
+   ```
+   class TestError : Error {
+       constructor {
+           mixin ThrowableTrait("thrown on purpose")
+       }
+   }
+   fn fail() {
+       throw TestError()
+   }
+   mut fn main() {
+       try {
+           fail()
+       } catch e {
+           println("caught")
+       }
+   }
+   ```
+   Not investigated yet. There is no test that runs a compiled program, so nothing noticed (see the item on
+   integration tests).
 1. ~~signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
