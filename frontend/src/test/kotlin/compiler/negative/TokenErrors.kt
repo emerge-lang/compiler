@@ -709,6 +709,339 @@ class TokenErrors : FreeSpec({
         }
     }
 
+    "the rule holds of inferred types" - {
+        // while a type variable is not bound, the rule doesn't judge the types that mention it. These are the
+        // checks that come after the inference.
+        "a box inferred to hold a token is no NonToken" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) {
+                    n: read NonToken = Box(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "as a return value" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) -> read NonToken = Box(c)
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>(allowMultiple = true)
+        }
+
+        "as an argument" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) {
+                    observe(Box(c))
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "nested" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) {
+                    n: read NonToken = Box(Box(c))
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "through a generic function" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) {
+                    n: read NonToken = id(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a type variable bound to a token and to what is none, token last" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock, p: read Plain) {
+                    n: read NonToken = pick(p, c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a type variable bound to a token and to what is none, token first" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock, p: read Plain) {
+                    n: read NonToken = pick(c, p)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "with an explicit type argument" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: read Clock) {
+                    n: read NonToken = id::<read Clock>(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a box inferred to hold a token does not freeze" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: mut Clock) {
+                    n: const Any = Box(c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a box inferred to hold what may be a token does not freeze" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(a: read Any) {
+                    n: const Box<read Any> = Box(a)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "an own value that may be a token is not inferred to be const" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test() {
+                    b: mut Box<const Named> = Box(createNamed())
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "an own value that may be a token is not inferred to be const, by a parameter" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn take(b: read Box<const Named>) {}
+                fn test() {
+                    take(Box(createNamed()))
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a token does not fit a type variable with the bound NonToken" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn store<T : NonToken>(b: mut Box<T>, v: T) {}
+                fn test(b: mut Box<read Any>, c: read Clock) {
+                    store(b, c)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>(allowMultiple = true)
+        }
+
+        "a box inferred to hold what is no token is a NonToken" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(p: read Plain) {
+                    n: read NonToken = Box(p)
+                    m: read NonToken = Box(Box(3))
+                    observe(Box(p))
+                    o: read NonToken = id(p)
+                    q: read NonToken = pick(p, 3)
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a box inferred to hold what is no token freezes" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test() {
+                    n: const Any = Box(Plain())
+                    m: const Box<const Plain> = Box(Plain())
+                    o: const Box<S32> = Box(3)
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "a box inferred to hold a token is one, and defaults to mut" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test(c: mut Clock) {
+                    x = Box(c)
+                    y: mut Box<mut Clock> = x
+                    a: read Any = Box(c)
+                    z = id(c)
+                    w: mut Clock = z
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+
+        "an own value that is no token is inferred to be const" {
+            validateModule("""
+                token class Clock {}
+                class Plain {}
+                interface Named {}
+                class Box<T> {
+                    value: T = init
+                }
+                fn id<T>(v: T) -> T = v
+                fn pick<T>(a: T, b: T) -> T = a
+                fn observe(n: read NonToken) {}
+                intrinsic fn createNamed() -> own Named
+                fn test() {
+                    b: mut Box<const Plain> = Box(Plain())
+                }
+            """.trimIndent()) should haveNoDiagnostics()
+        }
+    }
+
     "casts are not checked for tokens yet" {
         // a cast doesn't check type arguments at runtime, so it can forget a token; that is left to the day casts
         // become sound
