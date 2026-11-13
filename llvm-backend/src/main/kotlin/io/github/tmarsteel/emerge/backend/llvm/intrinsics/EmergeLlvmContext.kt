@@ -145,6 +145,10 @@ class EmergeLlvmContext(
     internal lateinit var stringType: EmergeClassType
     /** `emerge.core.Cell`*/
     internal lateinit var cellType: EmergeClassType
+    /** `emerge.core.Lazy` */
+    internal lateinit var lazyType: EmergeClassType
+    /** `emerge.core.LazyInitializer` */
+    internal lateinit var lazyInitializerType: EmergeClassType
     /** `emerge.core.ArrayIndexOutOfBoundsError` */
     internal lateinit var arrayIndexOutOfBoundsErrorType: EmergeClassType
     /** `emerge.core.reflection.NamedType` */
@@ -305,6 +309,8 @@ class EmergeLlvmContext(
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
             "emerge.core.Cell" -> cellType = emergeClassType
+            "emerge.core.Lazy" -> lazyType = emergeClassType
+            "emerge.core.LazyInitializer" -> lazyInitializerType = emergeClassType
             "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
             "emerge.core.reflection.NamedType" -> reifiedNamedTypeClass = emergeClassType
             "emerge.core.reflection.IntersectionType" -> reifiedIntersectionTypeClass = emergeClassType
@@ -1058,6 +1064,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             reflectionBaseTypeIsSameObjectAs,
             cellGetFunction,
             cellSetFunction,
+            lazyGetFunction,
             arrayRuntimeTypeGetter,
             unitInstance,
             collectStackTrace,
