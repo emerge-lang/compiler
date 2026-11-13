@@ -1,12 +1,12 @@
 package compiler.binding
 
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.diagnostic.IllegalMainSignatureDiagnostic
 import compiler.ast.FunctionDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.IllegalMainSignatureDiagnostic
 import compiler.diagnostic.illegalFunctionBody
 import compiler.diagnostic.missingFunctionBody
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -91,6 +91,7 @@ private class IrTopLevelFunctionImpl(
     override val declaresReceiver = boundFn.declaresReceiver
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
+    override val externalSymbolName = boundFn.externalSymbolName
     override val isNothrow = boundFn.attributes.isDeclaredNothrow
     override val body: IrCodeChunk? by lazy { boundFn.getFullBodyBackendIr() }
     override val declaredAt = boundFn.declaredAt

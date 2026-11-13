@@ -1,20 +1,14 @@
 package compiler.parser
 
-import compiler.ast.ASTPackageDeclaration
-import compiler.ast.ASTSourceFile
-import compiler.ast.AstFileLevelDeclaration
-import compiler.ast.AstImportDeclaration
-import compiler.ast.BaseTypeDeclaration
-import compiler.ast.FunctionDeclaration
-import compiler.ast.VariableDeclaration
+import compiler.ast.*
 import compiler.diagnostic.ParsingErrorDiagnostic
+import compiler.diagnostic.ReservedIdentifierDiagnostic
 import compiler.diagnostic.UnsupportedFeatureDiagnostic
-import compiler.lexer.LexerSourceFile
-import compiler.lexer.Span
-import compiler.lexer.Token
+import compiler.lexer.*
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 object SourceFileRule {
     fun match(tokens: Array<Token>, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
@@ -25,6 +19,7 @@ object SourceFileRule {
         inResult as MatchingResult.Success
 
         val astSourceFile = ASTSourceFile(lexerFile)
+        reportReservedIdentifiers(tokens, astSourceFile)
 
         inResult.item.forEachRemainingIndexed { index, declaration ->
             check(declaration is AstFileLevelDeclaration)
@@ -81,5 +76,18 @@ object SourceFileRule {
         }
 
         return MatchingResult.Success(astSourceFile, inResult.continueAtIndex)
+    }
+
+    private fun reportReservedIdentifiers(tokens: Array<Token>, astSourceFile: ASTSourceFile) {
+        for (token in tokens) {
+            val identifier = when (token) {
+                is IdentifierToken -> token.value
+                is DelimitedIdentifierContentToken -> token.content
+                else -> continue
+            }
+            if (identifier.startsWith(EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX)) {
+                astSourceFile.addParseTimeReporting(ReservedIdentifierDiagnostic(identifier, token.span))
+            }
+        }
     }
 }

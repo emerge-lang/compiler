@@ -1,48 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmF64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU8Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeInterfaceTypeinfoHolder
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.*
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
-import java.util.Collections
-import java.util.IdentityHashMap
+import java.util.*
 
 /*
 Amendmends to the backend-api IR using tack.kt
@@ -129,7 +92,7 @@ internal var IrFunction.receivesReifiedTypeArguments: Boolean by tackState { fal
 internal var IrFunction.reifiedTypeArgumentValues: Map<IrBaseType.Parameter, LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>> by tackState { emptyMap() }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
 internal var IrFunction.llvmName: String by tackState {
-    if (isExternalC) canonicalName.simpleName else {
+    if (isExternalC) externalSymbolName ?: canonicalName.simpleName else {
         Mangler.computeMangledNameFor(this)
     }
 }

@@ -90,7 +90,9 @@ data object EmergeConstants {
 
     /**
      * Identifiers the compiler generates for its own use start with this, e.g. the variable that knows whether the
-     * instance of a `unique class` was handed out.
+     * instance of a `unique class` was handed out. The prefix is reserved: source code cannot use identifiers
+     * that start with it, so code the compiler generates can use them without clashing with or being accessed
+     * by the program.
      */
     const val COMPILER_INTERNAL_IDENTIFIER_PREFIX = "__"
 

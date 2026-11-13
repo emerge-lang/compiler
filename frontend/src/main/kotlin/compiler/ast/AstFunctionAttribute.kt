@@ -1,7 +1,7 @@
 package compiler.ast
 
+import compiler.ast.expression.StringLiteralExpression
 import compiler.binding.AccessorKind
-import compiler.binding.BoundFunction
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 
@@ -48,7 +48,17 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class External(nameToken: KeywordToken, val ffiName: IdentifierToken) : AstFunctionAttribute(nameToken) {
+    /**
+     * `external(C)` or `external(C, "symbol")`
+     * @param ffiName the calling convention, e.g. `C`
+     * @param symbolName the name of the foreign symbol the function binds to; if absent, the name of the function.
+     * Needed e.g. for C symbols that start with `__`, which emerge reserves for the compiler.
+     */
+    class External(
+        nameToken: KeywordToken,
+        val ffiName: IdentifierToken,
+        val symbolName: StringLiteralExpression? = null,
+    ) : AstFunctionAttribute(nameToken) {
         override val impliesNoBody = true
 
         override fun equals(other: Any?): Boolean {
@@ -56,12 +66,13 @@ sealed class AstFunctionAttribute(
             if (other !is External) return false
 
             if (ffiName != other.ffiName) return false
+            if (symbolName?.content?.content != other.symbolName?.content?.content) return false
 
             return true
         }
 
         override fun hashCode(): Int {
-            return ffiName.hashCode()
+            return ffiName.hashCode() * 31 + (symbolName?.content?.content?.hashCode() ?: 0)
         }
     }
 

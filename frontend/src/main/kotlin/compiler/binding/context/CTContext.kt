@@ -18,11 +18,7 @@
 
 package compiler.binding.context
 
-import compiler.ast.type.AstSpecificTypeArgument
-import compiler.ast.type.AstTypeArgument
-import compiler.ast.type.AstWildcardTypeArgument
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
+import compiler.ast.type.*
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -34,6 +30,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -126,13 +123,15 @@ interface CTContext {
 
     /**
      * @return a variable name that is guaranteed to not be occupied ([resolveVariable] will return `null`),
-     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
+     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]. Source code cannot
+     * use identifiers with that prefix (see [compiler.diagnostic.ReservedIdentifierDiagnostic]), so it cannot refer
+     * to the variable either.
      */
     fun findInternalVariableName(namePayload: String): String {
         var i = 0
         var name: String
         do {
-            name = "__${namePayload}$i"
+            name = "${EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX}${namePayload}$i"
             i++
         } while (resolveVariable(name) != null)
 
@@ -141,13 +140,15 @@ interface CTContext {
 
     /**
      * @return a type parameter name that is guaranteed to not be occupied ([resolveTypeParameter] and [resolveBaseType] will return `null`),
-     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
+     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]. Source code cannot
+     * use identifiers with that prefix (see [compiler.diagnostic.ReservedIdentifierDiagnostic]), so it cannot refer
+     * to the type parameter either.
      */
     fun findInternalTypeParameterName(namePayload: String): String {
         var i = 0
         var name: String
         do {
-            name = "__${namePayload}$i"
+            name = "${EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX}${namePayload}$i"
             i++
         } while (resolveTypeParameter(name) != null || resolveBaseType(name).any())
 

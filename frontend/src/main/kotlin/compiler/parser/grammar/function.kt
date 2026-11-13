@@ -160,6 +160,10 @@ val FunctionAttribute = eitherOf {
         keyword(Keyword.EXTERNAL)
         operator(Operator.PARANT_OPEN)
         ref(Identifier)
+        optional {
+            operator(Operator.COMMA)
+            ref(StringLiteralExpression)
+        }
         operator(Operator.PARANT_CLOSE)
     }
     ref(Visibility)
@@ -180,8 +184,11 @@ val FunctionAttribute = eitherOf {
             Keyword.EXTERNAL -> {
                 tokens.next() // skip parant_open
                 val ffiNameToken = tokens.next() as IdentifierToken
+                val symbolName = if ((tokens.next() as OperatorToken).operator == Operator.COMMA) {
+                    tokens.next() as compiler.ast.expression.StringLiteralExpression
+                } else null // parant_close
 
-                AstFunctionAttribute.External(nameToken, ffiNameToken)
+                AstFunctionAttribute.External(nameToken, ffiNameToken, symbolName)
             }
             else -> throw InternalCompilerError("grammar mismatch with ast transform")
         }

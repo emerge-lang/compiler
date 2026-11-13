@@ -11,6 +11,12 @@ interface IrFunction {
     val isExternalC: Boolean
 
     /**
+     * Iff [isExternalC], the name of the C symbol the function binds to: the name given in the declaration
+     * (`external(C, "__errno_location")`), the simple name of the function otherwise.
+     */
+    val externalSymbolName: String?
+
+    /**
      * The type parameters this function receives the runtime type information for, as hidden arguments of type
      * `const emerge.core.reflection.Type` that follow [parameters] in this order. These are the type parameters
      * declared on the function itself; for constructors, the type parameters of the class. Type parameters of the

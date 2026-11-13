@@ -27,7 +27,6 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.Keyword
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -70,6 +69,19 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 
     val name: String
     val attributes: BoundFunctionAttributeList
+
+    /**
+     * For `external(C)` functions, the name of the C symbol the function binds to; see
+     * [io.github.tmarsteel.emerge.backend.api.ir.IrFunction.externalSymbolName]. `null` otherwise.
+     */
+    val externalSymbolName: String?
+        get() {
+            val externalAttribute = attributes.externalAttribute ?: return null
+            if (externalAttribute.ffiName.value != "C") {
+                return null
+            }
+            return externalAttribute.symbolName?.content?.content ?: name
+        }
 
     override val visibility get()= attributes.visibility
 
