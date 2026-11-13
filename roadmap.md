@@ -11,11 +11,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    fn fail() {
        throw TestError()
    }
-   mut fn main() {
+   fn main(world: mut World) {
+       out = StandardOut.take(world)!!
        try {
            fail()
        } catch e {
-           println("caught")
+           out.println("caught")
        }
    }
    ```
@@ -62,8 +63,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
       freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
       call. The time of that call must not show in the value, so the value is `const`, and the initializer
-      captures only `const` data and no token; being `pure` is not enough, a pure function can read mutable data it
-      captured. Needs function types (item 13) that can say so
+      captures only `const` data and no token; capturing no token is not enough, as the initializer could still
+      read mutable data it captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
