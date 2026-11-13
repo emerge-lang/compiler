@@ -3,7 +3,7 @@ package emerge.core
 import emerge.core.safemath.plusModulo
 import emerge.core.utf8.rejectInvalidUtf8
 
-export class String {
+export class String : const NonToken {
     export utf8Data: Array<S8> = init
     
     export constructor {
