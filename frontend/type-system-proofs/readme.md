@@ -57,6 +57,7 @@ it shows and why; the tables below are the map.
 | `Oracle.v`           | the machinery of the oracle: an `Environment` made of the frontend's tables, the comparison of answers, the checks of the conjectures, each shown to be the conjecture restricted to a grid | `report_sound`, `checked`, `mentions_only_b_iff` |
 | `Generated/Grid.v`   | written by `RocqOracleTests`, not in git: `TypeGrid` as an `Environment`, and the frontend's answers over it | |
 | `OracleGrid.v`       | the model evaluated on the grid, against the frontend; the allowlist of known divergences | `unify_agrees`, `conjectures_checked`, `encoding_agrees`, `tokens_stay_visible`, `token_rules_only_reject` |
+| `TokenGuarantee.v`   | what the token rules guarantee of a running program, in a small model of its own (classes, member variables, one type parameter, a heap) that shares nothing with the files above | `types_stay_true`, `no_token_behind_a_non_token`, `no_token_no_effect` |
 
 ### Fragments
 
@@ -159,6 +160,9 @@ are checked too). Where nothing fits, a descriptive name of four letters or more
 | `env`, `declared`            | the environment, the declared bounds                                        |
 
 Kept on purpose: `x y z` for types in order rather than longer names, and the one-letter predicates `Q R W`.
+
+`TokenGuarantee.v` is about other things than the rest (a heap, a store, addresses, variables) and has no short
+names for them: it spells them out (`addr`, `store`, `name`, `member`), so that the table holds there, too.
 
 On top of the table:
 

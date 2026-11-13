@@ -314,6 +314,25 @@ the model and the frontend agree, that nothing which may be a token is below a t
 theorem, and transitivity and the substitution lemma are not shown of `unify_with_tokens`; see #19 in
 `coverage.md` there.
 
+That the rules are enough for [what they guarantee](#what-the-rules-guarantee) is proven in `TokenGuarantee.v`
+there, for a small model of a running program: classes and functions with one type parameter, a heap, and
+statements that assign, read and write member variables, and construct objects. A reference whose type cannot
+be a token never leads to one (`no_token_behind_a_non_token`), and code that starts without a reference that may
+be a token holds no token it did not construct, constructs none that stands for state outside of the program,
+and leaves every token that existed as it was (`no_token_no_effect`); both for every type the type parameter of
+the code is instantiated with. The proofs use:
+
+* the token rule on assignments, with a type argument counting and a type parameter taken for what its bound
+  says (rules 1, 3 and 4);
+* rule 2;
+* that no token type is below `NonToken`;
+* that `m T` cannot be a token where `m` is `const` or the type for `T` cannot be one, which is the `NonToken`
+  that instantiation adds;
+* that a member variable read through a reference is `const` only if it is declared `const`.
+
+They do not use the rules of mutability, nor that an implementation of a token interface is a token. What the
+model leaves out is listed in `coverage.md`, under "Tokens at run time".
+
 ## Left for later
 
 * Smart casts, and with them `if (t is Named)` on a token.

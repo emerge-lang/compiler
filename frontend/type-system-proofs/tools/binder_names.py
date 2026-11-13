@@ -34,7 +34,8 @@ SCHEME = {
     'Q': {'fn->bool', 'fn->Prop'}, 'R': {'fn->bool', 'fn->Prop'}, 'W': {'fn->bool', 'fn->Prop'},
     'T': {'Type', 'Set'}, 'l': {'list*'},
     'r': {'Alias'}, 'rs': {'Aliasing', 'listAlias'},
-    'env': {'Environment'},
+    # TokenGuarantee.v has an environment of its own, over the classes of a program
+    'env': {'Environment', 'EnvironmentBase'},
 }
 # <concept><role>: the concept of the target, the assignee, the receiver, the bound, the object at run time, the
 # parameter type, or of x, y, z; Qa, Qb are predicates on assignees and on bounds

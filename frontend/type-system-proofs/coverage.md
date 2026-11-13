@@ -136,6 +136,34 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
 | Every function a concrete class inherits is implemented, so dispatch finds one | assumed: the compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction`) | readme, assumptions |
 
+## Tokens at run time
+
+`TokenGuarantee.v`, a model of its own: classes with member variables, interfaces, the four mutabilities,
+`& NonToken`, one type parameter per class and per function, a heap, and statements that copy a reference, read
+and write a member variable, and construct an object. The code that runs is the body of a generic function, and
+the theorems hold for every type its parameter is instantiated with. It is not the model of unify, and not checked
+against the frontend by the oracle: that its `may_be_token`, its token rule and its `instantiate` are the
+frontend's is by reading (`BoundTypeReference.mayBeTokenUnless`, `TokenRule.check`,
+`GenericTypeReference.instantiateAllParameters`, `TypeMutability.limitedTo`).
+
+| area | status | where |
+|---|---|---|
+| A reference leads to an object of its type; where the type cannot be a token, to an object that is none and has no type argument that may be one (preservation) | ✓ | `types_stay_true` |
+| What generic code may assign, it may assign in every instance | ✓ | `fits_assignable`, `token_rule_instantiated` |
+| Nothing reachable through a reference whose type cannot be a token is a token | ✓ | `no_token_behind_a_non_token` |
+| Code that starts with no reference whose type may be a token holds no token it did not construct, constructs none that stands for state outside of the program, and leaves the tokens that were there as they were | ✓ | `no_token_no_effect` |
+| Type arguments count (`Box<Clock>` is not assignable to `NonToken`); rule 4, with `T : NonToken`; `const T` of a `mut X` is `own X & NonToken` | ✓ | the above, and `TokenGuaranteeExample` |
+| The premises are satisfiable | ✓ two programs | `TokenGuaranteeExample` |
+| More than one type parameter; bounds with type arguments or on the parameter of a class; variance (type arguments are invariant, so not that an `in` argument reads as `Any?`) | ✗ | — |
+| Member access through a reference whose type argument mentions the type parameter without being it (`Box<Box<T>>` in generic code) | ✗ such references can be passed on | — |
+| That the mutability of a reference limits its type arguments; the `NonToken` added where an intersection gives its components a common mutability | ✗ | — |
+| Function calls (a function is a list of statements), nullability, intersections other than with `NonToken`, exceptions | ✗ | — |
+| Closures (rule 6) | ✗ not in the language yet | — |
+| Casts | ✗ they can forget a token, see `docs/tokens.md` | — |
+
+The mutability rules are left out on purpose: assignability is subtyping and the token rule there, so the theorems
+do not rest on them.
+
 ## Outside the proven model entirely
 
 * Overload resolution
