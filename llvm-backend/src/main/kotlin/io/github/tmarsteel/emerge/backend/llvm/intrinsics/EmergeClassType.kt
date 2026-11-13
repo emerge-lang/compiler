@@ -292,7 +292,9 @@ internal class EmergeClassType private constructor(
                 return this as GetElementPointerStep<LlvmType>
             }
 
-            check(field in this@member.pointeeType.irClass.fields)
+            check(field in this@member.pointeeType.irClass.fields) {
+                "field#${field.id} of type ${field.type} is not part of emerge class ${this@member.pointeeType.irClass.canonicalName}"
+            }
             return stepUnsafe(builder.context.s32(field.indexInLlvmStruct!!), builder.context.getReferenceSiteType(field.type))
         }
 
