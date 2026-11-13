@@ -2,54 +2,16 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
-import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
-import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
-import io.github.tmarsteel.emerge.backend.llvm.Mangler
-import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
-import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
+import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.llvm.*
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
-import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmDebugInfo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
-import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
-import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
-import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
-import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
-import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
-import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
-import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.llvmName
-import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
-import io.github.tmarsteel.emerge.backend.llvm.singleMemberVariableField
-import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
+import io.github.tmarsteel.emerge.backend.llvm.jna.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class EmergeClassType private constructor(
@@ -352,6 +314,7 @@ internal class EmergeClassType private constructor(
                 override val returnType = IrSimpleTypeImpl(context.reifiedNamedTypeClass.irClass, IrTypeMutability.IMMUTABLE, false)
                 override val isNothrow = true
                 override val isExternalC = false
+                override val externalSymbolName: String? = null
                 override val typeParameters = emptyList<IrBaseType.Parameter>()
                 override val body = null
                 override val declaredAt = irClass.declaredAt

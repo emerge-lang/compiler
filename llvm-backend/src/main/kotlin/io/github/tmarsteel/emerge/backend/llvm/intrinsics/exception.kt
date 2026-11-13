@@ -2,27 +2,11 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
-import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
@@ -31,7 +15,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.linux.libcWriteFunction
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 
 // TODO: rename file to panic.kt
 
@@ -210,7 +193,7 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
     }
 }
 
-internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.panicOnThrowable", LlvmVoidType) {
+internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.__panicOnThrowable", LlvmVoidType) {
     val exceptionPtr by param(PointerToAnyEmergeValue)
 
     functionAttribute(LlvmFunctionAttribute.NoRecurse)

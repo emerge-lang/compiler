@@ -1,24 +1,9 @@
 package compiler.binding.basetype
 
 import compiler.InternalCompilerError
-import compiler.ast.AstAnnotationSet
-import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.ParameterList
-import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
-import compiler.ast.type.AstAbsoluteTypeReference
-import compiler.ast.type.AstSpecificTypeArgument
-import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.binding.BoundAnnotationSet
-import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundFunction
-import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundParameterList
-import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SeanHelper
+import compiler.ast.*
+import compiler.ast.type.*
+import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -30,7 +15,6 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
@@ -39,15 +23,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
-import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundClassDestructor(
@@ -252,6 +228,7 @@ private class IrDestructorImpl(
     override val declaresReceiver = true
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false
+    override val externalSymbolName: String? = null
     override val isNothrow = dtor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = dtor.classDef.toBackendIr()
     override val overrides = emptySet<IrMemberFunction>()

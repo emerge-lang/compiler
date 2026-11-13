@@ -2,91 +2,49 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
-import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
-import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
-import io.github.tmarsteel.emerge.backend.llvm.associateByErrorOnDuplicate
-import io.github.tmarsteel.emerge.backend.llvm.autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
-import io.github.tmarsteel.emerge.backend.llvm.boundBaseTypeOrNull
-import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
-import io.github.tmarsteel.emerge.backend.llvm.codegen.ExpressionResult
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
-import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
-import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
-import io.github.tmarsteel.emerge.backend.llvm.codegen.literalConstant
-import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.llvm.*
+import io.github.tmarsteel.emerge.backend.llvm.codegen.*
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
-import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
-import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.addressOfBuiltin
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectAnyTypeFunction
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeFunction
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.safemathFns
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.typeOfTypeArgument
-import io.github.tmarsteel.emerge.backend.llvm.isNothing
-import io.github.tmarsteel.emerge.backend.llvm.isUnit
-import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
-import io.github.tmarsteel.emerge.backend.llvm.jna.NativeI32FlagGroup
-import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.llvmName
-import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.llvmType
-import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
-import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
-import io.github.tmarsteel.emerge.backend.llvm.reifiedTypeArgumentValues
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.*
+import io.github.tmarsteel.emerge.backend.llvm.jna.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import java.util.Collections
 import java.util.IdentityHashMap
+import kotlin.collections.ArrayDeque
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.MutableMap
+import kotlin.collections.MutableSet
+import kotlin.collections.asSequence
+import kotlin.collections.emptyList
+import kotlin.collections.emptyMap
+import kotlin.collections.find
+import kotlin.collections.first
+import kotlin.collections.forEach
+import kotlin.collections.forEachIndexed
+import kotlin.collections.isNotEmpty
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.mapIndexed
+import kotlin.collections.mapOf
+import kotlin.collections.plus
+import kotlin.collections.set
+import kotlin.collections.setOf
+import kotlin.collections.single
+import kotlin.collections.toList
+import kotlin.collections.toMap
+import kotlin.collections.zip
 
 class EmergeLlvmContext(
     target: LlvmTarget,
@@ -395,7 +353,7 @@ class EmergeLlvmContext(
     ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
-        val intrinsic = if (fn is IrFullyInheritedMemberFunction) null else getInstrinsic(fn)
+        val intrinsic = if (fn is IrFullyInheritedMemberFunction) null else getIntrinsic(fn)
         // intrinsics take the runtime type information only if they declare parameters for it
         val receivesReifiedTypeArguments = fn.typeParameters.isNotEmpty()
             && (intrinsic == null || intrinsic.type.parameterTypes.size == fn.parameters.size + fn.typeParameters.size)
@@ -671,7 +629,7 @@ class EmergeLlvmContext(
 
     private var structConstructorsRegistered: Boolean = false
     fun defineFunctionBody(fn: IrFunction) {
-        if (getInstrinsic(fn) != null) {
+        if (getIntrinsic(fn) != null) {
             return
         }
         if (fn is IrFullyInheritedMemberFunction) {
@@ -986,7 +944,7 @@ class EmergeLlvmContext(
         }
     }
 
-    private fun getInstrinsic(fn: IrFunction): LlvmFunction<*>? {
+    private fun getIntrinsic(fn: IrFunction): LlvmFunction<*>? {
         var intrinsic: LlvmFunction<*>? = null
 
         if (intrinsic == null && fn.canonicalName.parent == CanonicalElementName.Package(listOf("emerge", "core", "safemath")) && fn.parameters.size == 2) {

@@ -3,11 +3,7 @@ package compiler.binding
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.conflictingAttributes
-import compiler.diagnostic.functionIsMissingAttribute
-import compiler.diagnostic.inefficientAttributes
-import compiler.diagnostic.unsupportedCallingConvention
+import compiler.diagnostic.*
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.util.twoElementPermutationsUnordered
@@ -92,7 +88,7 @@ class BoundFunctionAttributeList(
             is AstVisibility -> b is AstVisibility && a != b
             is AstFunctionAttribute.External -> {
                 if (b is AstFunctionAttribute.External) {
-                    a.ffiName != b.ffiName
+                    a != b
                     // if a == b it's an inefficiency, reported through the general inefficiency mechanism
                 } else false
             }

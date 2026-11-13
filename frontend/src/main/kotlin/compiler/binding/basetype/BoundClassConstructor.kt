@@ -4,17 +4,7 @@ import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
-import compiler.binding.BoundAnnotationSet
-import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundFunction
-import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundParameterList
-import compiler.binding.BoundVariable
-import compiler.binding.IrAssignmentStatementImpl
-import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
-import compiler.binding.IrAssignmentStatementTargetVariableImpl
-import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SeanHelper
+import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -26,37 +16,15 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrReifiedTypeExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
+import compiler.binding.type.*
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
-import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.GenericTypeReference
-import compiler.binding.type.IrGenericTypeReferenceImpl
-import compiler.binding.type.IrSimpleTypeImpl
-import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
-import compiler.diagnostic.ConstructorCouldBeNothrowDiagnostic
-import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.*
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.illegalMixinRepetition
-import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
-import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.independentToString
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
-import java.util.Collections
+import java.util.*
 
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
@@ -339,6 +307,7 @@ private class IrDefaultConstructorImpl(
     override val declaresReceiver = false
     override val returnType = IrClassSimpleType(ctor.classDef, IrTypeMutability.OWN)
     override val isExternalC = false
+    override val externalSymbolName: String? = null
     override val isNothrow = ctor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = ctor.classDef.toBackendIr()
     override val declaredAt = ctor.declaredAt

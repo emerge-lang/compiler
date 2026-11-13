@@ -1,18 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
-import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
-import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildVTable
@@ -63,6 +51,7 @@ class VTableAlgorithmTest : FreeSpec({
                                     override val returnType = IrSimpleTypeImpl(MockIrUnit, IrTypeMutability.READONLY, false)
                                     override val isNothrow = false
                                     override val isExternalC = false
+                                    override val externalSymbolName: String? = null
                                     override val body: IrCodeChunk? = null
                                     override val declaredAt = MockSourceLocation
                                     override val ownerBaseType by lazy { typeHolder }
@@ -114,6 +103,7 @@ class VTableAlgorithmTest : FreeSpec({
                                     override val returnType = superFn.returnType
                                     override val isNothrow = superFn.isNothrow
                                     override val isExternalC = superFn.isExternalC
+                                    override val externalSymbolName: String? = null
                                     override val body: IrCodeChunk = object : IrCodeChunk {
                                         override val components = emptyList<IrExecutable>()
                                     }

@@ -15,6 +15,6 @@ export ENOSPC = 28
 export EPERM = 1
 export EPIPE = 32
 
-export external(C) nothrow fn __errno_location() -> CPointer<S32>
+export external(C, "__errno_location") nothrow fn errnoLocation() -> CPointer<S32>
 
-export nothrow fn getErrno() -> S32 = __errno_location().pointed
+export nothrow fn getErrno() -> S32 = errnoLocation().pointed

@@ -1,35 +1,12 @@
 package compiler.binding.basetype
 
 import compiler.ast.BaseTypeMemberFunctionDeclaration
-import compiler.binding.BoundAnnotationSet
-import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundParameterList
-import compiler.binding.SeanHelper
+import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.*
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
-import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.GenericTypeReference
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.externalMemberFunction
-import compiler.diagnostic.functionDoesNotOverride
-import compiler.diagnostic.illegalFunctionBody
-import compiler.diagnostic.incompatibleReturnTypeOnOverride
-import compiler.diagnostic.missingFunctionBody
-import compiler.diagnostic.nonVirtualMemberFunctionWithReceiver
-import compiler.diagnostic.overrideAccessorDeclarationMismatch
-import compiler.diagnostic.overrideDropsNothrow
-import compiler.diagnostic.overrideRestrictsVisibility
-import compiler.diagnostic.overridingParameterExtendsOwnership
-import compiler.diagnostic.overridingParameterNarrowsType
-import compiler.diagnostic.staticFunctionDeclaredOverride
-import compiler.diagnostic.typeTupleToString
-import compiler.diagnostic.undeclaredOverride
+import compiler.diagnostic.*
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -311,6 +288,7 @@ private class IrMemberFunctionImpl(
     override val declaresReceiver = boundFn.declaresReceiver
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
+    override val externalSymbolName = boundFn.externalSymbolName
     override val isNothrow = boundFn.attributes.isDeclaredNothrow
     override val body: IrCodeChunk? by lazy { boundFn.getFullBodyBackendIr() }
     override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }

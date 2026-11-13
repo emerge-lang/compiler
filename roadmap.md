@@ -311,11 +311,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
------
-38. near future: reject identifiers that start with `__` in user code. The prefix is reserved for the identifiers
-    the compiler generates (the flag of a `unique class`, the variables of a desugared `foreach`, type parameters
-    of constructors, finalizers). As long as the check is missing, code in the same file as a `unique class` can
-    assign the flag and obtain a second instance.
 
 ## Future features
 

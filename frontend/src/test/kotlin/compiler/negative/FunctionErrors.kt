@@ -1,26 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.AmbiguousInvocationDiagnostic
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.ExplicitInferTypeNotAllowedDiagnostic
-import compiler.diagnostic.IllegalFunctionBodyDiagnostic
-import compiler.diagnostic.InconsistentReceiverPresenceInOverloadSetDiagnostic
-import compiler.diagnostic.MissingFunctionBodyDiagnostic
-import compiler.diagnostic.MissingReturnValueDiagnostic
-import compiler.diagnostic.MissingVariableTypeDiagnostic
-import compiler.diagnostic.MultipleInheritanceIssueDiagnostic
-import compiler.diagnostic.MultipleParameterDeclarationsDiagnostic
-import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
-import compiler.diagnostic.ReturnTypeMismatchDiagnostic
-import compiler.diagnostic.ToplevelFunctionWithOverrideAttributeDiagnostic
-import compiler.diagnostic.TypeParameterNameConflictDiagnostic
-import compiler.diagnostic.UncertainTerminationDiagnostic
-import compiler.diagnostic.UnknownTypeDiagnostic
-import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
-import compiler.diagnostic.UnsupportedCallingConventionDiagnostic
-import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.VarianceOnFunctionTypeParameterDiagnostic
-import compiler.diagnostic.VarianceOnInvocationTypeArgumentDiagnostic
+import compiler.diagnostic.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.haveSize
@@ -418,6 +398,39 @@ class FunctionErrors : FreeSpec({
                 override external(Rust) fn test()
             """.trimIndent())
                 .shouldFind<UnsupportedCallingConventionDiagnostic>()
+        }
+
+        "the C symbol is the name of the function" {
+            val fn = validateModule("""
+                external(C) nothrow fn fooBar() -> S32
+            """.trimIndent())
+                .moduleBackendIrAssumingNoErrors()
+                .packages.flatMap { it.functions }.flatMap { it.overloads }
+                .single { it.canonicalName.simpleName == "fooBar" }
+            fn.isExternalC shouldBe true
+            fn.externalSymbolName shouldBe "fooBar"
+        }
+
+        "the C symbol can be given separately, e.g. one starting with __" {
+            val fn = validateModule("""
+                external(C, "__foo_bar") nothrow fn fooBar() -> S32
+                fn test() -> S32 = fooBar()
+            """.trimIndent())
+                .moduleBackendIrAssumingNoErrors()
+                .packages.flatMap { it.functions }.flatMap { it.overloads }
+                .single { it.canonicalName.simpleName == "fooBar" }
+            fn.isExternalC shouldBe true
+            fn.externalSymbolName shouldBe "__foo_bar"
+        }
+
+        "a non-external function has no C symbol" {
+            val fn = validateModule("""
+                fn fooBar() -> S32 = 3
+            """.trimIndent())
+                .moduleBackendIrAssumingNoErrors()
+                .packages.flatMap { it.functions }.flatMap { it.overloads }
+                .single { it.canonicalName.simpleName == "fooBar" }
+            fn.externalSymbolName shouldBe null
         }
     }
 })
