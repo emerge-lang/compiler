@@ -127,6 +127,11 @@ class ASTSourceFile(
     private fun bindVariablesInto(fileContext: SourceFileRootContext, diagnosis: Diagnosis) {
         val initializerContext = MutableExecutionScopedCTContext.functionRootIn(fileContext)
 
+        for (uniqueClass in baseTypes) {
+            val flagVariable = uniqueClass.uniqueClassCode(fileContext.packageName)?.flagVariable ?: continue
+            fileContext.addVariable(flagVariable.bindToAsGlobalVariable(fileContext, initializerContext))
+        }
+
         for (globalVariable in globalVariables) {
             // check double declare
             val existingVariable = fileContext.resolveVariable(globalVariable.name.value, true)

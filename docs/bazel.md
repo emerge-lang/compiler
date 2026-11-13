@@ -104,10 +104,12 @@ in the example) can be omitted. So, e.g., create `src/main.em` with this content
 ```
 package com.acme.frobnicator
 
+import emerge.platform.World
 import emerge.platform.StandardOut
 
-mut fn main() {
-    StandardOut.put("Hello, World!")
+fn main(world: mut World) {
+    out = StandardOut.take(world)!!
+    out.println("Hello, World!")
 }
 ```
 

@@ -12,16 +12,25 @@ FD_STDIN: S32 = 0
 FD_STDOUT: S32 = 1
 FD_STDERR: S32 = 2
 
-export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
-export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
+export unique class StandardOut : PrintStream {
+    export nothrow constructor {
+        mixin FileDescriptorPrintStream(FD_STDOUT)
+    }
+}
 
-class FileDescriptorPrintStream : PrintStream {
+export unique class StandardError : PrintStream {
+    export nothrow constructor {
+        mixin FileDescriptorPrintStream(FD_STDERR)
+    }
+}
+
+token class FileDescriptorPrintStream : PrintStream {
     private fd: S32 = init
     
     override fn put(self: mut _, str: String) {
         var bufToWrite: read Array<S8> = str.utf8Data
         while bufToWrite.size > 0 {
-            writeResult = pureWrite(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
+            writeResult = write(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
             if writeResult <= 0 {
                 throw WriteFailedException(getErrno())
             }
@@ -34,8 +43,6 @@ class FileDescriptorPrintStream : PrintStream {
         self.put("\n")
     }
 }
-
-private intrinsic nothrow fn pureWrite(fd: S32, buf: COpaquePointer, count: UWord) -> SWord
 
 private class WriteFailedException : IOException {
     errno: S32 = init

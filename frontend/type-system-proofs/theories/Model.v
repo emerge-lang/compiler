@@ -199,6 +199,10 @@ Record ClassDecl := {
        of such a class, like the numeric types and bool. Its references are always immutable, and
        nothing can mutate its objects. *)
     is_const: bool;
+    (* BoundBaseType.isNonToken: no instance of it is a token. So it is of a class that is not declared
+       `token`, of `NonToken` and of what inherits from it; not of any other interface, nor of Any, whose
+       instances may or may not be tokens. *)
+    is_non_token: bool;
     type_parameters: list TypeParameterDecl;
     (* RootResolved references to the direct supertypes, their arguments in terms of type_parameters *)
     supertypes: list EType;

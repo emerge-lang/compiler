@@ -18,6 +18,11 @@
 
 package compiler.binding
 
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import compiler.diagnostic.MutableGlobalVariableDiagnostic
+import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.NullableTypeReference
+import compiler.binding.type.BoundTypeArgument
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
@@ -70,6 +75,8 @@ class BoundVariable(
     val initializerExpression: BoundExpression<*>?,
     private val typeInferenceStrategy: TypeInferenceStrategy,
     val kind: Kind,
+    /** applied to the type of this variable as declared or inferred; see [BoundBaseType.narrowMemberVariableType] */
+    private val typeTransform: (BoundTypeReference) -> BoundTypeReference = { it },
 ) : BoundStatement<VariableDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
@@ -92,8 +99,8 @@ class BoundVariable(
      */
     val typeAtDeclarationTime: BoundTypeReference?
         get() = when {
-            seanHelper.phase2Done -> typeInferenceStage3.typeAfterSean2
-            seanHelper.phase1Done -> typeInferenceStage2.typeAfterSean1
+            seanHelper.phase2Done -> typeInferenceStage3.typeAfterSean2?.let(typeTransform)
+            seanHelper.phase1Done -> typeInferenceStage2.typeAfterSean1?.let(typeTransform)
             else -> null
         }
 
@@ -212,7 +219,45 @@ class BoundVariable(
             annotations.semanticAnalysisPhase3(diagnosis)
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
+            validateGlobalIsConstant(diagnosis)
         }
+    }
+
+    /**
+     * Global variables are constants: not re-assignable and of a type that is `const` all the way down. Excepted
+     * are the variables the compiler generates for its own use, see
+     * [EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX].
+     */
+    private fun validateGlobalIsConstant(diagnosis: Diagnosis) {
+        if (!isGlobal || (declaration.span.generated && name.startsWith(EmergeConstants.COMPILER_INTERNAL_IDENTIFIER_PREFIX))) {
+            return
+        }
+
+        if (isReAssignable) {
+            diagnosis.add(MutableGlobalVariableDiagnostic(name, "cannot be re-assignable", declaration.varToken?.span ?: declaration.span))
+            return
+        }
+
+        val type = typeAtDeclarationTime ?: return
+        if (!type.isDeeplyImmutable()) {
+            diagnosis.add(MutableGlobalVariableDiagnostic(name, "has the type $type, which is not const throughout", declaration.type?.span ?: declaration.span))
+        }
+    }
+
+    /**
+     * `const` on the outside; and no type argument that is `mut` or `own`, as a member function could hand such a
+     * value out as it is. A `read` type argument is fine: nothing can change the value through it.
+     */
+    private fun BoundTypeReference.isDeeplyImmutable(isTypeArgument: Boolean = false): Boolean = when (this) {
+        is RootResolvedTypeReference -> {
+            val mutabilityIsFine = mutability == TypeMutability.IMMUTABLE || (isTypeArgument && mutability == TypeMutability.READONLY)
+            mutabilityIsFine && (arguments ?: emptyList()).all { it.isDeeplyImmutable(true) }
+        }
+        is BoundTypeArgument -> type.isDeeplyImmutable(true)
+        is NullableTypeReference -> nested.isDeeplyImmutable(isTypeArgument)
+        is BoundIntersectionTypeReference -> components.all { it.isDeeplyImmutable(isTypeArgument) }
+        is ErroneousType -> true
+        else -> false
     }
 
     override val modifiedContext: ExecutionScopedCTContext by lazy {
@@ -493,6 +538,17 @@ class BoundVariable(
             ): Sean1Stage = object : Sean1Stage {
                 private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
 
+                /**
+                 * [implicitMutability], except that a token is never `const`: where a variable of any other type
+                 * defaults to that, a variable of a type that may be a token defaults to `mut`.
+                 */
+                private fun implicitMutabilityFor(type: BoundTypeReference?): TypeMutability {
+                    if (implicitMutability == TypeMutability.IMMUTABLE && type?.mayBeToken == true) {
+                        return TypeMutability.MUTABLE
+                    }
+                    return implicitMutability
+                }
+
                 override fun doSean1(declaredType: TypeReference?, hasInitializer: Boolean, diagnosis: Diagnosis): Sean2Stage {
                     val shouldInferBaseType = when {
                         declaredType == null -> true
@@ -518,7 +574,7 @@ class BoundVariable(
                         override val typeAfterSean1: BoundTypeReference? = declaredType
                             ?.takeUnless { shouldInferBaseType }
                             ?.let(context::resolveType)
-                            ?.defaultMutabilityTo(implicitMutability)
+                            ?.let { it.defaultMutabilityTo(implicitMutabilityFor(it)) }
 
                         override val expectedInitializerEvaluationType: BoundTypeReference?
                             get() = when {
@@ -536,9 +592,10 @@ class BoundVariable(
                             var typeAfterSean2: BoundTypeReference?
                             if (declaredType == null) {
                                 // full inference
-                                typeAfterSean2 = initializerExpression.type?.withMutabilityUnionedWith(implicitMutability)
+                                typeAfterSean2 = initializerExpression.type?.let { it.withMutabilityUnionedWith(implicitMutabilityFor(it)) }
                             } else {
                                 val finalNullability = declaredType.nullability
+                                val implicitMutability = implicitMutabilityFor(if (shouldInferBaseType) initializerExpression.type else typeAfterSean1)
                                 val finalMutability = declaredType.mutability
                                     ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
 

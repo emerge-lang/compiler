@@ -156,7 +156,12 @@ class TypeVariable private constructor(
         // as GenericTypeReference.instantiateAllParameters: the mutability given to the variable, and `!`, apply
         var instantiated = context.getFinalTypeFor(this.parameter)
         asGeneric.givenMutability?.let { givenMutability ->
+            val isNoToken = givenMutability == TypeMutability.IMMUTABLE || !instantiated.let { (it as? BoundTypeArgument)?.type ?: it }.mayBeToken
             instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
+            if (isNoToken) {
+                // see GenericTypeReference.instantiateAllParameters
+                instantiated = with(BoundIntersectionTypeReference) { instantiated.asNoToken() }
+            }
         }
         if (asGeneric.isNarrowed) {
             instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)

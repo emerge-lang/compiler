@@ -1,5 +1,7 @@
 package compiler.binding.expression
 
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import compiler.InternalCompilerError
 import compiler.ast.AstThrowExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
@@ -138,13 +140,14 @@ internal fun buildIrThrow(
         )),
     )
 
-    val fillStackTraceCall = IrExpressionSideEffectsStatementImpl(IrDynamicDispatchFunctionInvocationImpl(
-        IrTemporaryValueReferenceImpl(throwableInstance),
-        context.swCtx.throwable.memberFunctions
-            .single { it.canonicalName.simpleName == "fillStackTrace" && it.parameterCount == 1 }
-            .overloads
-            .single()
-            .toBackendIr(),
+    val fillStackTraceFn = context.swCtx.getPackage(EmergeConstants.UnwindModule.NAME)
+        ?.getTopLevelFunctionOverloadSetsBySimpleName(EmergeConstants.UnwindModule.FILL_STACK_TRACE_ON_THROW_FN_NAME.simpleName)
+        ?.singleOrNull()
+        ?.overloads
+        ?.singleOrNull()
+        ?: throw InternalCompilerError("Did not find ${EmergeConstants.UnwindModule.FILL_STACK_TRACE_ON_THROW_FN_NAME}")
+    val fillStackTraceCall = IrExpressionSideEffectsStatementImpl(IrStaticDispatchFunctionInvocationImpl(
+        fillStackTraceFn.toBackendIr(),
         listOf(IrTemporaryValueReferenceImpl(throwableInstance)),
         emptyMap(),
         context.swCtx.unit.irReadNotNullReference,

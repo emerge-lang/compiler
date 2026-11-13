@@ -945,6 +945,46 @@ Fixpoint no_vars (t: EType): bool :=
     | Intersection components => forallb no_vars components
     end.
 
+(* ---------------------------------------------------------------------------------------------- *)
+(* Tokens                                                                                          *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+(* BoundTypeReference.mayBeToken, with what a reference to a type parameter has of it given. A value
+   of the type may be a token, or hold one: not where the type is const, as a token is never frozen;
+   nor where its class has no tokens for instances (is_non_token) and none of its type arguments may
+   be one. An in-variant type argument reads as Any?. An intersection may be one where every
+   component may. *)
+Fixpoint may_be_token_h (of_reference: GenericRef -> bool) (t: EType): bool :=
+    match t with
+    | RootResolved m c arguments =>
+        if is_const (declaration_of env c) then false else
+        if Mutability_beq (or_readonly m) immutable then false else
+        negb (is_non_token (declaration_of env c)) || existsb (may_be_token_h of_reference) arguments
+    | Nullable n => may_be_token_h of_reference n
+    | Generic g | TypeVariable g => of_reference g
+    | Error _ _ => false
+    | TypeArgument v _ n => match v with input => true | _ => may_be_token_h of_reference n end
+    | Intersection components => forallb (may_be_token_h of_reference) components
+    end.
+
+(* GenericTypeReference.mayBeTokenUnless: that of the effective bound. Kotlin stops where it comes
+   back to a parameter whose bound it is walking (`T : Box<T>`), which is where the levels run out. *)
+Fixpoint may_be_token_level (k: nat) (g: GenericRef): bool :=
+    match k with
+    | 0 => false
+    | S k' => may_be_token_h (may_be_token_level k') (effective_bound g)
+    end.
+
+Definition ref_may_be_token (g: GenericRef): bool := may_be_token_level (S (rank_of g)) g.
+
+Definition may_be_token (t: EType): bool := may_be_token_h ref_may_be_token t.
+
+(* TokenRule.check: a value that may be a token is not assignable to a type that cannot be one. It is
+   not forgotten, and not frozen: a const type cannot be one. The rule doesn't judge types that mention
+   type variables, whose bindings are yet to be found. *)
+Definition token_rule_violated (target assignee: EType): bool :=
+    may_be_token assignee && negb (may_be_token target) && no_vars target && no_vars assignee.
+
 (* The upper bound a variable starts with: its declared bound, where that mentions no type variables.
    One that does (`B : List<A>`, `T : Comparable<T>`) is kept as the static upper bound only, and
    checked separately (plus_static_check); the upper bound holds no type variables, so that
@@ -1120,6 +1160,17 @@ Fixpoint find_first (attempt: EType -> option Unification) (candidates: list ETy
         | Ongoing states => Some (Some (candidate, states))
         end
     end.
+
+(* The components of an intersection, as flippedUnify tries them under the token rules (unify_with_tokens,
+   below). Where the intersection cannot be a token (`own Animal & NonToken`), the value may freeze,
+   though a component alone (`own Animal`) doesn't say so; such a component is also tried as the const
+   it can become. *)
+Definition flipped_candidates (components: list EType): list EType :=
+    if forallb may_be_token components then components
+    else flat_map (fun component =>
+        if Mutability_beq (assignment_mutability component) own && may_be_token component
+        then [component; with_mutability immutable component]
+        else [component]) components.
 
 (* BoundIntersectionTypeReference.flippedUnify: the intersection is the assignee; the first
    component that is assignable to target wins *)
@@ -1373,6 +1424,71 @@ Definition is_assignable_to (fuel: nat) (x y: EType): option bool :=
         (fun u => match u with Ongoing _ => true | Failed => false end)
         (unify fuel y x empty_unification).
 
+(* ---------------------------------------------------------------------------------------------- *)
+(* unify, with the token rules                                                                     *)
+(*                                                                                                *)
+(* What the frontend's unify decides: unify above, and on top of it that a value which may be a    *)
+(* token is neither forgotten nor frozen (TokenRule.check), and that an intersection which cannot  *)
+(* be a token may freeze (flipped_candidates). The rules are kept apart from unify, as a layer     *)
+(* that only ever makes an assignment fail that unify lets pass: the theorems about what an        *)
+(* accepted assignment guarantees are about unify, and carry over.                                 *)
+(*                                                                                                *)
+(* Kotlin applies the rule to class types once the type arguments are found to fit, for the sake   *)
+(* of the diagnostic. Here it comes first; the assignment fails either way.                         *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+Definition unify_root_resolved_with_tokens (unify: UnifyFn) (self: EType) (base_type: Class) (arguments: list EType) (assignee: EType) (states: VariableStates): option Unification :=
+    match assignee with
+    | RootResolved _ assignee_base_type _ =>
+        (* Nothing is no token, and below every type *)
+        if token_rule_violated self assignee && negb (class_eqb assignee_base_type nothing) then Some Failed
+        else unify_root_resolved unify self base_type arguments assignee states
+    | Intersection components => intersection_flipped_unify unify self (flipped_candidates components) states
+    | _ => unify_root_resolved unify self base_type arguments assignee states
+    end.
+
+Definition unify_generic_with_tokens (unify: UnifyFn) (self: EType) (parameter: TypeParameterId) (assignee: EType) (states: VariableStates): option Unification :=
+    match assignee with
+    (* the same type parameter: an own value of it must not freeze where it may be a token *)
+    | Generic (mkGenericRef _ _ q _) =>
+        if param_eqb q parameter && token_rule_violated self assignee then Some Failed
+        else unify_generic unify self parameter assignee states
+    | Intersection components => intersection_flipped_unify unify self (flipped_candidates components) states
+    | _ => unify_generic unify self parameter assignee states
+    end.
+
+Definition unify_type_argument_with_tokens (unify: UnifyFn) (self: EType) (variance: Variance) (ownership: Ownership) (type assignee: EType) (states: VariableStates): option Unification :=
+    match assignee with
+    | Intersection components =>
+        if Variance_beq variance output then unify_type_argument unify self variance ownership type assignee states
+        else intersection_flipped_unify unify self (flipped_candidates components) states
+    | _ => unify_type_argument unify self variance ownership type assignee states
+    end.
+
+Definition unify_step_with_tokens (unify: UnifyFn) (target assignee: EType) (states: VariableStates): option Unification :=
+    match target with
+    | RootResolved _ base_type arguments => unify_root_resolved_with_tokens unify target base_type arguments assignee states
+    | Generic (mkGenericRef _ _ parameter _) => unify_generic_with_tokens unify target parameter assignee states
+    | TypeArgument variance ownership type => unify_type_argument_with_tokens unify target variance ownership type assignee states
+    | _ => unify_step unify target assignee states
+    end.
+
+Fixpoint unify_with_tokens (fuel: nat) (target assignee: EType) (carry: Unification): option Unification :=
+    match carry with
+    | Failed => Some Failed
+    | Ongoing states =>
+        match fuel with
+        | O => None
+        | S fuel' => unify_step_with_tokens (unify_with_tokens fuel') target assignee states
+        end
+    end.
+
+(* BoundTypeReference.isAssignableTo, as the frontend decides it *)
+Definition is_assignable_to_with_tokens (fuel: nat) (x y: EType): option bool :=
+    option_map
+        (fun u => match u with Ongoing _ => true | Failed => false end)
+        (unify_with_tokens fuel y x empty_unification).
+
 Lemma unify_keeps_failure: forall fuel target assignee,
     unify fuel target assignee Failed = Some Failed.
 Proof. intros [|fuel] target assignee; reflexivity. Qed.
@@ -1588,6 +1704,21 @@ Proof. intros []; reflexivity. Qed.
 
 Lemma class_eqb_refl: forall c, class_eqb c c = true.
 Proof. intros c. unfold class_eqb. destruct (Class_eq_dec c c); congruence. Qed.
+
+(* The token rule has nothing to say about a value assigned to its own type. *)
+Lemma token_rule_violated_refl: forall t, token_rule_violated t t = false.
+Proof. intros t. unfold token_rule_violated. destruct (may_be_token t); reflexivity. Qed.
+
+(* What is const is no token. *)
+Lemma may_be_token_immutable: forall c arguments, may_be_token (RootResolved (Some immutable) c arguments) = false.
+Proof. intros c arguments. unfold may_be_token. simpl. destruct (is_const _); reflexivity. Qed.
+
+(* The token rule only has to say about values that may be tokens, and about types that cannot be. *)
+Lemma token_rule_no_token_assignee: forall target assignee, may_be_token assignee = false -> token_rule_violated target assignee = false.
+Proof. intros target assignee H. unfold token_rule_violated. rewrite H. reflexivity. Qed.
+
+Lemma token_rule_token_target: forall target assignee, may_be_token target = true -> token_rule_violated target assignee = false.
+Proof. intros target assignee H. unfold token_rule_violated. rewrite H. destruct (may_be_token assignee); reflexivity. Qed.
 
 (* A type without type arguments is a subtype of itself. *)
 Theorem root_resolved_without_arguments_is_assignable_to_itself: forall fuel m c,

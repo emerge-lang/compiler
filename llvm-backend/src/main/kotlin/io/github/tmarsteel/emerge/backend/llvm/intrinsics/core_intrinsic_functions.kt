@@ -10,6 +10,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.r
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
@@ -437,6 +438,26 @@ internal val unitInstance = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     }
 }
 
+/**
+ * `throw` has no token to read the stack trace of the throwable with; the runtime lends the one it holds.
+ */
+internal val fillStackTraceOnThrow = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>(
+    EmergeConstants.UnwindModule.FILL_STACK_TRACE_ON_THROW_FN_NAME.toString(),
+    EmergeFallibleCallResult.OfVoid,
+) {
+    functionAttribute(LlvmFunctionAttribute.AlwaysInline)
+
+    val throwable by param(PointerToAnyEmergeValue)
+
+    body {
+        @Suppress("UNCHECKED_CAST")
+        ret(call(
+            context.fillStackTraceUsingCollectorFunction as LlvmFunction<EmergeFallibleCallResult.OfVoid>,
+            listOf(throwable, context.runtimeStackTraceCollectorSlot.dereference()),
+        ))
+    }
+}
+
 internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.core.unwind.collectStackTrace",
     EmergeFallibleCallResult(PointerToAnyEmergeValue),
@@ -444,6 +465,9 @@ internal val collectStackTrace = KotlinLlvmFunction.define<EmergeLlvmContext, _>
     functionAttribute(LlvmFunctionAttribute.NoRecurse)
     functionAttribute(LlvmFunctionAttribute.AlwaysInline)
 
+    // the token; it only proves that the caller may see stack traces
+    @Suppress("UNUSED_VARIABLE")
+    val collector by param(PointerToAnyEmergeValue)
     val nFrames by param(LlvmU32Type)
     val includeRuntimeFrames by param(LlvmBooleanType)
 

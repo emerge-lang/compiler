@@ -1,12 +1,8 @@
 package compiler.compiler.negative
 
 import compiler.ast.type.NamedTypeReference
-import compiler.binding.impurity.ImpureInvocation
-import compiler.binding.impurity.ReadingVariableBeyondBoundary
-import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
-import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DecoratingMemberVariableWithNonReadTypeDiagnostic
 import compiler.diagnostic.DecoratingMemberVariableWithoutConstructorInitializationDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
@@ -29,9 +25,7 @@ import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
 import compiler.diagnostic.NonVirtualMemberFunctionWithReceiverDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
-import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
 import compiler.diagnostic.OverrideDropsNothrowDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.StaticFunctionDeclaredOverrideDiagnostic
 import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
@@ -118,34 +112,6 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
-        }
-
-        "class member variable initializers are pure" - {
-            "cannot read" {
-                validateModule("""
-                    var x: S32 = 3
-                    class Foo {
-                        y: S32 = x
-                    }
-                """.trimIndent())
-                    .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
-                    }
-            }
-
-            "cannot call read functions" {
-                validateModule("""
-                    intrinsic read fn bar() -> S32
-                    class Foo {
-                        x: S32 = bar()
-                    }
-                """.trimIndent())
-                    .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<ImpureInvocation>()
-                    }
-            }
-
-            // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
         }
 
         "cannot declare ownership" {
@@ -260,7 +226,7 @@ class ClassErrors : FreeSpec({
             "cannot use decorated member as mut nor const in constructor" {
                 validateModule("""
                     interface N {}
-                    class W {
+                    token class W {
                         decorates n: N = init
                         
                         constructor {
@@ -276,7 +242,7 @@ class ClassErrors : FreeSpec({
 
                 validateModule("""
                     interface N {}
-                    class W {
+                    token class W {
                         decorates n: N = init
                         
                         constructor {
@@ -543,27 +509,27 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 while random() {
                                     set self.x = 5
                                 }
                             }
                         }
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                     """.trimIndent())
                         .shouldFind<IllegalAssignmentDiagnostic>()
 
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 while random() {
                                     y = 3
                                     set self.x = 5
                                 }
                             }
                         }
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                     """.trimIndent())
                         .shouldFind<IllegalAssignmentDiagnostic>()
                 }
@@ -572,7 +538,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 while random() {
                                     unrelated = 3
                                 }
@@ -580,7 +546,7 @@ class ClassErrors : FreeSpec({
                                 y = self.x
                             }
                         }
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                     """.trimIndent())
                         .shouldHaveNoDiagnostics()
                 }
@@ -591,7 +557,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 foreach i in getSomeArray() {
                                     set self.x = 5
                                 }
@@ -604,7 +570,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 foreach i in getSomeArray() {
                                     y = 3
                                     set self.x = 5
@@ -620,7 +586,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         class Foo {
                             x: S32
-                            read constructor {
+                            constructor {
                                 foreach i in getSomeArray() {
                                     unrelated = 3
                                 }
@@ -697,91 +663,15 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     class Foo {
                         x: S32
-                        read constructor {
+                        constructor {
                             while random() {
                                 set self.x = 3
                             }
                         }
                     }
-                    read intrinsic fn random() -> Bool
+                    intrinsic fn random() -> Bool
                 """.trimIndent())
                     .shouldFind<IllegalAssignmentDiagnostic>()
-            }
-        }
-
-        "purity" - {
-            "constructor is pure by default" - {
-                "cannot read global state" {
-                    validateModule("""
-                        intrinsic read fn foo() -> S32
-                        x: S32 = foo()
-                        class Test {
-                            y: S32
-                            constructor {
-                                set self.y = x
-                            }
-                        }
-                    """.trimIndent())
-                        .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
-                        }
-                }
-
-                "cannot write global state" {
-                    validateModule("""
-                        var x: S32 = 0
-                        class Test {
-                            constructor {
-                                set x = 1
-                            }
-                        }
-                    """.trimIndent())
-                        .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
-                        }
-                }
-            }
-
-            "constructor declared as read" - {
-                "can read global state" {
-                    validateModule("""
-                        intrinsic read fn foo() -> S32
-                        x: S32 = foo()
-                        class Test {
-                            y: S32
-                            read nothrow constructor {
-                                set self.y = x
-                            }
-                        }
-                    """.trimIndent())
-                        .shouldHaveNoDiagnostics()
-                }
-
-                "cannot write global state" {
-                    validateModule("""
-                        var x: S32 = 0
-                        class Test {
-                            read constructor {
-                                set x = 1
-                            }
-                        }
-                    """.trimIndent())
-                        .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
-                        }
-                }
-            }
-
-            "constructor cannot be declared modifying" {
-                validateModule("""
-                    var x = 0
-                    class Test {
-                        mut constructor {
-                            set x = 1
-                        }
-                    }
-                """.trimIndent())
-                    .shouldFind<ConstructorDeclaredModifyingDiagnostic>()
             }
         }
 
@@ -1220,18 +1110,6 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<IncompatibleReturnTypeOnOverrideDiagnostic>()
-        }
-
-        "overriding function cannot have more side-effects" {
-            validateModule("""
-                interface I {
-                    fn foo(self) -> S32
-                }
-                class C : I {
-                    override read fn foo(self) -> S32 = 3
-                }
-            """.trimIndent())
-                .shouldFind<OverrideAddsSideEffectsDiagnostic>()
         }
     }
 })

@@ -263,13 +263,6 @@ interface IrReifiedTypeExpression : IrExpression {
     val type: IrType
 }
 
-/**
- * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
- * but are not actually expressions. Prime candidate: assignment statements.
- *
- * [EmergeBackend]s are expected to simply abort with a [CodeGenerationException] when encountering this
- * type in a context where they need an actual expression.
- */
 interface IrNotReallyAnExpression : IrExpression {
     override val evaluatesTo: IrType get() = throw CodeGenerationException("${this::class.simpleName} is not actually an expression.")
 }

@@ -15,6 +15,10 @@ export class Unit : const Any {
 
 export interface Any {}
 
+// the supertype of everything that is no token. Every class that is not declared `token` is a subtype
+// without saying so, an interface is one where it inherits from it.
+export interface NonToken {}
+
 export class Nothing : const Any {
     private nothrow constructor {
         panic("Cannot create instances of emerge.core.Nothing")

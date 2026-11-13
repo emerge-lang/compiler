@@ -89,23 +89,6 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class EffectCategory(val value: BoundFunction.Purity, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is EffectCategory) return false
-
-            if (value != other.value) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = javaClass.hashCode()
-            result = 31 * result + value.hashCode()
-            return result
-        }
-    }
-
     class Accessor(val kind: AccessorKind, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

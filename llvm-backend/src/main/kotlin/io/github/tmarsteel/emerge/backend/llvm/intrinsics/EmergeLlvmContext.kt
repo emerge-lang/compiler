@@ -64,7 +64,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCurso
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.addressOfBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectAnyTypeFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
@@ -120,6 +119,13 @@ class EmergeLlvmContext(
      */
     internal lateinit var mainFunction: LlvmFunction<*>
 
+    /** whether [mainFunction] takes the root token (`emerge.platform.World`) as its only parameter */
+    internal var mainFunctionTakesWorld: Boolean = false
+        private set
+
+    /** `emerge.platform.World`, set by [registerClass]; the entrypoint constructs the one instance of it */
+    internal lateinit var worldType: EmergeClassType
+
     /**
      * `emerge.platform.printStackTraceToStandardError()`, set by [registerFunction]
      */
@@ -129,6 +135,9 @@ class EmergeLlvmContext(
      * `emerge.std.coresupport.printTo(Throwable, PrintStream) -> Unit`, set by [registerFunction]
      */
     internal lateinit var printThrowableFunction: LlvmFunction<*>
+
+    /** `emerge.core.unwind.fillStackTraceUsing(Throwable, StackTraceCollector)`, set by [registerFunction] */
+    internal lateinit var fillStackTraceUsingCollectorFunction: LlvmFunction<*>
 
     /**
      * the implementation for `emerge.core.unwind.collectStackTrace(U32, Boolean)`.
@@ -231,8 +240,22 @@ class EmergeLlvmContext(
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
     internal lateinit var pointerToUnitInstance: LlvmGlobal<EmergeClassType>
-    /** `emerge.platform.StandardError` */
-    internal lateinit var standardErrorStreamGlobalVar: IrGlobalVariable
+    /** `emerge.platform.StackTraceCollector`, set by [registerClass] */
+    internal lateinit var stackTraceCollectorType: EmergeClassType
+    /** `emerge.platform.FileDescriptorPrintStream`, set by [registerClass] */
+    internal lateinit var fileDescriptorPrintStreamType: EmergeClassType
+
+    /**
+     * What the runtime holds per thread so that `throw` and a panic work without a token in the signature of the
+     * code that triggers them: a stack trace collector, and a stream to standard error. Emerge code cannot refer
+     * to these slots; [threadInitializerFn] fills them before anything else runs on the thread.
+     */
+    internal val runtimeStackTraceCollectorSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
+        addGlobal(nullValue(PointerToAnyEmergeValue), LlvmThreadLocalMode.LOCAL_DYNAMIC, "_emerge_runtime_stack_trace_collector")
+    }
+    internal val runtimePanicStreamSlot: LlvmGlobal<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
+        addGlobal(nullValue(PointerToAnyEmergeValue), LlvmThreadLocalMode.LOCAL_DYNAMIC, "_emerge_runtime_panic_stream")
+    }
     /** an `emerge.core.reflection.Type` of itself */
     internal val metaReifiedTypeGlobal: LlvmGlobal<EmergeClassType> by lazy {
         addGlobal(undefValue(reifiedNamedTypeClass), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "meta_reified_type")
@@ -315,6 +338,9 @@ class EmergeLlvmContext(
             "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
             "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
             "emerge.core.Weak" -> weakType = emergeClassType
+            EmergeConstants.PlatformModule.WORLD_TYPE_NAME.toString() -> worldType = emergeClassType
+            EmergeConstants.PlatformModule.STACK_TRACE_COLLECTOR_TYPE_NAME.toString() -> stackTraceCollectorType = emergeClassType
+            "emerge.platform.FileDescriptorPrintStream" -> fileDescriptorPrintStreamType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -488,9 +514,10 @@ class EmergeLlvmContext(
             if (this::mainFunction.isInitialized) {
                 throw CodeGenerationException("Found multiple main functions!")
             }
-            if (fn.parameters.isNotEmpty()) {
-                throw CodeGenerationException("Main function must not declare parameters")
+            if (fn.parameters.size > 1) {
+                throw CodeGenerationException("Main function must declare no parameter, or one of type ${EmergeConstants.PlatformModule.WORLD_TYPE_NAME}")
             }
+            mainFunctionTakesWorld = fn.parameters.isNotEmpty()
             if (!fn.returnType.isUnit) {
                 throw CodeGenerationException("Main function ${fn.canonicalName} must return Unit")
             }
@@ -500,12 +527,15 @@ class EmergeLlvmContext(
         }
 
         if (fn.canonicalName.parent.toString() == "emerge.platform") {
-            if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.isEmpty()) {
+            if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.size == 1) {
                 printStackTraceToStdErrFunction = fn.llvmRef!!
             }
         }
+        if (fn.canonicalName == EmergeConstants.UnwindModule.FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME) {
+            fillStackTraceUsingCollectorFunction = fn.llvmRef!!
+        }
         if (fn.canonicalName.parent.toString() == "emerge.std.coresupport") {
-            if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 2) {
+            if (fn.canonicalName.simpleName == "printTo" && fn.parameters.size == 3) {
                 val firstParamType = fn.parameters[0].type
                 val secondParamType = fn.parameters[1].type
                 if (firstParamType is IrSimpleType && firstParamType.baseType.canonicalName == EmergeConstants.CoreModule.THROWABLE_TYPE_NAME
@@ -537,9 +567,6 @@ class EmergeLlvmContext(
     fun registerGlobal(global: IrGlobalVariable) {
         val globalType = getReferenceSiteType(global.declaration.type)
         val name = global.name.toString()
-        if (name == "emerge.platform.StandardError") {
-            standardErrorStreamGlobalVar = global
-        }
 
         val literalInitializer = literalConstant(global.initializer)
             ?.takeIf { it.type.getRawInContext(this).pointer == globalType.getRawInContext(this).pointer }
@@ -773,6 +800,21 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
+                // first, so that the initializers of the global variables can throw and panic
+                fun construct(type: EmergeClassType, arguments: List<LlvmValue<*>>): LlvmValue<LlvmPointerType<out EmergeHeapAllocated>> {
+                    val result = call(type.irClass.constructor.llvmRef!!, arguments)
+                    val instance = if (result.type is EmergeFallibleCallResult<*>) {
+                        @Suppress("UNCHECKED_CAST")
+                        (result as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                            callIntrinsic(panicOnThrowable, listOf(exceptionPtr))
+                            unreachable()
+                        }
+                    } else result
+                    return instance.reinterpretAs(PointerToAnyEmergeValue)
+                }
+                store(construct(stackTraceCollectorType, emptyList()), runtimeStackTraceCollectorSlot)
+                store(construct(fileDescriptorPrintStreamType, listOf(s32(2))), runtimePanicStreamSlot)
+
                 for (assureInitializedFn in globalVariableInitializers) {
                     callIntrinsic(assureInitializedFn, emptyList())
                 }
@@ -1049,7 +1091,6 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             addressOfBuiltin,
             panicOnThrowable,
             writeMemoryAddress,
-            pureWrite,
             typeOfTypeArgument,
             reflectAnyTypeFunction,
             reflectionBaseTypeFunction,
@@ -1057,6 +1098,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arrayRuntimeTypeGetter,
             unitInstance,
             collectStackTrace,
+            fillStackTraceOnThrow,
         )
             + intrinsicNumberOperations
     )

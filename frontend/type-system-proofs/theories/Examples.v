@@ -68,7 +68,7 @@ Definition tNumber: EType := RootResolved None CNumber [].
 Definition param (p: TypeParameterId): TypeParameterDecl := {| param_id := p; prescribed_ownership := None |}.
 
 Definition plain_decl (k: ClassKind) (c: bool) (ps: list TypeParameterDecl) (sts: list EType): ClassDecl :=
-    {| kind := k; is_const := c; type_parameters := ps; supertypes := sts; fields := [] |}.
+    {| kind := k; is_const := c; is_non_token := true; type_parameters := ps; supertypes := sts; fields := [] |}.
 
 Definition decl (c: Class): ClassDecl :=
     match c with
@@ -79,7 +79,7 @@ Definition decl (c: Class): ClassDecl :=
     | some_class 3 => plain_decl interface_kind false [param pL] []
     | some_class 4 => plain_decl class_kind false [param pA]
         [RootResolved None CList [TypeArgument invariant (parameter_ownership pA) (gref pA)]]
-    | some_class 5 => {| kind := class_kind; is_const := false; type_parameters := [param pB]; supertypes := [];
+    | some_class 5 => {| kind := class_kind; is_const := false; is_non_token := true; type_parameters := [param pB]; supertypes := [];
                          fields := [{| Model.is_ref := false |}; {| Model.is_ref := false |}] |}
     | some_class _ => plain_decl class_kind false [] []
     end.
@@ -816,10 +816,10 @@ Definition boundT: EType := RootResolved None Cn [TypeArgument invariant ref tar
 
 Definition kdecl (c: Class): ClassDecl :=
     match c with
-    | nothing => {| kind := class_kind; is_const := true; type_parameters := []; supertypes := []; fields := [] |}
-    | some_class 1 => {| kind := interface_kind; is_const := false; type_parameters := [{| param_id := pX; prescribed_ownership := None |}];
+    | nothing => {| kind := class_kind; is_const := true; is_non_token := true; type_parameters := []; supertypes := []; fields := [] |}
+    | some_class 1 => {| kind := interface_kind; is_const := false; is_non_token := true; type_parameters := [{| param_id := pX; prescribed_ownership := None |}];
                          supertypes := []; fields := [] |}
-    | _ => {| kind := interface_kind; is_const := false; type_parameters := []; supertypes := []; fields := [] |}
+    | _ => {| kind := interface_kind; is_const := false; is_non_token := true; type_parameters := []; supertypes := []; fields := [] |}
     end.
 
 Definition kenv: Environment := {|

@@ -373,33 +373,31 @@ as as?
 ?:
 ```
 
-## Function modifiers
+## Function modifiers and effects
 
-As D has, our language has function modifiers that restrict its behaviour. These modifiers are transitive, too, as in D. 
+There is one function modifier that restricts behaviour:
 
-* `pure`: Same input => same output. This implies that the function does not read or write any global state and that it does not call *impure* functions (functions not modified with `pure`). This is targeted to CTFE.
-* `readonly`: Denotes that the function does not modify the object or struct instance it is declared upon. Within such functions, the `this` reference becomes `readonly` (thus preventing modification of the object).
-* `immutable`: Same as `readonly`
 * `nothrow`: The function must not throw exceptions. If it invokes functions that are not modified with `nothrow`, the exceptions must be caught.
   Running out of memory is not an exception, it is a panic, so allocating is allowed in `nothrow` code. Constructors can be `nothrow`, too. A class without an explicit `constructor` gets a `nothrow` default constructor, which means its member initializers must not throw; an explicit `constructor` without `nothrow` may throw.
 
-The type modifiers are written *before* the function declaration (as opposed to after in D):
+There are no modifiers for effects (no `pure`, `read` or `mut` on a function). There is no state that every function
+can reach: top-level variables are constants. What a function can read or change is what its parameters give it, and
+the mutability of a parameter says which of the two:
 
-	pure fun foo(param: String) -> Int = param.length
+    fn log(borrow out: mut PrintStream, message: String)    // writes to the stream
+    fn current(borrow clock: read Clock) -> Instant         // reads the clock
+    fn length(text: String) -> UWord                        // same input => same output
 
+State outside of the program (standard output, the clock, where objects are in memory) is reached through _tokens_:
+objects of a `token class`. A token cannot be made `const` and cannot be forgotten in a type that is no token, so a
+signature without a token parameter says that the function has no effect on the outside. The platform hands the
+root token `emerge.platform.World` to `main`; a `unique class` such as `StandardOut` hands out its one instance
+through `take(world)`. See [docs/tokens.md](docs/tokens.md) for the rules.
 
-	foo = pure (param: String) -> Int = param.length
-
-    
-    fun outerScope() {
-    	pure (a, b) {
-    	}
+    fn main(world: mut World) {
+        out = StandardOut.take(world)!!
+        out.println("Hello, World!")
     }
-
-
-    fun outerScope() {
-        pure {}
-    }    
 
 ## Data structures
 

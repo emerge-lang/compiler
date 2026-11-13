@@ -360,9 +360,9 @@ class VariableErrors : FreeSpec({
             "interaction with if expressions" - {
                 "cannot access variable that is only maybe initialized" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                         fn doStuff(p: S32) {}
-                        read fn test() {
+                        fn test() {
                             x: S32
                             if (random()) {
                                 set x = 3
@@ -377,9 +377,9 @@ class VariableErrors : FreeSpec({
 
                 "accessing a variable that is initialized in two branches of an if-expression is okay" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                         fn doStuff(p: S32) {}
-                        read fn test() {
+                        fn test() {
                             x: S32
                             if (random()) {
                                 set x = 3
@@ -394,9 +394,9 @@ class VariableErrors : FreeSpec({
 
                 "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
+                        intrinsic fn random() -> Bool
                         fn doStuff(p: S32) {}
-                        read fn test() {
+                        fn test() {
                             x: S32
                             if (random()) {
                                 set x = 3
@@ -413,8 +413,8 @@ class VariableErrors : FreeSpec({
             "interaction with while loops" - {
                 "cannot access variable that is only maybe initialized" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
-                        read fn test() {
+                        intrinsic fn random() -> Bool
+                        fn test() {
                             var x: S32
                             while random() {
                                 set x = 5
@@ -430,8 +430,8 @@ class VariableErrors : FreeSpec({
 
                 "cannot initialize single-assignment variable in loop" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
-                        read fn test() {
+                        intrinsic fn random() -> Bool
+                        fn test() {
                             x: S32
                             while random() {
                                 set x = 5
@@ -441,8 +441,8 @@ class VariableErrors : FreeSpec({
                         .shouldFind<IllegalAssignmentDiagnostic>()
 
                     validateModule("""
-                        read intrinsic fn random() -> Bool
-                        read fn test() {
+                        intrinsic fn random() -> Bool
+                        fn test() {
                             x: S32
                             while random() {
                                 y = 3
@@ -455,8 +455,8 @@ class VariableErrors : FreeSpec({
 
                 "execution uncertainty of loops doesn't persist to code after the loop" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
-                        read fn test() {
+                        intrinsic fn random() -> Bool
+                        fn test() {
                             x: S32
                             while random() {
                                 unrelated = 3
@@ -470,8 +470,8 @@ class VariableErrors : FreeSpec({
 
                 "execution uncertainty of loops doesn't affect nested loops" {
                     validateModule("""
-                        read intrinsic fn random() -> Bool
-                        read fn test() {
+                        intrinsic fn random() -> Bool
+                        fn test() {
                             while random() {
                                 x: S32
                                 set x = 5

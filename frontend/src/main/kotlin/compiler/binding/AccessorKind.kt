@@ -7,7 +7,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.accessorCapturesSelf
 import compiler.diagnostic.accessorContractViolation
-import compiler.diagnostic.accessorNotPure
 
 sealed interface AccessorKind {
     /**
@@ -128,9 +127,5 @@ private fun BoundDeclaredFunction.validateCommonContractAspects(diagnosis: Diagn
         if (receiverParam.ownershipAtDeclarationTime != VariableOwnership.BORROWED) {
             diagnosis.accessorCapturesSelf(this, receiverParam)
         }
-    }
-
-    if (!BoundFunction.Purity.PURE.contains(purity)) {
-        diagnosis.accessorNotPure(this)
     }
 }

@@ -8,10 +8,12 @@ thoughts and challenges, until the solution _emerges_ eventually.
  
 package compilerdemo
 
+import emerge.platform.World
 import emerge.platform.StandardOut
 
-mut fn main() {
-   StandardOut.put("Hello, World!\n")
+fn main(world: mut World) {
+   out = StandardOut.take(world)!!
+   out.println("Hello, World!")
 }
 ```
 

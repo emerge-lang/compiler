@@ -141,10 +141,10 @@ class FunctionErrors : FreeSpec({
 
         "ambiguous invocation involving valid overload sets" {
             validateModule("""
-                fn println(p: Any) {}
+                fn isNull(p: Any?) -> Bool = false
                 
                 fn main() {
-                    println("Hello, World!")
+                    isNull("Hello, World!")
                 }
             """.trimIndent())
                 .shouldFind<AmbiguousInvocationDiagnostic>()

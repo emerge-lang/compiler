@@ -48,17 +48,9 @@ data class PurityViolationDiagnostic(
     sealed class SideEffectBoundary {
         abstract fun getMessage(impurity: Impurity): String
 
-        data class Function(val function: BoundFunction) : SideEffectBoundary() {
-            override fun getMessage(impurity: Impurity): String {
-                val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
-                val kindAndName = if (function is BoundClassConstructor) "constructor of class `${function.classDef.simpleName}`" else "function `${function.name}`"
-                return "${impurity.describe()} violates the purity of $modifier $kindAndName"
-            }
-        }
-
         data class Annotation(val annotation: BoundAnnotation) : SideEffectBoundary() {
             override fun getMessage(impurity: Impurity): String {
-                return "Annotations must be pure expressions; ${impurity.describe()} is impure."
+                return "An annotation cannot refer to state outside of itself; ${impurity.describe()} does."
             }
         }
     }

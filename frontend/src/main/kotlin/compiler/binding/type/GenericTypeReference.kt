@@ -57,6 +57,12 @@ class GenericTypeReference private constructor(
     override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
     override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
+        if (parameter in nonTokenParameters) {
+            return false
+        }
+        return throughBound(false) { effectiveBound.mayBeTokenUnless(nonTokenParameters) }
+    }
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         if (mutability == givenMutability) {
@@ -159,7 +165,8 @@ class GenericTypeReference private constructor(
                         return viaBound
                     }
                 } else if (assigneeType.assignmentMutability.isAssignableTo(this.assignmentMutability) && (!assigneeType.isNullable || this.isNullable)) {
-                    return carry
+                    // the same type parameter; an own value of it must not freeze where it may be a token
+                    return TokenRule.check(this, assigneeType, assignmentLocation)?.let(carry::plusDiagnostic) ?: carry
                 }
                 return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
@@ -228,7 +235,13 @@ class GenericTypeReference private constructor(
         var instantiated = context.getFinalTypeFor(this.parameter)
         if (givenMutability != null) {
             // a value of type `m T` is a T of a mutability that fits m
+            val isNoToken = givenMutability == TypeMutability.IMMUTABLE || !instantiated.let { (it as? BoundTypeArgument)?.type ?: it }.mayBeToken
             instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
+            if (isNoToken) {
+                // what is const is no token. `const T` of a `mut X` is an `own X`, and so is `mut T` of a `const X`;
+                // that doesn't say so anymore
+                instantiated = with(BoundIntersectionTypeReference) { instantiated.asNoToken() }
+            }
         }
         if (isNarrowed) {
             instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)

@@ -147,6 +147,7 @@ class SoftwareContext {
     }
 
     val any: BoundBaseType by coreType()
+    val nonToken: BoundBaseType by coreType()
     val nothing: BoundBaseType by coreType()
     val unit: BoundBaseType by coreType()
     val bool: BoundBaseType by coreType()

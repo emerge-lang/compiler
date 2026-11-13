@@ -12,7 +12,6 @@ import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.ge
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.expression.ReturnValueFromFunctionUsage
-import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -23,7 +22,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
@@ -149,23 +147,6 @@ abstract class BoundDeclaredFunction(
 
             if (body != null) {
                 body.semanticAnalysisPhase3(diagnosis)
-
-                if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                    val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
-                    handleCyclicInvocation(
-                        context = this,
-                        action = { body.visitWritesBeyond(functionRootContext, diagnosingVisitor) },
-                        onCycle = {},
-                    )
-
-                    if (BoundFunction.Purity.PURE.contains(this.purity)) {
-                        handleCyclicInvocation(
-                            context = this,
-                            action = { body.visitReadsBeyond(functionRootContext, diagnosingVisitor) },
-                            onCycle = {},
-                        )
-                    }
-                }
 
                 // assure all paths return or throw
                 if (!body.modifiedContext.getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {

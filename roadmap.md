@@ -1,14 +1,34 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
+0. **bug:** `catch` does not catch an exception thrown by a function that the `try` block calls; the program
+   panics with "unhandled exception". Reproduces on linux-x86_64 with
+   ```
+   class TestError : Error {
+       constructor {
+           mixin ThrowableTrait("thrown on purpose")
+       }
+   }
+   fn fail() {
+       throw TestError()
+   }
+   fn main(world: mut World) {
+       out = StandardOut.take(world)!!
+       try {
+           fail()
+       } catch e {
+           out.println("caught")
+       }
+   }
+   ```
+   Not investigated yet. There is no test that runs a compiled program, so nothing noticed (see the item on
+   integration tests).
 1. ~~signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
    files: a global that reads a global of another file can see it uninitialized~~
-3. isolate thread-unsafe global state
-   * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
-     that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
-     require a builtin that asserts a certain stack-variable is `own`, but that doesn't seem impossible to provide.
-   * anything else to take care of?
+3. ~~isolate thread-unsafe global state~~ done with tokens, see [docs/tokens.md](docs/tokens.md): there is no
+   mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
+   which `main` obtains from the root token it is given.
 4. additional language constructs
    1. switch/when statement
    2. union types: `TypeA | TypeB | TypeC`
@@ -35,20 +55,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
       `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
       the object holding the cell
-      * with function purity, `get` is a `read fn` and `set` a `mut fn`: the purity checks reason from mutability
-        (a global of a `const` type is a compile-time constant, a write is a use as `mut`), and a cell reachable from
-        a `const` global would be global state they don't see. So cells can't be used in `pure` functions
-      * with tokens (`tokens-plan.md` on the branch `token-protected-global-state`), `token class Cell<token T>`
-        instead: never `const`, every class holding one is a token class, none is reachable from a global or from
-        another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
+      * it is a `token class Cell<T>` (see [docs/tokens.md](docs/tokens.md), internal mutability): never `const`,
+        every class holding one is a token class, none is reachable from a global or from another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
         is a promise of its author, not something the compiler checks. That code without a token cannot touch
         external state stays checked
       * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
     * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
       freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
       call. The time of that call must not show in the value, so the value is `const`, and the initializer
-      captures only `const` data and no token; being `pure` is not enough, a pure function can read mutable data it
-      captured. Needs function types (item 13) that can say so
+      captures only `const` data and no token; capturing no token is not enough, as the initializer could still
+      read mutable data it captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -105,15 +121,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
-    2. deal with the higher-order function purity problem: do functions need to be generic on purity?
-       * probably not. The compiler needs to implement parameteric side effects internally, but in the emerge language
-         we can probably void that complexity. The trick is: we have the language concept of `borrow` already. If a
-         function borrows a value of a function type, it HAS to invoke that function zero-or-more times during its own
-         execution, and cannot possibly invoke it later. So the side-effect only needs to be tracked during the invocation
-         of the higher-order function. Thus, we get a simple heuristic: 
-         if a function receives a parameter that is of a function type, and that parameter is borrowed: add a hidden
-         side-effect parameter to the function that is also applied to the parameter;
-         e.g. `fn foo(borrow a: () -> Unit)` gets an internal representation of `E fun foo<effect E>(borrow a: E () -> Unit)`
+    2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
+       left of the problem is a rule for closures: a closure that captures a token is a token
+       (rule 6 in [docs/tokens.md](docs/tokens.md)).
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
        * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
@@ -124,7 +134,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
     6. implement last-argument lambdas like in Kotlin?
        * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
-14. functional-style collection operations (possible because the higher-order function purity problem is solved)
+14. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
@@ -210,6 +220,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
+    * the `take` function of a `unique class` has to be thread-safe: one instance per _process_, whichever thread
+      asks first. Today the flag that knows whether the instance was handed out is a global variable like any
+      other, which makes it thread-local (the LLVM backend emits globals as such), and `take` reads and sets it
+      in separate steps. With threads the flag has to be one per process, and checking and setting it one atomic
+      step; a constructor that throws has to release it again. See `UniqueClassCode` in the frontend.
 24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
@@ -310,6 +325,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
 -----
+38. near future: reject identifiers that start with `__` in user code. The prefix is reserved for the identifiers
+    the compiler generates (the flag of a `unique class`, the variables of a desugared `foreach`, type parameters
+    of constructors, finalizers). As long as the check is missing, code in the same file as a `unique class` can
+    assign the flag and obtain a second instance.
 
 ## Future features
 
@@ -336,15 +355,8 @@ with algebraic data types to form Java-Like enums:
     atom C {}
     typealias Enum = A | B | C
 
-Implementing interfaces is handy for modelling state external to the program:
-_!! how to prevent race conditions in the external resource when multiple emerge threads/actors are mutating
-the same atom?_
-
-    atom StandardOut : PrintStream {
-        override fn put(self: mut _, string: String) {
-            // ...
-        }
-    }
+State external to the program is not a case for atoms: it is modelled by tokens, and a resource there is one of
+per process by a `unique class` (see [docs/tokens.md](docs/tokens.md)).
 
 ### Feed LLVM with all info available
 

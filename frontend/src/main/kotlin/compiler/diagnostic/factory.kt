@@ -170,14 +170,6 @@ fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverPara
     ))
 }
 
-fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
-    add(AccessorContractViolationDiagnostic(
-        accessor.declaration,
-        "Accessors must not access global state, but this one is declared ${accessor.purity.keyword.text}. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
-        accessor.attributes.purityAttribute?.sourceLocation ?: accessor.declaredAt,
-    ))
-}
-
 fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundMemberFunction>) {
     add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
 }
@@ -294,6 +286,22 @@ fun Diagnosis.immediateVariantTypeArgumentOnSupertype(argument: AstTypeArgument)
 
 fun Diagnosis.duplicateSupertype(ref: AstSimpleTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
+}
+
+fun Diagnosis.missingTokenModifier(baseType: BoundBaseType, reason: MissingTokenModifierDiagnostic.Reason) {
+    add(MissingTokenModifierDiagnostic(baseType.declaration, reason))
+}
+
+fun Diagnosis.constTokenBaseType(baseType: BoundBaseType) {
+    add(ConstTokenDiagnostic(baseType.simpleName, baseType.superTypes.span.takeUnless { it == Span.UNKNOWN } ?: baseType.declaration.declaredAt))
+}
+
+fun Diagnosis.tokenInheritsNonToken(baseType: BoundBaseType) {
+    add(TokenInheritsNonTokenDiagnostic(baseType.simpleName, baseType.superTypes.span.takeUnless { it == Span.UNKNOWN } ?: baseType.declaration.declaredAt))
+}
+
+fun Diagnosis.constTokenReference(baseType: BoundBaseType, referenceAt: Span) {
+    add(ConstTokenDiagnostic(baseType.simpleName, referenceAt))
 }
 
 fun Diagnosis.mutabilityOnSupertype(ref: AstSimpleTypeReference) {
@@ -516,13 +524,6 @@ fun Diagnosis.useOfUninitializedMember(member: BoundBaseTypeMemberVariable, acce
     )
 }
 
-fun Diagnosis.constructorDeclaredAsModifying(constructor: BoundClassConstructor) {
-    add(ConstructorDeclaredModifyingDiagnostic(
-        constructor,
-        constructor.attributes.firstModifyingAttribute!!.attributeName,
-    ))
-}
-
 fun Diagnosis.explicitOwnershipNotAllowed(variable: BoundVariable) {
     add(ExplicitOwnershipNotAllowedDiagnostic(variable.declaration.ownership!!.second))
 }
@@ -566,10 +567,6 @@ fun Diagnosis.unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faul
 
 fun Diagnosis.superfluousSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken) {
     add(SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator))
-}
-
-fun Diagnosis.overrideAddsSideEffects(override: BoundMemberFunction, superFunction: BoundMemberFunction) {
-    add(OverrideAddsSideEffectsDiagnostic(override, superFunction))
 }
 
 fun Diagnosis.overrideDropsNothrow(override: BoundMemberFunction, superFunction: BoundMemberFunction) {

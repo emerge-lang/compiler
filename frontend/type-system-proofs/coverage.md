@@ -19,6 +19,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 16 | Programs on which the model's unify doesn't terminate, wherever the theorems rest on `unify_terminates_on` (◐) | `fn f<T : Cn<Cn<in T>>>(t: T) { val c: Cn<in T> = t }`; `class K : Cn<Cn<in K>>` | Deciding `T` below `Cn<in T>` unfolds the bound to `Cn<Cn<in T>>`, and the in-variant type argument swaps target and assignee: the question comes up again, and the model's unify gives no answer with any fuel (`Examples.Counterexample`); the same through supertypes (Kennedy and Pierce's example). The frontend fails such a goal (`RootResolvedTypeReference.unify`, `UnificationPropertiesTests`); the model doesn't. The claim that unify terminates wherever inheritance is tame (`unify_always_terminates`) is refuted (`Examples.unify_always_terminates_is_false`): F-bounds bring the contravariance in without inheritance. So the theorems of generic code take termination on the program at hand as a premise (`Conjectures.unify_terminates_on`), like the conjectures about `intersect` and `closestCommonSupertypeWith`; which programs satisfy it is open, plausibly those without `in` type arguments anywhere, and modelling the frontend's cut is roadmap item 39 |
 | 17 | Calls outside generic code to a function whose bounds mention other type parameters, with an argument or explicit type argument that has an in-variant type argument, nested ones included; and such calls in programs with a supertype declaration that has one nested (✗) | `fn f<T, U : Box<T>>(a: T, u: U)`, `f(x, u)` with `x: Box<in A>`; `class H<T> : Base<Consumer<in T>>` anywhere in the program | The join of two class types with in-variant type arguments intersects them: `Box<in A> ⊔ Box<in B> = Box<in A & B>`, precise and sound, but no class type (`Inference.afrag`), which the check of a lower bound against a static upper bound with type variables takes (`Constraints.static_whole`); found by `CommonTypesTests` over the widened grid (step 14). `closest_common_supertype_of_classes` is narrowed to class types without contravariance (`Inference.without_contravariance`), whose join is one, without it, as `OracleGrid.v` checks over `TypeGrid` (step 15, step 16). The variable states have static upper bounds with type variables only where the arguments are without contravariance (`Constraints.strict`), so the theorems take that only of calls to functions with such bounds (`Constraints.arguments_without_contravariance`: `FBounded.v`, `Explicit.v`); calls to others take any class-type arguments (`fn f<T>(x: Box<in T>)`, `MemberCalls.v`, `FinalValues.v`). Normalizing an argument to a supertype keeps it without contravariance where the supertype declarations have no nested `in` (`Inference.supertypes_without_contravariance`, part of `arguments_without_contravariance`, so taken of such calls only; immediate type arguments of supertypes have no variance, `wf_supertypes_are_exact`). The same calls in generic code are covered by `GenericArguments.v`, whose fragment admits intersections in in-variant type arguments, under its premises; outside generic code, covering them takes widening the inference proofs to those intersections |
 | 18 | Calls in generic code with an argument `Box<in Nothing?>` or `Box<Nothing?>` against another whose type argument is a type parameter (◐) | `fn f<T>(a: T, b: T)`, `f(Box<P>, Box<in Nothing?>)` in generic code | The join is `Box<in P & Nothing?>`: the intersection is Nothing without null, which `GenericArguments.bottom_only` excludes, so `closest_common_supertype_keeps_bottom_only` is false of the frontend (step 14). The theorems of generic code taking it say nothing about the frontend until `bottom_only` admits such intersections, which rests on unify treating an intersection that is Nothing as Nothing (the frontend does since step 14, the model doesn't yet). `OracleGrid.v` excuses the 38 pairs of `TypeGrid` it fails on, and only those: where the join, but for its intersections as in-variant type arguments, is `bottom_only` |
+| 19 | Tokens: that the theorems about what unify accepts and keeps (transitivity, reflexivity, substitution, the soundness of calls and of inference) hold of unify with the token rules (◐) | `fn f<T>(x: own T) { c: const T = x }` is rejected by the frontend; `own A & NonToken` is assignable to `const A` | The frontend's unify is `Subtyping.unify_with_tokens`: `unify`, and on top of it that a value which may be a token (`may_be_token`) is not assignable to a type that cannot be one, and that an `own` component of an intersection that cannot be a token is tried as `const` too (`flipped_candidates`). The rules are a layer that only makes assignments fail, so what a theorem says of an assignment `unify` accepts (the mutability it respects, what member access and calls may rely on) holds of every assignment the frontend accepts: checked over `TypeGrid` (`OracleGrid.token_rules_only_reject`), not proven. So is the invariant of the rules, that nothing which may be a token is below a type that cannot be one (`OracleGrid.tokens_stay_visible`). The theorems that an assignment is accepted (transitivity, the substitution lemma, intersect below both) are about `unify` without the rules, and are not shown of `unify_with_tokens`; the frontend's `CommonTypesTests`, `UnificationPropertiesTests` and `MemberAccessPropertiesTests` check them over the grid, tokens included. The model's `instantiate` doesn't intersect with `NonToken` where the frontend does (`const T` of a `mut A` is `own A & NonToken`, `GenericTypeReference.instantiateAllParameters`), nor does its `with_mutability` of an intersection |
 
 ## Subtyping (unify)
 
@@ -30,7 +31,9 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | Type parameters, `m T`, `T!`, `T?`, intersections: transitivity | ◐ proven only to never reject; accepting rests on `unify_terminates_on` | `Generics.v`, `Conjectures.v` |
 | Reflexivity on type parameters and intersections | ◐ same | `FinalValues.v` |
 | Erroneous types | ✗ modelled in unify, no theorem | — |
-| The frontend's unify is the model's, over the types of `TypeGrid` | ✓ by computation, but intersections of disjoint classes, which the frontend takes below every type (step 14) | `OracleGrid.unify_agrees` |
+| The frontend's unify is the model's with the token rules (`unify_with_tokens`), over the types of `TypeGrid` | ✓ by computation, but intersections of disjoint classes, which the frontend takes below every type (step 14) | `OracleGrid.unify_agrees` |
+| Tokens: what may be a token is the frontend's, of every type of the grid and its parts | ✓ by computation | `OracleGrid.encoding_agrees` |
+| Tokens: nothing that may be a token is below a type that cannot be one; the token rules only reject | ◐ over `TypeGrid` by computation, no theorem (#19) | `OracleGrid.tokens_stay_visible`, `token_rules_only_reject` |
 | Ownership (`owned`/`ref`) | ✓ but not implemented in Kotlin, and to be removed from the model (roadmap 37) | `Ownership.v` |
 
 ## Substitution (instantiating type parameters)
@@ -132,6 +135,34 @@ in `GenericCode.v`), so they cover what the class-type-argument columns leave ou
 | Parameter and return types that are intersections | ✗ (#11) | — |
 | Functions with type parameters of their own | — Kotlin can't override them (roadmap 34) | — |
 | Every function a concrete class inherits is implemented, so dispatch finds one | assumed: the compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction`) | readme, assumptions |
+
+## Tokens at run time
+
+`TokenGuarantee.v`, a model of its own: classes with member variables, interfaces, the four mutabilities,
+`& NonToken`, one type parameter per class and per function, a heap, and statements that copy a reference, read
+and write a member variable, and construct an object. The code that runs is the body of a generic function, and
+the theorems hold for every type its parameter is instantiated with. It is not the model of unify, and not checked
+against the frontend by the oracle: that its `may_be_token`, its token rule and its `instantiate` are the
+frontend's is by reading (`BoundTypeReference.mayBeTokenUnless`, `TokenRule.check`,
+`GenericTypeReference.instantiateAllParameters`, `TypeMutability.limitedTo`).
+
+| area | status | where |
+|---|---|---|
+| A reference leads to an object of its type; where the type cannot be a token, to an object that is none and has no type argument that may be one (preservation) | ✓ | `types_stay_true` |
+| What generic code may assign, it may assign in every instance | ✓ | `fits_assignable`, `token_rule_instantiated` |
+| Nothing reachable through a reference whose type cannot be a token is a token | ✓ | `no_token_behind_a_non_token` |
+| Code that starts with no reference whose type may be a token holds no token it did not construct, constructs none that stands for state outside of the program, and leaves the tokens that were there as they were | ✓ | `no_token_no_effect` |
+| Type arguments count (`Box<Clock>` is not assignable to `NonToken`); rule 4, with `T : NonToken`; `const T` of a `mut X` is `own X & NonToken` | ✓ | the above, and `TokenGuaranteeExample` |
+| The premises are satisfiable | ✓ two programs | `TokenGuaranteeExample` |
+| More than one type parameter; bounds with type arguments or on the parameter of a class; variance (type arguments are invariant, so not that an `in` argument reads as `Any?`) | ✗ | — |
+| Member access through a reference whose type argument mentions the type parameter without being it (`Box<Box<T>>` in generic code) | ✗ such references can be passed on | — |
+| That the mutability of a reference limits its type arguments; the `NonToken` added where an intersection gives its components a common mutability | ✗ | — |
+| Function calls (a function is a list of statements), nullability, intersections other than with `NonToken`, exceptions | ✗ | — |
+| Closures (rule 6) | ✗ not in the language yet | — |
+| Casts | ✗ they can forget a token, see `docs/tokens.md` | — |
+
+The mutability rules are left out on purpose: assignability is subtyping and the token rule there, so the theorems
+do not rest on them.
 
 ## Outside the proven model entirely
 

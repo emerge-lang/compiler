@@ -88,7 +88,6 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     /**
      * The side effect category of this function, strictly as derived from [attributes].
      */
-    val purity: Purity get() = attributes.purity
 
     /**
      * How invoking this function affects the call frame of the caller. Is derived solely from [attributes] and [returnType].
@@ -129,24 +128,6 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     override fun toStringForErrorMessage() = "function $name"
 
     fun toBackendIr(): IrFunction
-
-    enum class Purity(val keyword: Keyword) {
-        PURE(Keyword.PURE),
-        READONLY(Keyword.READONLY),
-        MODIFYING(Keyword.MUTABLE),
-        ;
-
-        /**
-         * @return whether [other] allows the same set or a subset of the side effects allowed by `this`.
-         */
-        fun contains(other: Purity): Boolean = when(this) {
-            PURE -> other == PURE
-            READONLY -> other == PURE || other == READONLY
-            MODIFYING -> true
-        }
-
-        override fun toString() = name.lowercase()
-    }
 }
 
 interface BoundMemberFunction : BoundFunction {

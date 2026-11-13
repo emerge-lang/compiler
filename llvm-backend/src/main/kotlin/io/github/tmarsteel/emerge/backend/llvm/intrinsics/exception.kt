@@ -81,7 +81,7 @@ private val LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.typeName: LlvmVa
 }
 
 private fun BasicBlockBuilder<out EmergeLlvmContext, *>.printStackTraceToStdErr() {
-    call(context.printStackTraceToStdErrFunction, emptyList())
+    call(context.printStackTraceToStdErrFunction, listOf(context.runtimeStackTraceCollectorSlot.dereference()))
 }
 
 private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
@@ -160,21 +160,14 @@ internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResu
     val exceptionPtr = call(exceptionClass.constructor.llvmRef!!, ctorArguments)
         .reinterpretAs(PointerToAnyEmergeValue)
 
-    val fillStackTraceIrFn = context.throwableClazz.memberFunctions
-        .single { it.canonicalName.simpleName == "fillStackTrace" }
-        .overloads
-        .single()
-
-    val fillStackTraceFnAddress = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
-        exceptionPtr,
-        context.uWord(fillStackTraceIrFn.signatureHashes.first()),
-    ))
-
     call(
-        fillStackTraceFnAddress,
-        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue)),
-        listOf(exceptionPtr),
+        context.fillStackTraceUsingCollectorFunction,
+        listOf(exceptionPtr, context.runtimeStackTraceCollectorSlot.dereference()),
     )
+        .let {
+            @Suppress("UNCHECKED_CAST")
+            it as LlvmValue<EmergeFallibleCallResult.OfVoid>
+        }
         .abortOnException { _ ->
             // ignore this one
             propagateOrPanic(exceptionPtr)
@@ -193,7 +186,7 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
         val writeToStdErr = buildStdErrPrinter()
         val printToResult = call(
             context.printThrowableFunction,
-            listOf(exceptionPtr, context.standardErrorStreamGlobalVar.declaration.emitRead!!(this)),
+            listOf(exceptionPtr, context.runtimePanicStreamSlot.dereference(), context.runtimeStackTraceCollectorSlot.dereference()),
         )
 
         if (printToResult.type is EmergeFallibleCallResult<*>) {

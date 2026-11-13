@@ -120,9 +120,9 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
     }
 
     /** of each node, what the frontend derives of it, which the model derives of its encoding: `Oracle.properties_of` */
-    private fun properties(t: BoundTypeReference?): String = if (t == null) "-----" else
+    private fun properties(t: BoundTypeReference?): String = if (t == null) "------" else
         mutabilityLetter(t.mutability) + mutabilityLetter(t.assignmentMutability) + (if (t.isNullable) "1" else "0") +
-            (if (t.isNonNullableNothing) "1" else "0") + classLetter(classOf(t.baseTypeOfLowerBound))
+            (if (t.isNonNullableNothing) "1" else "0") + classLetter(classOf(t.baseTypeOfLowerBound)) + (if (t.mayBeToken) "1" else "0")
 
     /** above that of every other parameter its bound mentions, as `Subtyping.bounds_deep_ranked` takes */
     private fun rankOf(parameter: BoundTypeParameter): Int =
@@ -145,9 +145,16 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
                 parameters.forEach { parameterOf(it) }
                 val kind = if (baseType.kind == BoundBaseType.Kind.CLASS) "class_kind" else "interface_kind"
                 val declared = baseType.superTypes.clauses.mapNotNull { it.resolvedReference }.joinToString("; ") { encode(it, baseType) }
-                classDeclarations[id] = "class_decl $kind ${baseType.isConst} [${parameters.joinToString("; ") { parameterOf(it).toString() }}] [$declared]"
-                val transitive = baseType.superTypes.preprocessedInheritanceTree.parameterizedSupertypes.entries
+                classDeclarations[id] = "class_decl $kind ${baseType.isConst} ${baseType.isNonToken} [${parameters.joinToString("; ") { parameterOf(it).toString() }}] [$declared]"
+                val declaredTransitive = baseType.superTypes.preprocessedInheritanceTree.parameterizedSupertypes
                     .filter { it.key != swCtx.any }
+                // a class that is no token class is a subtype of NonToken without mentioning it (BoundBaseType.isSubtypeOf)
+                val implicit = if (baseType.isNonToken && baseType != swCtx.nonToken && baseType != swCtx.nothing && swCtx.nonToken !in declaredTransitive) {
+                    mapOf(swCtx.nonToken to swCtx.nonToken.getBoundReferenceAssertNoTypeParameters())
+                } else {
+                    emptyMap()
+                }
+                val transitive = (declaredTransitive + implicit).entries
                     .sortedBy { it.key.canonicalName.toString() }
                 supertypes[id] = transitive.map { classOf(it.key) }
                 transitive.forEach { (superType, parameterized) ->
@@ -211,7 +218,7 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
             nodes.forEach { (term, index) -> appendLine("Definition ${name(index)} := $term.") }
             appendLine()
             appendLine("(* of each type above, in order: its mutability and assignment mutability, whether it is nullable and Nothing")
-            appendLine("   without null, and its base type of the lower bound, as the frontend has them (Oracle.properties_of) *)")
+            appendLine("   without null, its base type of the lower bound, and whether it may be a token, as the frontend has them (Oracle.properties_of) *)")
             val chunks = nodes.values.chunked(200)
             chunks.forEachIndexed { c, chunk ->
                 appendLine("Definition properties_$c: list EType * string := ([${chunk.joinToString("; ") { name(it) }}],")

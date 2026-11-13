@@ -13,8 +13,8 @@ export class ReflectionBaseType {
     // for static typeinfos: points at the dynamic version; for dynamic ones: is null
     private dynamicInstance: ReflectionBaseType? = init
 
-    // compares the two by identity; is pure because these objects are some of the
-    // few true singletons in the entire language
+    // compares the two by identity; that tells nothing about where they are in memory, so it takes no
+    // AddressSpace. These objects are some of the few true singletons in the entire language
     private nothrow intrinsic fn isSameObjectAs(self, borrow other: ReflectionBaseType) -> Bool
 
     export nothrow fn isSubtypeOf(capture self, borrow supertype: ReflectionBaseType) -> Bool {

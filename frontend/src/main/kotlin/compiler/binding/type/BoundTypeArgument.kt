@@ -38,6 +38,8 @@ class BoundTypeArgument(
     override val span get() = astNode.span
     override val isNonNullableNothing get() = type.isNonNullableNothing
     override val isPartiallyUnresolved get()= type.isPartiallyUnresolved
+    // an `in` argument reads as Any?
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = variance == TypeVariance.IN || type.mayBeTokenUnless(nonTokenParameters)
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY

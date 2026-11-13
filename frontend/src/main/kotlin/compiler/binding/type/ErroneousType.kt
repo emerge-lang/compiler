@@ -37,6 +37,7 @@ class ErroneousType(
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
     override val isPartiallyUnresolved = true
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = false
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         if (candidates.isEmpty()) {

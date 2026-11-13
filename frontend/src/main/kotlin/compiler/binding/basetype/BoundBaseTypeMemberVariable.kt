@@ -30,6 +30,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.MissingTokenModifierDiagnostic
+import compiler.diagnostic.missingTokenModifier
 import compiler.diagnostic.decoratedMemberVariablesNotSupported
 import compiler.diagnostic.decoratingMemberVariableWithNonReadType
 import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
@@ -90,8 +92,14 @@ class BoundBaseTypeMemberVariable(
         seanHelper.phase2(diagnosis) {
             annotations.semanticAnalysisPhase2(diagnosis)
             boundLocalVariableInConstructorCode?.semanticAnalysisPhase2(diagnosis)
-            type = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
+            val typeDef = getTypeDef()
+            val declaredType = boundLocalVariableInConstructorCode?.typeAtDeclarationTime
                 ?: entryDeclaration.variableDeclaration.type?.let(typeRootContext::resolveType)
+            type = declaredType?.let(typeDef::narrowMemberVariableType)
+            if (declaredType != null && type != declaredType && !typeDef.isDeclaredNonToken) {
+                // narrowed, without the class having asked for it
+                diagnosis.missingTokenModifier(typeDef, MissingTokenModifierDiagnostic.Reason.MemberVariable(this))
+            }
 
             val typeUseSite = if (entryDeclaration.variableDeclaration.isReAssignable) {
                 TypeUseSite.InvariantUsage(entryDeclaration.variableDeclaration.type?.span ?: entryDeclaration.span, this)

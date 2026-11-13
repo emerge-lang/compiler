@@ -14,6 +14,7 @@ import compiler.binding.context.CTContext
 import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.constTokenReference
 import compiler.diagnostic.hiddenTypeExposed
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -43,6 +44,12 @@ class RootResolvedTypeReference private constructor(
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
     override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
+    override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
+        if (mutability == TypeMutability.IMMUTABLE) {
+            return false
+        }
+        return !baseType.isNonToken || arguments?.any { it.mayBeTokenUnless(nonTokenParameters) } == true
+    }
 
     override val inherentTypeBindings by lazy {
         val params = baseType.typeParameters ?: emptyList()
@@ -146,6 +153,10 @@ class RootResolvedTypeReference private constructor(
         arguments?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
         inherentTypeBindings.diagnostics.forEach(diagnosis::add)
         baseType.validateAccessFrom(forUsage.usageLocation, diagnosis)
+        if (baseType.isToken && !baseType.isConst && mutability == TypeMutability.IMMUTABLE) {
+            // a token type that is declared const is reported on its declaration
+            diagnosis.constTokenReference(baseType, span ?: forUsage.usageLocation)
+        }
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
                 diagnosis.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN)
@@ -216,7 +227,11 @@ class RootResolvedTypeReference private constructor(
                 if (this.equalsExceptMutability(other)) {
                     return withMutability(this.mutability.union(other.mutability))
                 }
-                val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                var commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                if (commonSuperBaseType === context.swCtx.any && this.baseType.isNonToken && other.baseType.isNonToken && !this.mayBeToken && !other.mayBeToken) {
+                    // two values that are no tokens have that in common
+                    commonSuperBaseType = context.swCtx.nonToken
+                }
                 val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
                     val commonSupertypeFromThis = this.getInstantiatedSupertype(commonSuperBaseType)
                     val commonSupertypeFromOther = other.getInstantiatedSupertype(commonSuperBaseType)
@@ -295,11 +310,17 @@ class RootResolvedTypeReference private constructor(
                     val normalizedAssignee = assigneeType.getInstantiatedSupertype(this.baseType)
                     val selfArgs = this.arguments ?: emptyList()
                     val assigneeArgs = normalizedAssignee.arguments ?: emptyList()
-                    return selfArgs
+                    val afterArguments = selfArgs
                         .zip(assigneeArgs)
                         .fold(carry) { innerCarry, (targetArg, sourceArg) ->
                             targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                         }
+                    if (afterArguments.getErrorsNotIn(carry).any()) {
+                        return afterArguments
+                    }
+
+                    // it is a subtype. Still, a token is never frozen, and stays visible in the type of every reference to it
+                    return TokenRule.check(this, assigneeType, assignmentLocation)?.let(afterArguments::plusDiagnostic) ?: afterArguments
                 } finally {
                     inProgress.remove(goal)
                 }

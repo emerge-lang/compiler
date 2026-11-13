@@ -24,8 +24,8 @@ Local Open Scope string_scope.
 (* The Environment, from tables                                                                    *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-Definition class_decl (kd: ClassKind) (is_const_class: bool) (ps: list TypeParameterId) (sups: list EType): ClassDecl :=
-    {| kind := kd; is_const := is_const_class; type_parameters := map (fun p => {| param_id := p; prescribed_ownership := None |}) ps;
+Definition class_decl (kd: ClassKind) (is_const_class is_non_token_class: bool) (ps: list TypeParameterId) (sups: list EType): ClassDecl :=
+    {| kind := kd; is_const := is_const_class; is_non_token := is_non_token_class; type_parameters := map (fun p => {| param_id := p; prescribed_ownership := None |}) ps;
        supertypes := sups; fields := [] |}.
 
 Definition lookup {T0 T1: Type} (R: T0 -> T0 -> bool) (default: T1) (table: list (T0 * T1)) (key: T0): T1 :=
@@ -147,7 +147,7 @@ Definition oracle_environment
     (parameterized: list ((Class * Class) * EType)) (bounds: list (TypeParameterId * EType)) (ranks: list (TypeParameterId * nat))
     (types: list EType) (intersections common_supertypes: list (list EType)): Environment :=
     let index := index_of_all types in {|
-    declaration_of := lookup class_beq (class_decl class_kind false [] []) classes;
+    declaration_of := lookup class_beq (class_decl class_kind false true [] []) classes;
     supertypes_of := lookup class_beq [] sups;
     closest_common_super_class := fun cs => lookup classes_beq (match cs with [c] => c | _ => any end) common cs;
     parameterized_supertype := fun sub super => lookup class_pair_beq (RootResolved None super []) parameterized (sub, super);
@@ -394,7 +394,7 @@ Definition option_bool_eqb (e0 e1: option bool): bool :=
 Definition explain (excuses: list Excuse) (answers: list string): list (Disagreement * list string) :=
     flat_map (fun '((na, a), row) =>
         flat_map (fun '((nb, b), f) =>
-            let m := is_assignable_to env fuel a b in
+            let m := is_assignable_to_with_tokens env fuel a b in
             if option_bool_eqb m (Some f) then []
             else [(disagreement na nb m f, map fst (filter (fun e => snd e a b m f) excuses))])
         (combine grid (bits row)))
@@ -405,6 +405,30 @@ Definition comparison (excuses: list Excuse) (answers: list string): list Disagr
     let explained := explain excuses answers in
     (map fst (filter (fun d => match snd d with [] => true | _ => false end) explained),
      filter (fun name => negb (existsb (fun d => existsb (String.eqb name) (snd d)) explained)) (map fst excuses)).
+
+(* The pairs the token rules let pass and unify without them doesn't: there are to be none. The rules
+   are a layer on unify that only makes assignments fail (Subtyping.unify_with_tokens), so what the
+   theorems say of an assignment unify accepts holds of those the frontend accepts. *)
+Definition accepted_by_the_token_rules_only: list (string * string) :=
+    flat_map (fun '(na, a) =>
+        flat_map (fun '(nb, b) =>
+            if option_bool_eqb (is_assignable_to_with_tokens env fuel a b) (Some true)
+                && negb (option_bool_eqb (is_assignable_to env fuel a b) (Some true))
+            then [(na, nb)] else [])
+        grid)
+    grid.
+
+(* The pairs that forget a token: the first may be one, the second cannot be, and the first is
+   assignable to the second all the same. There are to be none; a const type cannot be a token
+   (Subtyping.may_be_token), so no token is frozen either. *)
+Definition tokens_forgotten: list (string * string) :=
+    flat_map (fun '(na, a) =>
+        flat_map (fun '(nb, b) =>
+            if may_be_token env a && negb (may_be_token env b)
+                && option_bool_eqb (is_assignable_to_with_tokens env fuel a b) (Some true)
+            then [(na, nb)] else [])
+        grid)
+    grid.
 
 (* Rows and columns as many as there are types *)
 Definition answers_shaped (answers: list string): bool :=
@@ -436,16 +460,16 @@ Definition class_letter (c: Class): ascii :=
 Definition properties_of (t: EType): string :=
     String (mutability_letter (mutability_of env t)) (String (mutability_letter (assignment_mutability env t))
         (String (bool_letter (is_nullable env t)) (String (bool_letter (is_non_nullable_nothing env t))
-            (String (class_letter (base_type_of_lower_bound env t)) EmptyString)))).
+            (String (class_letter (base_type_of_lower_bound env t)) (String (bool_letter (may_be_token env t)) EmptyString))))).
 
-(* The types whose properties differ: the type, the frontend's, the model's. "-----" is a type the
+(* The types whose properties differ: the type, the frontend's, the model's. "------" is a type the
    frontend threw on *)
 Fixpoint property_mismatches (types: list EType) (properties: string): list (string * string * string) :=
     match types, properties with
-    | t :: rest, String a (String b (String c (String d (String e more)))) =>
-        let frontend := String a (String b (String c (String d (String e EmptyString)))) in
+    | t :: rest, String a (String b (String c (String d (String e (String f more))))) =>
+        let frontend := String a (String b (String c (String d (String e (String f EmptyString))))) in
         let model := properties_of t in
-        ((if String.eqb frontend "-----" || String.eqb frontend model then [] else [(name_of t, frontend, model)])
+        ((if String.eqb frontend "------" || String.eqb frontend model then [] else [(name_of t, frontend, model)])
             ++ property_mismatches rest more)%list
     | [], EmptyString => []
     | _, _ => [("as many properties as types", "", "")]

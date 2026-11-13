@@ -45,9 +45,10 @@ class ImportErrors : FreeSpec({
         "explicit import of a function that is also imported by default" {
             validateModule("""
                 import emerge.std.println
+                import emerge.std.io.PrintStream
 
-                mut fn test() {
-                    println("x")
+                fn test(borrow stream: mut PrintStream) {
+                    stream.println("x")
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
@@ -56,9 +57,10 @@ class ImportErrors : FreeSpec({
         "errors in the invocation are reported specifically" {
             validateModule("""
                 import emerge.std.println
+                import emerge.std.io.PrintStream
 
-                mut fn test() {
-                    println(1)
+                fn test(borrow stream: mut PrintStream) {
+                    stream.println(1)
                 }
             """.trimIndent())
                 .shouldNotFind<AmbiguousInvocationDiagnostic>()

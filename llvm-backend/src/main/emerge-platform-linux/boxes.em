@@ -12,8 +12,9 @@ class S8Box : Printable {
     }
 }
 
-// holds an array when it is referenced as one of the supertypes of Array, e.g. Any or Iterable
-class ArrayBox {
+// holds an array when it is referenced as one of the supertypes of Array, e.g. Any or Iterable.
+// It is a token class as the array may hold tokens.
+token class ArrayBox {
     value: Array<out Any?> = init
 }
 

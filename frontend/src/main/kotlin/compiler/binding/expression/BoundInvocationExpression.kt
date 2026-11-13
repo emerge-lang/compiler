@@ -18,6 +18,8 @@
 
 package compiler.binding.expression
 
+import compiler.binding.basetype.BoundClassConstructor
+import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
 import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
@@ -38,7 +40,6 @@ import compiler.binding.context.InvocationJoinExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
-import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -177,6 +178,10 @@ class BoundInvocationExpression(
             }
 
             chosenOverload = selectOverload(availableOverloads, diagnosis) ?: return@phase2
+
+            (chosenOverload!!.candidate as? BoundClassConstructor)
+                ?.takeIf { it.classDef.isUnique && !declaration.span.generated }
+                ?.let { diagnosis.add(UniqueClassConstructorInvocationDiagnostic(it.classDef.simpleName, declaration.span)) }
 
             _modifiedContext.trackSideEffect(CallFrameExit.Effect.InvokesFunction(chosenOverload!!.candidate.callFrameExitEffectOnInvocation))
 
@@ -491,30 +496,11 @@ class BoundInvocationExpression(
         }
     }
 
-    /** so that identity remains constant throughout visits to this instance */
-    private val asImpurity: ImpureInvocation? by lazy {
-        seanHelper.requirePhase2Done()
-        val functionToInvoke = this.functionToInvoke ?: return@lazy null
-        if (BoundFunction.Purity.PURE.contains(functionToInvoke.purity)) {
-            return@lazy null
-        }
-
-        ImpureInvocation(
-            this,
-            functionToInvoke,
-        )
-    }
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
         receiverExpression?.visitReadsBeyond(boundary, visitor)
         valueArguments.forEach { it.visitReadsBeyond(boundary, visitor) }
-
-        asImpurity?.let { impurity ->
-            if (!BoundFunction.Purity.PURE.contains(impurity.functionToInvoke.purity)) {
-                visitor.visit(impurity)
-            }
-        }
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
@@ -522,12 +508,6 @@ class BoundInvocationExpression(
 
         receiverExpression?.visitWritesBeyond(boundary, visitor)
         valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
-
-        asImpurity?.let { impurity ->
-            if (!BoundFunction.Purity.READONLY.contains(impurity.functionToInvoke.purity)) {
-                visitor.visit(impurity)
-            }
-        }
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
@@ -542,7 +522,8 @@ class BoundInvocationExpression(
     override val isCompileTimeConstant: Boolean
         get() {
             val localDispatchedFunction = functionToInvoke ?: return false
-            if (!BoundFunction.Purity.PURE.contains(localDispatchedFunction.purity)) {
+            if (localDispatchedFunction.attributes.externalAttribute != null) {
+                // what an external function does is not known to the compiler
                 return false
             }
             val receiverIsConstant = receiverExpression?.isCompileTimeConstant ?: true

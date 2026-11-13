@@ -49,13 +49,50 @@ data object EmergeConstants {
         const val VARIANCE_OUT: UByte = 2u
     }
 
+    data object UnwindModule {
+        val NAME = CanonicalElementName.Package(listOf("emerge", "core", "unwind"))
+
+        /**
+         * `(borrow throwable: mut Throwable) -> Unit`; what `throw` invokes before the throwable propagates. An
+         * intrinsic: the backend passes the throwable and the stack trace collector of the runtime to
+         * [FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME].
+         */
+        val FILL_STACK_TRACE_ON_THROW_FN_NAME = CanonicalElementName.Function(NAME, "fillStackTraceOnThrow")
+
+        /** `(borrow throwable: mut Throwable, borrow collector: read StackTraceCollector) -> Unit` */
+        val FILL_STACK_TRACE_WITH_COLLECTOR_FN_NAME = CanonicalElementName.Function(NAME, "fillStackTraceUsing")
+    }
+
     data object StdModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "std"))
     }
 
     data object PlatformModule {
         val NAME = CanonicalElementName.Package(listOf("emerge", "platform"))
+
+        /**
+         * The root token: a token class with one instance per process, which the platform constructs and passes
+         * to the main function of the program if that declares a parameter for it.
+         */
+        val WORLD_TYPE_NAME = CanonicalElementName.BaseType(NAME, "World")
+
+        /**
+         * The token class it takes to read a stack trace. The runtime holds an instance per thread, for panics.
+         */
+        val STACK_TRACE_COLLECTOR_TYPE_NAME = CanonicalElementName.BaseType(NAME, "StackTraceCollector")
     }
+
+    /**
+     * The name of the static function the compiler adds to every `unique class`. It hands out the one instance of
+     * the class; signature is `(world: mut emerge.platform.World, <constructor parameters>) -> own C?`
+     */
+    const val UNIQUE_CLASS_TAKE_FUNCTION_NAME = "take"
+
+    /**
+     * Identifiers the compiler generates for its own use start with this, e.g. the variable that knows whether the
+     * instance of a `unique class` was handed out.
+     */
+    const val COMPILER_INTERNAL_IDENTIFIER_PREFIX = "__"
 
     /**
      * the identifier to use in the initialization expression for member variables to indicate that the
