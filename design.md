@@ -278,6 +278,18 @@ The general syntax is a mix of Kotlin and D, with some syntax-sugar from groovy.
 
     a = if (foo) 3 else 5 // no ternary operator
 
+#### Errors are not caught
+
+`catch` handles only throwables that do not implement `emerge.core.Error`. An `Error` (e.g. an
+`ArrayIndexOutOfBoundsError`) passes through every `catch` and keeps propagating, so a `try`/`catch` cannot make
+code `nothrow`. To make a throwable catchable, implement `Throwable` instead of `Error`:
+
+    class ParseException : Throwable {
+        constructor {
+            mixin ThrowableTrait("could not parse")
+        }
+    }
+
 ### Safe access operator
 
 Nullable fields of data structures can safely be traversed with the `?.` operator:

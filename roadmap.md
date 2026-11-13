@@ -1,27 +1,9 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-0. **bug:** `catch` does not catch an exception thrown by a function that the `try` block calls; the program
-   panics with "unhandled exception". Reproduces on linux-x86_64 with
-   ```
-   class TestError : Error {
-       constructor {
-           mixin ThrowableTrait("thrown on purpose")
-       }
-   }
-   fn fail() {
-       throw TestError()
-   }
-   fn main(world: mut World) {
-       out = StandardOut.take(world)!!
-       try {
-           fail()
-       } catch e {
-           out.println("caught")
-       }
-   }
-   ```
-   Not investigated yet. There is no test that runs a compiled program, so nothing noticed (see the item on
-   integration tests).
+0. ~~**bug:** `catch` does not catch an exception thrown by a function that the `try` block calls~~ not a bug:
+   the reproducer threw a class implementing `Error`, and `catch` lets `Error`s through by design (see
+   [design.md](design.md#errors-are-not-caught)). A `Throwable` that isn't an `Error` thrown from a called function
+   is caught. The reproducer also named a variable `out`, which is a keyword.
 1. ~~signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
    on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
 2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
@@ -134,6 +116,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
     6. implement last-argument lambdas like in Kotlin?
        * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
+    7. a builtin that bridges from `nothrow` code into throwing code, e.g.
+       `intrinsic nothrow fn panicOnCatch<R>(action: () -> R) -> R`. It runs `action` and panics on every
+       `Throwable` that `action` throws, `Error`s included. This is needed because `try`/`catch` can't do it:
+       `Error`s pass through every `catch` (see [design.md](design.md#errors-are-not-caught)), so today a
+       `nothrow` function cannot call anything that may throw.
 14. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...
