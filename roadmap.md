@@ -31,22 +31,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
-6a. internal mutability: state that can change through a `read` reference to the object holding it. Needed for
-    lazy initialization, and for classes that offer reading through something they have to mutate to do so (a
-    `read S3Bucket` sends its queries through a socket stream)
-    * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
-      `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
-      the object holding the cell
-      * it is a `token class Cell<T>` (see [docs/tokens.md](docs/tokens.md), internal mutability): never `const`,
-        every class holding one is a token class, none is reachable from a global or from another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
-        is a promise of its author, not something the compiler checks. That code without a token cannot touch
-        external state stays checked
-      * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
-    * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
-      freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
-      call. The time of that call must not show in the value, so the value is `const`, and the initializer
-      captures only `const` data and no token; capturing no token is not enough, as the initializer could still
-      read mutable data it captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -63,8 +47,18 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
    3. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
       of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
-      dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
-      returns and invocation results move or drop their boxes correctly
+      dropped. An `ArrayBox` keeps its array object alive with it, but never dangles (see item 38 for one that
+      does). Assignments, returns and invocation results move or drop their boxes correctly, and so do call
+      arguments boxed from an array
+   4. a primitive boxed for a call argument of a generic parameter type is never dropped: `consume::<S32>(i)` for
+      `fn consume<T>(x: T) {}` and `Holder::<S32>(i)` for `class Holder<T> { v: T = init }` leak one `S32Box` per
+      call (`prepareArgument` in codegen.kt only drops the boxes of array slices)
+   5. strings leak in shapes not narrowed down yet, each once per evaluation:
+      * every result of `S32.toString()`, also when assigned to a variable first and passed on from there
+      * the result of `fn mk(name: String) -> String = "hello, " + name`, whether passed directly to another call or
+        assigned to a variable first. The same concatenation of a member variable (`"hello, " + self.name`) doesn't
+        leak
+      * `stdout.println(lazy.value)` leaks the value of a `Lazy<String>` once, while `x = lazy.value` doesn't
 10. documentation and presentation
     * from a user perspective. Github pages?
       * language syntax and semantics, maybe a good tutorial
@@ -106,6 +100,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
        left of the problem is a rule for closures: a closure that captures a token is a token
        (rule 6 in [docs/tokens.md](docs/tokens.md)).
+       Then `emerge.core.Lazy` takes a function instead of a `LazyInitializer`; its type has to say that the
+       closure captures only `const` data and no token (see [docs/tokens.md](docs/tokens.md#internal-mutability))
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
        * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
@@ -278,7 +274,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     with an array return type (`override fn make(self) -> Array<U>` for `Maker<Array<U>>`) crashes: the interface
     returns a boxed reference, the override returns an `arrayslice` struct, so the LLVM signatures differ and the
     override misreads its `self`. Needs a bridge like the ones `emerge.platform.ArrayBox` has, or the override has
-    to use the representation of the overridden function
+    to use the representation of the overridden function.
+    A primitive return type has the same problem: `override fn computeValue(self: const _) -> S32` for
+    `LazyInitializer<S32>` returns the raw `S32` where the caller expects a boxed reference, so `Lazy.value` takes
+    the number for a pointer and segfaults. A generic class (`class Constant<T> : LazyInitializer<T>`) works
 35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
 36. the type system model picks other final values than the frontend where a type variable only has `own` values
@@ -297,7 +296,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
     and not going to be: each member variable or element of a generic data structure would either own its object,
     making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
-    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 6a) gives
+    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `emerge.core.Cell` gives
     that for much less. The frontend is modelled as the types whose type arguments are all `ref`, or of the
     ownership of their type parameter, so nothing is wrong meanwhile; but every theorem speaks about an ownership
     the language doesn't have, and `owned` reads like the mutability `own`. To remove:
@@ -311,6 +310,26 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
+38. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
+    freed twice (valgrind: invalid reads, writes and frees in the destructors):
+    ```
+    interface Source<T : const Any?> : const NonToken {
+        fn produce(self: const _) -> T
+    }
+    class Constant<T : const Any?> : Source<T> {
+        v: T = init
+        override fn produce(self: const _) -> T = self.v
+    }
+
+    numbers: const Array<S32> = [1, 2, 3]
+    c: const Source<const Array<S32>> = Constant(numbers)
+    x = c.produce()
+    ```
+    The box held by `c.v` loses one reference too many; the same shape with a boxed `S32` has no invalid accesses
+39. a `var` member variable of a nullable type parameter with a `const` bound is rejected:
+    `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
+    Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
+    around it, its intrinsic writes `_value` regardless
 
 ## Future features
 

@@ -820,6 +820,21 @@ class ClassErrors : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
 
+        "immediate argument to supertype declaration out of bounds" {
+            validateModule("""
+                interface I<T : const Any?> {}
+                class C : I<Array<S32>> {}
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+
+            validateModule("""
+                interface I<T : const Any> {}
+                class C : I<out Array<S32>> {}
+            """.trimIndent())
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+                .shouldFind<ImmediateVariantTypeArgumentOnSupertypeDiagnostic>()
+        }
+
         "overriding a function of a supertype with type arguments" - {
             val types = """
                 interface A {}
