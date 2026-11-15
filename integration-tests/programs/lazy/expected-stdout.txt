@@ -1,0 +1,11 @@
+hello, world
+hello, world
+42
+43
+was null
+was null again
+caught: initializer failed
+caught: initializer failed
+7
+hello, holder
+hello, holder
