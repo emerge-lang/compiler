@@ -1,0 +1,145 @@
+10
+128
+100
+b
+3
+4
+AB
+128
+is array
+10
+Hi
+10
+9
+Hello World
+2
+5
+3
+0
+10
+14
+slice is array
+slice is iterable
+list is iterable
+slice is not a string
+2
+5
+2
+c
+12
+9
+2
+5
+el
+5
+3
+5
+2
+9
+9
+slices done
+weak thing without access is gone
+5
+weak array is gone
+7
+weak thing is gone
+18
+18
+weak done
+null array is null
+0
+3
+0
+60
+2
+0
+9
+0
+boxed null array is null
+boxed non-null array is an array
+3
+0
+3
+1
+0
+15
+2
+3
+nullable done
+5
+4
+3
+9
+makeInts called
+6
+2
+3
+4
+7
+ell
+9
+syntax done
+-- variance
+66
+66
+66
+66
+66
+66
+6
+6
+1 2 | 3 | 
+ann bob 
+ann bob 
+ann bob 
+ann bob 
+-- in
+47
+42
+-- literal
+3
+cid dan 
+-- copy
+7
+9
+100
+null
+300
+Hi!
+-- generic creation probe
+1234
+-- variance end
+-- reify
+1234
+3702
+null
+7
+2
+3
+t
+-- literal
+11
+8
+1
+b
+-- holder
+10
+18
+-- maker
+42
+-- range
+3702
+-- nested
+3702
+7
+-- arraylist
+42
+-- weak
+weak ok
+-- typeOf
+1
+nullable
+emerge.core.S32
+emerge.core.Array
+S32 is Any
+-- reify end
