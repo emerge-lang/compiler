@@ -47,8 +47,18 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       not-null assertion and member access are chained onto it. Assigning it to a variable first doesn't leak
    3. autoboxes leak at conversion sites that have no owner: a box (`S32Box`, `ArrayBox`, ...) created for the result
       of an `if`/`try` branch or a `?:`, or for a temporary whose declared type differs from the value's, is never
-      dropped. An `ArrayBox` keeps its array object alive with it, but never dangles. Call arguments, assignments,
-      returns and invocation results move or drop their boxes correctly
+      dropped. An `ArrayBox` keeps its array object alive with it, but never dangles (see item 38 for one that
+      does). Assignments, returns and invocation results move or drop their boxes correctly, and so do call
+      arguments boxed from an array
+   4. a primitive boxed for a call argument of a generic parameter type is never dropped: `consume::<S32>(i)` for
+      `fn consume<T>(x: T) {}` and `Holder::<S32>(i)` for `class Holder<T> { v: T = init }` leak one `S32Box` per
+      call (`prepareArgument` in codegen.kt only drops the boxes of array slices)
+   5. strings leak in shapes not narrowed down yet, each once per evaluation:
+      * every result of `S32.toString()`, also when assigned to a variable first and passed on from there
+      * the result of `fn mk(name: String) -> String = "hello, " + name`, whether passed directly to another call or
+        assigned to a variable first. The same concatenation of a member variable (`"hello, " + self.name`) doesn't
+        leak
+      * `stdout.println(lazy.value)` leaks the value of a `Lazy<String>` once, while `x = lazy.value` doesn't
 10. documentation and presentation
     * from a user perspective. Github pages?
       * language syntax and semantics, maybe a good tutorial
@@ -264,7 +274,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     with an array return type (`override fn make(self) -> Array<U>` for `Maker<Array<U>>`) crashes: the interface
     returns a boxed reference, the override returns an `arrayslice` struct, so the LLVM signatures differ and the
     override misreads its `self`. Needs a bridge like the ones `emerge.platform.ArrayBox` has, or the override has
-    to use the representation of the overridden function
+    to use the representation of the overridden function.
+    A primitive return type has the same problem: `override fn computeValue(self: const _) -> S32` for
+    `LazyInitializer<S32>` returns the raw `S32` where the caller expects a boxed reference, so `Lazy.value` takes
+    the number for a pointer and segfaults. A generic class (`class Constant<T> : LazyInitializer<T>`) works
 35. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
 36. the type system model picks other final values than the frontend where a type variable only has `own` values
@@ -297,6 +310,26 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
+38. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
+    freed twice (valgrind: invalid reads, writes and frees in the destructors):
+    ```
+    interface Source<T : const Any?> : const NonToken {
+        fn produce(self: const _) -> T
+    }
+    class Constant<T : const Any?> : Source<T> {
+        v: T = init
+        override fn produce(self: const _) -> T = self.v
+    }
+
+    numbers: const Array<S32> = [1, 2, 3]
+    c: const Source<const Array<S32>> = Constant(numbers)
+    x = c.produce()
+    ```
+    The box held by `c.v` loses one reference too many; the same shape with a boxed `S32` has no invalid accesses
+39. a `var` member variable of a nullable type parameter with a `const` bound is rejected:
+    `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
+    Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
+    around it, its intrinsic writes `_value` regardless
 
 ## Future features
 
