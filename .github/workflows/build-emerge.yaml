@@ -264,7 +264,11 @@ jobs:
             popd  
           
             mkdir -p llvm/bin && pushd $_
-              cp "${{ github.workspace }}/llvm-install/bin/lld" .
+              # the toolchain looks for bin/llc and bin/ld.lld; lld picks its flavor from the name it is invoked by
+              cp "${{ github.workspace }}/llvm-install/bin/llc" llc
+              cp "${{ github.workspace }}/llvm-install/bin/lld" ld.lld
+              # artifacts don't keep file permissions
+              chmod a+x llc ld.lld
             popd
             mkdir llvm/lib && pushd $_
               cp "${{ github.workspace }}/llvm-install/lib/libLLVM.so.$LLVM_MAJOR_VERSION.$LLVM_MINOR_VERSION" .
