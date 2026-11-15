@@ -12,9 +12,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
    which `main` obtains from the root token it is given.
 4. additional language constructs
-   1. switch/when statement
+   1. `when`: the first version is in, as syntax sugar for an `if`-`else if` chain that compares with `==`
    2. union types: `TypeA | TypeB | TypeC`
-      * support exhaustiveness check on switch/when statements
+      * support exhaustiveness check on `when`
    3. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
       type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
 5. Stdlib basics
@@ -332,6 +332,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
     Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
     around it, its intrinsic writes `_value` regardless
+40. **bug:** an `if` without `else` is accepted where a value is needed: `x: S32 = if p 1` compiles without a
+    diagnostic, and the type of the expression is that of the one branch. The same goes for a `when` without `else`,
+    as it is rewritten to such an `if`
 
 ## Future features
 
