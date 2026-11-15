@@ -138,7 +138,8 @@ jobs:
           sudo ./llvm.sh "${{ env.LLVM_MAJOR_VERSION }}"
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
-        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B clean verify
+        # the integration tests need a complete toolchain, they run in the job integration-tests
+        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-20" -B -pl '!integration-tests' clean verify
   type-system-proofs:
     name: verify type system proofs
     runs-on: ubuntu-latest
@@ -294,6 +295,45 @@ jobs:
         with:
           name: tarball
           path: "${{ steps.tarball.outputs.tarball_path }}"
+  integration-tests:
+    name: integration tests
+    runs-on: ubuntu-24.04 # like the job that builds LLVM, whose libraries the toolchain loads
+    needs:
+      - linux-distributables
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+        with:
+          ref: "${{ inputs.kotlin-ref || github.sha }}"
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version-file: .java-version
+          distribution: zulu
+          cache: maven
+      - name: get tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/tarball
+      - name: unpack toolchain
+        run: |
+          mkdir -p "${{ runner.temp }}/emerge-toolchain"
+          tar --extract --gzip \
+            --directory "${{ runner.temp }}/emerge-toolchain" \
+            --file "${{ runner.temp }}/tarball/${{ needs.linux-distributables.outputs.tarball-filename }}"
+      # tests the toolchain from the tarball, not the working copy; the checkout is only for the test programs.
+      # The tarball has no jre directory until its configure.sh has run, so the JDK from above runs the toolchain
+      - name: run emerge programs
+        run: mvn -B -pl integration-tests verify "-Demerge.integration-tests.toolchain-dir=${{ runner.temp }}/emerge-toolchain"
+      - name: upload compiler and program output
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-output
+          path: |
+            integration-tests/target/programs
+            integration-tests/target/surefire-reports
   llvm-build-for-windows:
     uses: ./.github/workflows/build-llvm-windows.yaml
   windows-distributables:
