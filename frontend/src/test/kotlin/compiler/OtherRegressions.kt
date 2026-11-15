@@ -149,4 +149,14 @@ class OtherRegressions : FreeSpec({
                 .shouldHaveNoDiagnostics()
         }
     }
+
+    "else-if chain as a value without an expected type" {
+        validateModule("""
+            fn test(p: Bool, q: Bool) -> S32 {
+                x = if p 1 else if q 2 else 3
+                return x
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
 })

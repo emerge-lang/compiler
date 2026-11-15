@@ -70,6 +70,8 @@ class BoundIfExpression(
 
     override fun markEvaluationResultUsed() {
         isInExpressionContext = true
+        thenCode.markEvaluationResultUsed()
+        elseCode?.markEvaluationResultUsed()
     }
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
