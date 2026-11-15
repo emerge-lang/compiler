@@ -90,8 +90,8 @@ class BoundSupertypeDeclaration(
 
             unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.span, getTypeDef()), diagnosis)
 
-            resolvedReference?.inherentTypeBindings?.bindings?.forEach { (param, arg) ->
-                arg as BoundTypeArgument
+            val parameters = resolvedReference?.baseType?.typeParameters.orEmpty()
+            resolvedReference?.arguments.orEmpty().zip(parameters).forEach { (arg, param) ->
                 if (arg.astNode is AstWildcardTypeArgument) {
                     diagnosis.immediateWildcardTypeArgumentOnSupertype(arg.astNode, param.astNode)
                 } else if (arg.variance != TypeVariance.UNSPECIFIED) {
