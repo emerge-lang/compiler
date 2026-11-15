@@ -31,22 +31,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
-6a. internal mutability: state that can change through a `read` reference to the object holding it. Needed for
-    lazy initialization, and for classes that offer reading through something they have to mutate to do so (a
-    `read S3Bucket` sends its queries through a socket stream)
-    * `Cell<T>`, a class in `emerge.core` whose operations are intrinsics and take `self` as `read`:
-      `fn get(self: read _) -> T`, `fn set(self: read _, value: T)`. What a cell holds is not part of the state of
-      the object holding the cell
-      * it is a `token class Cell<T>` (see [docs/tokens.md](docs/tokens.md), internal mutability): never `const`,
-        every class holding one is a token class, none is reachable from a global or from another thread. The price, accepted: for a token class with a cell, that a `read` reference only observes
-        is a promise of its author, not something the compiler checks. That code without a token cannot touch
-        external state stays checked
-      * type arguments cannot be `own` (item 19), so a cell hands out references of the mutability of `T`
-    * `Lazy<T : const Any?>`, an intrinsic of its own, not built on `Cell`: a class with a lazy member must stay
-      freezable and must not become a token class. `fn get(self: read _) -> T` runs the initializer on the first
-      call. The time of that call must not show in the value, so the value is `const`, and the initializer
-      captures only `const` data and no token; capturing no token is not enough, as the initializer could still
-      read mutable data it captured. Needs function types (item 13) that can say so
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -106,6 +90,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
        left of the problem is a rule for closures: a closure that captures a token is a token
        (rule 6 in [docs/tokens.md](docs/tokens.md)).
+       Then `emerge.core.Lazy` takes a function instead of a `LazyInitializer`; its type has to say that the
+       closure captures only `const` data and no token (see [docs/tokens.md](docs/tokens.md#internal-mutability))
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
        * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
@@ -297,7 +283,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
     and not going to be: each member variable or element of a generic data structure would either own its object,
     making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
-    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `Cell` (item 6a) gives
+    (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `emerge.core.Cell` gives
     that for much less. The frontend is modelled as the types whose type arguments are all `ref`, or of the
     ownership of their type parameter, so nothing is wrong meanwhile; but every theorem speaks about an ownership
     the language doesn't have, and `owned` reads like the mutability `own`. To remove:

@@ -251,15 +251,19 @@ Two checks reason about effects without function purity:
 
 ## Internal mutability
 
-_Not implemented_ (roadmap item 6a); what is decided:
+In `emerge.core`, with intrinsic implementations:
 
 ```
 token class Cell<T> {
-    fn get(self: read _) -> T
-    fn set(self: read _, value: T)
+    get fn value(self: read _) -> T
+    fn update(self: read _, value: T)
 }
 class Lazy<T : const Any?> {
-    fn get(self: read _) -> T    // runs the initializer on the first call
+    initializer: const LazyInitializer<T> = init
+    get fn value(self: read _) -> T    // runs the initializer on the first call
+}
+interface LazyInitializer<T : const Any?> : const NonToken {
+    fn computeValue(self: const _) -> T
 }
 ```
 
@@ -270,8 +274,12 @@ other state. By rule 1 no cell is ever `const`, by rule 2 every class holding on
 
 **`Lazy` is not a token class,** and not built on `Cell`: a class with a lazy member has to stay freezable and
 assignable to `NonToken`. It can be, because the time of the first call does not show in the value: the value is
-`const`, and the initializer captures only `const` data and no token. Rule 6 gives the second half; the first
-needs function types that can say what a closure captures.
+`const`, and the initializer captures only `const` data and no token: it is a `const` object of a class that is no
+token. `LazyInitializer` stands in for a function type until there are closures (roadmap item 13); those need
+function types that can say the same of what a closure captures.
+
+If the initializer throws, the exception propagates and the next access runs it again. An initializer that
+accesses the value it is computing is a panic.
 
 ## Known gaps
 

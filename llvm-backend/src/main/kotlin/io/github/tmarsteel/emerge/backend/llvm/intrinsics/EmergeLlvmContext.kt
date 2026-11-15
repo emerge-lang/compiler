@@ -148,7 +148,7 @@ class EmergeLlvmContext(
     /** `emerge.core.Lazy` */
     internal lateinit var lazyType: EmergeClassType
     /** `emerge.core.LazyInitializer` */
-    internal lateinit var lazyInitializerType: EmergeClassType
+    internal lateinit var lazyInitializerInterface: IrInterface
     /** `emerge.core.ArrayIndexOutOfBoundsError` */
     internal lateinit var arrayIndexOutOfBoundsErrorType: EmergeClassType
     /** `emerge.core.reflection.NamedType` */
@@ -241,6 +241,7 @@ class EmergeLlvmContext(
                 when (type.canonicalName) {
                     EmergeConstants.CoreModule.THROWABLE_TYPE_NAME -> throwableClazz = type
                     EmergeConstants.ReflectionModule.TYPE_TYPE_NAME -> reifiedTypeInterface = type
+                    EmergeConstants.CoreModule.LAZY_INITIALIZER_TYPE_NAME -> lazyInitializerInterface = type
                 }
             }
             is IrClass -> registerClass(type)
@@ -310,7 +311,6 @@ class EmergeLlvmContext(
             "emerge.core.String" -> stringType = emergeClassType
             "emerge.core.Cell" -> cellType = emergeClassType
             "emerge.core.Lazy" -> lazyType = emergeClassType
-            "emerge.core.LazyInitializer" -> lazyInitializerType = emergeClassType
             "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
             "emerge.core.reflection.NamedType" -> reifiedNamedTypeClass = emergeClassType
             "emerge.core.reflection.IntersectionType" -> reifiedIntersectionTypeClass = emergeClassType
