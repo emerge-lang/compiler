@@ -50,6 +50,7 @@ enum class Keyword(val text: String)
 
     IF("if"),
     ELSE("else"),
+    WHEN("when"),
     WHILE("while"),
     DO("do"),
     FOREACH("foreach"),

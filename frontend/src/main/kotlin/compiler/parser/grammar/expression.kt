@@ -23,6 +23,7 @@ import compiler.ast.AstBreakExpression
 import compiler.ast.AstContinueExpression
 import compiler.ast.AstSemanticOperator
 import compiler.ast.AstThrowExpression
+import compiler.ast.AstWhenExpression
 import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.ReturnExpression
@@ -47,6 +48,7 @@ import compiler.lexer.Keyword.CONTINUE
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
 import compiler.lexer.Keyword.TRY
+import compiler.lexer.Keyword.WHEN
 import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
@@ -73,6 +75,7 @@ private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without p
     ref(ParanthesisedExpression)
     ref(ExecutionAbortingExpression)
     ref(IfExpression)
+    ref(WhenExpression)
     ref(TryCatchExpression)
 }
     .astTransformation { tokens -> tokens.next() as AstExpression }
@@ -313,6 +316,71 @@ val IfExpression = sequence("if-expression") {
             condition,
             thenCode,
             elseCode
+        )
+    }
+
+val WhenBranch = sequence("when branch") {
+    ref(Expression)
+    operator(Operator.RETURNS)
+    ref(BracedCodeOrSingleStatement)
+    operator(Operator.NEWLINE)
+}
+    .astTransformation { tokens ->
+        val value = tokens.next() as AstExpression
+        val arrow = tokens.next() as OperatorToken
+        val code = tokens.next() as Executable
+
+        AstWhenExpression.Branch(value, arrow, code)
+    }
+
+val WhenElseBranch = sequence("else branch") {
+    keyword(ELSE)
+    operator(Operator.RETURNS)
+    ref(BracedCodeOrSingleStatement)
+    operator(Operator.NEWLINE)
+}
+    .astTransformation { tokens ->
+        val elseKeyword = tokens.next() as KeywordToken
+        tokens.next() // skip arrow
+        val code = tokens.next() as Executable
+
+        AstWhenExpression.ElseBranch(elseKeyword, code)
+    }
+
+val WhenExpression = sequence("when-expression") {
+    keyword(WHEN)
+    ref(Expression)
+    operator(Operator.CBRACE_OPEN)
+    repeating {
+        ref(WhenBranch)
+    }
+    optional {
+        ref(WhenElseBranch)
+    }
+    operator(Operator.CBRACE_CLOSE)
+}
+    .astTransformation { tokens ->
+        val whenKeyword = tokens.next() as KeywordToken
+        val subject = tokens.next() as AstExpression
+        tokens.next() // skip CBRACE_OPEN
+
+        val branches = ArrayList<AstWhenExpression.Branch>()
+        while (tokens.peek() is AstWhenExpression.Branch) {
+            branches.add(tokens.next() as AstWhenExpression.Branch)
+        }
+        val elseBranch = if (tokens.peek() is AstWhenExpression.ElseBranch) {
+            tokens.next() as AstWhenExpression.ElseBranch
+        } else {
+            null
+        }
+        val cbraceClose = tokens.next() as OperatorToken
+
+        AstWhenExpression(
+            whenKeyword.span .. cbraceClose.span,
+            whenKeyword,
+            subject,
+            branches,
+            elseBranch,
         )
     }
 
