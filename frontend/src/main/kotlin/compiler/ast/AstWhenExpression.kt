@@ -8,7 +8,6 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundWhenExpression
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -80,7 +79,7 @@ class AstWhenExpression(
             val branchSpan = branch.arrow.span.deriveGenerated()
             IfExpression(
                 branch.value.span .. branch.code.span,
-                KeywordToken(Keyword.IF, span = branchSpan),
+                whenKeyword,
                 BinaryExpression(
                     IdentifierExpression(subjectName),
                     AstSemanticOperator(OperatorToken(Operator.EQUALS, branchSpan)),

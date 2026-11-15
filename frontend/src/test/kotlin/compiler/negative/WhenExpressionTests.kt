@@ -2,10 +2,12 @@ package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic
+import compiler.diagnostic.MissingElseBranchDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -206,6 +208,60 @@ class WhenExpressionTests : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<ReturnTypeMismatchDiagnostic>()
+    }
+
+    "without else" - {
+        "as a value" {
+            validateModule("""
+                fn test(p: S32) -> S32 {
+                    x = when p {
+                        1 -> 1
+                        2 -> 2
+                    }
+                    return x
+                }
+            """.trimIndent())
+                .shouldFind<MissingElseBranchDiagnostic> {
+                    it.keyword.keyword shouldBe Keyword.WHEN
+                }
+        }
+
+        "as a value with an expected type" {
+            validateModule("""
+                fn test(p: S32) -> S32 = when p {
+                    1 -> 1
+                }
+            """.trimIndent())
+                .shouldFind<MissingElseBranchDiagnostic>()
+        }
+
+        "as a Unit value" {
+            validateModule("""
+                intrinsic fn sideEffect(n: S32)
+                fn test(p: S32) = when p {
+                    1 -> sideEffect(1)
+                    2 -> sideEffect(2)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "as a statement, with branches that return" {
+            validateModule("""
+                fn test(p: S32) -> S32 {
+                    when p {
+                        1 -> return 1
+                    }
+                    when p {
+                        2 -> {
+                            return 2
+                        }
+                    }
+                    return 0
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "branches can mutate and capture the subject" {

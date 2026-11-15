@@ -27,6 +27,7 @@ import compiler.lexer.Span
 
 class IfExpression (
     override val span: Span,
+    /** `if`, or the keyword of the construct that is rewritten to this [IfExpression] */
     val ifKeyword: KeywordToken,
     val condition: Expression,
     val thenCode: Executable,
