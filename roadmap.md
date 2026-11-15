@@ -34,10 +34,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
 8. integration tests: the harness is in, see [integration-tests/readme.md](integration-tests/readme.md). It compiles
-    the emerge programs in `integration-tests/programs`, runs them and compares their output. Still open:
-    * run them in CI: a job that takes the toolchain archive the build produces, unpacks it and passes it as
-      `emerge.integration-tests.toolchain-dir`. Until then, the maven job of the CI fails on them or has to pass
-      `-Demerge.integration-tests.optional=true`
+    the emerge programs in `integration-tests/programs`, runs them and compares their output; CI does that with the
+    toolchain from the linux tarball. Still open:
     * many more programs. The unit tests in the frontend test the negative cases; these should test the positive
       ones. E.g. that 2+3=5, refcounting, control flow + exceptions, ...
 9. integrate valgrind into the integration tests and check every test case. Fix the memory leaks that are discovered;
