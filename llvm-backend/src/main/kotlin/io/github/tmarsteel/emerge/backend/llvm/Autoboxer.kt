@@ -179,8 +179,8 @@ internal sealed interface Autoboxer {
         private val memberVariableMappings: Map<String, TypeinfoType.() -> LlvmStructType.Member<TypeinfoType, *>> =
             mapOf(
                 "supertypes" to { supertypes },
+                "supertypeTemplates" to { supertypeTemplates },
                 "canonicalName" to { canonicalNamePtr },
-                "dynamicInstance" to { dynamicTypeInfoPtr },
             )
 
         override fun isAccessingIntoTheBox(
@@ -209,7 +209,7 @@ internal sealed interface Autoboxer {
                     .get()
                     .dereference()
 
-                if (memberName == "supertypes") {
+                if (memberName == "supertypes" || memberName == "supertypeTemplates") {
                     // typeinfos point to the array object, emerge code sees the array as a slice
                     @Suppress("UNCHECKED_CAST")
                     return buildArraySliceOfEntireArray(memberValue as LlvmValue<LlvmPointerType<*>>)

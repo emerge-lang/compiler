@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
@@ -72,6 +73,11 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
      * [PointerToAnyEmergeValue] would create a cyclic reference on JVM classload time.
      */
     val supertypes by structMember(pointerTo(LlvmVoidType))
+    /**
+     * points to an array object of references to static `emerge.core.reflection.NamedType`s: the parameterized
+     * supertypes as seen from this type, see [staticSupertypeTemplates].
+     */
+    val supertypeTemplates by structMember(pointerTo(LlvmVoidType))
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
     /** for dynamic typeinfo instances: null; for static ones: points to the dynamic version */
     val dynamicTypeInfoPtr by structMember(pointerTo(this))
@@ -98,7 +104,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::supertypes, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::vtable), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::vtable), NativeI32FlagGroup())
     }
 
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
@@ -107,13 +113,14 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
             /*
              * approximation:
              * supertypes: pointer
+             * supertypeTemplates: pointer
              * anyValueVirtuals: { pointer to dtor }
              * dynamicTypeInfoPtr: pointer
              * canonicalNamePtr: pointer to emerge string
              * arrayElementLayoutKind: word
              * vtable: [pointer x size]
              */
-            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (5u + vtable.type.nEntries.toUInt()),
+            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (6u + vtable.type.nEntries.toUInt()),
             alignInBits = diBuilder.context.targetData.pointerSizeInBits.toUInt(),
             flags = NativeI32FlagGroup(),
             declaredAt = Companion.declaredAt,
@@ -151,6 +158,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     private class ProviderImpl(
         val canonicalNameGetter: (EmergeLlvmContext) -> String,
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
+        val supertypeTemplatesOf: IrBaseType?,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -200,11 +208,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 .reinterpretAs(pointerTo(LlvmVoidType))
 
+            val supertypeTemplatesGlobal = context.staticSupertypeTemplates(supertypeTemplatesOf)
+
             val canonicalNameGlobal = context.emergeStringLiteral(canonicalName)
 
             val typeinfoDynamicData = typeinfoType.buildConstantIn(context) {
                 setValue(typeinfoType.vtable, vtable)
                 setValue(typeinfoType.supertypes, supertypesGlobal)
+                setValue(typeinfoType.supertypeTemplates, supertypeTemplatesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
                     setValue(EmergeAnyValueVirtualsType.runtimeTypeGetterFunction, runtimeTypeGetter(context).address)
@@ -217,6 +228,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
                 setValue(typeinfoType.vtable, vtable)
                 setValue(typeinfoType.supertypes, supertypesGlobal)
+                setValue(typeinfoType.supertypeTemplates, supertypeTemplatesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
                     setValue(EmergeAnyValueVirtualsType.runtimeTypeGetterFunction, runtimeTypeGetter(context).address)
@@ -241,14 +253,20 @@ internal class StaticAndDynamicTypeInfo private constructor(
         ): Provider = ProviderImpl(
             typeName,
             supertypes,
+            null,
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,
             arrayElementLayoutKind,
         )
 
+        /**
+         * @param describedType the base type the typeinfo describes; its [IrBaseType.parameterizedSupertypes]
+         * end up in [TypeinfoType.supertypeTemplates]
+         */
         fun define(
             typeName: (EmergeLlvmContext) -> String,
+            describedType: IrBaseType,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
@@ -257,6 +275,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         ): Provider = ProviderImpl(
             typeName,
             supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
+            describedType,
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,

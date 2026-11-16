@@ -1,0 +1,46 @@
+Array<String> is Array<String>: yes
+Array<String> is Array<S8>: no
+Array<String> is Array<out Any>: yes
+Array<String> is Array<Any>: no
+Array<String> is Array<*>: yes
+Array<String> is Iterable<String>: yes
+Array<String> is Iterable<S32>: no
+Array<String> as? Array<S8> is null: yes
+Array<S8> as Array<S8>: 3 elements
+Box<Dog> is Box<Dog>: yes
+Box<Dog> is Box<Cat>: no
+Box<Dog> is Box<Animal>: no
+Box<Dog> is Box<out Animal>: yes
+Box<Dog> is Box<in Dog>: yes
+Box<Dog> is Box<in Animal>: no
+Box<Box<Dog>> is Box<Box<Dog>>: yes
+Box<Box<Dog>> is Box<Box<Cat>>: no
+Box<Box<Dog>> is Box<out Box<out Animal>>: yes
+Box<Box<Dog>> is Box<Box<out Animal>>: no
+Nest<Dog> is Seq<Box<Dog>>: yes
+Nest<Dog> is Seq<Box<Cat>>: no
+Nest<Dog> is Seq<Dog>: no
+Nest<Dog> is Seq<out Box<out Animal>>: yes
+null is Dog: no
+null is Dog?: yes
+null is Box<Dog>?: yes
+Box<Dog> is Box<Dog>?: yes
+Box<Dog> is Box<Dog?>: no
+Box<Dog> is Box<out Dog?>: yes
+Dog is Animal & Named: yes
+Cat is Animal & Named: no
+Box<Dog> is Box<Dog> & Animal: no
+Dog is T = Animal: yes
+Dog is T = Cat: no
+Box<Dog> is T = Box<out Animal>: yes
+Box<Dog> is T = Box<Cat>: no
+null is T = Dog?: yes
+null is T = Dog: no
+Box<Dog> is Box<T = Dog>: yes
+Box<Dog> is Box<T = Cat>: no
+cast to Box<Dog> succeeded
+Box<Dog> as? Box<Cat> is null: yes
+null as? Box<Dog> is null: yes
+null as Box<Dog>? is null: yes
+cast to T = Box<Dog> succeeded
+casting a Box<Dog> to T = Box<Cat>

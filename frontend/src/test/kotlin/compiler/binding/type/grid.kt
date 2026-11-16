@@ -9,7 +9,8 @@ import compiler.compiler.negative.useValidModule
  * within `Ctx`, so they can mention its type parameters.
  */
 internal object TypeGrid {
-    val swCtx = useValidModule("""
+    /** the declarations the types of the grid refer to */
+    val moduleSource = """
         interface A {}
         interface B {}
         interface C : A {}
@@ -29,7 +30,9 @@ internal object TypeGrid {
         interface Shp : NonToken {}
         class Pl : Shp & A {}
         class Ctx<P, Q : A, R : A?, F : Ord<in F>, S : Seq<out P>, T : A & B, U : R> {}
-    """.trimIndent())
+    """.trimIndent()
+
+    val swCtx = useValidModule(moduleSource)
 
     /** the type parameters of `Ctx`, with their bounds */
     val ctxBounds = listOf("P" to "Any?", "Q" to "A", "R" to "A?", "F" to "Ord<in F>", "S" to "Seq<out P>", "T" to "A & B", "U" to "R")

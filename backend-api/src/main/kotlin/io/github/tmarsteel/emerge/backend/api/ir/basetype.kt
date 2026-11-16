@@ -7,6 +7,18 @@ interface IrBaseType {
      * The supertypes of this type; **must not include emerge.core.Any!!**
      */
     val supertypes: Set<IrInterface>
+
+    /**
+     * All the supertypes of this type that have type parameters, including the indirect ones, with their
+     * type arguments as seen from this type. The type arguments may refer to [parameters]. Given
+     *
+     *     interface A<T> {}
+     *     interface B<E> : A<Array<E>> {}
+     *     class C<K> : B<K> {}
+     *
+     * this is, for `C`: `B` to `B<K>` and `A` to `A<Array<K>>`.
+     */
+    val parameterizedSupertypes: Map<IrInterface, IrParameterizedType>
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
 

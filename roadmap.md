@@ -81,20 +81,37 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
     type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
-    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` still only check the base type
-    (`BoundInstanceOfExpression.validateTypeCheck` drops the type arguments). Remaining work:
-    1. implement `isSubtypeOf` on `Type`, like the compiler does for `BoundTypeReference`
-       * how to keep these in sync?? Tests, tests, tests!
-    2. implement wildcard generic parameters to address unchecked generics, where the wildcard is always
-       treated as if it was the bound of the parameter. E.g. given `class Pair<out A, out B>`,
-       `x as Pair<String, *>` is treated like `Pair<String, Any?>`
-    3. use that check in `is` and `as`. Afterwards, an `Array<String>` must not possibly be referenced as an
-       `Array<S8>`
-    4. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
-       (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error). In argument positions the
-       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `own` is
-       never a cast target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
-       independent of type arguments
+    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments and
+    nullability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
+    (`emerge.core.reflection.isSubtypeOf`, `isInstanceOf`). A type without type arguments is still checked by
+    its base type alone, which allocates nothing. Wildcards work as the bound of the parameter
+    (`x is Pair<String, *>`).
+    * the subtype relation of the runtime has to agree with the compiler's. `RuntimeSubtypingGridTests` in the
+      frontend generates an emerge program from `TypeGrid` that compares the two, the integration tests run it
+    * for the type arguments of supertypes (`class Nest<E> : Seq<Box<E>>`), every typeinfo has templates of its
+      parameterized supertypes (`IrBaseType.parameterizedSupertypes`), which the runtime instantiates
+
+    Remaining work:
+    1. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
+       (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error); `own` is never a cast
+       target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
+       independent of type arguments. In argument positions the source type says nothing about
+       (`x: read Any; x as Array<mut Foo>`), the runtime knows the base type but not the mutability. Allowing
+       only `read` there is not enough for invariant arguments: an `Array<mut Foo>` cast to a
+       `mut Array<read Foo>` takes a `const Foo`. Sound is `Array<out read Foo>`
+    2. the runtime doesn't know what is a token, nor that classes are `NonToken` without saying so: `x is NonToken`
+       is false for them, and a cast can still forget a token (see [docs/tokens.md](docs/tokens.md))
+    3. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes
+       (`N & M`) for `Nothing` like the compiler does. That only shows in type arguments, no value has such a type
+    4. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
+       supertype it is translated to (see item 33)
+    5. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
+       (`class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>`) is not instantiated
+    6. where the static type of the value already tells the result, say so: skip the check where it always
+       succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
+    7. `CastError` doesn't say what the value was and what was expected
+    8. a type parameter of a class is not available in its member functions without a receiver; `is T` there
+       fails in the backend
 13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
@@ -332,6 +349,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
     Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
     around it, its intrinsic writes `_value` regardless
+40. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
+    (see [design.md](design.md#errors-are-not-caught)):
+    `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
+    `try` block calls, the same `CastError` passes through the `catch`, as it should
+    (`BoundInvocationExpression` checks `is Error` at the landingpad; a `throw` in the `try` block itself, which
+    is what a failing cast is, goes to the `catch` unchecked).
 
 ## Future features
 

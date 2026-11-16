@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeAnyValueVirtualsType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
@@ -75,5 +76,35 @@ internal val reflectionBaseTypeIsSameObjectAs = KotlinLlvmFunction.define<Emerge
         ret(
             isEq(self, other)
         )
+    }
+}
+
+/**
+ * `emerge.core.reflection.ReflectionBaseType::dynamicInstance`: [TypeinfoType.dynamicTypeInfoPtr], or `self`
+ * where that is null. Not a member variable of `ReflectionBaseType`: a nullable `ReflectionBaseType` is a box.
+ */
+internal val reflectionBaseTypeDynamicInstance = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.reflection.ReflectionBaseType::dynamicInstance",
+    pointerTo(TypeinfoType.GENERIC),
+) {
+    val self by param(pointerTo(TypeinfoType.GENERIC))
+
+    instructionAliasAttributes()
+
+    body {
+        val dynamic = getelementptr(self).member { dynamicTypeInfoPtr }.get().dereference("dynamic")
+        val result = PhiBucket(pointerTo(TypeinfoType.GENERIC))
+        conditionalBranch(
+            condition = isNull(dynamic),
+            ifTrue = {
+                result.setBranchResult(self)
+                concludeBranch()
+            },
+            ifFalse = {
+                result.setBranchResult(dynamic)
+                concludeBranch()
+            },
+        )
+        ret(result.buildPhi())
     }
 }

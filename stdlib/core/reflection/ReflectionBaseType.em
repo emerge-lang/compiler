@@ -10,21 +10,45 @@ export class ReflectionBaseType {
 
     export canonicalName: String = init
 
-    // for static typeinfos: points at the dynamic version; for dynamic ones: is null
-    private dynamicInstance: ReflectionBaseType? = init
+    // the supertypes that have type parameters, the indirect ones included, as seen from this type:
+    // for `class Nest<E> : Seq<Box<E>>` that is `Seq<Box<#0>>`, where #0 is a TypeParameterPlaceholder
+    // for `E`. Shared by the static and the dynamic typeinfo.
+    private supertypeTemplates: const Array<NamedType> = init
+
+    // There are two typeinfo objects for each class: static objects (e.g. string literals) refer to one of their
+    // own. This gives the one that the other objects refer to; for the typeinfos of interfaces, it is [self].
+    private nothrow intrinsic fn dynamicInstance(self) -> ReflectionBaseType
 
     // compares the two by identity; that tells nothing about where they are in memory, so it takes no
     // AddressSpace. These objects are some of the few true singletons in the entire language
     private nothrow intrinsic fn isSameObjectAs(self, borrow other: ReflectionBaseType) -> Bool
 
     export nothrow fn isSubtypeOf(capture self, borrow supertype: ReflectionBaseType) -> Bool {
-        selfDynamic = self.dynamicInstance ?: self
+        return self.dynamicInstance().isSubtypeOfAssumeDynamic(supertype.dynamicInstance())
+    }
 
-        return selfDynamic.isSubtypeOfAssumeDynamic(supertype.dynamicInstance ?: supertype)
+    // whether [self] and [other] describe the same base type
+    nothrow fn isSameAs(capture self, borrow other: ReflectionBaseType) -> Bool {
+        return self.dynamicInstance().isSameObjectAs(other.dynamicInstance())
+    }
+
+    // @return [supertype] as a supertype of this type, from [supertypeTemplates]; `null` if [supertype] has no
+    // type parameters, or is no supertype of this type
+    nothrow fn supertypeTemplateFor(capture self, borrow supertype: ReflectionBaseType) -> const NamedType? {
+        var index = 0 as UWord
+        while index < self.supertypeTemplates.size {
+            template = self.supertypeTemplates.getOrPanic(index)
+            if template.baseType.isSameAs(supertype) {
+                return template
+            }
+            set index = index.plusModulo(1 as UWord)
+        }
+
+        return null
     }
 
     // does is-subtype-of logic, assuming both [self] and [supertype] are the dynamic version of their typeinfo
-    // objects (i.e. [dynamicInstance] is `null` on both of them).
+    // objects (see [dynamicInstance]).
     private nothrow fn isSubtypeOfAssumeDynamic(self, borrow supertype: ReflectionBaseType) -> Bool {
         if self.isSameObjectAs(supertype) {
             return true

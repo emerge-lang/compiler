@@ -67,6 +67,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -661,11 +662,21 @@ class BoundBaseType(
     }
 }
 
+private fun BoundBaseType.parameterizedSupertypesBackendIr(): Map<IrInterface, IrParameterizedType> {
+    return superTypes.preprocessedInheritanceTree.parameterizedSupertypes
+        .mapNotNull { (superBaseType, supertype) ->
+            val irSupertype = supertype.toBackendIr() as? IrParameterizedType ?: return@mapNotNull null
+            (superBaseType.toBackendIr() as IrInterface) to irSupertype
+        }
+        .toMap()
+}
+
 private class IrInterfaceImpl(
     val typeDef: BoundBaseType,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -690,6 +701,7 @@ private class IrClassImpl(
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
+    override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val typeParameterFields by lazy {

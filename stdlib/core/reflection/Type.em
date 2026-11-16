@@ -1,12 +1,13 @@
 package emerge.core.reflection
 
 import emerge.platform.panic
+import emerge.core.safemath.plusModulo
 
 // runtime type information on a type (as opposed to ReflectionBaseType, which describes a base type only):
 // a base type together with nullability and type arguments, or an intersection of those.
 export interface Type {
     // the same type, with the nullability replaced
-    export fn withNullability(capture self, nullable: Bool) -> const Type
+    export nothrow fn withNullability(capture self, nullable: Bool) -> const Type
 
     // the number of named types this type is composed of: 1 for a NamedType, the number of components for an IntersectionType
     export nothrow fn componentCount(self) -> UWord
@@ -22,7 +23,7 @@ export class NamedType : const Type {
     export nullable: Bool = init
     export arguments: const Array<TypeArgument> = init
 
-    export override fn withNullability(capture self, nullable: Bool) -> const NamedType {
+    export override nothrow fn withNullability(capture self, nullable: Bool) -> const NamedType {
         if self.nullable == nullable {
             return self
         }
@@ -57,10 +58,12 @@ export class IntersectionType : const Type {
     // at least two
     export components: const Array<NamedType> = init
 
-    export override fn withNullability(capture self, nullable: Bool) -> const Type {
-        newComponents: own Array<NamedType> = Array.new::<NamedType>(self.components.size, self.components[0])
-        foreach i in 0..<self.components.size {
-            set newComponents[i] = self.components[i].withNullability(nullable)
+    export override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
+        newComponents: own Array<NamedType> = Array.new::<NamedType>(self.components.size, self.components.getOrPanic(0))
+        var index: UWord = 0
+        while index < self.components.size {
+            newComponents.setOrPanic(index, self.components.getOrPanic(index).withNullability(nullable))
+            set index = index.plusModulo(1 as UWord)
         }
         return IntersectionType(newComponents)
     }
@@ -77,6 +80,59 @@ export class IntersectionType : const Type {
 
         return str
     }
+}
+
+// stands for a type parameter of a base type in the templates of its supertypes, see
+// ReflectionBaseType.supertypeTemplates. Never is the type of a value, and never leaves this package.
+class TypeParameterPlaceholder : const Type {
+    // the index of the type parameter in the type parameters of the base type
+    index: UWord = init
+    // one of PLACEHOLDER_NULLABILITY_OF_ARGUMENT (`T`), PLACEHOLDER_NULLABLE (`T?`), PLACEHOLDER_NOT_NULLABLE (`T!`)
+    nullability: U8 = init
+
+    override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
+        panic("a type parameter placeholder is not a type")
+    }
+
+    override nothrow fn componentCount(self) -> UWord = 1
+
+    override nothrow fn firstComponent(capture self) -> const NamedType {
+        panic("a type parameter placeholder is not a type")
+    }
+
+    override fn toString(self) -> String = "<type parameter>"
+
+    // @return the type that stands in the place of this placeholder when [argument] is the type argument
+    nothrow fn applyNullabilityTo(self, capture argument: const Type) -> const Type {
+        if self.nullability == PLACEHOLDER_NULLABILITY_OF_ARGUMENT {
+            return argument
+        }
+
+        return argument.withNullability(self.nullability == PLACEHOLDER_NULLABLE)
+    }
+}
+
+PLACEHOLDER_NULLABILITY_OF_ARGUMENT: U8 = 0
+PLACEHOLDER_NULLABLE: U8 = 1
+PLACEHOLDER_NOT_NULLABLE: U8 = 2
+
+// an intersection in the template of a supertype, with at least one component that mentions a type parameter
+// of the base type; see ReflectionBaseType.supertypeTemplates. Like TypeParameterPlaceholder, it never is the
+// type of a value.
+class IntersectionTemplate : const Type {
+    components: const Array<const Type> = init
+
+    override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
+        panic("an intersection template is not a type")
+    }
+
+    override nothrow fn componentCount(self) -> UWord = self.components.size
+
+    override nothrow fn firstComponent(capture self) -> const NamedType {
+        panic("an intersection template is not a type")
+    }
+
+    override fn toString(self) -> String = "<intersection template>"
 }
 
 export class TypeArgument : const Any {
@@ -111,31 +167,57 @@ export VARIANCE_OUT: U8 = 2
 export nothrow intrinsic fn typeOf<T>() -> const Type
 
 // the intersection of the given types; nested intersections are flattened
-export fn intersectionOf(capture components: const Array<const Type>) -> const Type {
+export nothrow fn intersectionOf(capture components: const Array<const Type>) -> const Type {
     var count: UWord = 0
-    foreach component in components {
-        set count = count + component.componentCount()
+    var index: UWord = 0
+    while index < components.size {
+        set count = count.plusModulo(components.getOrPanic(index).componentCount())
+        set index = index.plusModulo(1 as UWord)
     }
 
     if count == 1 {
-        return components[0]
+        return components.getOrPanic(0)
     }
 
-    flat: own Array<NamedType> = Array.new::<NamedType>(count, components[0].firstComponent())
+    flat: own Array<NamedType> = Array.new::<NamedType>(count, components.getOrPanic(0).firstComponent())
     var flatIndex: UWord = 0
-    foreach component in components {
+    set index = 0
+    while index < components.size {
+        component = components.getOrPanic(index)
         if component is IntersectionType {
-            foreach nested in (component as IntersectionType).components {
-                set flat[flatIndex] = nested
-                set flatIndex = flatIndex + 1
+            nested = component.asIntersectionType().components
+            var nestedIndex: UWord = 0
+            while nestedIndex < nested.size {
+                flat.setOrPanic(flatIndex, nested.getOrPanic(nestedIndex))
+                set flatIndex = flatIndex.plusModulo(1 as UWord)
+                set nestedIndex = nestedIndex.plusModulo(1 as UWord)
             }
         } else {
-            set flat[flatIndex] = component as NamedType
-            set flatIndex = flatIndex + 1
+            flat.setOrPanic(flatIndex, component.asNamedType())
+            set flatIndex = flatIndex.plusModulo(1 as UWord)
         }
+        set index = index.plusModulo(1 as UWord)
     }
 
     return IntersectionType(flat)
+}
+
+// The casts of this package, for code that is nothrow and knows what it has: `as` throws, so nothrow code cannot use it
+
+nothrow fn asNamedType(capture self: const Type) -> const NamedType {
+    return (self as? NamedType) ?: panic("not a NamedType")
+}
+
+nothrow fn asIntersectionType(capture self: const Type) -> const IntersectionType {
+    return (self as? IntersectionType) ?: panic("not an IntersectionType")
+}
+
+nothrow fn asTypeParameterPlaceholder(capture self: const Type) -> const TypeParameterPlaceholder {
+    return (self as? TypeParameterPlaceholder) ?: panic("not a TypeParameterPlaceholder")
+}
+
+nothrow fn asIntersectionTemplate(capture self: const Type) -> const IntersectionTemplate {
+    return (self as? IntersectionTemplate) ?: panic("not an IntersectionTemplate")
 }
 
 export nothrow intrinsic get fn type(self: Any) -> NamedType

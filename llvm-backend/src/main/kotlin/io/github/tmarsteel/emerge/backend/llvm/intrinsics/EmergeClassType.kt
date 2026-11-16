@@ -59,6 +59,7 @@ internal class EmergeClassType private constructor(
         if (this.irClass.canonicalName.toString() == "emerge.platform.ArrayBox") {
             return@lazy StaticAndDynamicTypeInfo.define(
                 { ctx -> ctx.rawArrayClazz.canonicalName.toString() },
+                context.rawArrayClazz,
                 context.rawArrayClazz.allDistinctSupertypesExceptAny,
                 finalizerFunction = { _ -> destructor },
                 runtimeTypeGetter = { context -> context.registerIntrinsic(arrayRuntimeTypeGetter) },
@@ -79,6 +80,7 @@ internal class EmergeClassType private constructor(
 
         StaticAndDynamicTypeInfo.define(
             { _ -> reflectedBaseType.canonicalName.toString() },
+            irClass,
             irClass.allDistinctSupertypesExceptAny,
             runtimeTypeGetter = { context -> buildRuntimeTypeGetter(context, this@EmergeClassType, irClass) },
             finalizerFunction = { _ -> destructor },
@@ -405,6 +407,7 @@ internal class EmergeInterfaceTypeinfoHolder(
 
             val constant = TypeinfoType.GENERIC.buildConstantIn(context) {
                 setValue(TypeinfoType.GENERIC.supertypes, supertypesArrayPtr)
+                setValue(TypeinfoType.GENERIC.supertypeTemplates, context.staticSupertypeTemplates(emergeInterface))
                 setValue(TypeinfoType.GENERIC.anyValueVirtuals, context.poisonValue(EmergeAnyValueVirtualsType))
                 setNull(TypeinfoType.GENERIC.dynamicTypeInfoPtr)
                 setValue(TypeinfoType.GENERIC.canonicalNamePtr, namePtr)

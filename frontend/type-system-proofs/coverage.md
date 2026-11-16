@@ -167,7 +167,10 @@ do not rest on them.
 ## Outside the proven model entirely
 
 * Overload resolution
-* Casts and instance-of checks (`as`, `is`): out of scope until there is runtime reflection on type argument
+* Casts and instance-of checks (`as`, `is`): the runtime decides them with a subtype relation of its own
+  (`emerge.core.reflection.isSubtypeOf`), which the integration tests compare with the frontend's over the types
+  of `TypeGrid` that have no type parameters (`RuntimeSubtypingGridTests`). What a cast does to mutability and
+  tokens is not checked at all yet (roadmap item 12)
 * Constructors and object initialization (`PartialObjectInitialization`), mixins: these are simple enough that proving
   them formally seems not worthwhile at the moment
 * Lifetimes and own-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only.

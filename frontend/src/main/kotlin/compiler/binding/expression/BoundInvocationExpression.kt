@@ -782,7 +782,7 @@ internal fun buildGenericInvocationLikeIr(
                     val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
                         landingpadContext.swCtx,
                         IrTemporaryValueReferenceImpl(exceptionTemporary),
-                        landingpadContext.swCtx.error,
+                        landingpadContext.swCtx.error.getBoundReferenceAssertNoTypeParameters(),
                     ))
 
                     val catchOrThrowBranch = IrConditionalBranchImpl(

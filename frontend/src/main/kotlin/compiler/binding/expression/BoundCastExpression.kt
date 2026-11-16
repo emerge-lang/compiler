@@ -30,7 +30,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
- * Currently this is merely a way to specify the type of numeric literals
+ * `value as T` and `value as? T`: checks at runtime that the value is of the type, see [buildInstanceOf]; the
+ * former throws `emerge.core.CastError` if it isn't, the latter evaluates to `null`.
+ *
+ * It also is the way to specify the type of numeric literals (`3 as U16`), where nothing is checked at runtime.
  * For that use case it is supposed to stay long term; i think this is much cleaner than suffixes
  */
 class BoundCastExpression(
@@ -48,7 +51,8 @@ class BoundCastExpression(
     override lateinit var type: BoundTypeReference
         private set
 
-    private var baseTypeToCheck: BoundBaseType? = null
+    /** the type the value is checked against at runtime; for `as? T` that is `T`, though [type] is `T?` */
+    private var typeToCheck: BoundTypeReference? = null
     private val isTypedNumericLiteral get() = value is BoundNumericLiteral
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
@@ -61,7 +65,7 @@ class BoundCastExpression(
             this.type = this.type.withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
         type.validate(TypeUseSite.Irrelevant(declaration.span, null), diagnosis)
-        baseTypeToCheck = validateTypeCheck(this, type, diagnosis)
+        typeToCheck = validateTypeCheck(type)
 
         if (isTypedNumericLiteral) {
             // there is no suffix type notation for numeric literals; instead casting should do that
@@ -114,7 +118,7 @@ class BoundCastExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         value.semanticAnalysisPhase3(diagnosis)
-        if (nothrowBoundary != null && !isTypedNumericLiteral) {
+        if (nothrowBoundary != null && !isTypedNumericLiteral && !safeCast) {
             diagnosis.nothrowViolatingCast(this, nothrowBoundary!!)
         }
     }
@@ -138,7 +142,7 @@ class BoundCastExpression(
 
         val irTargetType = type.toBackendIr()
         val valueToCastTemporary = IrCreateTemporaryValueImpl(value.toBackendIrExpression())
-        val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), baseTypeToCheck!!))
+        val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), typeToCheck!!))
 
         if (safeCast) {
             val nullResultTemporary = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(irTargetType.asNullable()))
