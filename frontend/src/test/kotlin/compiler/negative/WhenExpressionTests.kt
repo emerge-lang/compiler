@@ -2,7 +2,9 @@ package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic
+import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.MissingElseBranchDiagnostic
+import compiler.diagnostic.MultipleVariableDeclarationsDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
@@ -312,5 +314,141 @@ class WhenExpressionTests : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<UndefinedIdentifierDiagnostic>()
+    }
+
+    "named subject" - {
+        "is accessible in the branches" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 = when x = compute() {
+                    1 -> x + 10
+                    2 -> {
+                        y = x + 20
+                        y
+                    }
+                    else -> x
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "is accessible in the branch values" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test(p: S32) -> S32 = when x = compute() {
+                    x + p -> 1
+                    else -> 0
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "with only an else branch" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 = when x = compute() {
+                    else -> x
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "with a declared type" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 = when x: S32 = compute() {
+                    1 -> x + 10
+                    else -> x
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 = when x: String = compute() {
+                    else -> 0
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "const S32"
+                    it.targetType.toString() shouldBe "const String"
+                }
+        }
+
+        "is not accessible after the when" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 {
+                    when x = compute() {
+                        1 -> {}
+                    }
+                    return x
+                }
+            """.trimIndent())
+                .shouldFind<UndefinedIdentifierDiagnostic> {
+                    it.expr.value shouldBe "x"
+                }
+        }
+
+        "the same name can be used by consecutive and nested whens" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() -> S32 {
+                    when x = compute() {
+                        1 -> return x
+                    }
+                    return when x = compute() {
+                        2 -> when y = compute() {
+                            3 -> x + y
+                            else -> y
+                        }
+                        else -> x
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "cannot redeclare an existing variable" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test(x: S32) -> S32 = when x = compute() {
+                    else -> x
+                }
+            """.trimIndent())
+                .shouldFind<MultipleVariableDeclarationsDiagnostic>()
+        }
+
+        "is not re-assignable" {
+            validateModule("""
+                intrinsic fn compute() -> S32
+                fn test() {
+                    when x = compute() {
+                        1 -> {
+                            set x = 2
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<IllegalAssignmentDiagnostic>()
+        }
+
+        "branches can mutate and capture it" {
+            validateModule("""
+                class Foo {
+                    var n: S32 = init
+                    nothrow operator fn equals(self, borrow other: read Foo) -> Bool = self.n == other.n
+                }
+                intrinsic fn mutate(borrow p: mut Foo)
+                intrinsic fn consume(p: own Foo)
+                fn test(borrow b: read Foo) {
+                    when a: own Foo = Foo(1) {
+                        b -> mutate(a)
+                        else -> consume(a)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 })

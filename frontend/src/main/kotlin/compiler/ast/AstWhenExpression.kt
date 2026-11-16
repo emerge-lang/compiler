@@ -18,6 +18,8 @@ class AstWhenExpression(
     override val span: Span,
     val whenKeyword: KeywordToken,
     val subject: Expression,
+    /** if the subject is given a name (`when x = s { ... }`): declares that variable, initialized with [subject] */
+    val namedSubject: VariableDeclaration?,
     val branches: List<Branch>,
     val elseBranch: ElseBranch?,
 ) : Expression {
@@ -51,11 +53,18 @@ class AstWhenExpression(
 
         where __when_subject borrows s. If s is just an identifier, it is compared directly; there is no
         __when_subject then, so that the branches are free to mutate or capture s.
+
+        If the subject is given a name (when x = s { ... }), that declaration takes the place of __when_subject.
+        It is an ordinary local variable of the generated scope: the branches can use it, also to mutate or
+        capture it, and it is gone after the when.
          */
         val generatedSpan = whenKeyword.span.deriveGenerated()
         val subjectDeclaration: VariableDeclaration?
         val subjectName: IdentifierToken
-        if (subject is IdentifierExpression && branches.isNotEmpty()) {
+        if (namedSubject != null) {
+            subjectDeclaration = namedSubject
+            subjectName = namedSubject.name
+        } else if (subject is IdentifierExpression && branches.isNotEmpty()) {
             subjectDeclaration = null
             subjectName = subject.identifier
         } else {
@@ -92,7 +101,9 @@ class AstWhenExpression(
 
         val scope = MutableExecutionScopedCTContext.deriveNewScopeFrom(context)
         val boundSubject = subjectDeclaration?.bindToAsLocalVariable(scope)
-        boundSubject?.defaultOwnership = VariableOwnership.BORROWED
+        if (namedSubject == null) {
+            boundSubject?.defaultOwnership = VariableOwnership.BORROWED
+        }
         val boundChain = (chain as Statement?)?.bindTo(boundSubject?.modifiedContext ?: scope)
 
         return BoundWhenExpression(
