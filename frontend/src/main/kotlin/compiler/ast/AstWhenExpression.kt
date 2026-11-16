@@ -17,7 +17,8 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
 class AstWhenExpression(
     override val span: Span,
     val whenKeyword: KeywordToken,
-    val subject: Expression,
+    /** null for a `when` without a subject, where the value of each branch is a condition of its own */
+    val subject: Expression?,
     /** if the subject is given a name (`when x = s { ... }`): declares that variable, initialized with [subject] */
     val namedSubject: VariableDeclaration?,
     val branches: List<Branch>,
@@ -57,11 +58,28 @@ class AstWhenExpression(
         If the subject is given a name (when x = s { ... }), that declaration takes the place of __when_subject.
         It is an ordinary local variable of the generated scope: the branches can use it, also to mutate or
         capture it, and it is gone after the when.
+
+        Without a subject, the value of each branch is the condition as it is:
+
+        when {
+            a -> X
+            b -> Y
+            else -> Z
+        }
+
+        gets rewritten to
+
+        {
+            if a X else if b Y else Z
+        }
          */
         val generatedSpan = whenKeyword.span.deriveGenerated()
         val subjectDeclaration: VariableDeclaration?
-        val subjectName: IdentifierToken
-        if (namedSubject != null) {
+        val subjectName: IdentifierToken?
+        if (subject == null) {
+            subjectDeclaration = null
+            subjectName = null
+        } else if (namedSubject != null) {
             subjectDeclaration = namedSubject
             subjectName = namedSubject.name
         } else if (subject is IdentifierExpression && branches.isNotEmpty()) {
@@ -89,7 +107,7 @@ class AstWhenExpression(
             IfExpression(
                 branch.value.span .. branch.code.span,
                 whenKeyword,
-                BinaryExpression(
+                if (subjectName == null) branch.value else BinaryExpression(
                     IdentifierExpression(subjectName),
                     AstSemanticOperator(OperatorToken(Operator.EQUALS, branchSpan)),
                     branch.value,

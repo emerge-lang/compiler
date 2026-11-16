@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
+import compiler.diagnostic.ConditionNotBooleanDiagnostic
 import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.MissingElseBranchDiagnostic
@@ -449,6 +450,92 @@ class WhenExpressionTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "without a subject" - {
+        "as a statement" {
+            validateModule("""
+                intrinsic fn sideEffect(n: S32)
+                fn test(p: S32, q: Bool) {
+                    when {
+                        p == 1 -> sideEffect(1)
+                        q -> {
+                            sideEffect(2)
+                            sideEffect(3)
+                        }
+                        else -> sideEffect(4)
+                    }
+                    when {
+                        p > 5 -> sideEffect(5)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "as an expression" {
+            validateModule("""
+                fn test(p: S32, q: S32) -> String = when {
+                    p > q -> "greater"
+                    p < q -> "less"
+                    else -> "equal"
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "with only an else branch" {
+            validateModule("""
+                fn test() -> S32 = when {
+                    else -> 3
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "nested in a when with a subject" {
+            validateModule("""
+                fn test(p: S32, q: Bool) -> S32 = when p {
+                    1 -> when {
+                        q -> 11
+                        else -> 10
+                    }
+                    else -> 0
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "conditions must be Bool" {
+            validateModule("""
+                fn test(p: S32) -> S32 = when {
+                    p -> 1
+                    else -> 0
+                }
+            """.trimIndent())
+                .shouldFind<ConditionNotBooleanDiagnostic>()
+        }
+
+        "as a value without else" {
+            validateModule("""
+                fn test(p: S32) -> S32 = when {
+                    p == 1 -> 1
+                }
+            """.trimIndent())
+                .shouldFind<MissingElseBranchDiagnostic> {
+                    it.keyword.keyword shouldBe Keyword.WHEN
+                }
+        }
+
+        "branch types are unified" {
+            validateModule("""
+                fn test(p: S32) -> S32 = when {
+                    p == 1 -> 1
+                    else -> "b"
+                }
+            """.trimIndent())
+                .shouldFind<ReturnTypeMismatchDiagnostic>()
         }
     }
 })

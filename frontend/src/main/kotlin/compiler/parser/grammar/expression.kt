@@ -383,9 +383,11 @@ val WhenSubjectDeclaration = sequence("when subject declaration") {
 
 val WhenExpression = sequence("when-expression") {
     keyword(WHEN)
-    eitherOf {
-        ref(WhenSubjectDeclaration)
-        ref(Expression)
+    optional {
+        eitherOf {
+            ref(WhenSubjectDeclaration)
+            ref(Expression)
+        }
     }
     operator(Operator.CBRACE_OPEN)
     repeating {
@@ -398,10 +400,22 @@ val WhenExpression = sequence("when-expression") {
 }
     .astTransformation { tokens ->
         val whenKeyword = tokens.next() as KeywordToken
-        val subjectDeclaration = tokens.peek() as? VariableDeclaration
-        val subject = subjectDeclaration?.also { tokens.next() }?.initializerExpression
-            ?: tokens.next() as AstExpression
-        tokens.next() // skip CBRACE_OPEN
+        var subjectDeclaration: VariableDeclaration? = null
+        var subject: AstExpression? = null
+        when (val subjectOrCbraceOpen = tokens.next()) {
+            is VariableDeclaration -> {
+                subjectDeclaration = subjectOrCbraceOpen
+                subject = subjectOrCbraceOpen.initializerExpression
+                tokens.next() // skip CBRACE_OPEN
+            }
+            is AstExpression -> {
+                subject = subjectOrCbraceOpen
+                tokens.next() // skip CBRACE_OPEN
+            }
+            else -> {
+                // no subject, this was CBRACE_OPEN
+            }
+        }
 
         val branches = ArrayList<AstWhenExpression.Branch>()
         while (tokens.peek() is AstWhenExpression.Branch) {
