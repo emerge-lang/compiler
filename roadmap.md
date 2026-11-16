@@ -12,9 +12,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
    which `main` obtains from the root token it is given.
 4. additional language constructs
-   1. switch/when statement
+   1. `when`: the first version is in, as syntax sugar for an `if`-`else if` chain that compares with `==`
    2. union types: `TypeA | TypeB | TypeC`
-      * support exhaustiveness check on switch/when statements
+      * support exhaustiveness check on `when`
    3. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
       type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
 5. Stdlib basics

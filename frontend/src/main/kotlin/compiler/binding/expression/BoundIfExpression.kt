@@ -32,7 +32,9 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.MissingElseBranchDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -70,6 +72,8 @@ class BoundIfExpression(
 
     override fun markEvaluationResultUsed() {
         isInExpressionContext = true
+        thenCode.markEvaluationResultUsed()
+        elseCode?.markEvaluationResultUsed()
     }
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
@@ -82,15 +86,24 @@ class BoundIfExpression(
         thenCode.semanticAnalysisPhase2(diagnosis)
         elseCode?.semanticAnalysisPhase2(diagnosis)
 
-        if (isInExpressionContext) {
+        if (isInExpressionContext && elseCode != null) {
             type = listOfNotNull(
                 thenCode.type,
-                elseCode?.type,
+                elseCode.type,
             )
                 .takeUnless { it.isEmpty() }
                 ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
+        } else if (isInExpressionContext) {
+            val thenType = thenCode.type
+            if (thenType != null && !thenType.isUnitOrNothing) {
+                diagnosis.add(MissingElseBranchDiagnostic(declaration.ifKeyword))
+                type = thenType
+            }
         }
     }
+
+    private val BoundTypeReference.isUnitOrNothing: Boolean
+        get() = this is RootResolvedTypeReference && (baseType == context.swCtx.unit || baseType == context.swCtx.nothing)
 
     override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
         MultiBranchJoinExecutionScopedCTContext(condition.modifiedContext, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
