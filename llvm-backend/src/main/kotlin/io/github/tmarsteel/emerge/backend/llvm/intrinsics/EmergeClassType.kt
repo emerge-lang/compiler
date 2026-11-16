@@ -62,6 +62,7 @@ internal class EmergeClassType private constructor(
                 { ctx -> ctx.rawArrayClazz.canonicalName.toString() },
                 context.rawArrayClazz,
                 context.rawArrayClazz.isConst,
+                context.rawArrayClazz.isNonToken,
                 context.rawArrayClazz.allDistinctSupertypesExceptAny,
                 finalizerFunction = { _ -> destructor },
                 runtimeTypeGetter = { context -> context.registerIntrinsic(arrayRuntimeTypeGetter) },
@@ -84,6 +85,7 @@ internal class EmergeClassType private constructor(
             { _ -> reflectedBaseType.canonicalName.toString() },
             irClass,
             reflectedBaseType.isConst,
+            reflectedBaseType.isNonToken,
             irClass.allDistinctSupertypesExceptAny,
             runtimeTypeGetter = { context -> buildRuntimeTypeGetter(context, this@EmergeClassType, irClass) },
             finalizerFunction = { _ -> destructor },
@@ -417,6 +419,7 @@ internal class EmergeInterfaceTypeinfoHolder(
                 setValue(TypeinfoType.GENERIC.canonicalNamePtr, namePtr)
                 setValue(TypeinfoType.GENERIC.arrayElementLayoutKind, context.uWord(ArrayElementLayoutKind.REFERENCE.code))
                 setValue(TypeinfoType.GENERIC.isConst, context.i1(emergeInterface.isConst))
+                setValue(TypeinfoType.GENERIC.isNonToken, context.i1(emergeInterface.isNonToken))
                 setValue(TypeinfoType.GENERIC.vtable, context.poisonValue(VTableType(0)))
             }
 

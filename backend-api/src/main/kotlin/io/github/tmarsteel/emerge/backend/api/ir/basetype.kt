@@ -25,6 +25,13 @@ interface IrBaseType {
      * (e.g. `emerge.core.String`). The types of such references have the mutability [IrTypeMutability.IMMUTABLE].
      */
     val isConst: Boolean
+
+    /**
+     * Whether no instance of this type is a token: it is a class that is not declared `token`, or it inherits from
+     * `emerge.core.NonToken`, or it is that type. Such a type is a subtype of `emerge.core.NonToken`, which is not
+     * necessarily among [supertypes]. An instance can still hold a token where a type argument allows for one.
+     */
+    val isNonToken: Boolean
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
 

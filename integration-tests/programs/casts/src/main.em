@@ -1,6 +1,9 @@
 package casts
 
 import emerge.core.range.Iterable
+import emerge.core.reflection.Type
+import emerge.core.reflection.typeOf
+import emerge.core.reflection.isSubtypeOf
 import emerge.platform.StandardOut
 import emerge.platform.World
 import emerge.std.io.PrintStream
@@ -19,6 +22,14 @@ class Nest<E> : Seq<Box<E>> {
     v: E = init
 }
 
+token interface Stream {}
+token class Channel : Stream & Named {}
+interface Shape : NonToken {}
+class Square : Shape {}
+class Wrapper<T> : Named {
+    v: T = init
+}
+
 fn show(stdout: mut PrintStream, what: String, result: Bool) {
     stdout.println(what + ": " + (if result "yes" else "no"))
 }
@@ -32,6 +43,12 @@ fn isMutDog(borrow value: read Any) -> Bool = value is mut Dog
 
 // like isA, but with a mut reference to the value
 fn isAThroughMut<T>(borrow value: mut Any) -> Bool = value is T
+
+fn isBoth<A, B>(borrow value: Any?) -> Bool = value is A & B
+
+// types that are put together at runtime
+fn constOf<T>() -> const Type = typeOf::<const T>()
+fn bothOf<A, B>() -> const Type = typeOf::<A & B>()
 
 fn castTo<T>(value: Any) -> T = value as T
 
@@ -126,6 +143,46 @@ fn main(world: mut World) {
     show(stdout, "Dog through a mut reference is T = const Dog", isAThroughMut::<const Dog>(mutDog))
     show(stdout, "Dog through a read reference is mut Dog", isMutDog(mutDog))
     show(stdout, "String through a read reference is T = String", isA::<String>("a string"))
+
+    // tokens: a class is below NonToken unless it is a token class, and an object that holds a token is no NonToken
+    square: Any = Square()
+    channel: Any = Channel()
+    channelBox: Any = Box::<Channel>(Channel())
+    dogWrapper: Any = Wrapper::<Dog>(Dog())
+    channelWrapper: Any = Wrapper::<Channel>(Channel())
+    show(stdout, "Dog is NonToken", dog is NonToken)
+    show(stdout, "Square is Shape", square is Shape)
+    show(stdout, "Channel is NonToken", channel is NonToken)
+    show(stdout, "Channel is Stream", channel is Stream)
+    show(stdout, "Channel is Named", channel is Named)
+    show(stdout, "Channel is Named & NonToken", channel is Named & NonToken)
+    show(stdout, "Box<Dog> is NonToken", dogBox is NonToken)
+    show(stdout, "Box<Channel> is NonToken", channelBox is NonToken)
+    show(stdout, "Box<Channel> is Box<Channel>", channelBox is Box<Channel>)
+    show(stdout, "Box<Channel> is Box<out Named>", channelBox is Box<out Named>)
+    show(stdout, "Box<Channel> is Box<out NonToken>", channelBox is Box<out NonToken>)
+    show(stdout, "Box<Dog> is Box<out NonToken>", dogBox is Box<out NonToken>)
+    show(stdout, "Wrapper<Dog> is Named", dogWrapper is Named)
+    show(stdout, "Wrapper<Dog> is Named & NonToken", dogWrapper is Named & NonToken)
+    show(stdout, "Wrapper<Channel> is Named", channelWrapper is Named)
+    show(stdout, "Wrapper<Channel> is Named & NonToken", channelWrapper is Named & NonToken)
+    show(stdout, "Dog is T = NonToken", isA::<NonToken>(dog))
+    show(stdout, "Channel is T = NonToken", isA::<NonToken>(channel))
+    show(stdout, "Wrapper<Channel> is T = NonToken", isA::<NonToken>(channelWrapper))
+    show(stdout, "Wrapper<Dog> is A & B = Named & NonToken", isBoth::<Named, NonToken>(dogWrapper))
+    show(stdout, "Wrapper<Channel> is A & B = Named & NonToken", isBoth::<Named, NonToken>(channelWrapper))
+    show(stdout, "Wrapper<Channel> is A & B = Named & Wrapper<Channel>", isBoth::<Named, Wrapper<Channel>>(channelWrapper))
+    forgotten: NonToken? = channelBox as? NonToken
+    show(stdout, "Box<Channel> as? NonToken is null", isNull(forgotten))
+
+    // tokens: what is const is no token. Where mutabilities combine to own, the type keeps saying so
+    stdout.println("const T, T = mut Animal: " + constOf::<mut Animal>().toString())
+    show(stdout, "const T, T = mut Animal is below NonToken", constOf::<mut Animal>().isSubtypeOf(typeOf::<NonToken>()))
+    show(stdout, "const T, T = mut Animal is below const Animal", constOf::<mut Animal>().isSubtypeOf(typeOf::<const Animal>()))
+    stdout.println("A & B, A = const Animal, B = mut Named: " + bothOf::<const Animal, mut Named>().toString())
+    show(stdout, "A & B, A = const Animal, B = mut Named is below NonToken", bothOf::<const Animal, mut Named>().isSubtypeOf(typeOf::<NonToken>()))
+    stdout.println("A & B, A = Animal, B = mut Named: " + bothOf::<Animal, mut Named>().toString())
+    show(stdout, "A & B, A = Animal, B = mut Named is below NonToken", bothOf::<Animal, mut Named>().isSubtypeOf(typeOf::<NonToken>()))
 
     // casts
     asBox = dogBox as Box<Dog>

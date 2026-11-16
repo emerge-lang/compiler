@@ -40,10 +40,20 @@ nothrow fn isSubtypeAtDepth(subtype: const Type, supertype: const Type, depth: U
         // TODO: an intersection of two classes has no values and is below every type, the compiler knows that
         // (BoundIntersectionTypeReference.isEffectivelyBottom). The typeinfo doesn't say what is a class.
         components = subtype.asIntersectionType().components
+        // Where the intersection cannot be a token as a whole (`own Animal & NonToken`), the value may freeze,
+        // though a component alone (`own Animal`) doesn't say so. So such a component is also tried as the const
+        // it can become.
+        componentsMayFreeze = not subtype.mayBeToken()
         var index: UWord = 0
         while index < components.size {
-            if isSubtypeAtDepth(components.getOrPanic(index), supertype, depth) {
+            component = components.getOrPanic(index)
+            if isSubtypeAtDepth(component, supertype, depth) {
                 return true
+            }
+            if componentsMayFreeze and component.assignmentMutability() == MUTABILITY_OWN and component.mayBeToken() {
+                if isSubtypeAtDepth(component.withMutability(MUTABILITY_CONST), supertype, depth) {
+                    return true
+                }
             }
             set index = index.plusModulo(1 as UWord)
         }
@@ -70,20 +80,110 @@ nothrow fn isNamedSubtype(subtype: const NamedType, supertype: const NamedType, 
         return true
     }
 
-    if supertype.arguments.size == 0 {
-        return true
+    if supertype.arguments.size > 0 {
+        translated = subtype.asSupertypeWithBase(supertype.baseType)
+        var index: UWord = 0
+        while index < supertype.arguments.size {
+            if not argumentAccepts(supertype.arguments.getOrPanic(index), translated.arguments.getOrPanic(index), depth.plusModulo(1 as UWord)) {
+                return false
+            }
+            set index = index.plusModulo(1 as UWord)
+        }
     }
 
-    translated = subtype.asSupertypeWithBase(supertype.baseType)
+    // it is a subtype. Still, a token is never frozen, and stays visible in the type of every reference to it:
+    // what may be a token is not below a type that cannot be one (`TokenRule` in the compiler)
+    if subtype.mayBeToken() and not supertype.mayBeToken() {
+        return false
+    }
+
+    return true
+}
+
+// Whether a value of this type may be a token, or hold one. It cannot where the type is const, as a token is
+// never frozen; nor where its base type is no token (ReflectionBaseType.isNonToken) and none of its type
+// arguments may be one. One component of an intersection that cannot be a token decides it for the intersection.
+// `BoundTypeReference.mayBeToken` in the compiler.
+export nothrow fn mayBeToken(capture self: const Type) -> Bool {
+    if self is NamedType {
+        return namedTypeMayBeToken(self.asNamedType())
+    }
+
+    components = self.asIntersectionType().components
     var index: UWord = 0
-    while index < supertype.arguments.size {
-        if not argumentAccepts(supertype.arguments.getOrPanic(index), translated.arguments.getOrPanic(index), depth.plusModulo(1 as UWord)) {
+    while index < components.size {
+        if not namedTypeMayBeToken(components.getOrPanic(index)) {
             return false
         }
         set index = index.plusModulo(1 as UWord)
     }
 
     return true
+}
+
+nothrow fn namedTypeMayBeToken(type: const NamedType) -> Bool {
+    if type.mutability == MUTABILITY_CONST or type.baseType.isConst {
+        return false
+    }
+
+    if not type.baseType.isNonToken {
+        return true
+    }
+
+    var index: UWord = 0
+    while index < type.arguments.size {
+        argument = type.arguments.getOrPanic(index)
+        // an `in` argument reads as `Any?`, which may be a token
+        if argument.variance == VARIANCE_IN or argument.value.mayBeToken() {
+            return true
+        }
+        set index = index.plusModulo(1 as UWord)
+    }
+
+    return false
+}
+
+// @return [self], of values that are no tokens: itself if it cannot be one (see mayBeToken), its intersection
+// with NonToken otherwise. `BoundTypeReference.asNoToken` in the compiler.
+nothrow fn asNoToken(capture self: const Type) -> const Type {
+    if not self.mayBeToken() {
+        return self
+    }
+
+    mutability = assignmentMutabilityOfAll(self)
+    nonToken = typeOf::<NonToken>().firstComponent().withNullability(self.isNullable()).withMutability(mutability)
+    count = self.componentCount()
+    components: own Array<NamedType> = Array.new::<NamedType>(count.plusModulo(1 as UWord), nonToken)
+    if self is IntersectionType {
+        ownComponents = self.asIntersectionType().components
+        var index: UWord = 0
+        while index < count {
+            components.setOrPanic(index, ownComponents.getOrPanic(index).withMutability(mutability))
+            set index = index.plusModulo(1 as UWord)
+        }
+    } else {
+        components.setOrPanic(0, self.asNamedType().withMutability(mutability))
+    }
+
+    return IntersectionType(components)
+}
+
+// @return the mutability that the components of [type] have in common when intersected: that which asks for
+// all that any of them asks for
+nothrow fn assignmentMutabilityOfAll(type: const Type) -> U8 {
+    if type is NamedType {
+        return type.asNamedType().assignmentMutability()
+    }
+
+    components = type.asIntersectionType().components
+    var mutability = MUTABILITY_READ
+    var index: UWord = 0
+    while index < components.size {
+        set mutability = intersectMutability(mutability, components.getOrPanic(index).assignmentMutability())
+        set index = index.plusModulo(1 as UWord)
+    }
+
+    return mutability
 }
 
 // whether a reference of the mutability [from] can be assigned to one of the mutability [to]
@@ -119,7 +219,11 @@ nothrow fn mutabilityOfReference(type: const Type) -> U8 {
     var mutability = MUTABILITY_READ
     var index: UWord = 0
     while index < components.size {
-        set mutability = intersectMutability(mutability, components.getOrPanic(index).mutability)
+        component = components.getOrPanic(index)
+        if component.baseType.isConst {
+            return MUTABILITY_CONST
+        }
+        set mutability = intersectMutability(mutability, component.mutability)
         set index = index.plusModulo(1 as UWord)
     }
 

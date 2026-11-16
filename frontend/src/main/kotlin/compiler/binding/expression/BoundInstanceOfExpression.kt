@@ -115,8 +115,9 @@ internal fun validateTypeCheck(fullTypeToCheck: BoundTypeReference): BoundTypeRe
 
 /**
  * Whether checking a value of the type [typeOfValue] against [this] takes no more than the base type of the object:
- * [this] is a type without type arguments that is not nullable, and any reference of [typeOfValue] is of a mutability
- * that fits. Then the check allocates nothing, see `emerge.core.reflection.isInstanceOf`.
+ * [this] is a type without type arguments that is not nullable, any reference of [typeOfValue] is of a mutability
+ * that fits, and no token can get forgotten. Then the check allocates nothing, see
+ * `emerge.core.reflection.isInstanceOf`.
  */
 private fun BoundTypeReference.isCheckedByBaseTypeAlone(typeOfValue: BoundTypeReference?): Boolean {
     if (this !is RootResolvedTypeReference || !arguments.isNullOrEmpty()) {
@@ -126,7 +127,16 @@ private fun BoundTypeReference.isCheckedByBaseTypeAlone(typeOfValue: BoundTypeRe
     // if the type of the value is a type parameter, this is the mutability of its bound, and the mutability of the
     // type argument is assignable wherever that is
     val mutabilityOfValue = typeOfValue?.mutability ?: TypeMutability.READONLY
-    return isOfConstClass || mutabilityOfValue.isAssignableTo(mutability)
+    if (!isOfConstClass && !mutabilityOfValue.isAssignableTo(mutability)) {
+        return false
+    }
+
+    // What may be a token is no value of a type that cannot be one (see TokenRule), and whether an object may be
+    // a token is up to its type arguments, too: a `Box<SystemClock>` is no `NonToken`. The base type says it all
+    // where this type has no objection, where the value is known to be no token, and where the object has no
+    // type arguments: it is of this very class then, and that has none.
+    val objectsHaveNoTypeArguments = !baseType.kind.allowsSubtypes && baseType.typeParameters.isNullOrEmpty()
+    return mayBeToken || typeOfValue?.mayBeToken == false || objectsHaveNoTypeArguments
 }
 
 /**

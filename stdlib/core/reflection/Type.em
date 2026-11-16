@@ -217,38 +217,57 @@ export nothrow fn intersectMutability(a: U8, b: U8) -> U8 {
 }
 
 // what `mut T` is, with [self] for `T` and [given] the mutability written: [self], of the mutability that both
-// it and [given] ask for
+// it and [given] ask for.
+//
+// What is const is no token, and neither is a `mut T` of a T that cannot be one. `const T` of a `mut X` is an
+// `own X`, which doesn't say so anymore; so the result is intersected with NonToken then. This is what
+// `GenericTypeReference.instantiateAllParameters` does in the compiler.
 export nothrow fn withGivenMutability(capture self: const Type, given: U8) -> const Type {
+    isNoToken = given == MUTABILITY_CONST or not self.mayBeToken()
+    combined = self.withMutabilityOfAll(intersectMutability(mutabilityOfReference(self), given))
+    if isNoToken {
+        return combined.asNoToken()
+    }
+
+    return combined
+}
+
+// @return [self], with the mutability of all of its components replaced
+nothrow fn withMutabilityOfAll(capture self: const Type, mutability: U8) -> const Type {
     if self is NamedType {
-        named = self.asNamedType()
-        return named.withMutability(intersectMutability(named.mutability, given))
+        return self.asNamedType().withMutability(mutability)
     }
 
-    if self is IntersectionType {
-        components = self.asIntersectionType().components
-        newComponents: own Array<NamedType> = Array.new::<NamedType>(components.size, components.getOrPanic(0))
-        var index: UWord = 0
-        while index < components.size {
-            component = components.getOrPanic(index)
-            newComponents.setOrPanic(index, component.withMutability(intersectMutability(component.mutability, given)))
-            set index = index.plusModulo(1 as UWord)
-        }
-        return IntersectionType(newComponents)
+    components = self.asIntersectionType().components
+    newComponents: own Array<NamedType> = Array.new::<NamedType>(components.size, components.getOrPanic(0))
+    var index: UWord = 0
+    while index < components.size {
+        newComponents.setOrPanic(index, components.getOrPanic(index).withMutability(mutability))
+        set index = index.plusModulo(1 as UWord)
     }
-
-    panic("not a type")
+    return IntersectionType(newComponents)
 }
 
 // the runtime type information for the type argument. Type parameters are reified, so this works for type
 // parameters of the enclosing function or class, too: `typeOf::<T>()`
 export nothrow intrinsic fn typeOf<T>() -> const Type
 
-// the intersection of the given types; nested intersections are flattened
+// The intersection of the given types; nested intersections are flattened. As in the compiler
+// (`BoundIntersectionTypeReference.ofComponents`), the components take the mutability they have in common:
+// `mut A & const B` is `own A & own B`. Where a component cannot be a token (that `const B`) and the result
+// doesn't say so anymore, it is intersected with NonToken.
 export nothrow fn intersectionOf(capture components: const Array<const Type>) -> const Type {
     var count: UWord = 0
+    var mutability = MUTABILITY_READ
+    var anyIsNoToken = false
     var index: UWord = 0
     while index < components.size {
-        set count = count.plusModulo(components.getOrPanic(index).componentCount())
+        component = components.getOrPanic(index)
+        set count = count.plusModulo(component.componentCount())
+        set mutability = intersectMutability(mutability, assignmentMutabilityOfAll(component))
+        if not component.mayBeToken() {
+            set anyIsNoToken = true
+        }
         set index = index.plusModulo(1 as UWord)
     }
 
@@ -265,18 +284,23 @@ export nothrow fn intersectionOf(capture components: const Array<const Type>) ->
             nested = component.asIntersectionType().components
             var nestedIndex: UWord = 0
             while nestedIndex < nested.size {
-                flat.setOrPanic(flatIndex, nested.getOrPanic(nestedIndex))
+                flat.setOrPanic(flatIndex, nested.getOrPanic(nestedIndex).withMutability(mutability))
                 set flatIndex = flatIndex.plusModulo(1 as UWord)
                 set nestedIndex = nestedIndex.plusModulo(1 as UWord)
             }
         } else {
-            flat.setOrPanic(flatIndex, component.asNamedType())
+            flat.setOrPanic(flatIndex, component.asNamedType().withMutability(mutability))
             set flatIndex = flatIndex.plusModulo(1 as UWord)
         }
         set index = index.plusModulo(1 as UWord)
     }
 
-    return IntersectionType(flat)
+    intersection: const Type = IntersectionType(flat)
+    if anyIsNoToken {
+        return intersection.asNoToken()
+    }
+
+    return intersection
 }
 
 // The casts of this package, for code that is nothrow and knows what it has: `as` throws, so nothrow code cannot use it

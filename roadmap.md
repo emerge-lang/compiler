@@ -98,23 +98,28 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       `BoundCastExpression.validateMutability`), and where the target is a type parameter, the check at runtime compares the
       mutability of the reference with that of the type argument (`castTo::<mut Foo>(x)` with a `read`
       parameter throws a `CastError`)
+    * tokens: the typeinfo says of every base type whether its instances are no tokens
+      (`IrBaseType.isNonToken`), so the runtime knows that classes are `NonToken` without saying so, and what
+      may be a token (`mayBeToken`), type arguments included. Its subtype relation has the token rule of the
+      compiler: an object that may be or hold a token is no value of a type that cannot be one, so no cast
+      forgets or freezes a token (see [docs/tokens.md](docs/tokens.md)). Where that takes the type arguments of
+      the object, the check is not done by the base type alone: `x is NonToken` and `x is Shape` for an
+      interface `Shape : NonToken`, on an `x` that may be a token
 
     Remaining work:
     1. `x is mut Foo` on a `read` reference is false, and nothing says so at compile time: there are no smart
        casts yet that would make the mutability of an `is` matter, and no diagnostic for a check that cannot
-       succeed (see 6.)
-    2. the runtime doesn't know what is a token, nor that classes are `NonToken` without saying so: `x is NonToken`
-       is false for them, and a cast can still forget a token (see [docs/tokens.md](docs/tokens.md))
-    3. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes
+       succeed (see 5.)
+    2. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes
        (`N & M`) for `Nothing` like the compiler does. That only shows in type arguments, no value has such a type
-    4. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
+    3. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
        supertype it is translated to (see item 33)
-    5. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
+    4. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
        (`class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>`) is not instantiated
-    6. where the static type of the value already tells the result, say so: skip the check where it always
+    5. where the static type of the value already tells the result, say so: skip the check where it always
        succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
-    7. `CastError` doesn't say what the value was and what was expected
-    8. a type parameter of a class is not available in its member functions without a receiver; `is T` there
+    6. `CastError` doesn't say what the value was and what was expected
+    7. a type parameter of a class is not available in its member functions without a receiver; `is T` there
        fails in the backend
 13. Function types
     1. add function types to the grammar and type system.

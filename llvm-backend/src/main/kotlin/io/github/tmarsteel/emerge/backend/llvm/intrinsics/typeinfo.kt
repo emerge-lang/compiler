@@ -89,6 +89,8 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     val arrayElementLayoutKind by structMember(EmergeUWordType)
     /** see [io.github.tmarsteel.emerge.backend.api.ir.IrBaseType.isConst] */
     val isConst by structMember(LlvmBooleanType)
+    /** see [io.github.tmarsteel.emerge.backend.api.ir.IrBaseType.isNonToken] */
+    val isNonToken by structMember(LlvmBooleanType)
     /** !! dynamically sized !! */
     val vtable by structMember(VTableType(nVTableEntries))
 
@@ -108,7 +110,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::isConst, ::vtable), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::isConst, ::isNonToken, ::vtable), NativeI32FlagGroup())
     }
 
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
@@ -122,7 +124,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
              * dynamicTypeInfoPtr: pointer
              * canonicalNamePtr: pointer to emerge string
              * arrayElementLayoutKind: word
-             * isConst: boolean, padded to a word
+             * isConst, isNonToken: booleans, padded to a word
              * vtable: [pointer x size]
              */
             sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (7u + vtable.type.nEntries.toUInt()),
@@ -165,6 +167,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val supertypeTemplatesOf: IrBaseType?,
         val isConst: Boolean,
+        val isNonToken: Boolean,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -230,6 +233,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
                 setValue(typeinfoType.isConst, context.i1(isConst))
+                setValue(typeinfoType.isNonToken, context.i1(isNonToken))
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
@@ -244,6 +248,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
                 setValue(typeinfoType.isConst, context.i1(isConst))
+                setValue(typeinfoType.isNonToken, context.i1(isNonToken))
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
@@ -263,6 +268,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             supertypes,
             null,
             false,
+            true, // these are arrays, and no class of arrays is a token class
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,
@@ -273,11 +279,13 @@ internal class StaticAndDynamicTypeInfo private constructor(
          * @param describedType the base type the typeinfo describes; its [IrBaseType.parameterizedSupertypes]
          * end up in [TypeinfoType.supertypeTemplates]
          * @param isConst see [TypeinfoType.isConst]
+         * @param isNonToken see [TypeinfoType.isNonToken]
          */
         fun define(
             typeName: (EmergeLlvmContext) -> String,
             describedType: IrBaseType,
             isConst: Boolean,
+            isNonToken: Boolean,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
@@ -288,6 +296,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
             describedType,
             isConst,
+            isNonToken,
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,

@@ -116,11 +116,13 @@ is also tried as the `const` it can become: `own Animal & NonToken` freezes into
 
 **Common supertypes.** The closest common supertype of two types that cannot be tokens is `NonToken`, not `Any`.
 
-**Casts are not checked.** `x as NonToken` is accepted for an `x` that may be a token. The check at runtime sees
-the class of the object and its type arguments, but not what is a token (roadmap item 12.2), so a cast to a
-type that cannot be a token can succeed for a `Box<SystemClock>`, and a token is forgotten.
-Mutability is checked: a cast cannot make a `read` reference to a token a `mut` one. Casts get no rule of
-their own for tokens before the runtime knows what is a token.
+**Casts are checked at runtime.** `x as NonToken` is accepted by the compiler for an `x` that may be a token,
+and fails at runtime if it is one: `is` and `as` apply rule 3 to the type of the object, its type arguments
+included. The runtime knows of every base type whether its instances are no tokens, and that a class is a
+`NonToken` without saying so. So a `Box<SystemClock>` is no `NonToken`, a `Box<S32>` is, and no cast forgets a
+token. A cast cannot freeze one either: only an `own` reference can be cast to `const`, and that fails for an
+object that may be a token. The mutability of the reference is checked as well: a cast cannot make a `read`
+reference to a token a `mut` one.
 
 `t is Named` on a token is fine. Once there are smart casts, it narrows `t: SomeToken` to `SomeToken & Named`,
 which is still a token type.
@@ -283,7 +285,6 @@ accesses the value it is computing is a panic.
 
 ## Known gaps
 
-* Casts can forget a token (above).
 * Rule 6 is missing, as there are no closures yet.
 * The flag of a unique class is a global variable of the declaring file, named `__<Class>_taken`. Code in that
   file can name and reset it until identifiers starting with `__` are rejected in user code (roadmap item 38).
@@ -302,6 +303,7 @@ accesses the value it is computing is a panic.
 | what a base type says (`isToken`, `isNonToken`), rule 5 | `binding/basetype/BoundBaseType.kt`, `BoundSupertypeList.kt`                                                   | `MissingTokenModifierDiagnostic`, `TokenInheritsNonTokenDiagnostic`    |
 | what a type says (`mayBeToken`)                         | `BoundTypeReference` and its implementations                                                                  |                                                                        |
 | rules 1, 3 and 4                                        | `TokenRule`, called from `unify` in `binding/type/RootResolvedTypeReference.kt`                                | `ValueNotAssignableDiagnostic`; `ConstTokenDiagnostic` for a written `const` |
+| rules 1 and 3 for `is` and `as`, at runtime             | `mayBeToken` and `isSubtypeOf` in `stdlib/core/reflection/subtyping.em`; `ReflectionBaseType.isNonToken` from the typeinfo (`IrBaseType.isNonToken`) | `CastError` when the program runs                                      |
 | rule 2                                                  | `binding/basetype/BoundBaseTypeMemberVariable.kt`                                                              | `MissingTokenModifierDiagnostic`                                       |
 | `NonToken` where mutabilities combine                   | `BoundIntersectionTypeReference.ofComponents` and `flippedUnify`, `GenericTypeReference.instantiateAllParameters` |                                                                        |
 | variables default to `mut`; constant globals            | `binding/BoundVariable.kt`                                                                                     | `MutableGlobalVariableDiagnostic`                                      |

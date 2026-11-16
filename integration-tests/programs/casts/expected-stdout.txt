@@ -58,6 +58,36 @@ Dog through a mut reference is T = mut Dog: yes
 Dog through a mut reference is T = const Dog: no
 Dog through a read reference is mut Dog: no
 String through a read reference is T = String: yes
+Dog is NonToken: yes
+Square is Shape: yes
+Channel is NonToken: no
+Channel is Stream: yes
+Channel is Named: yes
+Channel is Named & NonToken: no
+Box<Dog> is NonToken: yes
+Box<Channel> is NonToken: no
+Box<Channel> is Box<Channel>: yes
+Box<Channel> is Box<out Named>: yes
+Box<Channel> is Box<out NonToken>: no
+Box<Dog> is Box<out NonToken>: yes
+Wrapper<Dog> is Named: yes
+Wrapper<Dog> is Named & NonToken: yes
+Wrapper<Channel> is Named: yes
+Wrapper<Channel> is Named & NonToken: no
+Dog is T = NonToken: yes
+Channel is T = NonToken: no
+Wrapper<Channel> is T = NonToken: no
+Wrapper<Dog> is A & B = Named & NonToken: yes
+Wrapper<Channel> is A & B = Named & NonToken: no
+Wrapper<Channel> is A & B = Named & Wrapper<Channel>: yes
+Box<Channel> as? NonToken is null: yes
+const T, T = mut Animal: own casts.Animal & own emerge.core.NonToken
+const T, T = mut Animal is below NonToken: yes
+const T, T = mut Animal is below const Animal: yes
+A & B, A = const Animal, B = mut Named: own casts.Animal & own casts.Named & own emerge.core.NonToken
+A & B, A = const Animal, B = mut Named is below NonToken: yes
+A & B, A = Animal, B = mut Named: mut casts.Animal & mut casts.Named
+A & B, A = Animal, B = mut Named is below NonToken: no
 cast to Box<Dog> succeeded
 Box<Dog> as? Box<Cat> is null: yes
 null as? Box<Dog> is null: yes

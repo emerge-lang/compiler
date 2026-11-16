@@ -13,6 +13,11 @@ export class ReflectionBaseType {
     // whether all references to objects of this type are immutable, whatever mutability they are written with
     export isConst: Bool = init
 
+    // whether no object of this type is a token: it is a class that is not declared `token`, or it inherits from
+    // NonToken. Such a type is a subtype of NonToken, without having it among [supertypes]. An object of it can
+    // still hold a token, where a type argument allows for one: see Type.mayBeToken
+    export isNonToken: Bool = init
+
     // the supertypes that have type parameters, the indirect ones included, as seen from this type:
     // for `class Nest<E> : Seq<Box<E>>` that is `Seq<Box<#0>>`, where #0 is a TypeParameterPlaceholder
     // for `E`. Shared by the static and the dynamic typeinfo.
@@ -63,6 +68,11 @@ export class ReflectionBaseType {
 
         if self.isSameObjectAs(typeOf::<Nothing>().firstComponent().baseType) {
             return true
+        }
+
+        if supertype.isSameObjectAs(typeOf::<NonToken>().firstComponent().baseType) {
+            // classes are below NonToken without saying so
+            return self.isNonToken
         }
 
         var supertypeIndex = 0 as UWord

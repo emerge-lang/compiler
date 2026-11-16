@@ -678,6 +678,7 @@ private class IrInterfaceImpl(
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
     override val isConst: Boolean get() = typeDef.isConst
+    override val isNonToken: Boolean get() = typeDef.isNonToken
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -704,6 +705,7 @@ private class IrClassImpl(
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
     override val isConst: Boolean get() = typeDef.isConst
+    override val isNonToken: Boolean get() = typeDef.isNonToken
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val typeParameterFields by lazy {
