@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
@@ -946,7 +947,7 @@ internal val arrayRuntimeTypeGetter = KotlinLlvmFunction.define<EmergeLlvmContex
         val selfTypeInfo = self.anyValueBase().member { typeinfo }.get().dereference()
         val arrayObject = pointerToBoxedSliceBase(self).dereference().reinterpretAs(pointerTo(EmergeArrayBaseType))
         val elementType = getelementptr(arrayObject).member { elementType }.get().dereference()
-        ret(newNamedType(selfTypeInfo, false, listOf(Pair(IrTypeVariance.INVARIANT, elementType))))
+        ret(newNamedType(selfTypeInfo, false, IrTypeMutability.READONLY, listOf(Pair(IrTypeVariance.INVARIANT, elementType))))
     }
 }
 

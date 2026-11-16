@@ -4,8 +4,8 @@ import emerge.platform.panic
 import emerge.core.safemath.plusModulo
 
 // The subtype relation on runtime types. It has to agree with what the compiler does for types without type
-// variables (`BoundTypeReference.unify` in the frontend), but for mutability, which is not part of the runtime
-// type information. The frontend generates the test that compares the two (`RuntimeSubtypingGridTests`).
+// variables (`BoundTypeReference.unify` in the frontend). The frontend generates the test that compares the
+// two (`RuntimeSubtypingGridTests`).
 //
 // All of it is nothrow, as `is` is.
 
@@ -62,6 +62,10 @@ nothrow fn isNamedSubtype(subtype: const NamedType, supertype: const NamedType, 
         return false
     }
 
+    if not mutabilityIsAssignable(subtype.assignmentMutability(), supertype.assignmentMutability()) {
+        return false
+    }
+
     if subtype.baseType.isSameAs(typeOf::<Nothing>().firstComponent().baseType) {
         return true
     }
@@ -82,6 +86,46 @@ nothrow fn isNamedSubtype(subtype: const NamedType, supertype: const NamedType, 
     return true
 }
 
+// whether a reference of the mutability [from] can be assigned to one of the mutability [to]
+export nothrow fn mutabilityIsAssignable(from: U8, to: U8) -> Bool {
+    if from == to or from == MUTABILITY_OWN {
+        return true
+    }
+
+    if from == MUTABILITY_READ {
+        return false
+    }
+
+    return to == MUTABILITY_READ
+}
+
+// The mutability that matters for assigning: objects of types that are const by themselves have no state
+// that could be changed, so references to them are as good as any.
+nothrow fn assignmentMutability(self: const NamedType) -> U8 {
+    if self.baseType.isConst {
+        return MUTABILITY_OWN
+    }
+
+    return self.mutability
+}
+
+// @return the mutability of a reference of the type [type]
+nothrow fn mutabilityOfReference(type: const Type) -> U8 {
+    if type is NamedType {
+        return type.asNamedType().mutability
+    }
+
+    components = type.asIntersectionType().components
+    var mutability = MUTABILITY_READ
+    var index: UWord = 0
+    while index < components.size {
+        set mutability = intersectMutability(mutability, components.getOrPanic(index).mutability)
+        set index = index.plusModulo(1 as UWord)
+    }
+
+    return mutability
+}
+
 // whether a type with [target] for a type argument takes one with [source] in its place
 nothrow fn argumentAccepts(target: TypeArgument, source: TypeArgument, depth: UWord) -> Bool {
     if target.variance == VARIANCE_INVARIANT {
@@ -96,7 +140,7 @@ nothrow fn argumentAccepts(target: TypeArgument, source: TypeArgument, depth: UW
     if target.variance == VARIANCE_OUT {
         if source.variance == VARIANCE_IN {
             // all that is known of what comes out of the source is that it is a value
-            return isSubtypeAtDepth(typeOf::<Any?>(), target.value, depth)
+            return isSubtypeAtDepth(typeOf::<read Any?>(), target.value, depth)
         }
 
         return isSubtypeAtDepth(source.value, target.value, depth)
@@ -104,7 +148,7 @@ nothrow fn argumentAccepts(target: TypeArgument, source: TypeArgument, depth: UW
 
     if source.variance == VARIANCE_OUT {
         // the source takes nothing, so the target must not take anything either
-        return isSubtypeAtDepth(target.value, typeOf::<Nothing>(), depth)
+        return isSubtypeAtDepth(target.value, typeOf::<own Nothing>(), depth)
     }
 
     return isSubtypeAtDepth(target.value, source.value, depth)
@@ -163,7 +207,7 @@ nothrow fn instantiateNamed(capture template: const NamedType, arguments: const 
         set index = index.plusModulo(1 as UWord)
     }
 
-    return NamedType(template.baseType, template.nullable, instantiated)
+    return NamedType(template.baseType, template.nullable, template.mutability, instantiated)
 }
 
 // The variance of the result merges that of [template] with that of the type arguments it mentions, like
@@ -180,10 +224,10 @@ nothrow fn instantiateArgument(capture template: const TypeArgument, arguments: 
 
         // the two variances contradict each other
         if template.variance == VARIANCE_OUT {
-            return TypeArgument(VARIANCE_OUT, typeOf::<Any?>())
+            return TypeArgument(VARIANCE_OUT, typeOf::<read Any?>())
         }
 
-        return TypeArgument(VARIANCE_IN, typeOf::<Nothing>())
+        return TypeArgument(VARIANCE_IN, typeOf::<own Nothing>())
     }
 
     if not mentionsVariantArgumentInTypeArguments(templateValue, arguments) {
@@ -192,7 +236,7 @@ nothrow fn instantiateArgument(capture template: const TypeArgument, arguments: 
 
     // `Box<E>` for a type argument, with `out A` for `E`: it may be a `Box<B>` for any subtype B of A
     if template.variance == VARIANCE_IN {
-        return TypeArgument(VARIANCE_IN, typeOf::<Nothing>())
+        return TypeArgument(VARIANCE_IN, typeOf::<own Nothing>())
     }
 
     return TypeArgument(VARIANCE_OUT, instantiate(templateValue, arguments))

@@ -28,6 +28,11 @@ fn isA<T>(borrow value: Any?) -> Bool = value is T
 
 fn isBoxOf<T>(borrow value: Any?) -> Bool = value is Box<T>
 
+fn isMutDog(borrow value: read Any) -> Bool = value is mut Dog
+
+// like isA, but with a mut reference to the value
+fn isAThroughMut<T>(borrow value: mut Any) -> Bool = value is T
+
 fn castTo<T>(value: Any) -> T = value as T
 
 fn main(world: mut World) {
@@ -96,21 +101,50 @@ fn main(world: mut World) {
     show(stdout, "Box<Dog> is Box<T = Dog>", isBoxOf::<Dog>(dogBox))
     show(stdout, "Box<Dog> is Box<T = Cat>", isBoxOf::<Cat>(dogBox))
 
+    // mutability: objects know that of their type arguments
+    mutDogBox: Any = Box::<mut Dog>(Dog())
+    show(stdout, "Box<mut Dog> is Box<mut Dog>", mutDogBox is Box<mut Dog>)
+    show(stdout, "Box<mut Dog> is Box<Dog>", mutDogBox is Box<Dog>)
+    show(stdout, "Box<mut Dog> is Box<const Dog>", mutDogBox is Box<const Dog>)
+    show(stdout, "Box<mut Dog> is Box<out Dog>", mutDogBox is Box<out Dog>)
+    show(stdout, "Box<mut Dog> is Box<out mut Animal>", mutDogBox is Box<out mut Animal>)
+    show(stdout, "Box<Dog> is Box<mut Dog>", dogBox is Box<mut Dog>)
+    show(stdout, "Box<Dog> is Box<out mut Animal>", dogBox is Box<out mut Animal>)
+    show(stdout, "Box<Dog> is Box<out Animal>", dogBox is Box<out Animal>)
+    show(stdout, "Box<mut Dog> is T = Box<mut Dog>", isA::<Box<mut Dog>>(mutDogBox))
+    show(stdout, "Box<mut Dog> is T = Box<Dog>", isA::<Box<Dog>>(mutDogBox))
+    show(stdout, "Box<mut Dog> is Box<T = mut Dog>", isBoxOf::<mut Dog>(mutDogBox))
+    show(stdout, "Box<mut Dog> is Box<T = Dog>", isBoxOf::<Dog>(mutDogBox))
+
+    // mutability: objects don't know that of the references to them, the type of the reference does
+    mutDog: mut Dog = Dog()
+    show(stdout, "Dog through a read reference is T = Dog", isA::<Dog>(mutDog))
+    show(stdout, "Dog through a read reference is T = mut Dog", isA::<mut Dog>(mutDog))
+    show(stdout, "Dog through a read reference is T = const Dog", isA::<const Dog>(mutDog))
+    show(stdout, "Dog through a mut reference is T = Dog", isAThroughMut::<Dog>(mutDog))
+    show(stdout, "Dog through a mut reference is T = mut Dog", isAThroughMut::<mut Dog>(mutDog))
+    show(stdout, "Dog through a mut reference is T = const Dog", isAThroughMut::<const Dog>(mutDog))
+    show(stdout, "Dog through a read reference is mut Dog", isMutDog(mutDog))
+    show(stdout, "String through a read reference is T = String", isA::<String>("a string"))
+
     // casts
     asBox = dogBox as Box<Dog>
     stdout.println("cast to Box<Dog> succeeded")
-    // the runtime doesn't know mutability, so all that is known of the Cat in the box is that it reads as one
-    safe: Box<out Cat>? = dogBox as? Box<Cat>
+    safe: Box<Cat>? = dogBox as? Box<Cat>
     show(stdout, "Box<Dog> as? Box<Cat> is null", isNull(safe))
-    safeNull: Box<out Dog>? = nothing as? Box<Dog>
+    safeNull: Box<Dog>? = nothing as? Box<Dog>
     show(stdout, "null as? Box<Dog> is null", isNull(safeNull))
-    nullableBox: Box<out Dog>? = nothing as Box<Dog>?
+    nullableBox: Box<Dog>? = nothing as Box<Dog>?
     show(stdout, "null as Box<Dog>? is null", isNull(nullableBox))
     viaParameter: Box<Dog> = castTo::<Box<Dog>>(dogBox)
     stdout.println("cast to T = Box<Dog> succeeded")
 
-    // a CastError is an Error, it is not caught: the program ends here
-    stdout.println("casting a Box<Dog> to T = Box<Cat>")
-    wrong: Box<Cat> = castTo::<Box<Cat>>(dogBox)
+    readDog: Dog = castTo::<Dog>(mutDog)
+    stdout.println("cast to T = Dog succeeded")
+
+    // a CastError is an Error, it is not caught: the program ends here.
+    // castTo takes a read reference, which cannot become a mut one
+    stdout.println("casting a read reference to a Dog to T = mut Dog")
+    wrong: mut Dog = castTo::<mut Dog>(mutDog)
     stdout.println("unreachable")
 }

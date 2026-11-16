@@ -15,7 +15,10 @@ import compiler.binding.misc_ir.IrReifiedTypeExpressionImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.ast.type.TypeMutability
 import compiler.binding.type.ErroneousType
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
@@ -98,7 +101,7 @@ class BoundInstanceOfExpression(
     override fun toBackendIrExpression(): IrExpression {
         return buildNothrowInvocationLikeIr(
             listOf(this.expressionToCheck),
-            buildActualCall = { args -> buildInstanceOf(context.swCtx, args.single(), this.typeToCheck!!) },
+            buildActualCall = { args -> buildInstanceOf(context.swCtx, args.single(), this.typeToCheck!!, expressionToCheck.type) },
         )
     }
 }
@@ -111,22 +114,31 @@ internal fun validateTypeCheck(fullTypeToCheck: BoundTypeReference): BoundTypeRe
 }
 
 /**
- * Whether checking against [this] takes no more than the base type of the object: a type without type arguments
- * that is not nullable. Then the check allocates nothing, see `emerge.core.reflection.isInstanceOf`.
+ * Whether checking a value of the type [typeOfValue] against [this] takes no more than the base type of the object:
+ * [this] is a type without type arguments that is not nullable, and any reference of [typeOfValue] is of a mutability
+ * that fits. Then the check allocates nothing, see `emerge.core.reflection.isInstanceOf`.
  */
-private val BoundTypeReference.isCheckedByBaseTypeAlone: Boolean
-    get() = this is RootResolvedTypeReference && arguments.isNullOrEmpty()
+private fun BoundTypeReference.isCheckedByBaseTypeAlone(typeOfValue: BoundTypeReference?): Boolean {
+    if (this !is RootResolvedTypeReference || !arguments.isNullOrEmpty()) {
+        return false
+    }
+
+    // if the type of the value is a type parameter, this is the mutability of its bound, and the mutability of the
+    // type argument is assignable wherever that is
+    val mutabilityOfValue = typeOfValue?.mutability ?: TypeMutability.READONLY
+    return isInherentlyConst || mutabilityOfValue.isAssignableTo(mutability)
+}
 
 /**
  * @return the overload of `emerge.core.reflection.isInstanceOf` whose second parameter is of the base type [typeParameterBaseType]
  */
-private fun SoftwareContext.isInstanceOfFunction(typeParameterBaseType: BoundBaseType): BoundFunction {
+private fun SoftwareContext.isInstanceOfFunction(typeParameterBaseType: BoundBaseType, parameterCount: Int): BoundFunction {
     val reflectPackage = getPackage(reflectionBaseType.canonicalName.packageName)
         ?: throw InternalCompilerError("reflect package not found!")
 
     val isInstanceFn = reflectPackage.getTopLevelFunctionOverloadSetsBySimpleName("isInstanceOf")
         .asSequence()
-        .filter { it.parameterCount == 2 }
+        .filter { it.parameterCount == parameterCount }
         .flatMap { it.overloads }
         .filter { it.parameterTypes[0]!!.hasSameBaseTypeAs(any.getBoundReferenceAssertNoTypeParameters()) }
         .filter {
@@ -142,19 +154,41 @@ private fun SoftwareContext.isInstanceOfFunction(typeParameterBaseType: BoundBas
 }
 
 /**
- * @return an [IrExpression] that evaluates to `true` iff `value` is a value of the type [typeToCheck], type
- * arguments and nullability included, and `false` otherwise. Mutability is not checked, the runtime doesn't know it.
+ * The runtime type that tells `emerge.core.reflection.isInstanceOf` the mutability of the reference to the value
+ * being checked; objects don't know that. Where the type of the value is a type parameter, the mutability is
+ * that of the type argument, known only at runtime.
+ */
+private fun SoftwareContext.reificationOfReferenceMutability(typeOfValue: BoundTypeReference?): IrType {
+    val nonNullable = (typeOfValue as? NullableTypeReference)?.nested ?: typeOfValue
+    if (nonNullable is GenericTypeReference) {
+        return nonNullable.toBackendIr()
+    }
+
+    return IrSimpleTypeImpl(
+        any.toBackendIr(),
+        (typeOfValue?.mutability ?: TypeMutability.READONLY).toBackendIr(),
+        isNullable = false,
+    )
+}
+
+/**
+ * @param typeOfValue the static type of [value]; `null` if not known, it is taken to be `read` then
+ * @return an [IrExpression] that evaluates to `true` iff `value` is a value of the type [typeToCheck], and `false`
+ * otherwise. For a type without type arguments that is not nullable, that is a check of the base type of the object.
+ * For others, it is the subtype relation of the runtime, mutability included.
  */
 internal fun buildInstanceOf(
     swCtx: SoftwareContext,
     value: IrTemporaryValueReference,
     typeToCheck: BoundTypeReference,
+    typeOfValue: BoundTypeReference?,
 ): IrImplicitEvaluationExpression {
     val isInstanceFn: BoundFunction
     val typeTemporary: IrCreateTemporaryValue
+    var referenceTypeTemporary: IrCreateTemporaryValue? = null
     val typeIsOwnedByThisCode: Boolean
-    if (typeToCheck.isCheckedByBaseTypeAlone) {
-        isInstanceFn = swCtx.isInstanceOfFunction(swCtx.reflectionBaseType)
+    if (typeToCheck.isCheckedByBaseTypeAlone(typeOfValue)) {
+        isInstanceFn = swCtx.isInstanceOfFunction(swCtx.reflectionBaseType, 2)
         typeTemporary = IrCreateTemporaryValueImpl(
             IrBaseTypeReflectionExpressionImpl(
                 (typeToCheck as RootResolvedTypeReference).baseType.toBackendIr(),
@@ -167,16 +201,17 @@ internal fun buildInstanceOf(
         )
         typeIsOwnedByThisCode = false
     } else {
-        isInstanceFn = swCtx.isInstanceOfFunction(swCtx.reflectionType)
+        isInstanceFn = swCtx.isInstanceOfFunction(swCtx.reflectionType, 3)
+        val irTypeOfReifiedTypes = IrSimpleTypeImpl(
+            swCtx.reflectionType.toBackendIr(),
+            IrTypeMutability.IMMUTABLE,
+            isNullable = false,
+        )
         typeTemporary = IrCreateTemporaryValueImpl(
-            IrReifiedTypeExpressionImpl(
-                typeToCheck.toBackendIr(),
-                IrSimpleTypeImpl(
-                    swCtx.reflectionType.toBackendIr(),
-                    IrTypeMutability.IMMUTABLE,
-                    isNullable = false,
-                ),
-            )
+            IrReifiedTypeExpressionImpl(typeToCheck.toBackendIr(), irTypeOfReifiedTypes)
+        )
+        referenceTypeTemporary = IrCreateTemporaryValueImpl(
+            IrReifiedTypeExpressionImpl(swCtx.reificationOfReferenceMutability(typeOfValue), irTypeOfReifiedTypes)
         )
         typeIsOwnedByThisCode = true
     }
@@ -184,7 +219,11 @@ internal fun buildInstanceOf(
     val isInstanceTemporary = IrCreateTemporaryValueImpl(
         IrStaticDispatchFunctionInvocationImpl(
             isInstanceFn.toBackendIr(),
-            listOf(value, IrTemporaryValueReferenceImpl(typeTemporary)),
+            listOfNotNull(
+                value,
+                IrTemporaryValueReferenceImpl(typeTemporary),
+                referenceTypeTemporary?.let(::IrTemporaryValueReferenceImpl),
+            ),
             emptyMap(),
             isInstanceFn.returnType!!.toBackendIr(),
             null, // isInstanceOf is declared nothrow
@@ -194,7 +233,9 @@ internal fun buildInstanceOf(
     return IrImplicitEvaluationExpressionImpl(
         IrCodeChunkImpl(listOfNotNull(
             typeTemporary,
+            referenceTypeTemporary,
             isInstanceTemporary,
+            referenceTypeTemporary?.let(::IrDropStrongReferenceStatementImpl),
             IrDropStrongReferenceStatementImpl(typeTemporary).takeIf { typeIsOwnedByThisCode },
         )),
         IrTemporaryValueReferenceImpl(isInstanceTemporary),

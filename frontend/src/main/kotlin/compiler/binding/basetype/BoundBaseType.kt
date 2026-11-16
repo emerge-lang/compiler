@@ -677,6 +677,7 @@ private class IrInterfaceImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
+    override val isConst: Boolean get() = typeDef.isConst
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -702,6 +703,7 @@ private class IrClassImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.directSuperBaseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameterizedSupertypes by lazy { typeDef.parameterizedSupertypesBackendIr() }
+    override val isConst: Boolean get() = typeDef.isConst
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val typeParameterFields by lazy {

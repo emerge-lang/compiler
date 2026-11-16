@@ -19,6 +19,12 @@ interface IrBaseType {
      * this is, for `C`: `B` to `B<K>` and `A` to `A<Array<K>>`.
      */
     val parameterizedSupertypes: Map<IrInterface, IrParameterizedType>
+
+    /**
+     * Whether all references to objects of this type are immutable, whatever mutability they are written with
+     * (e.g. `emerge.core.String`). The types of such references have the mutability [IrTypeMutability.IMMUTABLE].
+     */
+    val isConst: Boolean
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
 

@@ -30,6 +30,7 @@ class VTableAlgorithmTest : FreeSpec({
                         typeHolder = object : IrInterface {
                             override val supertypes = emptySet<IrInterface>()
                             override val parameterizedSupertypes = emptyMap<IrInterface, IrParameterizedType>()
+                            override val isConst = false
                             override val canonicalName = typeName
                             override val parameters = emptyList<IrBaseType.Parameter>()
                             override val memberFunctions: List<IrOverloadGroup<IrMemberFunction>> = (1 .. nVirtualFunctions).map { functionN ->
@@ -69,6 +70,7 @@ class VTableAlgorithmTest : FreeSpec({
                     concreteType = object : IrClass {
                         override val supertypes: Set<IrInterface> = virtualTypes
                         override val parameterizedSupertypes = emptyMap<IrInterface, IrParameterizedType>()
+                        override val isConst = false
                         override val canonicalName = CanonicalElementName.BaseType(
                             packageName,
                             "Concrete"
@@ -180,6 +182,7 @@ private object MockSourceLocation : IrSourceLocation {
 private abstract class MockCoreType(simpleName: String) : IrClass {
     override val supertypes = emptySet<IrInterface>()
     override val parameterizedSupertypes = emptyMap<IrInterface, IrParameterizedType>()
+    override val isConst = false
     override val canonicalName = CanonicalElementName.BaseType(
         CanonicalElementName.Package(listOf("emerge", "core")),
         simpleName,

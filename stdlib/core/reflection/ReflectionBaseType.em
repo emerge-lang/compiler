@@ -10,6 +10,9 @@ export class ReflectionBaseType {
 
     export canonicalName: String = init
 
+    // whether all references to objects of this type are immutable, whatever mutability they are written with
+    export isConst: Bool = init
+
     // the supertypes that have type parameters, the indirect ones included, as seen from this type:
     // for `class Nest<E> : Seq<Box<E>>` that is `Seq<Box<#0>>`, where #0 is a TypeParameterPlaceholder
     // for `E`. Shared by the static and the dynamic typeinfo.

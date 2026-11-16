@@ -81,8 +81,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
     type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
-    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments and
-    nullability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
+    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments,
+    nullability and mutability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
     (`emerge.core.reflection.isSubtypeOf`, `isInstanceOf`). A type without type arguments is still checked by
     its base type alone, which allocates nothing. Wildcards work as the bound of the parameter
     (`x is Pair<String, *>`).
@@ -90,19 +90,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       frontend generates an emerge program from `TypeGrid` that compares the two, the integration tests run it
     * for the type arguments of supertypes (`class Nest<E> : Seq<Box<E>>`), every typeinfo has templates of its
       parameterized supertypes (`IrBaseType.parameterizedSupertypes`), which the runtime instantiates
+    * mutability: an object doesn't know the mutability of the references to it, but it knows its type
+      arguments, mutability included (`NamedType.mutability`): an array created as an `Array<mut Foo>` is one
+      for as long as it lives, whatever the references to it say. So `x is Array<mut Foo>` is checked. For the
+      value itself, the mutability comes from the static type of the reference that is checked: where the target
+      says its mutability, the frontend rejects a cast that strengthens it (`x: read Any`, `x as mut Foo`;
+      `validateCastMutability`), and where the target is a type parameter, the check at runtime compares the
+      mutability of the reference with that of the type argument (`castTo::<mut Foo>(x)` with a `read`
+      parameter throws a `CastError`)
 
     Remaining work:
-    1. mutability is not part of the runtime type information. The frontend keeps a cast from claiming a
-       mutability that the type of the value doesn't prove (`soundCastTargetType`, `CastErrors` in the tests):
-       a cast can keep or weaken the mutability of the value, an invariant type argument reads as `out read`
-       (`x as Array<Foo>` is an `Array<out read Foo>`), and `mut`, `const` and `in` in a type argument take a
-       value whose type proves them (`Array<out mut Foo>` as `Array<mut Bar>`). What is left:
-       * a type parameter as the target, or in it: `x as T` with `Array<mut Foo>` for `T` succeeds for an
-         `Array<const Foo>`. Nothing at compile time knows the type argument, nothing at runtime the mutability.
-         Closing this takes mutability in the runtime type information, at least that of type arguments
-       * the type of the value proves the mutability of type arguments only where it has the base type of the
-         target. `x: Iterable<mut Foo>`, `x as Array<mut Foo>` is rejected, though the supertype tells
-       * the type arguments of the components of an intersection are checked, but not adapted
+    1. `x is mut Foo` on a `read` reference is false, and nothing says so at compile time: there are no smart
+       casts yet that would make the mutability of an `is` matter, and no diagnostic for a check that cannot
+       succeed (see 6.)
     2. the runtime doesn't know what is a token, nor that classes are `NonToken` without saying so: `x is NonToken`
        is false for them, and a cast can still forget a token (see [docs/tokens.md](docs/tokens.md))
     3. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes

@@ -13,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -29,6 +30,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u32
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -85,6 +87,8 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     val canonicalNamePtr by structMember(PointerToAnyEmergeValue)
     /** the [ArrayElementLayoutKind] (its [ArrayElementLayoutKind.code]) of arrays with elements of this type */
     val arrayElementLayoutKind by structMember(EmergeUWordType)
+    /** see [io.github.tmarsteel.emerge.backend.api.ir.IrBaseType.isConst] */
+    val isConst by structMember(LlvmBooleanType)
     /** !! dynamically sized !! */
     val vtable by structMember(VTableType(nVTableEntries))
 
@@ -104,7 +108,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::vtable), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::isConst, ::vtable), NativeI32FlagGroup())
     }
 
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
@@ -118,9 +122,10 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
              * dynamicTypeInfoPtr: pointer
              * canonicalNamePtr: pointer to emerge string
              * arrayElementLayoutKind: word
+             * isConst: boolean, padded to a word
              * vtable: [pointer x size]
              */
-            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (6u + vtable.type.nEntries.toUInt()),
+            sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (7u + vtable.type.nEntries.toUInt()),
             alignInBits = diBuilder.context.targetData.pointerSizeInBits.toUInt(),
             flags = NativeI32FlagGroup(),
             declaredAt = Companion.declaredAt,
@@ -159,6 +164,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val canonicalNameGetter: (EmergeLlvmContext) -> String,
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val supertypeTemplatesOf: IrBaseType?,
+        val isConst: Boolean,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -223,6 +229,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setNull(typeinfoType.dynamicTypeInfoPtr)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
+                setValue(typeinfoType.isConst, context.i1(isConst))
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
@@ -236,6 +243,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.dynamicTypeInfoPtr, dynamicGlobal)
                 setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
+                setValue(typeinfoType.isConst, context.i1(isConst))
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
@@ -254,6 +262,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName,
             supertypes,
             null,
+            false,
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,
@@ -263,10 +272,12 @@ internal class StaticAndDynamicTypeInfo private constructor(
         /**
          * @param describedType the base type the typeinfo describes; its [IrBaseType.parameterizedSupertypes]
          * end up in [TypeinfoType.supertypeTemplates]
+         * @param isConst see [TypeinfoType.isConst]
          */
         fun define(
             typeName: (EmergeLlvmContext) -> String,
             describedType: IrBaseType,
+            isConst: Boolean,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             runtimeTypeGetter: (EmergeLlvmContext) -> LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
@@ -276,6 +287,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName,
             supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
             describedType,
+            isConst,
             finalizerFunction,
             runtimeTypeGetter,
             virtualFunctions,

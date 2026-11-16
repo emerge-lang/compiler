@@ -4,7 +4,12 @@ import emerge.platform.panic
 import emerge.core.safemath.plusModulo
 
 // runtime type information on a type (as opposed to ReflectionBaseType, which describes a base type only):
-// a base type together with nullability and type arguments, or an intersection of those.
+// a base type together with nullability, mutability and type arguments, or an intersection of those.
+//
+// Mutability belongs to a reference, not to the object it refers to: an object doesn't know the mutability of
+// the references to it, and the same object is `mut` through one reference and `read` through another. So the
+// type of an object (`someObject.type`) says nothing about mutability, it always is `read`. Its type arguments
+// are different: an array created as an `Array<mut Foo>` holds `mut` references for as long as it lives.
 export interface Type {
     // the same type, with the nullability replaced
     export nothrow fn withNullability(capture self, nullable: Bool) -> const Type
@@ -21,13 +26,23 @@ export interface Type {
 export class NamedType : const Type {
     export baseType: ReflectionBaseType = init
     export nullable: Bool = init
+    // one of MUTABILITY_READ, MUTABILITY_MUT, MUTABILITY_CONST, MUTABILITY_OWN
+    export mutability: U8 = init
     export arguments: const Array<TypeArgument> = init
 
     export override nothrow fn withNullability(capture self, nullable: Bool) -> const NamedType {
         if self.nullable == nullable {
             return self
         }
-        return NamedType(self.baseType, nullable, self.arguments)
+        return NamedType(self.baseType, nullable, self.mutability, self.arguments)
+    }
+
+    // the same type, with the mutability replaced
+    export nothrow fn withMutability(capture self, mutability: U8) -> const NamedType {
+        if self.mutability == mutability {
+            return self
+        }
+        return NamedType(self.baseType, self.nullable, mutability, self.arguments)
     }
 
     export override nothrow fn componentCount(self) -> UWord = 1
@@ -37,6 +52,15 @@ export class NamedType : const Type {
     export override fn toString(self) -> String {
         bt = self.baseType
         var str = bt.canonicalName
+        if self.mutability == MUTABILITY_MUT {
+            set str = "mut " + str
+        }
+        if self.mutability == MUTABILITY_CONST and not bt.isConst {
+            set str = "const " + str
+        }
+        if self.mutability == MUTABILITY_OWN {
+            set str = "own " + str
+        }
 
         if self.arguments.size > 0 {
             set str = str + "<" + self.arguments[0].toString()
@@ -89,6 +113,8 @@ class TypeParameterPlaceholder : const Type {
     index: UWord = init
     // one of PLACEHOLDER_NULLABILITY_OF_ARGUMENT (`T`), PLACEHOLDER_NULLABLE (`T?`), PLACEHOLDER_NOT_NULLABLE (`T!`)
     nullability: U8 = init
+    // PLACEHOLDER_MUTABILITY_OF_ARGUMENT (`T`), or the mutability written on the type parameter (`mut T`)
+    givenMutability: U8 = init
 
     override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
         panic("a type parameter placeholder is not a type")
@@ -104,17 +130,22 @@ class TypeParameterPlaceholder : const Type {
 
     // @return the type that stands in the place of this placeholder when [argument] is the type argument
     nothrow fn applyNullabilityTo(self, capture argument: const Type) -> const Type {
-        if self.nullability == PLACEHOLDER_NULLABILITY_OF_ARGUMENT {
-            return argument
+        var result: const Type = argument
+        if self.nullability != PLACEHOLDER_NULLABILITY_OF_ARGUMENT {
+            set result = result.withNullability(self.nullability == PLACEHOLDER_NULLABLE)
+        }
+        if self.givenMutability != PLACEHOLDER_MUTABILITY_OF_ARGUMENT {
+            set result = result.withGivenMutability(self.givenMutability)
         }
 
-        return argument.withNullability(self.nullability == PLACEHOLDER_NULLABLE)
+        return result
     }
 }
 
 PLACEHOLDER_NULLABILITY_OF_ARGUMENT: U8 = 0
 PLACEHOLDER_NULLABLE: U8 = 1
 PLACEHOLDER_NOT_NULLABLE: U8 = 2
+PLACEHOLDER_MUTABILITY_OF_ARGUMENT: U8 = 255
 
 // an intersection in the template of a supertype, with at least one component that mentions a type parameter
 // of the base type; see ReflectionBaseType.supertypeTemplates. Like TypeParameterPlaceholder, it never is the
@@ -161,6 +192,52 @@ export class TypeArgument : const Any {
 export VARIANCE_INVARIANT: U8 = 0
 export VARIANCE_IN: U8 = 1
 export VARIANCE_OUT: U8 = 2
+
+export MUTABILITY_READ: U8 = 0
+export MUTABILITY_MUT: U8 = 1
+export MUTABILITY_CONST: U8 = 2
+export MUTABILITY_OWN: U8 = 3
+
+// @return the mutability that asks for all that both [a] and [b] ask for: `mut` and `const` together are `own`
+export nothrow fn intersectMutability(a: U8, b: U8) -> U8 {
+    if a == b {
+        return a
+    }
+    if a == MUTABILITY_OWN or b == MUTABILITY_OWN {
+        return MUTABILITY_OWN
+    }
+    if a == MUTABILITY_READ {
+        return b
+    }
+    if b == MUTABILITY_READ {
+        return a
+    }
+
+    return MUTABILITY_OWN
+}
+
+// what `mut T` is, with [self] for `T` and [given] the mutability written: [self], of the mutability that both
+// it and [given] ask for
+export nothrow fn withGivenMutability(capture self: const Type, given: U8) -> const Type {
+    if self is NamedType {
+        named = self.asNamedType()
+        return named.withMutability(intersectMutability(named.mutability, given))
+    }
+
+    if self is IntersectionType {
+        components = self.asIntersectionType().components
+        newComponents: own Array<NamedType> = Array.new::<NamedType>(components.size, components.getOrPanic(0))
+        var index: UWord = 0
+        while index < components.size {
+            component = components.getOrPanic(index)
+            newComponents.setOrPanic(index, component.withMutability(intersectMutability(component.mutability, given)))
+            set index = index.plusModulo(1 as UWord)
+        }
+        return IntersectionType(newComponents)
+    }
+
+    panic("not a type")
+}
 
 // the runtime type information for the type argument. Type parameters are reified, so this works for type
 // parameters of the enclosing function or class, too: `typeOf::<T>()`

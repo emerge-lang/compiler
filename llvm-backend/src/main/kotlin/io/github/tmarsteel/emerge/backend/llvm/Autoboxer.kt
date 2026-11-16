@@ -181,6 +181,7 @@ internal sealed interface Autoboxer {
                 "supertypes" to { supertypes },
                 "supertypeTemplates" to { supertypeTemplates },
                 "canonicalName" to { canonicalNamePtr },
+                "isConst" to { isConst },
             )
 
         override fun isAccessingIntoTheBox(

@@ -102,8 +102,7 @@ class BoundCastExpression(
         }
 
         if (valueType != null && !isTypedNumericLiteral && targetType !is ErroneousType && valueType !is ErroneousType) {
-            // the runtime doesn't check mutability, see soundCastTargetType
-            targetType = soundCastTargetType(targetType, valueType, diagnosis)
+            validateCastMutability(targetType, valueType, diagnosis)
         }
 
         this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
@@ -155,7 +154,7 @@ class BoundCastExpression(
 
         val irTargetType = type.toBackendIr()
         val valueToCastTemporary = IrCreateTemporaryValueImpl(value.toBackendIrExpression())
-        val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), typeToCheck!!))
+        val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), typeToCheck!!, value.type))
 
         if (safeCast) {
             val nullResultTemporary = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(irTargetType.asNullable()))

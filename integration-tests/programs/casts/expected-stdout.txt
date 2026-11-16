@@ -38,9 +38,30 @@ null is T = Dog?: yes
 null is T = Dog: no
 Box<Dog> is Box<T = Dog>: yes
 Box<Dog> is Box<T = Cat>: no
+Box<mut Dog> is Box<mut Dog>: yes
+Box<mut Dog> is Box<Dog>: no
+Box<mut Dog> is Box<const Dog>: no
+Box<mut Dog> is Box<out Dog>: yes
+Box<mut Dog> is Box<out mut Animal>: yes
+Box<Dog> is Box<mut Dog>: no
+Box<Dog> is Box<out mut Animal>: no
+Box<Dog> is Box<out Animal>: yes
+Box<mut Dog> is T = Box<mut Dog>: yes
+Box<mut Dog> is T = Box<Dog>: no
+Box<mut Dog> is Box<T = mut Dog>: yes
+Box<mut Dog> is Box<T = Dog>: no
+Dog through a read reference is T = Dog: yes
+Dog through a read reference is T = mut Dog: no
+Dog through a read reference is T = const Dog: no
+Dog through a mut reference is T = Dog: yes
+Dog through a mut reference is T = mut Dog: yes
+Dog through a mut reference is T = const Dog: no
+Dog through a read reference is mut Dog: no
+String through a read reference is T = String: yes
 cast to Box<Dog> succeeded
 Box<Dog> as? Box<Cat> is null: yes
 null as? Box<Dog> is null: yes
 null as Box<Dog>? is null: yes
 cast to T = Box<Dog> succeeded
-casting a Box<Dog> to T = Box<Cat>
+cast to T = Dog succeeded
+casting a read reference to a Dog to T = mut Dog

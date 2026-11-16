@@ -48,12 +48,21 @@ data object EmergeConstants {
         val INTERSECTION_TEMPLATE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "IntersectionTemplate")
         val TYPE_WITH_NULLABILITY_FN_NAME = "withNullability"
         val INTERSECTION_OF_FN_NAME = CanonicalElementName.Function(NAME, "intersectionOf")
+        val WITH_GIVEN_MUTABILITY_FN_NAME = CanonicalElementName.Function(NAME, "withGivenMutability")
         val TYPEOF_FN_NAME = CanonicalElementName.Function(NAME, "typeOf")
 
         /** values of `TypeArgument.variance` */
         const val VARIANCE_INVARIANT: UByte = 0u
         const val VARIANCE_IN: UByte = 1u
         const val VARIANCE_OUT: UByte = 2u
+
+        /** values of `NamedType.mutability` */
+        const val MUTABILITY_READ: UByte = 0u
+        const val MUTABILITY_MUT: UByte = 1u
+        const val MUTABILITY_CONST: UByte = 2u
+        const val MUTABILITY_OWN: UByte = 3u
+        /** value of `TypeParameterPlaceholder.givenMutability` for a plain reference to the type parameter */
+        const val PLACEHOLDER_MUTABILITY_OF_ARGUMENT: UByte = 255u
 
         /** values of `TypeParameterPlaceholder.nullability` */
         const val PLACEHOLDER_NULLABILITY_OF_ARGUMENT: UByte = 0u

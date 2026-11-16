@@ -119,9 +119,8 @@ is also tried as the `const` it can become: `own Animal & NonToken` freezes into
 **Casts are not checked.** `x as NonToken` is accepted for an `x` that may be a token. The check at runtime sees
 the class of the object and its type arguments, but not what is a token (roadmap item 12.2), so a cast to a
 type that cannot be a token can succeed for a `Box<SystemClock>`, and a token is forgotten.
-Casts are unsound in more ways than this one (roadmap item 12.1: `x as mut Foo` on a `read`
-value is accepted as written, which defeats the mutability of token references like every other mutability).
-They get no rule of their own before the runtime knows what is a token.
+Mutability is checked: a cast cannot make a `read` reference to a token a `mut` one. Casts get no rule of
+their own for tokens before the runtime knows what is a token.
 
 `t is Named` on a token is fine. Once there are smart casts, it narrows `t: SomeToken` to `SomeToken & Named`,
 which is still a token type.

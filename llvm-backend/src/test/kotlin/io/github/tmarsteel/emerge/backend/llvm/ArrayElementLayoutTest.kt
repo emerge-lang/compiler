@@ -85,6 +85,7 @@ private object LayoutMockSourceLocation : IrSourceLocation {
 private open class LayoutMockClass(override val canonicalName: CanonicalElementName.BaseType) : IrClass {
     override val supertypes = emptySet<IrInterface>()
     override val parameterizedSupertypes = emptyMap<IrInterface, IrParameterizedType>()
+    override val isConst = false
     override val parameters = emptyList<IrBaseType.Parameter>()
     override val memberFunctions = emptyList<IrOverloadGroup<IrMemberFunction>>()
     override val memberVariables = emptyList<IrClass.MemberVariable>()

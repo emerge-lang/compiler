@@ -167,6 +167,8 @@ class EmergeLlvmContext(
     internal lateinit var reifiedTypeInterface: IrInterface
     /** `emerge.core.reflection.intersectionOf` */
     internal lateinit var intersectionOfFn: IrFunction
+    /** `emerge.core.reflection.withGivenMutability` */
+    internal lateinit var withGivenMutabilityFn: IrFunction
 
     /** function bodies can be defined re-entrantly (destructors), hence a stack */
     private val typeEnvironmentStack = ArrayDeque<TypeEnvironment>()
@@ -483,6 +485,10 @@ class EmergeLlvmContext(
             intersectionOfFn = fn
         }
 
+        if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.WITH_GIVEN_MUTABILITY_FN_NAME.toString()) {
+            withGivenMutabilityFn = fn
+        }
+
         if (fn.canonicalName.simpleName == "main") {
             if (this::mainFunction.isInitialized) {
                 throw CodeGenerationException("Found multiple main functions!")
@@ -753,6 +759,7 @@ class EmergeLlvmContext(
         Llvm.LLVMSetInitializer(metaReifiedTypeGlobal.raw, reifiedNamedTypeClass.buildStaticConstant(mapOf(
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("baseType") to reifiedNamedTypeClass.getTypeinfoInContext(this).static,
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("nullable") to i1(false),
+            reifiedNamedTypeClass.irClass.fieldOfMemberVariable("mutability") to u8(EmergeConstants.ReflectionModule.MUTABILITY_CONST),
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("arguments") to buildConstantSliceOf(metaReifiedTypeArgs, 0),
         )).raw)
 

@@ -19,7 +19,7 @@ import java.io.File
  *
  * Of [TypeGrid], it takes what the runtime can know and decide:
  * * no type parameters: the types of the grid are written within `Ctx`, the program has no values for its parameters
- * * no mutability, which is not part of the runtime type information: the types are compared as written without
+ * * no `own` types but `own Nothing`: `own` is no type argument, and `typeOf` takes the type as one
  * * no tokens and no `NonToken`: the runtime doesn't know what is a token
  * * only types that source code can name
  * * no intersections of disjoint classes, which the frontend takes for `Nothing`: the runtime doesn't know what is a class
@@ -29,7 +29,7 @@ class RuntimeSubtypingGridTests : FreeSpec({
         val typeNames = TypeGrid.types
             .map { (name, _) -> name }
             .filter { name -> identifiersIn(name).none { it in TypeGrid.ctxParameters || it in TOKEN_RELATED } }
-            .map { name -> name.replace(MUTABILITY, "") }
+            .filter { name -> !OWN_BUT_NOTHING.containsMatchIn(name) }
             .distinct()
         val types = typeNames
             .map { it to TypeGrid.swCtx.parseType(it) }
@@ -61,7 +61,7 @@ class RuntimeSubtypingGridTests : FreeSpec({
 })
 
 private const val PROGRAM_NAME = "subtypinggrid"
-private val MUTABILITY = Regex("""\b(mut|const|own|read)\s+""")
+private val OWN_BUT_NOTHING = Regex("""\bown\s+(?!Nothing\b)""")
 private val IDENTIFIER = Regex("""[A-Za-z_][A-Za-z0-9_]*""")
 private val TOKEN_RELATED = setOf("Tok", "Clk", "NonToken", "Shp", "Pl")
 
