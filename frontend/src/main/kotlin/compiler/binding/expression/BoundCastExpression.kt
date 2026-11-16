@@ -17,6 +17,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.ErroneousType
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
@@ -55,12 +56,16 @@ class BoundCastExpression(
     private var typeToCheck: BoundTypeReference? = null
     private val isTypedNumericLiteral get() = value is BoundNumericLiteral
 
+    /** the type as written after `as`; for `as? T` that is `T`, though [type] is `T?` */
+    private lateinit var declaredTargetType: BoundTypeReference
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
         value.semanticAnalysisPhase1(diagnosis)
 
         val type = context.resolveType(declaration.toType)
         this.type = type
+        this.declaredTargetType = type
         if (safeCast) {
             this.type = this.type.withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
@@ -90,10 +95,18 @@ class BoundCastExpression(
         value.semanticAnalysisPhase2(diagnosis)
         val valueType = value.type
         val expectedMutability = this.expectedMutability
+        var targetType = declaredTargetType
         if (valueType != null && declaration.toType.mutability == null && expectedMutability != null && valueType.mutability.isAssignableTo(expectedMutability)) {
             // user didn't specify mutability but the value fits what is expected in the context; allow this cross-talk across the cast boundary
-            this.type = type.withMutability(expectedMutability)
+            targetType = targetType.withMutability(expectedMutability)
         }
+
+        if (valueType != null && !isTypedNumericLiteral && targetType !is ErroneousType && valueType !is ErroneousType) {
+            // the runtime doesn't check mutability, see soundCastTargetType
+            targetType = soundCastTargetType(targetType, valueType, diagnosis)
+        }
+
+        this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
     }
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null

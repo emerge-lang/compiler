@@ -99,11 +99,12 @@ fn main(world: mut World) {
     // casts
     asBox = dogBox as Box<Dog>
     stdout.println("cast to Box<Dog> succeeded")
-    safe: Box<Cat>? = dogBox as? Box<Cat>
+    // the runtime doesn't know mutability, so all that is known of the Cat in the box is that it reads as one
+    safe: Box<out Cat>? = dogBox as? Box<Cat>
     show(stdout, "Box<Dog> as? Box<Cat> is null", isNull(safe))
-    safeNull: Box<Dog>? = nothing as? Box<Dog>
+    safeNull: Box<out Dog>? = nothing as? Box<Dog>
     show(stdout, "null as? Box<Dog> is null", isNull(safeNull))
-    nullableBox: Box<Dog>? = nothing as Box<Dog>?
+    nullableBox: Box<out Dog>? = nothing as Box<Dog>?
     show(stdout, "null as Box<Dog>? is null", isNull(nullableBox))
     viaParameter: Box<Dog> = castTo::<Box<Dog>>(dogBox)
     stdout.println("cast to T = Box<Dog> succeeded")

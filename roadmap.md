@@ -92,13 +92,17 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       parameterized supertypes (`IrBaseType.parameterizedSupertypes`), which the runtime instantiates
 
     Remaining work:
-    1. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
-       (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error); `own` is never a cast
-       target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
-       independent of type arguments. In argument positions the source type says nothing about
-       (`x: read Any; x as Array<mut Foo>`), the runtime knows the base type but not the mutability. Allowing
-       only `read` there is not enough for invariant arguments: an `Array<mut Foo>` cast to a
-       `mut Array<read Foo>` takes a `const Foo`. Sound is `Array<out read Foo>`
+    1. mutability is not part of the runtime type information. The frontend keeps a cast from claiming a
+       mutability that the type of the value doesn't prove (`soundCastTargetType`, `CastErrors` in the tests):
+       a cast can keep or weaken the mutability of the value, an invariant type argument reads as `out read`
+       (`x as Array<Foo>` is an `Array<out read Foo>`), and `mut`, `const` and `in` in a type argument take a
+       value whose type proves them (`Array<out mut Foo>` as `Array<mut Bar>`). What is left:
+       * a type parameter as the target, or in it: `x as T` with `Array<mut Foo>` for `T` succeeds for an
+         `Array<const Foo>`. Nothing at compile time knows the type argument, nothing at runtime the mutability.
+         Closing this takes mutability in the runtime type information, at least that of type arguments
+       * the type of the value proves the mutability of type arguments only where it has the base type of the
+         target. `x: Iterable<mut Foo>`, `x as Array<mut Foo>` is rejected, though the supertype tells
+       * the type arguments of the components of an intersection are checked, but not adapted
     2. the runtime doesn't know what is a token, nor that classes are `NonToken` without saying so: `x is NonToken`
        is false for them, and a cast can still forget a token (see [docs/tokens.md](docs/tokens.md))
     3. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes
