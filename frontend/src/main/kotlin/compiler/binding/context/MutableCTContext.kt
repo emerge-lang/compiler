@@ -148,9 +148,7 @@ open class MutableCTContext(
             }
             is NamedTypeReference -> resolveBaseType(ref.simpleName).distinct().toList()
         }
-        val resolvedArguments = ref.arguments?.mapIndexed { index, typeArgAstNode ->
-            resolveTypeArgument(typeArgAstNode, baseTypes.singleOrNull()?.typeParameters?.getOrNull(index))
-        }
+        val resolvedArguments = ref.arguments?.let { resolveTypeArguments(it, baseTypes.singleOrNull()?.typeParameters) }
 
         return baseTypes
             .singleOrNull()

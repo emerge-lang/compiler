@@ -130,8 +130,8 @@ class BoundBaseType(
 
     private val cachedReferenceNoneOrWildcardTypeArgumentsUnknownSpan by lazy {
         buildBoundReference(
-            typeParameters?.map { typeParam ->
-                context.resolveTypeArgument(AstWildcardTypeArgument.INSTANCE, typeParam)
+            typeParameters?.let { parameters ->
+                context.resolveTypeArguments(parameters.map { AstWildcardTypeArgument.INSTANCE }, parameters)
             },
             Span.UNKNOWN
         )

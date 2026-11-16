@@ -27,6 +27,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.TypeUnification
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -98,20 +99,56 @@ interface CTContext {
 
     val allTypeParameters: Sequence<BoundTypeParameter>
 
-    fun resolveTypeArgument(ref: AstTypeArgument, parameter: BoundTypeParameter?): BoundTypeArgument {
+    /**
+     * Resolves a type argument for which there is no type parameter to look at: a wildcard is `out Any?` then.
+     * For the type arguments of a base type, see [resolveTypeArguments].
+     */
+    fun resolveTypeArgument(ref: AstTypeArgument): BoundTypeArgument {
         return when (ref) {
             is AstSpecificTypeArgument -> BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
-            is AstWildcardTypeArgument -> if (parameter == null) {
-                BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.getTopType(ref.span ?: Span.UNKNOWN))
-            } else {
-                BoundTypeArgument(
-                    this,
-                    ref,
-                    TypeVariance.OUT,
-                    parameter.bound,
-                )
-            }
+            is AstWildcardTypeArgument -> BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.getTopType(ref.span ?: Span.UNKNOWN))
         }
+    }
+
+    /**
+     * Resolves the type arguments [refs] for the type parameters [parameters] of a base type.
+     *
+     * A wildcard (`*`) is the star projection of Kotlin: `out B`, where `B` is the bound of the parameter as the
+     * other type arguments make it. Given `class Sorted<T, C : Comparator<T>>`, `Sorted<String, *>` is
+     * `Sorted<String, out Comparator<String>>`. Where a bound mentions its own parameter (`T : Comparable<T>`),
+     * that is all there is to say about the type in its place: it is `out Any?` there, so `*` is
+     * `out Comparable<out Any?>`.
+     *
+     * @param parameters `null` if the base type is not known; wildcards are `out Any?` then
+     */
+    fun resolveTypeArguments(refs: List<AstTypeArgument>, parameters: List<BoundTypeParameter>?): List<BoundTypeArgument> {
+        fun unknown(ref: AstTypeArgument) = BoundTypeArgument(this, ref, TypeVariance.OUT, swCtx.getTopType(ref.span ?: Span.UNKNOWN))
+
+        val arguments = refs.mapTo(ArrayList(refs.size)) { ref ->
+            if (ref is AstWildcardTypeArgument) unknown(ref) else resolveTypeArgument(ref)
+        }
+        val wildcardIndices = refs.indices.filter { index ->
+            // a bound that is being resolved cannot be asked for (`class Foo<T : Foo<*>>`); the wildcard stays `out Any?` there
+            refs[index] is AstWildcardTypeArgument && parameters?.getOrNull(index)?.isResolvingBound == false
+        }
+        if (parameters == null || wildcardIndices.isEmpty()) {
+            return arguments
+        }
+
+        // in the order of the parameters: a bound mentions only its own parameter and the ones before it, so the
+        // wildcards it depends on are done
+        for (index in wildcardIndices) {
+            val ref = refs[index]
+            val bindings = arguments.toMutableList()
+            while (bindings.size < parameters.size) {
+                bindings.add(unknown(ref))
+            }
+            val instantiatedBound = BoundTypeArgument(this, ref, TypeVariance.OUT, parameters[index].bound)
+                .instantiateAllParameters(TypeUnification.fromExplicit(parameters, parameters, bindings, ref.span ?: Span.UNKNOWN))
+            arguments[index] = BoundTypeArgument(this, ref, TypeVariance.OUT, instantiatedBound.type)
+        }
+
+        return arguments
     }
 
     fun resolveType(ref: TypeReference): BoundTypeReference

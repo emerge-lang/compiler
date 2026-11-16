@@ -22,6 +22,12 @@ class Nest<E> : Seq<Box<E>> {
     v: E = init
 }
 
+interface Comparator<T> {}
+class StringComparator : Comparator<String> {}
+class Sorted<T, C : Comparator<T>> {
+    c: C = init
+}
+
 token interface Stream {}
 token class Channel : Stream & Named {}
 interface Shape : NonToken {}
@@ -91,6 +97,12 @@ fn main(world: mut World) {
     show(stdout, "Nest<Dog> is Seq<Box<Cat>>", nest is Seq<Box<Cat>>)
     show(stdout, "Nest<Dog> is Seq<Dog>", nest is Seq<Dog>)
     show(stdout, "Nest<Dog> is Seq<out Box<out Animal>>", nest is Seq<out Box<out Animal>>)
+
+    // a wildcard is the bound of the type parameter, as the other type arguments make it: Comparator<String>, Comparator<S32>
+    sorted: Any = Sorted::<String, StringComparator>(StringComparator())
+    show(stdout, "Sorted<String, StringComparator> is Sorted<String, *>", sorted is Sorted<String, *>)
+    show(stdout, "Sorted<String, StringComparator> is Sorted<S32, *>", sorted is Sorted<S32, *>)
+    show(stdout, "Sorted<String, StringComparator> is Sorted<*, *>", sorted is Sorted<*, *>)
 
     // nullable types and null
     nothing: Any? = null

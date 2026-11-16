@@ -791,6 +791,76 @@ class TypeErrors : FreeSpec({
             }
         }
 
+        "wildcard type argument" - {
+            "is the bound of the parameter" {
+                validateModule("""
+                    interface Animal {}
+                    class Box<T : Animal> {
+                        v: T = init
+                    }
+                    fn test(b: Box<*>) -> Animal = b.v
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "is the bound as the other type arguments make it" - {
+                val declarations = """
+                    interface Comparator<T> {}
+                    class StringComparator : Comparator<String> {}
+                    class NumberComparator : Comparator<S32> {}
+                    class Sorted<T, C : Comparator<T>> {
+                        c: C = init
+                    }
+                """.trimIndent()
+
+                "takes a value that fits" {
+                    validateModule(declarations + "\n" + """
+                        fn test(s: Sorted<String, StringComparator>) -> Sorted<String, *> = s
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "reads as the instantiated bound" {
+                    validateModule(declarations + "\n" + """
+                        fn test(s: Sorted<String, *>) -> Comparator<String> = s.c
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "doesn't read as the bound for another type argument" {
+                    validateModule(declarations + "\n" + """
+                        fn test(s: Sorted<String, *>) -> Comparator<S32> = s.c
+                    """.trimIndent())
+                        .shouldFind<ReturnTypeMismatchDiagnostic>()
+                }
+
+                "with a wildcard for the other type argument, too" {
+                    validateModule(declarations + "\n" + """
+                        fn test(s: Sorted<S32, NumberComparator>) -> Comparator<*> {
+                            any: Sorted<*, *> = s
+                            return any.c
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
+
+            "of a parameter that is bounded by itself" {
+                validateModule("""
+                    interface Comparable<T> {}
+                    class Max<T : Comparable<T>> {
+                        v: T = init
+                    }
+                    class Version : Comparable<Version> {}
+                    fn test(m: Max<Version>) -> Comparable<*> {
+                        any: Max<*> = m
+                        return any.v
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
         "wildcard type argument with variance" - {
             "in" {
                 validateModule("""

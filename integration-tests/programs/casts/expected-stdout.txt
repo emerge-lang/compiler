@@ -21,6 +21,9 @@ Nest<Dog> is Seq<Box<Dog>>: yes
 Nest<Dog> is Seq<Box<Cat>>: no
 Nest<Dog> is Seq<Dog>: no
 Nest<Dog> is Seq<out Box<out Animal>>: yes
+Sorted<String, StringComparator> is Sorted<String, *>: yes
+Sorted<String, StringComparator> is Sorted<S32, *>: no
+Sorted<String, StringComparator> is Sorted<*, *>: yes
 null is Dog: no
 null is Dog?: yes
 null is Box<Dog>?: yes

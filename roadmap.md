@@ -84,8 +84,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments,
     nullability and mutability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
     (`emerge.core.reflection.isSubtypeOf`, `isInstanceOf`). A type without type arguments is still checked by
-    its base type alone, which allocates nothing. Wildcards work as the bound of the parameter
-    (`x is Pair<String, *>`).
+    its base type alone, which allocates nothing.
+    A wildcard is the star projection of Kotlin: `out` the bound of the parameter, as the other type arguments
+    make it. With `class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>` asks for a
+    `Sorted<String, out Comparator<String>>` (`CTContext.resolveTypeArguments`).
     * the subtype relation of the runtime has to agree with the compiler's. `RuntimeSubtypingGridTests` in the
       frontend generates an emerge program from `TypeGrid` that compares the two, the integration tests run it
     * for the type arguments of supertypes (`class Nest<E> : Seq<Box<E>>`), every typeinfo has templates of its
@@ -111,15 +113,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     Remaining work:
     1. `x is mut Foo` on a `read` reference is false, and nothing says so at compile time: there are no smart
        casts yet that would make the mutability of an `is` matter, and no diagnostic for a check that cannot
-       succeed (see 4.)
+       succeed (see 3.)
     2. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
        supertype it is translated to (see item 33)
-    3. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
-       (`class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>`) is not instantiated
-    4. where the static type of the value already tells the result, say so: skip the check where it always
+    3. where the static type of the value already tells the result, say so: skip the check where it always
        succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
-    5. `CastError` doesn't say what the value was and what was expected
-    6. a type parameter of a class is not available in its member functions without a receiver; `is T` there
+    4. `CastError` doesn't say what the value was and what was expected
+    5. a type parameter of a class is not available in its member functions without a receiver; `is T` there
        fails in the backend
 13. Function types
     1. add function types to the grammar and type system.

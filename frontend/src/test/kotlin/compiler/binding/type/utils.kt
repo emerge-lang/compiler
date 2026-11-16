@@ -71,8 +71,8 @@ internal fun SoftwareContext.parseTypeArgument(
 ): BoundTypeArgument {
     val astArg = parse("<$typeArgument>", BracedTypeArguments).arguments.single()
     val moduleCtx = getRegisteredModule(CanonicalElementName.Package(module.split('.')))
-    val boundArg = moduleCtx.sourceFiles.first().context.resolveTypeArgument(astArg, parameter)
-    return boundArg
+    val context = moduleCtx.sourceFiles.first().context
+    return if (parameter == null) context.resolveTypeArgument(astArg) else context.resolveTypeArguments(listOf(astArg), listOf(parameter)).single()
 }
 
 internal fun BoundTypeReference.isSubtypeOf(other: BoundTypeReference) = evaluateAssignabilityTo(other, Span.UNKNOWN) == null

@@ -111,7 +111,7 @@ class SourceFileRootContext(
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
-                (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it, null) },
+                (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it) },
                 emptyList(),
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
