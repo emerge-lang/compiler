@@ -126,7 +126,7 @@ private fun BoundTypeReference.isCheckedByBaseTypeAlone(typeOfValue: BoundTypeRe
     // if the type of the value is a type parameter, this is the mutability of its bound, and the mutability of the
     // type argument is assignable wherever that is
     val mutabilityOfValue = typeOfValue?.mutability ?: TypeMutability.READONLY
-    return isInherentlyConst || mutabilityOfValue.isAssignableTo(mutability)
+    return isOfConstClass || mutabilityOfValue.isAssignableTo(mutability)
 }
 
 /**

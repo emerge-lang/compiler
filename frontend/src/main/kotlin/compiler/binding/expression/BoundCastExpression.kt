@@ -22,6 +22,7 @@ import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.forbiddenCast
 import compiler.diagnostic.nothrowViolatingCast
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -102,10 +103,42 @@ class BoundCastExpression(
         }
 
         if (valueType != null && !isTypedNumericLiteral && targetType !is ErroneousType && valueType !is ErroneousType) {
-            validateCastMutability(targetType, valueType, diagnosis)
+            validateMutability(targetType, valueType, diagnosis)
         }
 
         this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
+    }
+
+    /**
+     * An object doesn't know the mutability of the references to it, so no check at runtime can make a `read`
+     * reference a `mut` one. Of the value itself, a cast can only keep or weaken the mutability (`x: read Any`,
+     * `x as read Foo`), not strengthen it (`x as mut Foo`), and `own` is never the target of a cast.
+     *
+     * This is checked here where the target says its mutability. Where it is a type parameter (`x as T`), the
+     * mutability is that of the type argument, and the check at runtime compares it with the mutability of the
+     * reference (see [buildInstanceOf]).
+     *
+     * The mutability in type arguments (`x as Array<mut Foo>`) is no concern of this: objects know their type
+     * arguments, mutability included, and the check at runtime covers it.
+     *
+     * @param target the type as written in the cast, never nullable just for the cast being `as?`
+     * @param source the type of the value being cast
+     */
+    private fun validateMutability(target: BoundTypeReference, source: BoundTypeReference, diagnosis: Diagnosis) {
+        if (target.isOfConstClass) {
+            return
+        }
+
+        val reportAt = declaration.toType.span ?: declaration.span
+        if (target.mutability == TypeMutability.OWN) {
+            diagnosis.forbiddenCast(this, "Cannot cast to an own type: a cast cannot tell whether there are other references to the value.", reportAt)
+        } else if (!source.mutability.isAssignableTo(target.mutability)) {
+            diagnosis.forbiddenCast(
+                this,
+                "Cannot cast a ${source.mutability.keyword.text} value to a ${target.mutability.keyword.text} type: an object doesn't know the mutability of the references to it, so a cast can only keep or weaken it.",
+                reportAt,
+            )
+        }
     }
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null

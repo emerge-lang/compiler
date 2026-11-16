@@ -95,7 +95,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       for as long as it lives, whatever the references to it say. So `x is Array<mut Foo>` is checked. For the
       value itself, the mutability comes from the static type of the reference that is checked: where the target
       says its mutability, the frontend rejects a cast that strengthens it (`x: read Any`, `x as mut Foo`;
-      `validateCastMutability`), and where the target is a type parameter, the check at runtime compares the
+      `BoundCastExpression.validateMutability`), and where the target is a type parameter, the check at runtime compares the
       mutability of the reference with that of the type argument (`castTo::<mut Foo>(x)` with a `read`
       parameter throws a `CastError`)
 

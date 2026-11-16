@@ -52,6 +52,13 @@ sealed interface BoundTypeReference {
      */
     val assignmentMutability: TypeMutability get() = mutability
 
+    /**
+     * Whether this is a type of objects that are const by themselves (see [BoundBaseType.isConst]): references to
+     * them are immutable whatever mutability they are written with, and are as good as any for assigning.
+     */
+    val isOfConstClass: Boolean
+        get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.OWN
+
     val span: Span?
 
     /**

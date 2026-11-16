@@ -416,9 +416,6 @@ class BoundIntersectionTypeReference private constructor(
         }
         private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.assignmentMutability }.reduce(TypeMutability::intersect)
 
-        private val BoundTypeReference.isOfConstClass: Boolean
-            get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.OWN
-
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,
          * this is an instance of [BoundIntersectionTypeReference] holding `this` and [other]. However, this
