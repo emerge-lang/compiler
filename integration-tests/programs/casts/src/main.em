@@ -184,6 +184,15 @@ fn main(world: mut World) {
     stdout.println("A & B, A = Animal, B = mut Named: " + bothOf::<Animal, mut Named>().toString())
     show(stdout, "A & B, A = Animal, B = mut Named is below NonToken", bothOf::<Animal, mut Named>().isSubtypeOf(typeOf::<NonToken>()))
 
+    // no object is of two classes: such an intersection is Nothing by another name, null aside
+    show(stdout, "Dog & Cat is below String", typeOf::<Dog & Cat>().isSubtypeOf(typeOf::<String>()))
+    show(stdout, "Dog & Animal is below String", typeOf::<Dog & Animal>().isSubtypeOf(typeOf::<String>()))
+    show(stdout, "Dog? & Cat? is below String?", typeOf::<Dog? & Cat?>().isSubtypeOf(typeOf::<String?>()))
+    show(stdout, "Dog? & Cat? is below String", typeOf::<Dog? & Cat?>().isSubtypeOf(typeOf::<String>()))
+    show(stdout, "Box<Dog & Cat> is below Box<own Nothing>", typeOf::<Box<Dog & Cat>>().isSubtypeOf(typeOf::<Box<own Nothing>>()))
+    show(stdout, "Box<own Nothing> is below Box<Dog & Cat>", typeOf::<Box<own Nothing>>().isSubtypeOf(typeOf::<Box<Dog & Cat>>()))
+    show(stdout, "A & B, A = Dog, B = Cat is below String", bothOf::<Dog, Cat>().isSubtypeOf(typeOf::<String>()))
+
     // casts
     asBox = dogBox as Box<Dog>
     stdout.println("cast to Box<Dog> succeeded")

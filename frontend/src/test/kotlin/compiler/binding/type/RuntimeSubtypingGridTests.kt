@@ -1,9 +1,5 @@
 package compiler.compiler.binding.type
 
-import compiler.binding.type.BoundIntersectionTypeReference
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.NullableTypeReference
-import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.diagnostic.Diagnostic
 import compiler.compiler.negative.validateModule
@@ -21,7 +17,6 @@ import java.io.File
  * * no type parameters: the types of the grid are written within `Ctx`, the program has no values for its parameters
  * * no `own` types but `own Nothing`: `own` is no type argument, and `typeOf` takes the type as one
  * * only types that source code can name
- * * no intersections of disjoint classes, which the frontend takes for `Nothing`: the runtime doesn't know what is a class
  */
 class RuntimeSubtypingGridTests : FreeSpec({
     "writes the program subtypinggrid" {
@@ -32,7 +27,6 @@ class RuntimeSubtypingGridTests : FreeSpec({
             .distinct()
         val types = typeNames
             .map { it to TypeGrid.swCtx.parseType(it) }
-            .filter { (_, type) -> !type.mentionsEffectivelyBottomIntersection() }
             // the grid has types that source code cannot name, e.g. `Box<A> & Box<C>`
             .filter { (name, _) -> isValidInSource(name) }
         types.shouldNotBeEmpty()
@@ -66,14 +60,6 @@ private val IDENTIFIER = Regex("""[A-Za-z_][A-Za-z0-9_]*""")
 private fun identifiersIn(typeName: String): Sequence<String> = IDENTIFIER.findAll(typeName).map { it.value }
 
 private fun summaryLine(nTypes: Int) = "compared each of $nTypes types with each"
-
-private fun BoundTypeReference.mentionsEffectivelyBottomIntersection(): Boolean = when (this) {
-    is BoundIntersectionTypeReference -> (isNonNullableNothing && components.none { it.isNonNullableNothing })
-        || components.any { it.mentionsEffectivelyBottomIntersection() }
-    is NullableTypeReference -> nested.mentionsEffectivelyBottomIntersection()
-    is RootResolvedTypeReference -> arguments.orEmpty().any { it.type.mentionsEffectivelyBottomIntersection() }
-    else -> false
-}
 
 /** only intersections can be invalid, of the types of the grid; the others are spared the check as it is slow */
 private fun isValidInSource(typeName: String): Boolean {

@@ -420,6 +420,7 @@ internal class EmergeInterfaceTypeinfoHolder(
                 setValue(TypeinfoType.GENERIC.arrayElementLayoutKind, context.uWord(ArrayElementLayoutKind.REFERENCE.code))
                 setValue(TypeinfoType.GENERIC.isConst, context.i1(emergeInterface.isConst))
                 setValue(TypeinfoType.GENERIC.isNonToken, context.i1(emergeInterface.isNonToken))
+                setValue(TypeinfoType.GENERIC.isClass, context.i1(false))
                 setValue(TypeinfoType.GENERIC.vtable, context.poisonValue(VTableType(0)))
             }
 

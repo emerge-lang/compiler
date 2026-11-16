@@ -37,9 +37,14 @@ nothrow fn isSubtypeAtDepth(subtype: const Type, supertype: const Type, depth: U
     }
 
     if subtype is IntersectionType {
-        // TODO: an intersection of two classes has no values and is below every type, the compiler knows that
-        // (BoundIntersectionTypeReference.isEffectivelyBottom). The typeinfo doesn't say what is a class.
         components = subtype.asIntersectionType().components
+        if hasDisjointClasses(components) {
+            // no object is of two classes, so the intersection has no values but null, if it is nullable: it is
+            // Nothing by another name, and below every type that takes its null
+            // (`BoundIntersectionTypeReference.isEffectivelyBottom` in the compiler)
+            return supertype.asNamedType().nullable or not subtype.isNullable()
+        }
+
         // Where the intersection cannot be a token as a whole (`own Animal & NonToken`), the value may freeze,
         // though a component alone (`own Animal`) doesn't say so. So such a component is also tried as the const
         // it can become.
@@ -61,6 +66,27 @@ nothrow fn isSubtypeAtDepth(subtype: const Type, supertype: const Type, depth: U
     }
 
     return isNamedSubtype(subtype.asNamedType(), supertype.asNamedType(), depth)
+}
+
+// whether two of [components] are of different classes
+nothrow fn hasDisjointClasses(components: const Array<NamedType>) -> Bool {
+    var first: UWord = 0
+    while first < components.size {
+        firstBaseType = components.getOrPanic(first).baseType
+        if firstBaseType.isClass {
+            var second: UWord = first.plusModulo(1 as UWord)
+            while second < components.size {
+                secondBaseType = components.getOrPanic(second).baseType
+                if secondBaseType.isClass and not firstBaseType.isSameAs(secondBaseType) {
+                    return true
+                }
+                set second = second.plusModulo(1 as UWord)
+            }
+        }
+        set first = first.plusModulo(1 as UWord)
+    }
+
+    return false
 }
 
 nothrow fn isNamedSubtype(subtype: const NamedType, supertype: const NamedType, depth: UWord) -> Bool {

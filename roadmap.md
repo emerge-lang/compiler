@@ -105,21 +105,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       forgets or freezes a token (see [docs/tokens.md](docs/tokens.md)). Where that takes the type arguments of
       the object, the check is not done by the base type alone: `x is NonToken` and `x is Shape` for an
       interface `Shape : NonToken`, on an `x` that may be a token
+    * the typeinfo says what is a class, so the runtime takes an intersection of two different classes
+      (`N & M`) for `Nothing` like the compiler does. No value has such a type, it shows in type arguments
 
     Remaining work:
     1. `x is mut Foo` on a `read` reference is false, and nothing says so at compile time: there are no smart
        casts yet that would make the mutability of an `is` matter, and no diagnostic for a check that cannot
-       succeed (see 5.)
-    2. the runtime doesn't know what is a class, so it doesn't take an intersection of disjoint classes
-       (`N & M`) for `Nothing` like the compiler does. That only shows in type arguments, no value has such a type
-    3. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
+       succeed (see 4.)
+    2. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
        supertype it is translated to (see item 33)
-    4. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
+    3. the wildcard uses the bound as it is declared; a bound that mentions other type parameters of the type
        (`class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>`) is not instantiated
-    5. where the static type of the value already tells the result, say so: skip the check where it always
+    4. where the static type of the value already tells the result, say so: skip the check where it always
        succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
-    6. `CastError` doesn't say what the value was and what was expected
-    7. a type parameter of a class is not available in its member functions without a receiver; `is T` there
+    5. `CastError` doesn't say what the value was and what was expected
+    6. a type parameter of a class is not available in its member functions without a receiver; `is T` there
        fails in the backend
 13. Function types
     1. add function types to the grammar and type system.

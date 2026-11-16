@@ -88,6 +88,13 @@ A & B, A = const Animal, B = mut Named: own casts.Animal & own casts.Named & own
 A & B, A = const Animal, B = mut Named is below NonToken: yes
 A & B, A = Animal, B = mut Named: mut casts.Animal & mut casts.Named
 A & B, A = Animal, B = mut Named is below NonToken: no
+Dog & Cat is below String: yes
+Dog & Animal is below String: no
+Dog? & Cat? is below String?: yes
+Dog? & Cat? is below String: no
+Box<Dog & Cat> is below Box<own Nothing>: yes
+Box<own Nothing> is below Box<Dog & Cat>: yes
+A & B, A = Dog, B = Cat is below String: yes
 cast to Box<Dog> succeeded
 Box<Dog> as? Box<Cat> is null: yes
 null as? Box<Dog> is null: yes

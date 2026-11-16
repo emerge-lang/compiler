@@ -183,6 +183,7 @@ internal sealed interface Autoboxer {
                 "canonicalName" to { canonicalNamePtr },
                 "isConst" to { isConst },
                 "isNonToken" to { isNonToken },
+                "isClass" to { isClass },
             )
 
         override fun isAccessingIntoTheBox(

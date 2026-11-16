@@ -18,6 +18,9 @@ export class ReflectionBaseType {
     // still hold a token, where a type argument allows for one: see Type.mayBeToken
     export isNonToken: Bool = init
 
+    // whether this is a class, as opposed to an interface: it has no subtypes but Nothing
+    export isClass: Bool = init
+
     // the supertypes that have type parameters, the indirect ones included, as seen from this type:
     // for `class Nest<E> : Seq<Box<E>>` that is `Seq<Box<#0>>`, where #0 is a TypeParameterPlaceholder
     // for `E`. Shared by the static and the dynamic typeinfo.

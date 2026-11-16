@@ -91,6 +91,8 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     val isConst by structMember(LlvmBooleanType)
     /** see [io.github.tmarsteel.emerge.backend.api.ir.IrBaseType.isNonToken] */
     val isNonToken by structMember(LlvmBooleanType)
+    /** whether this describes a class, as opposed to an interface: a type that has instances and no subtypes but `Nothing` */
+    val isClass by structMember(LlvmBooleanType)
     /** !! dynamically sized !! */
     val vtable by structMember(VTableType(nVTableEntries))
 
@@ -110,7 +112,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     }
 
     override fun computeDiType(diBuilder: DiBuilder): LlvmDebugInfo.Type {
-        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::isConst, ::isNonToken, ::vtable), NativeI32FlagGroup())
+        return computeDiType(this, diBuilder, listOf(::supertypes, ::supertypeTemplates, ::anyValueVirtuals, ::dynamicTypeInfoPtr, ::canonicalNamePtr, ::arrayElementLayoutKind, ::isConst, ::isNonToken, ::isClass, ::vtable), NativeI32FlagGroup())
     }
 
     override fun createTemporaryForwardDeclaration(diBuilder: DiBuilder): LlvmDebugInfo.Type {
@@ -124,7 +126,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
              * dynamicTypeInfoPtr: pointer
              * canonicalNamePtr: pointer to emerge string
              * arrayElementLayoutKind: word
-             * isConst, isNonToken: booleans, padded to a word
+             * isConst, isNonToken, isClass: booleans, padded to a word
              * vtable: [pointer x size]
              */
             sizeInBits = diBuilder.context.targetData.pointerSizeInBits * (7u + vtable.type.nEntries.toUInt()),
@@ -234,6 +236,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
                 setValue(typeinfoType.isConst, context.i1(isConst))
                 setValue(typeinfoType.isNonToken, context.i1(isNonToken))
+                // interfaces get their typeinfo from EmergeInterfaceTypeinfoHolder
+                setValue(typeinfoType.isClass, context.i1(true))
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
@@ -249,6 +253,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.arrayElementLayoutKind, context.uWord(arrayElementLayoutKind.code))
                 setValue(typeinfoType.isConst, context.i1(isConst))
                 setValue(typeinfoType.isNonToken, context.i1(isNonToken))
+                // interfaces get their typeinfo from EmergeInterfaceTypeinfoHolder
+                setValue(typeinfoType.isClass, context.i1(true))
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
