@@ -171,6 +171,12 @@ do not rest on them.
   (`emerge.core.reflection.isSubtypeOf`), which the integration tests compare with the frontend's over the types
   of `TypeGrid` that have no type parameters (`RuntimeSubtypingGridTests`), mutability and the token rules
   included
+* Wildcard type arguments (`Sorted<String, *>`): the model has none. The frontend resolves `*` to `out` the bound
+  of the parameter, with the other type arguments instantiated in it and `out Any?` for the parameter itself
+  (`CTContext.resolveTypeArguments`), before anything the model describes; what it resolves to is a type of the
+  model. That every instance of the type is below the type with the wildcard (`Sorted<String, X>` below
+  `Sorted<String, *>` for each `X` within the bound) is neither proven nor checked over `TypeGrid`, which has no
+  wildcards; the frontend tests have examples (`TypeErrors`, "wildcard type argument")
 * Constructors and object initialization (`PartialObjectInitialization`), mixins: these are simple enough that proving
   them formally seems not worthwhile at the moment
 * Lifetimes and own-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only.
