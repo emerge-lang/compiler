@@ -16,6 +16,9 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundVariable
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.binding.type.ErroneousType
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.NullableTypeReference
@@ -91,6 +94,22 @@ class BoundInstanceOfExpression(
 
     /** is set during [semanticAnalysisPhase2] */
     private var staticResult: StaticTypeCheckResult = StaticTypeCheckResult.Unknown
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        val localTypeToCheck = typeToCheck
+        val subject = (expressionToCheck as? BoundIdentifierExpression)
+            ?.let { it.referral as? BoundIdentifierExpression.ReferringVariable }
+            ?.variable
+
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
+            return emptyList()
+        }
+
+        return listOf(BoundExpression.ResultImplication(
+            ImplyingResult.BOOL_TRUE,
+            mapOf(subject to BoundVariable.TypeRefinement(intersectWith = localTypeToCheck))
+        ))
+    }
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do:

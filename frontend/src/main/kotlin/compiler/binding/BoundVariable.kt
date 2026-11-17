@@ -293,8 +293,7 @@ class BoundVariable(
      * e.g. instanceof checks, null checks, partial initialization, ...
      */
     fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
-        // TODO: usage of this was refactored away, but it may become useful again for smart casts -> implement them here
-        return typeAtDeclarationTime
+        return context.getRefinedTypeOf(this)
     }
 
     override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
@@ -682,6 +681,8 @@ class BoundVariable(
             }
         }
     }
+
+    data class TypeRefinement(val intersectWith: BoundTypeReference)
 }
 
 private class IrVariableDeclarationImpl(

@@ -32,6 +32,7 @@ import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import java.util.IdentityHashMap
 
 interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     /**
@@ -78,6 +79,11 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      *                      is captured.
      */
     fun setEvaluationResultUsage(valueUsage: ValueUsage)
+
+    /**
+     * implications depending on the behavior of this expression. Available after [semanticAnalysisPhase2]
+     */
+    val implications: List<ResultImplication> get()= emptyList()
 
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for
@@ -144,6 +150,32 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
             } else {
                 IrExpressionSideEffectsStatementImpl(asIrExpression)
             }
+        }
+    }
+
+    enum class ImplyingResult(val description: String) {
+        BOOL_TRUE("evaluates to true"),
+        BOOL_FALSE("evaluates to false"),
+        NULL_VALUE("evaluates to null"),
+        NON_NULL_VALUE("evaluates to a non-null value"),
+        DOES_NOT_TERMINATE("does not return or throw"),
+        ;
+
+        override fun toString(): String = description
+    }
+
+    class ResultImplication(
+        val onResult: ImplyingResult,
+        val variableTypeRefinements: Map<BoundVariable, BoundVariable.TypeRefinement>,
+    ) {
+        override fun toString(): String {
+            val implies = if (variableTypeRefinements.isEmpty()) "nothing" else {
+                variableTypeRefinements.entries.joinToString(
+                    separator = " and ",
+                    transform = { "${it.key.name}: ${it.value.intersectWith}" }
+                )
+            }
+            return "$onResult implies that $implies"
         }
     }
 }

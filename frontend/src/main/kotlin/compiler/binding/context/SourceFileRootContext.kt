@@ -146,6 +146,8 @@ class SourceFileRootContext(
 
             override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
 
+            override fun getRefinedTypeOf(variable: BoundVariable): BoundTypeReference? = variable.typeAtDeclarationTime
+
             override val parentLoop = null
 
             override val parentScopeContext: ExecutionScopedCTContext? = null

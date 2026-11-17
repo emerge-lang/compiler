@@ -1031,7 +1031,9 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
     @Suppress("UNCHECKED_CAST")
     structPointer as LlvmValue<LlvmPointerType<LlvmType>>
 
-    check(structPointer.type.pointed is EmergeClassType)
+    check(structPointer.type.pointed is EmergeClassType) {
+        "cannot create a pointer to a member on this value; expected ${EmergeClassType::class.simpleName} but got ${structPointer::class.simpleName}"
+    }
     @Suppress("UNCHECKED_CAST")
     return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeClassType>>)
         .member(member)

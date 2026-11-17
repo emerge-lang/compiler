@@ -26,6 +26,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -48,7 +49,9 @@ class BoundIfExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: IfExpression,
     val condition: BoundCondition,
+    private val contextForThen: MutableExecutionScopedCTContext,
     val thenCode: BoundCodeChunk,
+    private val contextForElse: MutableExecutionScopedCTContext?,
     val elseCode: BoundCodeChunk?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
     override var type: BoundTypeReference? = null
@@ -83,6 +86,20 @@ class BoundIfExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         condition.semanticAnalysisPhase2(diagnosis)
+
+        val implications = condition.implications
+        implications
+            .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_TRUE }
+            .asSequence()
+            .flatMap { it.variableTypeRefinements.entries }
+            .forEach { (variable, refinement) -> contextForThen.setVariableTypeRefinement(variable, refinement) }
+
+        implications
+            .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_FALSE }
+            .asSequence()
+            .flatMap { it.variableTypeRefinements.entries }
+            .forEach { (variable, refinement) -> contextForElse?.setVariableTypeRefinement(variable, refinement) }
+
         thenCode.semanticAnalysisPhase2(diagnosis)
         elseCode?.semanticAnalysisPhase2(diagnosis)
 
