@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.UnsafeObjectTraversalDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
@@ -692,6 +693,32 @@ class SmartCastTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "the conditions of a when without subject refine variables like an if-else chain" - {
+        "in the branch of the condition, and in the following branches where it was false" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> String = when {
+                    v is Bar -> v.p
+                    isNull(w) -> "null"
+                    else -> w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the branches before" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> String = when {
+                    cond() -> w.p
+                    isNull(w) -> "null"
+                    else -> "x"
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
         }
     }
 })
