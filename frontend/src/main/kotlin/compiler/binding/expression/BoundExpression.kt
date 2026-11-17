@@ -157,7 +157,6 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
         BOOL_FALSE("evaluates to false"),
         NULL_VALUE("evaluates to null"),
         NON_NULL_VALUE("evaluates to a non-null value"),
-        DOES_NOT_TERMINATE("does not return or throw"),
         ;
 
         override fun toString(): String = description

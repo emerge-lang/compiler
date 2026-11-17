@@ -10,6 +10,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundExpression.Companion.wrapIrAsStatement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -44,11 +46,13 @@ class BoundCastExpression(
     val value: BoundExpression<*>,
     val safeCast: Boolean,
 ) : BoundExpression<Expression> by value {
-    override val modifiedContext = if (safeCast) value.modifiedContext else {
+    /** the code after a strict cast only runs if the cast succeeded */
+    private val contextAfterStrictCast: MutableExecutionScopedCTContext? = if (safeCast) null else {
         val newCtx = MutableExecutionScopedCTContext.deriveFrom(value.modifiedContext)
         newCtx.trackSideEffect(CallFrameExit.Effect.ThrowsPossibly)
         newCtx
     }
+    override val modifiedContext: ExecutionScopedCTContext = contextAfterStrictCast ?: value.modifiedContext
 
     override lateinit var type: BoundTypeReference
         private set
@@ -117,6 +121,13 @@ class BoundCastExpression(
         }
 
         this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
+
+        // a strict cast throws unless the value is of the type; so in the code after it, the variable is of that type
+        val localTypeToCheck = typeToCheck
+        val subject = value.tryAsVariable()
+        if (contextAfterStrictCast != null && localTypeToCheck != null && localTypeToCheck !is ErroneousType && subject != null && VariableTypeRefinement.canBeRefined(subject)) {
+            contextAfterStrictCast.trackSideEffect(VariableTypeRefinement.Effect.Refine(subject, localTypeToCheck, contextAfterStrictCast))
+        }
     }
 
     /**

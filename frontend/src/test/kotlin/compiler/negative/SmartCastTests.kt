@@ -14,6 +14,8 @@ class SmartCastTests : FreeSpec({
             p: String = init
         }
         fn takeBar(v: Bar) {}
+        fn takeMutBar(v: mut Bar) {}
+        fn takeTwoBars(a: Bar, b: Bar) {}
         fn produce() -> Foo = Bar("x")
         fn cond() -> Bool = true
     """.trimIndent()
@@ -179,6 +181,94 @@ class SmartCastTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "a strict cast refines the variable in the code after it" - {
+        "in the following statements" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    v as Bar
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the following arguments" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    takeTwoBars(v as Bar, v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "keeping the mutability of the variable" {
+            validateModule("""
+                $declarations
+                fn test(v: mut Foo) {
+                    v as Bar
+                    takeMutBar(v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a safe cast" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    v as? Bar
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after a branch that may not have run" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if cond() {
+                        v as Bar
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "inside the try block, but not after it, where the catch block may have run instead" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    try {
+                        v as Bar
+                        takeBar(v)
+                    } catch e {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                // exactly one: the one after the try
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after a new value is assigned" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    w as Bar
+                    set w = produce()
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
 })

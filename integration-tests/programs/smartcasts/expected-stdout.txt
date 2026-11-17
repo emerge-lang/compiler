@@ -12,3 +12,5 @@ not an array
 S32? !! * 2 = 42
 w before: tadaaa
 w after: not a bar
+after strict cast: tadaaa
+after strict cast to S32: 42

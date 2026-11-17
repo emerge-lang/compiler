@@ -49,6 +49,16 @@ fn arraySize(v: Any) -> String {
 
 fn notNull(v: S32?) -> S32 = v!! * 2
 
+fn afterStrictCast(v: Foo) -> String {
+    v as Bar
+    return "after strict cast: " + v.p
+}
+
+fn afterStrictCastToS32(v: Any) -> S32 {
+    v as S32
+    return v + 1
+}
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
 
@@ -84,4 +94,7 @@ fn main(world: mut World) {
         set w = produce(false)
         stdout.println("w after: " + fieldOrElse(w))
     }
+
+    stdout.println(afterStrictCast(produce(true)))
+    stdout.println("after strict cast to S32: " + afterStrictCastToS32(41).toString())
 }

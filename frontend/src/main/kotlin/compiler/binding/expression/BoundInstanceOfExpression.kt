@@ -8,6 +8,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.BoundFunction
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -96,9 +97,7 @@ class BoundInstanceOfExpression(
 
     override val implications: List<BoundExpression.ResultImplication> get() {
         val localTypeToCheck = typeToCheck
-        val subject = (expressionToCheck as? BoundIdentifierExpression)
-            ?.let { it.referral as? BoundIdentifierExpression.ReferringVariable }
-            ?.variable
+        val subject = expressionToCheck.tryAsVariable()
 
         if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null || !VariableTypeRefinement.canBeRefined(subject)) {
             return emptyList()
