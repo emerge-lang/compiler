@@ -58,7 +58,7 @@ class TypeUnification private constructor(
         if (newUpperBound.isNonNullableNothing) {
             // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
             val unificationWithDefaultBound = stateBefore.staticUpperBound
-                .takeUnless { it.mentionsTypeVariables() }
+                .takeUnless { it.mentionsTypeVariables }
                 ?.unify(upperBound, assignmentLocation, this)
                 ?: this
             return if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
@@ -96,7 +96,7 @@ class TypeUnification private constructor(
         if (unificationWithUpperBound.getErrorsNotIn(this).any()) {
             // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
             val unificationWithDefaultBound = stateBefore.staticUpperBound
-                .takeUnless { it.mentionsTypeVariables() }
+                .takeUnless { it.mentionsTypeVariables }
                 ?.unify(lowerBound, assignmentLocation, this)
                 ?: this
             if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
@@ -136,7 +136,7 @@ class TypeUnification private constructor(
         candidate: BoundTypeReference,
         assignmentLocation: Span,
     ): TypeUnification {
-        if (!state.staticUpperBound.mentionsTypeVariables()) {
+        if (!state.staticUpperBound.mentionsTypeVariables) {
             return this
         }
 
@@ -235,7 +235,7 @@ class TypeUnification private constructor(
         val raw = state.lowerBound.takeUnless { it.isNonNullableNothing }
             ?.let { lowerBound -> if (state.lowerBoundIsOnlyOwnValues) lowerBound.withMutability(state.mutabilityForOwnValues) else lowerBound }
             ?: when {
-                !state.staticUpperBound.mentionsTypeVariables() -> state.upperBound
+                !state.staticUpperBound.mentionsTypeVariables -> state.upperBound
                 // not inferable, see plusFinalValueChecks
                 state.staticUpperBound.mentionsTypeVariable(parameter) -> state.upperBound
                 else -> state.upperBound.intersect(state.staticUpperBound.instantiateFreeVariables(this).asReadType())
@@ -369,7 +369,7 @@ class TypeUnification private constructor(
             return TypeUnification(
                 parameters.associateWith {
                     val staticUpperBound = it.bound.withTypeVariables(parameters)
-                    val upperBound = staticUpperBound.takeUnless { bound -> bound.mentionsTypeVariables() }
+                    val upperBound = staticUpperBound.takeUnless { bound -> bound.mentionsTypeVariables }
                         ?: it.context.swCtx.getTopType(it.astNode.span)
                     VariableState(staticUpperBound, upperBound, it.context.swCtx.getBottomType(it.astNode.span), false, it in capturableParameters)
                 },

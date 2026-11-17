@@ -113,7 +113,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       (`N & M`) for `Nothing` like the compiler does. No value has such a type, it shows in type arguments
 
     Where the static type of the value tells the result of an `is`, `as` or `as?` already, the compiler warns
-    (`staticResultOfTypeCheck`):
+    (`StaticTypeCheckResult.of`):
     * the check always succeeds, the value is of a subtype (`TypeCheckAlwaysSucceedsDiagnostic`). There is no
       check at runtime then, and such an `as` doesn't throw. Not reported: a cast of a value of an intersection
       type, which is how to tell apart the members of the components (`(p as A).foo()`)

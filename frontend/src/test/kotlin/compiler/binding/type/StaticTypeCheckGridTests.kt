@@ -4,12 +4,11 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.StaticTypeCheckResult
-import compiler.binding.type.staticResultOfTypeCheck
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.ints.shouldBeGreaterThan
 
 /**
- * [staticResultOfTypeCheck] over [TypeGrid]: what it says of a check has to agree with the subtype relation, which
+ * [StaticTypeCheckResult.of] over [TypeGrid]: what it says of a check has to agree with the subtype relation, which
  * is what the check at runtime decides by (`RuntimeSubtypingGridTests` holds the two together).
  */
 class StaticTypeCheckGridTests : FreeSpec({
@@ -32,7 +31,7 @@ class StaticTypeCheckGridTests : FreeSpec({
         val violations = mutableListOf<String>()
         for ((nameOfValueType, typeOfValue) in TypeGrid.types) {
             for ((nameOfTypeToCheck, typeToCheck) in TypeGrid.types) {
-                val result = staticResultOfTypeCheck(typeOfValue, typeToCheck)
+                val result = StaticTypeCheckResult.of(typeOfValue, typeToCheck)
                 if (result !is StaticTypeCheckResult.NeverSucceeds) {
                     continue
                 }
@@ -61,7 +60,7 @@ class StaticTypeCheckGridTests : FreeSpec({
                 continue
             }
             for ((nameOfTypeToCheck, typeToCheck) in TypeGrid.types) {
-                val alwaysSucceeds = staticResultOfTypeCheck(typeOfValue, typeToCheck) == StaticTypeCheckResult.AlwaysSucceeds
+                val alwaysSucceeds = StaticTypeCheckResult.of(typeOfValue, typeToCheck) == StaticTypeCheckResult.AlwaysSucceeds
                 if (alwaysSucceeds != typeOfValue.isSubtypeOf(typeToCheck)) {
                     violations.add("($nameOfValueType) is ($nameOfTypeToCheck)")
                 }

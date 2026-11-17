@@ -78,6 +78,38 @@ sealed interface BoundTypeReference {
     val isPartiallyUnresolved: Boolean
 
     /**
+     * Whether this type mentions a [TypeVariable], also in the bounds of the [GenericTypeReference]s in it.
+     */
+    val mentionsTypeVariables: Boolean
+
+    /**
+     * Whether this type mentions the [TypeVariable] of [parameter].
+     */
+    fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean
+
+    /**
+     * Whether this type mentions [parameter], as a [GenericTypeReference].
+     */
+    fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean
+
+    /**
+     * Whether this type mentions any type parameter, as a [GenericTypeReference].
+     */
+    val mentionsTypeParameters: Boolean
+
+    /**
+     * Whether a reference of this type is a `read` one, whatever the type parameters in it are bound to. A mutability
+     * on a type parameter is met with that of the type argument: both `T` and `read T` are `mut` references for a `mut`
+     * type argument.
+     */
+    val isReadInAllInstantiations: Boolean
+
+    /**
+     * Whether this type is a [GenericTypeReference], or an intersection with one; nullability aside.
+     */
+    val isOrIntersectsGenericTypeReference: Boolean
+
+    /**
      * Whether a value of this type may be a token ([BoundBaseType.isToken]), or hold one. It cannot where
      * * the type is `const`, as a token is never frozen;
      * * its base type is no token ([BoundBaseType.isNonToken]) and neither is any of its type arguments, at any

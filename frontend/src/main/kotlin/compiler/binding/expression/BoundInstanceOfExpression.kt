@@ -28,7 +28,6 @@ import compiler.diagnostic.TypeCheckKind
 import compiler.diagnostic.typeCheckAlwaysSucceeds
 import compiler.diagnostic.typeCheckNeverSucceeds
 import compiler.binding.type.StaticTypeCheckResult
-import compiler.binding.type.staticResultOfTypeCheck
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
@@ -132,7 +131,7 @@ class BoundInstanceOfExpression(
 
 /**
  * Reports where the static type of the value tells the result of checking it against [typeToCheck] already, see
- * [staticResultOfTypeCheck].
+ * [StaticTypeCheckResult.of].
  * @param typeOfValue the static type of the value; `null` if not known
  * @param typeToCheck the result of [validateTypeCheck]
  * @param reportAlwaysSucceeds whether a check that always succeeds is worth a warning
@@ -150,7 +149,7 @@ internal fun reportStaticResultOfTypeCheck(
         return StaticTypeCheckResult.Unknown
     }
 
-    val result = staticResultOfTypeCheck(typeOfValue, typeToCheck)
+    val result = StaticTypeCheckResult.of(typeOfValue, typeToCheck)
     when (result) {
         is StaticTypeCheckResult.AlwaysSucceeds -> if (reportAlwaysSucceeds(typeOfValue, typeToCheck)) {
             diagnosis.typeCheckAlwaysSucceeds(kind, typeOfValue, typeToCheck, span)

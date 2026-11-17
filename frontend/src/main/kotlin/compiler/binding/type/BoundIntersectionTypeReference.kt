@@ -54,6 +54,13 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override val isPartiallyUnresolved get()= components.any { it.isPartiallyUnresolved }
+
+    override val mentionsTypeVariables: Boolean get() = components.any { it.mentionsTypeVariables }
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = components.any { it.mentionsTypeVariable(parameter) }
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = components.any { it.mentionsTypeParameter(parameter) }
+    override val mentionsTypeParameters: Boolean get() = components.any { it.mentionsTypeParameters }
+    override val isReadInAllInstantiations: Boolean get() = mutability == TypeMutability.READONLY && components.all { it.isReadInAllInstantiations }
+    override val isOrIntersectsGenericTypeReference: Boolean get() = components.any { it.isOrIntersectsGenericTypeReference }
     // one component that cannot be a token decides it
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = components.all { it.mayBeTokenUnless(nonTokenParameters) }
 

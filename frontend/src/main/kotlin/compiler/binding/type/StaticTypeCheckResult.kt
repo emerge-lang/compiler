@@ -18,32 +18,34 @@ internal sealed interface StaticTypeCheckResult {
 
     /** up to the value */
     data object Unknown : StaticTypeCheckResult
-}
 
-/**
- * @param typeOfValue the static type of the value being checked
- * @param typeToCheck the type the value is checked against at runtime, see `emerge.core.reflection.isInstanceOf`
- * @return what is known of the check without running it. [StaticTypeCheckResult.NeverSucceeds] is not complete:
- * it is found where telling takes no more than the two types, see [whyNoValueIsOf].
- */
-internal fun staticResultOfTypeCheck(typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference): StaticTypeCheckResult {
-    if (typeOfValue.isPartiallyUnresolved || typeToCheck.isPartiallyUnresolved) {
-        return StaticTypeCheckResult.Unknown
-    }
-    if (typeOfValue.mentionsTypeVariables() || typeToCheck.mentionsTypeVariables()) {
-        return StaticTypeCheckResult.Unknown
-    }
-    if (typeOfValue.isNonNullableNothing) {
-        // there is no value, the check is never run. That is the business of the code that is unreachable for it
-        return StaticTypeCheckResult.Unknown
-    }
-    if (typeOfValue isAssignableTo typeToCheck) {
-        return StaticTypeCheckResult.AlwaysSucceeds
-    }
+    companion object {
+        /**
+         * @param typeOfValue the static type of the value being checked
+         * @param typeToCheck the type the value is checked against at runtime, see `emerge.core.reflection.isInstanceOf`
+         * @return what is known of the check without running it. [StaticTypeCheckResult.NeverSucceeds] is not complete:
+         * it is found where telling takes no more than the two types, see [whyNoValueIsOf].
+         */
+        fun of(typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference): StaticTypeCheckResult {
+            if (typeOfValue.isPartiallyUnresolved || typeToCheck.isPartiallyUnresolved) {
+                return StaticTypeCheckResult.Unknown
+            }
+            if (typeOfValue.mentionsTypeVariables || typeToCheck.mentionsTypeVariables) {
+                return StaticTypeCheckResult.Unknown
+            }
+            if (typeOfValue.isNonNullableNothing) {
+                // there is no value, the check is never run. That is the business of the code that is unreachable for it
+                return StaticTypeCheckResult.Unknown
+            }
+            if (typeOfValue isAssignableTo typeToCheck) {
+                return StaticTypeCheckResult.AlwaysSucceeds
+            }
 
-    return typeOfValue.whyNoValueIsOf(typeToCheck)
-        ?.let(StaticTypeCheckResult::NeverSucceeds)
-        ?: StaticTypeCheckResult.Unknown
+            return typeOfValue.whyNoValueIsOf(typeToCheck)
+                ?.let(StaticTypeCheckResult::NeverSucceeds)
+                ?: StaticTypeCheckResult.Unknown
+        }
+    }
 }
 
 /**
@@ -99,7 +101,7 @@ private fun BoundTypeReference.whyNoValueIsOf(target: BoundTypeReference): Strin
     // an object of a class that is const by itself is a value of any mutability, whatever the reference says
     val objectMayBeOfConstClass = (ownComponents + targetComponents).none { !it.baseType.kind.allowsSubtypes && !it.baseType.isConst }
     // the mutability of a type parameter is that of the type argument, known at runtime
-    val mutabilityOfReferenceIsKnown = !this.isOrIntersectsTypeParameter()
+    val mutabilityOfReferenceIsKnown = !this.isOrIntersectsGenericTypeReference
     if (mutabilityOfReferenceIsKnown && !objectMayBeOfConstClass && !(this.assignmentMutability isAssignableTo target.assignmentMutability)) {
         return "the value is referred to as ${this.mutability.keyword.text}, and an object doesn't know the mutability of the references to it. A check can only keep or weaken it, ${target.mutability.keyword.text} is neither"
     }
@@ -119,16 +121,6 @@ private fun BoundTypeReference.namedComponents(visitedParameters: Set<BoundTypeP
     is BoundIntersectionTypeReference -> components.flatMap { it.namedComponents(visitedParameters) }
     is ErroneousType,
     is TypeVariable -> emptyList()
-}
-
-private fun BoundTypeReference.isOrIntersectsTypeParameter(): Boolean = when (this) {
-    is GenericTypeReference -> true
-    is NullableTypeReference -> nested.isOrIntersectsTypeParameter()
-    is BoundIntersectionTypeReference -> components.any { it.isOrIntersectsTypeParameter() }
-    is BoundTypeArgument -> type.isOrIntersectsTypeParameter()
-    is RootResolvedTypeReference,
-    is ErroneousType,
-    is TypeVariable -> false
 }
 
 /**
@@ -188,7 +180,7 @@ private fun RootResolvedTypeReference.isTranslatableTo(supertype: RootResolvedTy
  * Not known where a type parameter is mentioned: what it is bound to is known at runtime.
  */
 private fun BoundTypeArgument.hasNoTypeInCommonWith(other: BoundTypeArgument): Boolean {
-    if (this.type.mentionsTypeParameters() || other.type.mentionsTypeParameters()) {
+    if (this.type.mentionsTypeParameters || other.type.mentionsTypeParameters) {
         return false
     }
 

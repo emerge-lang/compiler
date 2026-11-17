@@ -5,7 +5,6 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.isReadInAllInstantiations
 import compiler.lexer.Span
 
 /**
@@ -25,7 +24,7 @@ interface ValueUsage {
      * Whether the using side refers to the value through a `read` reference for certain. It doesn't if [usedAsType]
      * is a type parameter, as that can be bound to a type of any mutability.
      */
-    val isUsedAsReadReference: Boolean get() = usedAsType?.isReadInAllInstantiations() ?: true
+    val isUsedAsReadReference: Boolean get() = usedAsType?.isReadInAllInstantiations ?: true
 
     /**
      * [usedWithMutability], for deciding which other references may exist at the same time

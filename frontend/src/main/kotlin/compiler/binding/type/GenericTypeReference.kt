@@ -58,6 +58,13 @@ class GenericTypeReference private constructor(
     override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
     override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
+
+    override val mentionsTypeVariables: Boolean get() = hasTypeVariables
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = false
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = this.parameter == parameter
+    override val mentionsTypeParameters: Boolean get() = true
+    override val isReadInAllInstantiations: Boolean get() = false
+    override val isOrIntersectsGenericTypeReference: Boolean get() = true
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
         if (parameter in nonTokenParameters) {
             return false

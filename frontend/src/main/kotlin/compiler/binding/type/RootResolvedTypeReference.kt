@@ -44,6 +44,13 @@ class RootResolvedTypeReference private constructor(
     override val baseTypeOfLowerBound = baseType
     override val isNonNullableNothing get()= baseType == context.swCtx.nothing
     override val isPartiallyUnresolved get()= arguments?.any { it.isPartiallyUnresolved } == true
+
+    override val mentionsTypeVariables: Boolean get() = arguments?.any { it.mentionsTypeVariables } == true
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = arguments?.any { it.mentionsTypeVariable(parameter) } == true
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = arguments?.any { it.mentionsTypeParameter(parameter) } == true
+    override val mentionsTypeParameters: Boolean get() = arguments?.any { it.mentionsTypeParameters } == true
+    override val isReadInAllInstantiations: Boolean get() = mutability == TypeMutability.READONLY
+    override val isOrIntersectsGenericTypeReference: Boolean get() = false
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
         if (mutability == TypeMutability.IMMUTABLE) {
             return false

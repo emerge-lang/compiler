@@ -39,6 +39,13 @@ class ErroneousType(
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
     override val isPartiallyUnresolved = true
+
+    override val mentionsTypeVariables: Boolean get() = false
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = false
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = false
+    override val mentionsTypeParameters: Boolean get() = false
+    override val isReadInAllInstantiations: Boolean get() = mutability == TypeMutability.READONLY
+    override val isOrIntersectsGenericTypeReference: Boolean get() = false
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = false
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
