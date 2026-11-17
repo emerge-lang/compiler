@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
 import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
@@ -81,6 +82,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BoundInvocationExpression(
     /** the context after all [valueArguments] have been evaluated */
@@ -106,6 +108,23 @@ class BoundInvocationExpression(
     private var chosenOverload: OverloadCandidateEvaluation? = null
 
     override val type: BoundTypeReference? get() = chosenOverload?.returnType ?: chosenOverload?.candidate?.returnType
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        val fn = functionToInvoke ?: return emptyList()
+        if (fn.canonicalName == EmergeConstants.CoreModule.IS_NULL_FN_NAME) {
+            // isNull(x) is true iff x evaluates to null
+            val argument = (listOfNotNull(receiverExpression) + valueArguments).singleOrNull() ?: return emptyList()
+            return argument.implications.mapNotNull { implication ->
+                when (implication.onResult) {
+                    ImplyingResult.NULL_VALUE -> BoundExpression.ResultImplication(ImplyingResult.BOOL_TRUE, implication.variableTypeRefinements)
+                    ImplyingResult.NON_NULL_VALUE -> BoundExpression.ResultImplication(ImplyingResult.BOOL_FALSE, implication.variableTypeRefinements)
+                    else -> null
+                }
+            }
+        }
+
+        return emptyList()
+    }
 
     var typeArguments: List<BoundTypeArgument>? = null
         private set

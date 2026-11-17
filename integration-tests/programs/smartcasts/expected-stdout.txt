@@ -14,3 +14,7 @@ w before: tadaaa
 w after: not a bar
 after strict cast: tadaaa
 after strict cast to S32: 42
+isNull: S32 + 1 = 42
+isNull: null
+isNull: tadaaa
+isNull: null

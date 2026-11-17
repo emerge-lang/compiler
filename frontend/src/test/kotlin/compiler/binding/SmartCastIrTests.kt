@@ -66,6 +66,13 @@ class SmartCastIrTests : FreeSpec({
             return 0
         }
         fn notNull(v: S32?) -> S32 = v!!
+        fn isNullFalse(v: S32?) -> S32 {
+            if isNull(v) {
+                return 0
+            } else {
+                return v
+            }
+        }
         fn generic<T>(v: T) -> String {
             if v is Bar {
                 return v.p
@@ -125,6 +132,11 @@ class SmartCastIrTests : FreeSpec({
         val result = notNullResults.single()
         result.evaluatesTo.isNullable shouldBe false
         result.evaluatesTo.simpleName shouldBe "S32"
+    }
+
+    "a variable read where isNull returned false has the non-nullable type" {
+        val refinedReads = readsOf("v", "isNullFalse").filter { !it.evaluatesTo.isNullable }
+        refinedReads.map { it.evaluatesTo.simpleName } shouldContainExactly listOf("S32")
     }
 
     "a variable of a generic type refined to a class can access its fields" {

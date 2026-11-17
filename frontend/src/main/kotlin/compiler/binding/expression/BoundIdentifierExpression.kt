@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -29,6 +30,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.VariableUsedAsMutable
@@ -59,6 +61,19 @@ class BoundIdentifierExpression(
             is ReferringType -> localReferral.reference
             null -> null
         }
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        val variable = (referral as? ReferringVariable)?.variable ?: return emptyList()
+        val type = this.type ?: return emptyList()
+        if (!type.isNullable || !VariableTypeRefinement.canBeRefined(variable)) {
+            return emptyList()
+        }
+
+        return listOf(BoundExpression.ResultImplication(
+            BoundExpression.ImplyingResult.NON_NULL_VALUE,
+            mapOf(variable to type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)),
+        ))
+    }
 
     var referral: Referral? = null
         private set

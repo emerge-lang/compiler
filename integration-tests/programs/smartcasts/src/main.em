@@ -54,6 +54,22 @@ fn afterStrictCast(v: Foo) -> String {
     return "after strict cast: " + v.p
 }
 
+fn isNullFalse(v: S32?) -> String {
+    if isNull(v) {
+        return "isNull: null"
+    } else {
+        return "isNull: S32 + 1 = " + (v + 1).toString()
+    }
+}
+
+fn isNullFalseField(v: Bar?) -> String {
+    if isNull(v) {
+        return "isNull: null"
+    } else {
+        return "isNull: " + v.p
+    }
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -97,4 +113,8 @@ fn main(world: mut World) {
 
     stdout.println(afterStrictCast(produce(true)))
     stdout.println("after strict cast to S32: " + afterStrictCastToS32(41).toString())
+    stdout.println(isNullFalse(41))
+    stdout.println(isNullFalse(null))
+    stdout.println(isNullFalseField(Bar("tadaaa")))
+    stdout.println(isNullFalseField(null))
 }

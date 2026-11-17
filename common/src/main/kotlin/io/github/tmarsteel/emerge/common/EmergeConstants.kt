@@ -35,6 +35,8 @@ data object EmergeConstants {
         val ARRAY_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Array")
         val STRING_TYPE_NAME = CanonicalElementName.BaseType(NAME, "String")
         val ANNOTATABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Annotatable")
+
+        val IS_NULL_FN_NAME = CanonicalElementName.Function(NAME, "isNull")
     }
 
     data object ReflectionModule {

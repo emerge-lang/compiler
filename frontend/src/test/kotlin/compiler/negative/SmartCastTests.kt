@@ -271,4 +271,60 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "isNull returning false refines the variable to non-null" - {
+        "in the else branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    if isNull(v) {
+                        return "null"
+                    } else {
+                        takeBar(v)
+                        return v.p
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "for value types" {
+            validateModule("""
+                $declarations
+                fn test(v: S32?) -> S32 {
+                    if isNull(v) {
+                        return 0
+                    } else {
+                        return v + 1
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the then branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the if" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                    } else {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })
