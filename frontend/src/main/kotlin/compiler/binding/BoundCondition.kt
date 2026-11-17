@@ -10,6 +10,7 @@ import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.conditionIsNotBoolean
 import compiler.diagnostic.mutationInCondition
+import compiler.diagnostic.reportingShortCircuitedSideEffects
 
 class BoundCondition(
     override val context: ExecutionScopedCTContext,
@@ -35,11 +36,15 @@ class BoundCondition(
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        expression.semanticAnalysisPhase3(diagnosis)
+        // side effects in the right-hand side of and/or are reported there, more specifically
+        val alreadyReported = diagnosis.reportingShortCircuitedSideEffects(expression::semanticAnalysisPhase3)
 
         expression.visitWritesBeyond(context) { impurity ->
             if (impurity.kind == Impurity.ActionKind.READ) {
                 // reading in conditions is okay
+                return@visitWritesBeyond
+            }
+            if (impurity.span in alreadyReported) {
                 return@visitWritesBeyond
             }
             diagnosis.mutationInCondition(impurity)

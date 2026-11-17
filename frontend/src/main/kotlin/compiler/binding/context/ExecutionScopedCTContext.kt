@@ -492,6 +492,14 @@ open class MutableExecutionScopedCTContext protected constructor(
         fun deriveFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
             return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false, repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE)
         }
+
+        /**
+         * Like [deriveFrom], but the code in the new context may or may not be executed, e.g. the right-hand side
+         * of `and`.
+         */
+        fun deriveConditionalFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false, repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.MAYBE)
+        }
     }
 }
 

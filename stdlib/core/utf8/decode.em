@@ -41,26 +41,26 @@ export fn getNextCodepointAt(borrow data: Array<S8>, index: UWord) -> Pair<out U
     }
     
     if nBytesInCodepoint == 2 {
-        fromFirst = (byte1 and 0b00011111).asU8().toU32()
-        fromSecond = (data[index + 1] and 0b00111111).asU8().toU32()
-        codepoint = (fromFirst.bitShiftLeft(6) or fromSecond)
+        fromFirst = (byte1 & 0b00011111).asU8().toU32()
+        fromSecond = (data[index + 1] & 0b00111111).asU8().toU32()
+        codepoint = (fromFirst.bitShiftLeft(6) | fromSecond)
         return Pair(codepoint, indexOfNextCodepoint)
     }
     
     if nBytesInCodepoint == 3 {
-        fromFirst = (byte1 and 0b00001111).asU8().toU32()
-        fromSecond = (data[index + 1] and 0b00111111).asU8().toU32()
-        fromThird = (data[index + 2] and 0b00111111).asU8().toU32()        
-        codepoint = (fromFirst.bitShiftLeft(12) or fromSecond.bitShiftLeft(6) or fromThird)
+        fromFirst = (byte1 & 0b00001111).asU8().toU32()
+        fromSecond = (data[index + 1] & 0b00111111).asU8().toU32()
+        fromThird = (data[index + 2] & 0b00111111).asU8().toU32()        
+        codepoint = (fromFirst.bitShiftLeft(12) | fromSecond.bitShiftLeft(6) | fromThird)
         return Pair(codepoint, indexOfNextCodepoint)
     }
     
     // TODO: assert nBytesInCodepoint == 4
-    fromFirst = (byte1 and 0b00000111).asU8().toU32()
-    fromSecond = (data[index + 1] and 0b00111111).asU8().toU32()
-    fromThird = (data[index + 2] and 0b00111111).asU8().toU32()
-    fromFourth = (data[index + 3] and 0b00111111).asU8().toU32()
-    codepoint = (fromFirst.bitShiftLeft(18) or fromSecond.bitShiftLeft(12) or fromThird.bitShiftLeft(6) or fromFourth)
+    fromFirst = (byte1 & 0b00000111).asU8().toU32()
+    fromSecond = (data[index + 1] & 0b00111111).asU8().toU32()
+    fromThird = (data[index + 2] & 0b00111111).asU8().toU32()
+    fromFourth = (data[index + 3] & 0b00111111).asU8().toU32()
+    codepoint = (fromFirst.bitShiftLeft(18) | fromSecond.bitShiftLeft(12) | fromThird.bitShiftLeft(6) | fromFourth)
     return Pair(codepoint, indexOfNextCodepoint)
 }
 

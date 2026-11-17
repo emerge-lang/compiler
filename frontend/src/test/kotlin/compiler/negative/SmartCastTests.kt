@@ -650,6 +650,118 @@ class SmartCastTests : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+
+        "& on Bool, where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) {
+                    if v is Bar & (not isNull(w)) {
+                        takeTwoBars(v, w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "| on Bool, where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Bar?) {
+                    if isNull(v) | isNull(w) {
+                        return
+                    }
+                    takeTwoBars(v, w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "and/or refine the variable in their right-hand side from the left-hand side" - {
+        "and, from the left-hand side being true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo?) -> Bool = v is Bar and v.p == "x"
+                fn test2(v: Bar?) -> Bool = not isNull(v) and v.p == "x"
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "or, from the left-hand side being false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = isNull(v) or v.p == "x"
+                fn test2(v: Foo) -> Bool = not (v is Bar) or v.p == "x"
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, not from the left-hand side being false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = isNull(v) and v.p == "x"
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+
+        "or, not from the left-hand side being true" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = not isNull(v) or v.p == "x"
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+
+        "nested, from all enclosing left-hand sides" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> Bool = v is Bar and (cond() or (not isNull(w) and v.p == w.p))
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not with & on Bool, which always evaluates both sides" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = (not isNull(v)) & (v.p == "x")
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+    }
+
+    "after and/or, where the right-hand side doesn't complete normally, from the left-hand side" - {
+        "or" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    not isNull(v) or return "null"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    isNull(v) and return "null"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the right-hand side may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    not isNull(v) or cond()
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
     }
 
     "the condition of a while loop refines the variable in the body" - {

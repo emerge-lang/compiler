@@ -377,13 +377,31 @@ The operators are listed with descending precedence.
 
 ```
 . ?.
-!! []
+!! [] as as? is
 * /
 + -
+&
+|
+..<
 == > < >= <= === !==
-as as?
+not
+and
+xor
+or
 ?:
 ```
+
+#### `and` and `or`
+
+`and` and `or` take `Bool` operands and cannot be overloaded. They short-circuit: the right-hand side is only evaluated
+if the left-hand side doesn't decide the result already (`false and x` is `false`, `true or x` is `true`). Hence, the
+right-hand side can rely on what the left-hand side implies, e.g. `not isNull(v) and v.p == ""`.
+
+Because side effects that happen only sometimes are hard to track down, the compiler warns about side effects in the
+right-hand side. Throwing doesn't count, as the stack trace pinpoints where it happened. `&` and `|` on `Bool` always
+evaluate both sides; they are the way to go where the side effect is intended:
+
+    valid = check(a) & check(b) // both checks run, e.g. to report all errors
 
 ## Function modifiers and effects
 

@@ -44,7 +44,7 @@ class BoundIntersectionTypeReference private constructor(
     }
     private val isEffectivelyBottom by lazy { simplifyIsEffectivelyBottomType(components) }
     override val assignmentMutability get() = mutabilityOfComponents(components)
-    override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
+    override val simpleName get()= components.joinToString(separator = " ${Operator.AMPERSAND.text} ", transform = { it.simpleName ?: it.toString() })
     override val isNonNullableNothing by lazy {
         components.any { it.isNonNullableNothing } || isEffectivelyBottom
     }
@@ -356,7 +356,7 @@ class BoundIntersectionTypeReference private constructor(
                 val asStringWithMutability = componentForToString.toString()
                 asStringWithMutability.removePrefix(component.mutability.toString()).trim()
             },
-            separator = " ${Operator.INTERSECTION.text} ",
+            separator = " ${Operator.AMPERSAND.text} ",
         )
     }
 

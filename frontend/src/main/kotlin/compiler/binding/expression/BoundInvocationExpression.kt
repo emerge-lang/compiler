@@ -124,7 +124,7 @@ class BoundInvocationExpression(
                 ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_FALSE,
                 ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_TRUE,
             )
-            // both operands are evaluated (no short-circuiting): if `a and b` is true, both are true
+            // `&` and `|` on Bool: both operands are evaluated (no short-circuiting): if `a & b` is true, both are true
             EmergeConstants.CoreModule.BOOL_AND_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_TRUE) }
             EmergeConstants.CoreModule.BOOL_OR_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_FALSE) }
             else -> emptyList()

@@ -10,6 +10,7 @@ import compiler.binding.expression.BoundIfExpression
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.expression.BoundLiteralExpression
 import compiler.binding.expression.BoundNotNullExpression
+import compiler.binding.expression.BoundShortCircuitExpression
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.binding.expression.IrrelevantValueUsage
 import compiler.binding.type.BoundTypeReference
@@ -35,6 +36,7 @@ class BoundIllegalTargetAssignmentStatement(
             is BoundNotNullExpression -> "a not-null assertion"
             is BoundIfExpression -> "a conditional"
             is BoundBinaryExpression,
+            is BoundShortCircuitExpression,
             is BoundUnaryExpression-> "an operator invocation"
             else -> "a ${targetExpression::class.simpleName!!.removePrefix("Bound").removeSuffix("Expression").lowercase()} expression"
         }

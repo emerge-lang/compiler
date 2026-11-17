@@ -230,7 +230,7 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
     }
 
 val IntersectionTypePostifx = sequence("intersection-postfix") {
-    operator(Operator.INTERSECTION)
+    operator(Operator.AMPERSAND)
     ref(NamedType)
 }
     .astTransformation { tokens ->

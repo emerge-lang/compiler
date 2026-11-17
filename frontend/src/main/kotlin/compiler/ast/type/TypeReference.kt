@@ -259,7 +259,7 @@ class AstIntersectionType(
     }
 
     override fun toString() = components.joinToString(
-        separator = " ${Operator.INTERSECTION.text} ",
+        separator = " ${Operator.AMPERSAND.text} ",
     )
 }
 

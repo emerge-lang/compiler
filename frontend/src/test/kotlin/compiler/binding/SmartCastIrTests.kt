@@ -2,7 +2,9 @@ package compiler.compiler.binding
 
 import compiler.compiler.negative.moduleBackendIrAssumingNoErrors
 import compiler.compiler.negative.validateModule
+import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -88,6 +90,8 @@ class SmartCastIrTests : FreeSpec({
             }
             return "not a bar"
         }
+        fn rhsOfAnd(v: Bar?) -> Bool = not isNull(v) and v.p == "x"
+        fn rhsOfOr(v: Bar?) -> Bool = isNull(v) or v.p == "x"
     """.trimIndent()).moduleBackendIrAssumingNoErrors()
 
     fun body(name: String): IrCodeChunk = module.packages
@@ -155,6 +159,22 @@ class SmartCastIrTests : FreeSpec({
         val readsOfF = fieldAccesses.filter { it !== readOfP }
         // Foo & NonToken: the member variable of a NonToken class
         readsOfF.map { it.evaluatesTo.simpleName } shouldContainExactlyInAnyOrder listOf("Foo & NonToken", "Bar")
+    }
+
+    "the right-hand side of and is evaluated only in the then-branch, with the refinement from the left-hand side" {
+        val ifExpr = collectIr(body("rhsOfAnd")).filterIsInstance<IrIfExpression>().single()
+        val fieldAccess = collectIr(ifExpr.thenBranch).filterIsInstance<IrClassFieldAccessExpression>().single()
+        fieldAccess.base.type.simpleName shouldBe "Bar"
+        fieldAccess.base.type.isNullable shouldBe false
+        collectIr(ifExpr.elseBranch!!).filterIsInstance<IrBooleanLiteralExpression>().single().value shouldBe false
+    }
+
+    "the right-hand side of or is evaluated only in the else-branch, with the refinement from the left-hand side" {
+        val ifExpr = collectIr(body("rhsOfOr")).filterIsInstance<IrIfExpression>().single()
+        val fieldAccess = collectIr(ifExpr.elseBranch!!).filterIsInstance<IrClassFieldAccessExpression>().single()
+        fieldAccess.base.type.simpleName shouldBe "Bar"
+        fieldAccess.base.type.isNullable shouldBe false
+        collectIr(ifExpr.thenBranch).filterIsInstance<IrBooleanLiteralExpression>().single().value shouldBe true
     }
 
     "a variable of a generic type refined to a class can access its fields" {

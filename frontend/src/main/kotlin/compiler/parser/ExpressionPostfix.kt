@@ -176,6 +176,9 @@ private val AstSemanticOperator.infixPower: Int
 
         Operator.RANGE_UNTIL -> 35
 
+        Operator.PIPE -> 36
+        Operator.AMPERSAND -> 37
+
         Operator.PLUS,
         Operator.MINUS -> 40
 
