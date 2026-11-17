@@ -30,3 +30,5 @@ or: sum = 42
 or: one is null
 not: tadaaa
 while: sum = 42
+member: not a bar
+member: tadaaa

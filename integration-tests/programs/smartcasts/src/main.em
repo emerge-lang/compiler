@@ -4,7 +4,7 @@ import emerge.platform.StandardOut
 import emerge.platform.World
 import emerge.std.io.PrintStream
 
-interface Foo {}
+interface Foo : NonToken {}
 
 class Bar : Foo {
     p: String = init
@@ -124,6 +124,26 @@ fn sumOfList(start: Node?) -> S32 {
     return sum
 }
 
+class Wrapper {
+    content: Foo = init
+    next: Wrapper? = init
+}
+
+fn wrapperContent(w: Wrapper) -> String {
+    if w.content is Bar {
+        return "member: " + w.content.p
+    }
+    return "member: not a bar"
+}
+
+fn lastWrapper(w: Wrapper) -> Wrapper {
+    var node = w
+    while not isNull(node.next) {
+        set node = node.next
+    }
+    return node
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -187,4 +207,7 @@ fn main(world: mut World) {
         stdout.println("not: " + v.p)
     }
     stdout.println("while: sum = " + sumOfList(Node(20, Node(20, Node(2, null)))).toString())
+    wrappers = Wrapper(produce(false), Wrapper(produce(false), Wrapper(produce(true), null)))
+    stdout.println(wrapperContent(wrappers))
+    stdout.println(wrapperContent(lastWrapper(wrappers)))
 }

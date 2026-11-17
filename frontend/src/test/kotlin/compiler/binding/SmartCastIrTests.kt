@@ -66,6 +66,15 @@ class SmartCastIrTests : FreeSpec({
             return 0
         }
         fn notNull(v: S32?) -> S32 = v!!
+        class Holder : NonToken {
+            f: Foo = init
+        }
+        fn memberField(h: Holder) -> String {
+            if h.f is Bar {
+                return h.f.p
+            }
+            return "not a bar"
+        }
         fn isNullFalse(v: S32?) -> S32 {
             if isNull(v) {
                 return 0
@@ -137,6 +146,15 @@ class SmartCastIrTests : FreeSpec({
     "a variable read where isNull returned false has the non-nullable type" {
         val refinedReads = readsOf("v", "isNullFalse").filter { !it.evaluatesTo.isNullable }
         refinedReads.map { it.evaluatesTo.simpleName } shouldContainExactly listOf("S32")
+    }
+
+    "a member variable read inside the branch of an is-check has the refined type" {
+        val fieldAccesses = collectIr(body("memberField")).filterIsInstance<IrClassFieldAccessExpression>()
+        val readOfP = fieldAccesses.single { it.evaluatesTo.simpleName == "String" }
+        readOfP.base.type.simpleName shouldBe "Bar"
+        val readsOfF = fieldAccesses.filter { it !== readOfP }
+        // Foo & NonToken: the member variable of a NonToken class
+        readsOfF.map { it.evaluatesTo.simpleName } shouldContainExactlyInAnyOrder listOf("Foo & NonToken", "Bar")
     }
 
     "a variable of a generic type refined to a class can access its fields" {

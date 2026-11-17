@@ -72,12 +72,7 @@ class BoundNullCoalescingExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.semanticAnalysisPhase2(diagnosis)
-        nullableExpression.implications
-            .filter { it.onResult == BoundExpression.ImplyingResult.NON_NULL_VALUE }
-            .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, intersectWith) ->
-                contextWhenNonNull.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, contextWhenNonNull))
-            }
+        VariableTypeRefinement.trackImplications(nullableExpression.implications, BoundExpression.ImplyingResult.NON_NULL_VALUE, contextWhenNonNull)
         alternativeExpression.semanticAnalysisPhase2(diagnosis)
 
         val notNullableType = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)

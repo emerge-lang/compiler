@@ -90,9 +90,9 @@ class BoundNotNullExpression(
             ?: expectedEvaluationResultType
 
         // in the code after it, the variable is not null
-        val subject = nullableExpression.tryAsVariable()
+        val subject = VariableTypeRefinement.pathOf(nullableExpression)
         val nonNullType = nullableExpression.type?.takeIf { it.isNullable }?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-        if (subject != null && nonNullType != null && VariableTypeRefinement.canBeRefined(subject)) {
+        if (subject != null && nonNullType != null) {
             contextAfterAssertion.trackSideEffect(VariableTypeRefinement.Effect.Refine(subject, nonNullType, contextAfterAssertion))
         }
     }

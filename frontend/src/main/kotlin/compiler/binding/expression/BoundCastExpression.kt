@@ -66,8 +66,8 @@ class BoundCastExpression(
 
         // a safe cast evaluates to null unless the value is of the type
         val localTypeToCheck = typeToCheck
-        val subject = value.tryAsVariable()
-        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null || !VariableTypeRefinement.canBeRefined(subject)) {
+        val subject = VariableTypeRefinement.pathOf(value)
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
             return fromValue
         }
 
@@ -144,8 +144,8 @@ class BoundCastExpression(
 
         // a strict cast throws unless the value is of the type; so in the code after it, the variable is of that type
         val localTypeToCheck = typeToCheck
-        val subject = value.tryAsVariable()
-        if (contextAfterStrictCast != null && localTypeToCheck != null && localTypeToCheck !is ErroneousType && subject != null && VariableTypeRefinement.canBeRefined(subject)) {
+        val subject = VariableTypeRefinement.pathOf(value)
+        if (contextAfterStrictCast != null && localTypeToCheck != null && localTypeToCheck !is ErroneousType && subject != null) {
             contextAfterStrictCast.trackSideEffect(VariableTypeRefinement.Effect.Refine(subject, localTypeToCheck, contextAfterStrictCast))
         }
     }

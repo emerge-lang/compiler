@@ -198,7 +198,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrRegisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "registering weak references")
             callIntrinsic(registerWeakReferenceToAnyValue, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
+                getPointerToStructMember(
+                    code.referenceStoredIn.objectValue.declaration.llvmValue
+                        .reinterpretAs(context.getReferenceSiteType(code.referenceStoredIn.objectValue.type)),
+                    code.referenceStoredIn.field,
+                ),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
@@ -206,7 +210,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrUnregisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "unregistering weak references")
             callIntrinsic(unregisterWeakReferenceToAnyValue, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
+                getPointerToStructMember(
+                    code.referenceStoredIn.objectValue.declaration.llvmValue
+                        .reinterpretAs(context.getReferenceSiteType(code.referenceStoredIn.objectValue.type)),
+                    code.referenceStoredIn.field,
+                ),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing

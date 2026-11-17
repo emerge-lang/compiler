@@ -1,7 +1,8 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
 2. smart casts. Done: `is`, strict and safe casts, `isNull`, `!!`, `?: return`, `not`/`and`/`or`, the condition of
-   `while`, and branches that are guaranteed to return or throw (`if isNull(v) { return }`). What remains:
+   `while`, branches that are guaranteed to return or throw (`if isNull(v) { return }`), and member variables
+   reached from a variable that are not re-assignable (or of a `const` object). What remains:
    1. `break` and `continue` as leaving a branch, e.g. `if isNull(v) { continue }`. Today, a branch that may jump is
       never left out of a join (see `LoopJump`). To leave it out, the join after a loop has to consider the states at
       its `break` and `continue` statements, through which the code after the loop is reached, too.

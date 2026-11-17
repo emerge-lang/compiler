@@ -138,7 +138,7 @@ class BoundInvocationExpression(
     private fun mapImplications(argument: BoundExpression<*>, vararg mapping: Pair<ImplyingResult, ImplyingResult>): List<BoundExpression.ResultImplication> {
         return argument.implications.mapNotNull { implication ->
             val onResult = mapping.firstOrNull { it.first == implication.onResult }?.second ?: return@mapNotNull null
-            BoundExpression.ResultImplication(onResult, implication.variableTypeRefinements)
+            BoundExpression.ResultImplication(onResult, implication.typeRefinements)
         }
     }
 

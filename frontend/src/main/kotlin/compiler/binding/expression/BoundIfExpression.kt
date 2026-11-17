@@ -96,17 +96,8 @@ class BoundIfExpression(
         condition.semanticAnalysisPhase2(diagnosis)
 
         val implications = condition.implications
-        implications
-            .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_TRUE }
-            .asSequence()
-            .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, intersectWith) -> contextForThen.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, contextForThen)) }
-
-        implications
-            .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_FALSE }
-            .asSequence()
-            .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, intersectWith) -> contextWhenFalse.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, contextWhenFalse)) }
+        VariableTypeRefinement.trackImplications(implications, BoundExpression.ImplyingResult.BOOL_TRUE, contextForThen)
+        VariableTypeRefinement.trackImplications(implications, BoundExpression.ImplyingResult.BOOL_FALSE, contextWhenFalse)
 
         thenCode.semanticAnalysisPhase2(diagnosis)
         elseCode?.semanticAnalysisPhase2(diagnosis)

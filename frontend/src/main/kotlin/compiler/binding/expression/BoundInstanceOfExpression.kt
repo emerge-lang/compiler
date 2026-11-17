@@ -97,9 +97,9 @@ class BoundInstanceOfExpression(
 
     override val implications: List<BoundExpression.ResultImplication> get() {
         val localTypeToCheck = typeToCheck
-        val subject = expressionToCheck.tryAsVariable()
+        val subject = VariableTypeRefinement.pathOf(expressionToCheck)
 
-        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null || !VariableTypeRefinement.canBeRefined(subject)) {
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
             return emptyList()
         }
 

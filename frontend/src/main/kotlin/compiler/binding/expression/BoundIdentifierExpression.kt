@@ -62,17 +62,16 @@ class BoundIdentifierExpression(
             null -> null
         }
 
-    override val implications: List<BoundExpression.ResultImplication> get() {
-        val variable = (referral as? ReferringVariable)?.variable ?: return emptyList()
-        val type = this.type ?: return emptyList()
-        if (!type.isNullable || !VariableTypeRefinement.canBeRefined(variable)) {
-            return emptyList()
+    override val implications: List<BoundExpression.ResultImplication> get() = VariableTypeRefinement.nonNullImplications(this)
+
+    /** @see VariableTypeRefinement.pathOf */
+    val refinablePath: VariableTypeRefinement.Path? get() {
+        val variable = (referral as? ReferringVariable)?.variable ?: return null
+        if (!VariableTypeRefinement.canBeRefined(variable)) {
+            return null
         }
 
-        return listOf(BoundExpression.ResultImplication(
-            BoundExpression.ImplyingResult.NON_NULL_VALUE,
-            mapOf(variable to type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)),
-        ))
+        return VariableTypeRefinement.Path(variable, emptyList())
     }
 
     var referral: Referral? = null

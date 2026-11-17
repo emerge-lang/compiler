@@ -721,4 +721,133 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<UnsafeObjectTraversalDiagnostic>()
         }
     }
+
+    "member variables" - {
+        val holder = """
+            class Holder : NonToken {
+                f: Foo = init
+                var g: Foo = init
+                n: Bar? = init
+                next: Holder? = init
+
+                fn describe(self) -> String {
+                    if self.f is Bar {
+                        return self.f.p
+                    }
+                    return "not a bar"
+                }
+            }
+        """.trimIndent()
+
+        "that are not re-assignable are refined" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if h.f is Bar {
+                        takeBar(h.f)
+                    }
+                    h.f as Bar
+                    takeBar(h.f)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "are refined to non-null" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if isNull(h.n) {
+                        return
+                    }
+                    takeBar(h.n)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "through a path of member variables" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if not isNull(h.next) {
+                        if h.next.f is Bar {
+                            takeBar(h.next.f)
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a while loop that walks a list" {
+            validateModule("""
+                $declarations
+                $holder
+                fn last(h: Holder) -> Holder {
+                    var node = h
+                    while not isNull(node.next) {
+                        set node = node.next
+                    }
+                    return node
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "that are re-assignable, only on const objects" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: const Holder) {
+                    if h.g is Bar {
+                        takeBar(h.g)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if h.g is Bar {
+                        takeBar(h.g)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the variable is assigned another object" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(a: Holder, b: Holder) {
+                    var h = a
+                    if h.f is Bar {
+                        set h = b
+                        takeBar(h.f)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not of another object" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(a: Holder, b: Holder) {
+                    if a.f is Bar {
+                        takeBar(b.f)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })

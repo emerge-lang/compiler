@@ -51,12 +51,7 @@ class BoundWhileLoop(
             condition.semanticAnalysisPhase2(diagnosis)
 
             // the body runs after the condition was true, in each iteration
-            condition.implications
-                .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_TRUE }
-                .flatMap { it.variableTypeRefinements.entries }
-                .forEach { (variable, intersectWith) ->
-                    bodyContext.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, bodyContext))
-                }
+            VariableTypeRefinement.trackImplications(condition.implications, BoundExpression.ImplyingResult.BOOL_TRUE, bodyContext)
 
             body.semanticAnalysisPhase2(diagnosis)
         }

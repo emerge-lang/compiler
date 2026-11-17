@@ -33,6 +33,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -98,9 +99,32 @@ class BoundMemberVariableReadExpression(
             }
         }
 
-        return nonNullableType
+        val unrefinedType = nonNullableType
             ?.withCombinedNullability(if (valueType.isNullable && isNullSafeAccess) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
+            ?: return null
+
+        val path = refinablePath ?: return unrefinedType
+        return VariableTypeRefinement.refinedType(path, unrefinedType, context)
     }
+
+    /**
+     * @see VariableTypeRefinement.pathOf
+     */
+    val refinablePath: VariableTypeRefinement.Path? get() {
+        if (isNullSafeAccess || getterInvocation.functionToInvoke != null) {
+            return null
+        }
+
+        val member = physicalMembers.singleOrNull() ?: return null
+        if (!VariableTypeRefinement.memberValueIsStable(member, valueExpression.type)) {
+            return null
+        }
+
+        val holderPath = VariableTypeRefinement.pathOf(valueExpression) ?: return null
+        return holderPath + member
+    }
+
+    override val implications: List<BoundExpression.ResultImplication> get() = VariableTypeRefinement.nonNullImplications(this)
 
     override val modifiedContext = getterInvocation.modifiedContext
 

@@ -22,6 +22,7 @@ import compiler.ast.Expression
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
@@ -164,14 +165,14 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
 
     class ResultImplication(
         val onResult: ImplyingResult,
-        /** for each variable: the type to intersect the type of the variable with */
-        val variableTypeRefinements: Map<BoundVariable, BoundTypeReference>,
+        /** for each variable or member variable reached from it: the type to intersect its type with */
+        val typeRefinements: Map<VariableTypeRefinement.Path, BoundTypeReference>,
     ) {
         override fun toString(): String {
-            val implies = if (variableTypeRefinements.isEmpty()) "nothing" else {
-                variableTypeRefinements.entries.joinToString(
+            val implies = if (typeRefinements.isEmpty()) "nothing" else {
+                typeRefinements.entries.joinToString(
                     separator = " and ",
-                    transform = { "${it.key.name}: ${it.value}" }
+                    transform = { "${it.key}: ${it.value}" }
                 )
             }
             return "$onResult implies that $implies"
