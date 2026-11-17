@@ -16,10 +16,14 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.ErroneousType
+import compiler.binding.type.NullableTypeReference
+import compiler.binding.type.StaticTypeCheckResult
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.TypeCheckKind
 import compiler.diagnostic.forbiddenCast
 import compiler.diagnostic.nothrowViolatingCast
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -99,7 +103,17 @@ class BoundCastExpression(
         }
 
         if (valueType != null && !isTypedNumericLiteral && targetType !is ErroneousType && valueType !is ErroneousType) {
-            validateMutability(targetType, valueType, diagnosis)
+            val mutabilityIsFine = validateMutability(targetType, valueType, diagnosis)
+            if (mutabilityIsFine) {
+                staticResult = reportStaticResultOfTypeCheck(
+                    if (safeCast) TypeCheckKind.SAFE_CAST else TypeCheckKind.CAST,
+                    valueType,
+                    typeToCheck,
+                    declaration.asToken.span..declaration.toType.span,
+                    diagnosis,
+                    reportAlwaysSucceeds = { typeOfValue, _ -> !isDisambiguation(typeOfValue) },
+                )
+            }
         }
 
         this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
@@ -119,10 +133,11 @@ class BoundCastExpression(
      *
      * @param target the type as written in the cast, never nullable just for the cast being `as?`
      * @param source the type of the value being cast
+     * @return whether the mutability is fine: nothing was reported
      */
-    private fun validateMutability(target: BoundTypeReference, source: BoundTypeReference, diagnosis: Diagnosis) {
+    private fun validateMutability(target: BoundTypeReference, source: BoundTypeReference, diagnosis: Diagnosis): Boolean {
         if (target.isOfConstClass) {
-            return
+            return true
         }
 
         val reportAt = declaration.toType.span ?: declaration.span
@@ -134,8 +149,28 @@ class BoundCastExpression(
                 "Cannot cast a ${source.mutability.keyword.text} value to a ${target.mutability.keyword.text} type: an object doesn't know the mutability of the references to it, so a cast can only keep or weaken it.",
                 reportAt,
             )
+        } else {
+            return true
         }
+
+        return false
     }
+
+    /**
+     * A value of an intersection type can have a member from more than one of the components (`p: A & B`, `p.foo()`).
+     * Casting it to one of them is how to say which is meant (`(p as A).foo()`); that always succeeds and still
+     * is not superfluous.
+     */
+    private fun isDisambiguation(typeOfValue: BoundTypeReference): Boolean {
+        val nonNullable = (typeOfValue as? NullableTypeReference)?.nested ?: typeOfValue
+        return !safeCast && nonNullable is BoundIntersectionTypeReference
+    }
+
+    /**
+     * What the static type of the value tells about the check already; is set during [semanticAnalysisPhase2].
+     * Where it always succeeds, there is no check at runtime, and nothing that throws.
+     */
+    private var staticResult: StaticTypeCheckResult = StaticTypeCheckResult.Unknown
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -159,7 +194,7 @@ class BoundCastExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         value.semanticAnalysisPhase3(diagnosis)
-        if (nothrowBoundary != null && !isTypedNumericLiteral && !safeCast) {
+        if (nothrowBoundary != null && !isTypedNumericLiteral && !safeCast && staticResult != StaticTypeCheckResult.AlwaysSucceeds) {
             diagnosis.nothrowViolatingCast(this, nothrowBoundary!!)
         }
     }
@@ -183,6 +218,16 @@ class BoundCastExpression(
 
         val irTargetType = type.toBackendIr()
         val valueToCastTemporary = IrCreateTemporaryValueImpl(value.toBackendIrExpression())
+        if (staticResult == StaticTypeCheckResult.AlwaysSucceeds) {
+            return IrImplicitEvaluationExpressionImpl(
+                IrCodeChunkImpl(listOf(valueToCastTemporary)),
+                object : IrTemporaryValueReference {
+                    override val declaration = valueToCastTemporary
+                    override val type: IrType get() = irTargetType
+                },
+            )
+        }
+
         val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), typeToCheck!!, value.type))
 
         if (safeCast) {

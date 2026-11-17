@@ -220,6 +220,19 @@ fn main(world: mut World) {
     readDog: Dog = castTo::<Dog>(mutDog)
     stdout.println("cast to T = Dog succeeded")
 
+    // where the static type of the value tells that the check succeeds, there is none at runtime (the compiler warns)
+    knownDog: Dog = Dog()
+    show(stdout, "a Dog is Animal, known statically", knownDog is Animal)
+    asAnimal: Animal = knownDog as Animal
+    stdout.println("cast of a Dog to Animal succeeded, known statically")
+    safeAnimal: Animal? = knownDog as? Animal
+    show(stdout, "a Dog as? Animal is null, known statically", isNull(safeAnimal))
+    knownNull: Dog? = null
+    show(stdout, "null is Animal?, known statically", knownNull is Animal?)
+    // and where it tells that the check fails, it is still run
+    show(stdout, "a Dog is Cat, known statically", knownDog is Cat)
+    show(stdout, "a Dog through a read reference is mut Dog, known statically", knownDog is mut Dog)
+
     // a CastError is an Error, it is not caught: the program ends here.
     // castTo takes a read reference, which cannot become a mut one
     stdout.println("casting a read reference to a Dog to T = mut Dog")

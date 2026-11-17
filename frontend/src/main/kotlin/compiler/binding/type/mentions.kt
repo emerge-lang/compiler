@@ -55,3 +55,16 @@ internal fun BoundTypeReference.isReadInAllInstantiations(): Boolean = when (thi
     is BoundIntersectionTypeReference -> mutability == TypeMutability.READONLY && components.all { it.isReadInAllInstantiations() }
     is ErroneousType -> mutability == TypeMutability.READONLY
 }
+
+/**
+ * Whether this type mentions any type parameter, as a [GenericTypeReference].
+ */
+internal fun BoundTypeReference.mentionsTypeParameters(): Boolean = when (this) {
+    is TypeVariable -> false
+    is GenericTypeReference -> true
+    is RootResolvedTypeReference -> arguments?.any { it.mentionsTypeParameters() } == true
+    is NullableTypeReference -> nested.mentionsTypeParameters()
+    is BoundTypeArgument -> type.mentionsTypeParameters()
+    is BoundIntersectionTypeReference -> components.any { it.mentionsTypeParameters() }
+    is ErroneousType -> false
+}

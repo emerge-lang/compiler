@@ -24,6 +24,12 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.TypeCheckKind
+import compiler.diagnostic.typeCheckAlwaysSucceeds
+import compiler.diagnostic.typeCheckNeverSucceeds
+import compiler.binding.type.StaticTypeCheckResult
+import compiler.binding.type.staticResultOfTypeCheck
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
@@ -74,7 +80,18 @@ class BoundInstanceOfExpression(
         expressionToCheck.setEvaluationResultUsage(
             TypeCheckValueUsage(context.swCtx, declaration.operator.span..declaration.typeToCheck.span),
         )
+
+        staticResult = reportStaticResultOfTypeCheck(
+            TypeCheckKind.INSTANCE_OF,
+            expressionToCheck.type,
+            typeToCheck,
+            declaration.operator.span..declaration.typeToCheck.span,
+            diagnosis,
+        )
     }
+
+    /** is set during [semanticAnalysisPhase2] */
+    private var staticResult: StaticTypeCheckResult = StaticTypeCheckResult.Unknown
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do:
@@ -101,9 +118,47 @@ class BoundInstanceOfExpression(
     override fun toBackendIrExpression(): IrExpression {
         return buildNothrowInvocationLikeIr(
             listOf(this.expressionToCheck),
-            buildActualCall = { args -> buildInstanceOf(context.swCtx, args.single(), this.typeToCheck!!, expressionToCheck.type) },
+            buildActualCall = { args ->
+                if (staticResult == StaticTypeCheckResult.AlwaysSucceeds) {
+                    // the value is evaluated still, for its side effects
+                    IrBooleanLiteralExpressionImpl(type!!.toBackendIr(), true)
+                } else {
+                    buildInstanceOf(context.swCtx, args.single(), this.typeToCheck!!, expressionToCheck.type)
+                }
+            },
         )
     }
+}
+
+/**
+ * Reports where the static type of the value tells the result of checking it against [typeToCheck] already, see
+ * [staticResultOfTypeCheck].
+ * @param typeOfValue the static type of the value; `null` if not known
+ * @param typeToCheck the result of [validateTypeCheck]
+ * @param reportAlwaysSucceeds whether a check that always succeeds is worth a warning
+ * @return what was found, [StaticTypeCheckResult.Unknown] where one of the types is not known
+ */
+internal fun reportStaticResultOfTypeCheck(
+    kind: TypeCheckKind,
+    typeOfValue: BoundTypeReference?,
+    typeToCheck: BoundTypeReference?,
+    span: Span,
+    diagnosis: Diagnosis,
+    reportAlwaysSucceeds: (typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference) -> Boolean = { _, _ -> true },
+): StaticTypeCheckResult {
+    if (typeOfValue == null || typeToCheck == null) {
+        return StaticTypeCheckResult.Unknown
+    }
+
+    val result = staticResultOfTypeCheck(typeOfValue, typeToCheck)
+    when (result) {
+        is StaticTypeCheckResult.AlwaysSucceeds -> if (reportAlwaysSucceeds(typeOfValue, typeToCheck)) {
+            diagnosis.typeCheckAlwaysSucceeds(kind, typeOfValue, typeToCheck, span)
+        }
+        is StaticTypeCheckResult.NeverSucceeds -> diagnosis.typeCheckNeverSucceeds(kind, typeOfValue, typeToCheck, result.reason, span)
+        is StaticTypeCheckResult.Unknown -> {}
+    }
+    return result
 }
 
 /**

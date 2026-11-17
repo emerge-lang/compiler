@@ -104,4 +104,10 @@ null as? Box<Dog> is null: yes
 null as Box<Dog>? is null: yes
 cast to T = Box<Dog> succeeded
 cast to T = Dog succeeded
+a Dog is Animal, known statically: yes
+cast of a Dog to Animal succeeded, known statically
+a Dog as? Animal is null, known statically: no
+null is Animal?, known statically: yes
+a Dog is Cat, known statically: no
+a Dog through a read reference is mut Dog, known statically: no
 casting a read reference to a Dog to T = mut Dog

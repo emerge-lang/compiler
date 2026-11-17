@@ -726,6 +726,13 @@ fun Diagnosis.forbiddenCast(castOp: BoundCastExpression, reason: String, span: S
     add(ForbiddenCastDiagnostic(castOp.declaration, reason, span))
 }
 
+fun Diagnosis.typeCheckAlwaysSucceeds(kind: TypeCheckKind, typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference, span: Span) {
+    add(TypeCheckAlwaysSucceedsDiagnostic(kind, typeOfValue, typeToCheck, span))
+}
+
+fun Diagnosis.typeCheckNeverSucceeds(kind: TypeCheckKind, typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference, reason: String, span: Span) {
+    add(TypeCheckNeverSucceedsDiagnostic(kind, typeOfValue, typeToCheck, reason, span))
+}
 
 fun Diagnosis.nullCheckOnNonNullableValue(value: BoundExpression<*>) {
     add(NullCheckingNonNullableValueDiagnostic(value.declaration))

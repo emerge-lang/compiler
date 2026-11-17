@@ -112,14 +112,22 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * the typeinfo says what is a class, so the runtime takes an intersection of two different classes
       (`N & M`) for `Nothing` like the compiler does. No value has such a type, it shows in type arguments
 
+    Where the static type of the value tells the result of an `is`, `as` or `as?` already, the compiler warns
+    (`staticResultOfTypeCheck`):
+    * the check always succeeds, the value is of a subtype (`TypeCheckAlwaysSucceedsDiagnostic`). There is no
+      check at runtime then, and such an `as` doesn't throw. Not reported: a cast of a value of an intersection
+      type, which is how to tell apart the members of the components (`(p as A).foo()`)
+    * the check never succeeds (`TypeCheckNeverSucceedsDiagnostic`): one of the types is a class that the other
+      rules out, the type arguments for the same base type have no type in common (`x: Box<Dog>`,
+      `x is Box<Cat>`), or the check asks for a mutability the reference doesn't have (`x: read Dog`,
+      `x is mut Dog`). The latter is not said of an `x: read Any`: the object may be of a class that is const by
+      itself, which is a value of any mutability. For `as`, strengthening the mutability stays an error
+      (`ForbiddenCastDiagnostic`)
+
     Remaining work:
-    1. `x is mut Foo` on a `read` reference is false, and nothing says so at compile time: there are no smart
-       casts yet that would make the mutability of an `is` matter, and no diagnostic for a check that cannot
-       succeed (see 3.)
+    1. there are no smart casts yet that would make the mutability of an `is` matter
     2. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
        supertype it is translated to (see item 33)
-    3. where the static type of the value already tells the result, say so: skip the check where it always
-       succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
 13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
