@@ -463,5 +463,50 @@ class SmartCastTests : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+
+        // break and continue leave a branch, too, and lead to the code after the loop
+        "not if the branch may leave through a break, after returning otherwise" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        if cond() {
+                            if cond() {
+                                set w = null
+                                break
+                            }
+                            return
+                        }
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not if the body of a loop may continue, after returning otherwise" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        if cond() {
+                            set w = null
+                            continue
+                        }
+                        return
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
     }
 })

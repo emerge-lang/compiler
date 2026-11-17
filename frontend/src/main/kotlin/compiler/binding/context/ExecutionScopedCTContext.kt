@@ -11,7 +11,9 @@ import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.EphemeralStateClass
+import compiler.binding.context.effect.LoopJump
 import compiler.binding.context.effect.SideEffect
+import compiler.binding.context.effect.SingletonEphemeralStateClass
 import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
@@ -529,7 +531,7 @@ class SingleBranchJoinExecutionScopedCTContext(
     }
 
     private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
-        if (stateClass.joinsOnlyBranchesThatCompleteNormally && !atEndOfBranch.completesNormally) {
+        if (stateClass.joinsOnlyBranchesThatCompleteNormally && !atEndOfBranch.canCompleteNormally(beforeBranch)) {
             return whenNotTaken.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
         }
 
@@ -571,7 +573,7 @@ class MultiBranchJoinExecutionScopedCTContext(
     private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         var branches = atEndOfBranches.asSequence()
         if (stateClass.joinsOnlyBranchesThatCompleteNormally) {
-            branches = branches.filter { it.completesNormally }
+            branches = branches.filter { it.canCompleteNormally(beforeBranch) }
             if (branches.none()) {
                 // the code after is unreachable
                 return stateBeforeBranch
@@ -589,8 +591,18 @@ class MultiBranchJoinExecutionScopedCTContext(
  * [beforeInvocation]. The [SideEffect]s that happened between the two, while evaluating the arguments, are
  * considered using [EphemeralStateClass.endInvocation].
  */
-private val ExecutionScopedCTContext.completesNormally: Boolean
-    get() = !getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate
+/**
+ * @receiver the context at the end of a branch
+ * @return whether the code after the branch can be reached through it: `false` iff it is guaranteed to return, throw or
+ * terminate the program, and doesn't `break` or `continue` (through which the code after an enclosing loop is reached)
+ */
+private fun ExecutionScopedCTContext.canCompleteNormally(beforeBranch: ExecutionScopedCTContext): Boolean {
+    if (!getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
+        return true
+    }
+
+    return getEphemeralStateRelativeTo(beforeBranch, LoopJump.initialState, LoopJump, SingletonEphemeralStateClass.Subject).mayHaveJumped
+}
 
 class InvocationJoinExecutionScopedCTContext(
     private val beforeInvocation: ExecutionScopedCTContext,
