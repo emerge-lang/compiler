@@ -1,24 +1,24 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-0. ~~**bug:** `catch` does not catch an exception thrown by a function that the `try` block calls~~ not a bug:
-   the reproducer threw a class implementing `Error`, and `catch` lets `Error`s through by design (see
-   [design.md](design.md#errors-are-not-caught)). A `Throwable` that isn't an `Error` thrown from a called function
-   is caught. The reproducer also named a variable `out`, which is a keyword.
-1. ~~signed `<=` compiles to `<`: the LLVM backend lowers `IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL`
-   on signed types to `SIGNED_LESS_THAN` instead of `SIGNED_LESS_THAN_OR_EQUAL`~~
-2. ~~global variables are initialized in declaration order within a source file, but not in dependency order across
-   files: a global that reads a global of another file can see it uninitialized~~
-3. ~~isolate thread-unsafe global state~~ done with tokens, see [docs/tokens.md](docs/tokens.md): there is no
-   mutable global state left; standard IO is reached through the unique classes `StandardOut` and `StandardError`,
-   which `main` obtains from the root token it is given.
+1. bugs
+    1. a `var` member variable of a nullable type parameter with a `const` bound is rejected:
+       `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
+       Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
+       around it, its intrinsic writes `_value` regardless
+    2. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
+       (see [design.md](design.md#errors-are-not-caught)):
+       `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
+       `try` block calls, the same `CastError` passes through the `catch`, as it should
+       (`BoundInvocationExpression` checks `is Error` at the landingpad; a `throw` in the `try` block itself, which
+       is what a failing cast is, goes to the `catch` unchecked).
+2. smart casts
+3. typealiases
 4. additional language constructs
-   1. `when`: the first version is in, as syntax sugar for an `if`-`else if` chain that compares with `==`
-   2. union types: `TypeA | TypeB | TypeC`
+   1. union types: `TypeA | TypeB | TypeC`
       * support exhaustiveness check on `when`
-   3. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
+   2. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
       type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
 5. Stdlib basics
-6. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
       * hashCodes: Java-style is overkill, have an explicit Hashable interface
@@ -31,14 +31,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
       or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
       to the emerge code.
-7. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
+6. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
     Todo: actually try and solve some!
-8. integration tests: the harness is in, see [integration-tests/readme.md](integration-tests/readme.md). It compiles
+7. integration tests: the harness is in, see [integration-tests/readme.md](integration-tests/readme.md). It compiles
     the emerge programs in `integration-tests/programs`, runs them and compares their output; CI does that with the
     toolchain from the linux tarball. Still open:
     * many more programs. The unit tests in the frontend test the negative cases; these should test the positive
       ones. E.g. that 2+3=5, refcounting, control flow + exceptions, ...
-9. integrate valgrind into the integration tests and check every test case. Fix the memory leaks that are discovered;
+8. integrate valgrind into the integration tests and check every test case. Fix the memory leaks that are discovered;
    already known:
    1. call arguments that are neither anchored nor reference-counted leak, e.g. `sumS32(holder.data!!)`:
       `BoundInvocationExpression` increments their reference count before the call, but after the call only drops
@@ -61,16 +61,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         assigned to a variable first. The same concatenation of a member variable (`"hello, " + self.name`) doesn't
         leak
       * `stdout.println(lazy.value)` leaks the value of a `Lazy<String>` once, while `x = lazy.value` doesn't
-10. documentation and presentation
-    * from a user perspective. Github pages?
-      * language syntax and semantics, maybe a good tutorial
-      * design decisions, philosophy and reasoning
-    * from a maintainer perspective
-      * compiler architecture
-      * llvm patterns
-      * debugging techniques
-    * add fix suggestions to diagnostics; this should also make them much more comprehensible
-11. user tooling
+9. documentation and presentation
+   * from a user perspective. Github pages?
+     * language syntax and semantics, maybe a good tutorial
+     * design decisions, philosophy and reasoning
+   * from a maintainer perspective
+     * compiler architecture
+     * llvm patterns
+     * debugging techniques
+   * add fix suggestions to diagnostics; this should also make them much more comprehensible
+10. user tooling
     * language server and VSCode plugin
     * think about an assistant, e.g. taking care of these tasks
       * manage installed toolchain versions, at least on linux
@@ -78,64 +78,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * setting up a new project including bazel build
         * adding modules or dependencies to existing projects
         * if emerge ecosystem/libraries are already a thing: manage dependencies
-12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
-    type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields
-    (so a member function without a receiver cannot use the type parameters of its type, like a static method in
-    Java: `TypeParameterUnavailableWithoutReceiverDiagnostic`), and
-    every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
-    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments,
-    nullability and mutability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
-    (`emerge.core.reflection.isSubtypeOf`, `isInstanceOf`). A type without type arguments is still checked by
-    its base type alone, which allocates nothing.
-    A wildcard is the star projection of Kotlin: `out` the bound of the parameter, as the other type arguments
-    make it. With `class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>` asks for a
-    `Sorted<String, out Comparator<String>>` (`CTContext.resolveTypeArguments`).
-    * the subtype relation of the runtime has to agree with the compiler's. `RuntimeSubtypingGridTests` in the
-      frontend generates an emerge program from `TypeGrid` that compares the two, the integration tests run it
-    * for the type arguments of supertypes (`class Nest<E> : Seq<Box<E>>`), every typeinfo has templates of its
-      parameterized supertypes (`IrBaseType.parameterizedSupertypes`), which the runtime instantiates
-    * mutability: an object doesn't know the mutability of the references to it, but it knows its type
-      arguments, mutability included (`NamedType.mutability`): an array created as an `Array<mut Foo>` is one
-      for as long as it lives, whatever the references to it say. So `x is Array<mut Foo>` is checked. For the
-      value itself, the mutability comes from the static type of the reference that is checked: where the target
-      says its mutability, the frontend rejects a cast that strengthens it (`x: read Any`, `x as mut Foo`;
-      `BoundCastExpression.validateMutability`), and where the target is a type parameter, the check at runtime compares the
-      mutability of the reference with that of the type argument (`castTo::<mut Foo>(x)` with a `read`
-      parameter throws a `CastError`)
-    * tokens: the typeinfo says of every base type whether its instances are no tokens
-      (`IrBaseType.isNonToken`), so the runtime knows that classes are `NonToken` without saying so, and what
-      may be a token (`mayBeToken`), type arguments included. Its subtype relation has the token rule of the
-      compiler: an object that may be or hold a token is no value of a type that cannot be one, so no cast
-      forgets or freezes a token (see [docs/tokens.md](docs/tokens.md)). Where that takes the type arguments of
-      the object, the check is not done by the base type alone: `x is NonToken` and `x is Shape` for an
-      interface `Shape : NonToken`, on an `x` that may be a token
-    * the typeinfo says what is a class, so the runtime takes an intersection of two different classes
-      (`N & M`) for `Nothing` like the compiler does. No value has such a type, it shows in type arguments
-
-    Where the static type of the value tells the result of an `is`, `as` or `as?` already, the compiler warns
-    (`StaticTypeCheckResult.of`):
-    * the check always succeeds, the value is of a subtype (`TypeCheckAlwaysSucceedsDiagnostic`). There is no
-      check at runtime then, and such an `as` doesn't throw. Not reported: a cast of a value of an intersection
-      type, which is how to tell apart the members of the components (`(p as A).foo()`)
-    * the check never succeeds (`TypeCheckNeverSucceedsDiagnostic`): one of the types is a class that the other
-      rules out, the type arguments for the same base type have no type in common (`x: Box<Dog>`,
-      `x is Box<Cat>`), or the check asks for a mutability the reference doesn't have (`x: read Dog`,
-      `x is mut Dog`). The latter is not said of an `x: read Any`: the object may be of a class that is const by
-      itself, which is a value of any mutability. For `as`, strengthening the mutability stays an error
-      (`ForbiddenCastDiagnostic`)
-
-    Remaining work:
-    1. there are no smart casts yet that would make the mutability of an `is` matter
-    2. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
-       supertype it is translated to (see item 33)
-13. Function types
+11. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
          (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
-    2. ~~deal with the higher-order function purity problem~~ there is no function purity any more. What is
-       left of the problem is a rule for closures: a closure that captures a token is a token
-       (rule 6 in [docs/tokens.md](docs/tokens.md)).
-       Then `emerge.core.Lazy` takes a function instead of a `LazyInitializer`; its type has to say that the
+    2. closures that capture a token must become tokens themselves (rule 6 in [](docs/tokens.md)).
+    3. deal with the higher-order-function throwyness: the simple case is a borrowed function type, but more
+       flexibility might be necessary
+    3. `emerge.core.Lazy` takes a function instead of a `LazyInitializer`; its type has to say that the
        closure captures only `const` data and no token (see [docs/tokens.md](docs/tokens.md#internal-mutability))
     3. implement references to top-level functions
     4. implement `foo()` where `foo` is an expression of a function type
@@ -155,19 +105,17 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        * TODO once it exists: `Array.copy` is `nothrow` and panics on bad bounds only because `String.plus`
          and through it `emerge.core.reflection.Type.toString` have to be `nothrow`, for the message of a
          `CastError`. Make `Array.copy` throwing again, and have `Type.toString` use this builtin instead
-14. functional-style collection operations
+12. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-15. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-16. optimize reference counting; see [](refcounting optimizations.md)
+13. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+14. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-17. typealiases
-18. smart casts
-19. ~~fix loophole in the typesystem: a type parameter could be bound to an `own` type
+15. ~~fix loophole in the typesystem: a type parameter could be bound to an `own` type
     (`Array.new::<own Foo>(20, Foo())`, `Box<own Foo>`, `fn g<T>(x: T) -> T` called with an `own`
     value), though generic code makes any number of references to a value of type `T`~~
     Type parameters are never bound to an `own` type now: it is an error as a type argument or in the bound of
@@ -195,24 +143,24 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * a variable declared without a type and initialized from such a call is `read`, not `const` as it is for an
       `own` initializer: `y = g(Foo())` is a `mut Foo` joined with the `const` of the declaration. The expected
       type only takes part in inference when the variable has a declared type
-20. optional parameters
+16. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-21. Declaration-Site variance
+17. Declaration-Site variance
     * support declaration-site variance: `class Pair<out A, out B> { ... }`. Anticipated problems:
       * assignment to member vars that have a generic type referencing an in/out type parameter can only
         be assigned on construction -> must not be "var"
       * the code generated in the constructor for the assignment won't validate, precisely because it's
         not generally valid to assign to an out-variant/in-variant member var -> needs an exception
       * it was partially supported before; some test-cases are already present but disabled
-22. named arguments
+18. named arguments
     * allow to change the order of arguments? It's important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-23. threading
+19. threading
     A big point with the explicit-mutability types is to simplify multithreading (though, the other
     big benefit of them is the assemble-then-return-as-const pattern). Avoiding the complexity of 
     having a `shared` mutability like D allows to infer some properties necessary for multithreading:
@@ -246,17 +194,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       other, which makes it thread-local (the LLVM backend emits globals as such), and `take` reads and sets it
       in separate steps. With threads the flag has to be one per process, and checking and setting it one atomic
       step; a constructor that throws has to release it again. See `UniqueClassCode` in the frontend.
-24. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
+20. review which other predefined classes should be declared `: const Any`: `String`, `ReflectionBaseType`,
     `StackTraceElement` and the boxes of the platform module (`S32Box`, ...) are never mutated after construction.
     Declaring them const changes what their fields read as and lets their values fit any mutability
-25. ~~reconsider the name `exclusive`~~ it is `own` now: an `own` reference promises that no other reference can
-    mutate the object or rely on it not changing, not that there are no other references (`read` aliases are
-    allowed). The compiler still calls the `borrow`/`capture` axis "ownership" (`VariableOwnership`), which wants
-    another name now
-26. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
+21. diagnostics about the static bound of a type variable show the other type variables in it, not their values:
     `b.ordered(Bad())` with `b: Box<Num>` and `fn ordered<T : Ord<in E>>` reports `Required: read Ord<in Var(E)>`
     instead of `read Ord<in Num>`
-27. a member function with type parameters of its own can't be overridden: findOverriddenFunctions compares the
+22. a member function with type parameters of its own can't be overridden: findOverriddenFunctions compares the
     parameter types by equality, and the type parameters of the override are never those of the overridden function
     ```
     interface Base {
@@ -268,10 +212,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The type parameters would have to be matched up by position, their bounds compared, before comparing the
     parameter types. This is a usability problem, not a soundness one
-28. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
+23. parentheses in type notation, to group: `(A & B)?`. Today a nullable intersection can only be written with every
     component nullable, `A? & U?`, from which ofComponents builds `(A & U)?`; that spelling hides that the components
     get narrowed (`U?` with `U : Any?` becomes the component `U!`)
-29. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
+24. decorated member variables (`decorates value: T = init`) are rejected as not supported yet, as they weren't sound.
     The constructor ties the mutability of the object, `_M` in its return type `own W & _M`, to that of each
     decorated value through a parameter typed `X & _M`, and reading a decorated member gives it the mutability of the
     object. Three things broke that:
@@ -288,13 +232,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     `_M` likely wants to be a mutability-only parameter rather than an intersection component. The tests in
     `ClassErrors` ("decorated members") and `DecoratorMutabilityTests` describe the intended behaviour
-30. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
+25. `Array.trimmed` (and `String.trimmed` on top of it): copies a slice into a fresh array object of exactly the
     slice's size, so the rest of the base array can be freed. `U64.toString` returns a slice of its 21-byte buffer,
     keeping the entire buffer alive for as long as the string lives
-31. various optimizations collected over time
+26. various optimizations collected over time
     * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
       at compile time
-32. model the frontend's rule that an intersection of disjoint classes (`N & M`, `N & Box<A>`) is below every type, as
+27. model the frontend's rule that an intersection of disjoint classes (`N & M`, `N & Box<A>`) is below every type, as
     the bottom type it simplifies to (`BoundIntersectionTypeReference.flippedUnify`, coverage step 14): in the model,
     `Subtyping.intersection_flipped_unify` returning the carry where `is_effectively_bottom_type` holds of the
     components. It is the one entry of `OracleGrid.unify_excuses` (1049 pairs of `TypeGrid`) and the excuse of
@@ -304,11 +248,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `Generics.flipped_some`, `Ops.intersection_flipped_unify_found`, `Substitution.unify_into_components` and their
     ~50 call sites, and the mutability lemmas need side conditions or an `own` assignment mutability for such
     intersections. A sibling of item 39: both make the model's unify the frontend's where they differ today
-33. runtime type information is allocated per call: a generic function calling another generic function with
+28. runtime type information is allocated per call: a generic function calling another generic function with
     a type argument that mentions its own type parameters (`Array<T>`, `T?`) builds `NamedType`/`TypeArgument`
     objects on every call (`lowerReifiedType` in the LLVM backend). Cache them per call site, or intern
     structurally equal types
-34. a virtual function overriding an interface function whose return type is a type parameter (`fn make(self) -> R`)
+29. a virtual function overriding an interface function whose return type is a type parameter (`fn make(self) -> R`)
     with an array return type (`override fn make(self) -> Array<U>` for `Maker<Array<U>>`) crashes: the interface
     returns a boxed reference, the override returns an `arrayslice` struct, so the LLVM signatures differ and the
     override misreads its `self`. Needs a bridge like the ones `emerge.platform.ArrayBox` has, or the override has
@@ -316,9 +260,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     A primitive return type has the same problem: `override fn computeValue(self: const _) -> S32` for
     `LazyInitializer<S32>` returns the raw `S32` where the caller expects a boxed reference, so `Lazy.value` takes
     the number for a pointer and segfaults. A generic class (`class Constant<T> : LazyInitializer<T>`) works
-35. if interfaces ever get default method implementations, their type parameters need runtime type information
+30. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
-36. the type system model picks other final values than the frontend where a type variable only has `own` values
+31. the type system model picks other final values than the frontend where a type variable only has `own` values
     (item 19): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
     mutability the upper bound asks for, `mut` otherwise (`VariableState.mutabilityForOwnValues`), and it is an
     error where the upper bound asks for `own` (`VariableState.needsOwnValue`). The theorems on calls are about
@@ -331,7 +275,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * the proofs that unfold `final_value` (it is used ~140 times in 9 files)
     * the type the call is expected to return, as one more constraint before the final values are picked
       (`TypeUnification.plusExpectedTypeForOwnValues`)
-37. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
+32. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
     and not going to be: each member variable or element of a generic data structure would either own its object,
     making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
     (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `emerge.core.Cell` gives
@@ -348,7 +292,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
-38. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
+33. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
     freed twice (valgrind: invalid reads, writes and frees in the destructors):
     ```
     interface Source<T : const Any?> : const NonToken {
@@ -364,16 +308,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     x = c.produce()
     ```
     The box held by `c.v` loses one reference too many; the same shape with a boxed `S32` has no invalid accesses
-39. a `var` member variable of a nullable type parameter with a `const` bound is rejected:
-    `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
-    Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
-    around it, its intrinsic writes `_value` regardless
-40. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
-    (see [design.md](design.md#errors-are-not-caught)):
-    `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
-    `try` block calls, the same `CastError` passes through the `catch`, as it should
-    (`BoundInvocationExpression` checks `is Error` at the landingpad; a `throw` in the `try` block itself, which
-    is what a failing cast is, goes to the `catch` unchecked).
 
 ## Future features
 
