@@ -26,6 +26,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -571,9 +572,10 @@ class BoundVariable(
 
                     return object : Sean2Stage {
                         override val utilizesInitializerType = shouldInferBaseType
-                        override val typeAfterSean1: BoundTypeReference? = declaredType
+                        private val resolvedDeclaredType: BoundTypeReference? = declaredType
                             ?.takeUnless { shouldInferBaseType }
                             ?.let(context::resolveType)
+                        override val typeAfterSean1: BoundTypeReference? = resolvedDeclaredType
                             ?.let { it.defaultMutabilityTo(implicitMutabilityFor(it)) }
 
                         override val expectedInitializerEvaluationType: BoundTypeReference?
@@ -596,18 +598,22 @@ class BoundVariable(
                             } else {
                                 val finalNullability = declaredType.nullability
                                 val implicitMutability = implicitMutabilityFor(if (shouldInferBaseType) initializerExpression.type else typeAfterSean1)
-                                val finalMutability = declaredType.mutability
+                                // an intersection type has no mutability of its own to declare, its components do
+                                val declaredMutability = declaredType.mutability.takeUnless { declaredType is AstIntersectionType }
+                                val finalMutability = declaredMutability
                                     ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
 
                                 if (shouldInferBaseType) {
                                     typeAfterSean2 = initializerExpression.type
+                                        ?.withMutability(finalMutability)
+                                        ?.withCombinedNullability(finalNullability)
+                                } else if (declaredMutability != null) {
+                                    typeAfterSean2 = typeAfterSean1?.withMutability(finalMutability)
                                 } else {
-                                    typeAfterSean2 = typeAfterSean1
+                                    // as in phase 1, the implicit mutability is a default: a type parameter doesn't take
+                                    // it, it keeps the mutability of its bound
+                                    typeAfterSean2 = resolvedDeclaredType?.defaultMutabilityTo(finalMutability)
                                 }
-
-                                typeAfterSean2 = typeAfterSean2
-                                    ?.withMutability(finalMutability)
-                                    ?.withCombinedNullability(finalNullability)
 
                                 initializerExpression.type?.let { initializerType ->
                                     // discrepancy between assign expression and declared type

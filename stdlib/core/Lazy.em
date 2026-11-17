@@ -6,7 +6,7 @@ export class Lazy<T : const Any?> {
     private initializer: const LazyInitializer<T> = init
     private var initializing: Bool = false
     private var initialized: Bool = false
-    private _value: T? = null
+    private var _value: T? = null
 
     export intrinsic get fn value(self: read _) -> T
 }

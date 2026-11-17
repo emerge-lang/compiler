@@ -1,11 +1,7 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
 1. bugs
-    1. a `var` member variable of a nullable type parameter with a `const` bound is rejected:
-       `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
-       Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
-       around it, its intrinsic writes `_value` regardless
-    2. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
+    1. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
        (see [design.md](design.md#errors-are-not-caught)):
        `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
        `try` block calls, the same `CastError` passes through the `catch`, as it should

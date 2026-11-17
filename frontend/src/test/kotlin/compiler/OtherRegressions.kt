@@ -56,6 +56,91 @@ class OtherRegressions : FreeSpec({
                 .shouldBeEmpty()
         }
 
+        "variable of a type parameter type with an initializer keeps the mutability of the bound" - {
+            "reassignable member variable, nullable" {
+                validateModule("""
+                    class K<T : const Any?> {
+                        var kept: T? = null
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable member variable, mut bound" {
+                validateModule("""
+                    class K<T : mut Any?> {
+                        var kept: T? = null
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable member variable initialized from another member" {
+                validateModule("""
+                    class K<T : const Any?> {
+                        var first: T = init
+                        var second: T? = self.first
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable local variable" {
+                validateModule("""
+                    fn test<T : const Any?>(p: T) -> T {
+                        var kept: T = p
+                        return kept
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "variable of an intersection with a type parameter keeps the mutability of the bound" - {
+            "local variable, const bound" {
+                validateModule("""
+                    interface Named {}
+                    fn test<T : const Any>(p: T & Named) -> T & Named {
+                        kept: T & Named = p
+                        return kept
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable local variable, mut bound" {
+                validateModule("""
+                    interface Named {}
+                    fn test<T : mut Any>(p: T & Named) -> T & Named {
+                        var kept: T & Named = p
+                        return kept
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable member variable" {
+                validateModule("""
+                    interface Named {}
+                    class K<T : const Any> {
+                        var first: T & Named = init
+                        var second: T & Named = self.first
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "reassignable member variable, nullable" {
+                validateModule("""
+                    interface Named {}
+                    class K<T : mut Any> {
+                        var kept: T? & Named? = null
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
         "type variable in the arguments of a subtype that is an assignee" {
             // the in-variance makes MyLst<T> the assignee of Lst<S32>, with T under inference;
             // instantiating its supertype must keep T, so that the unification can infer it
