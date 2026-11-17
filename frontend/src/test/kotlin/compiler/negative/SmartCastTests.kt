@@ -546,4 +546,40 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "after a null-coalescing whose alternative cannot complete normally, the value is not null" - {
+        "the variable" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    v ?: return "null"
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "the variable of a safe cast" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    (v as? Bar) ?: return "not a bar"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the alternative may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    x = v ?: Bar("y")
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })

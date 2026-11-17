@@ -97,6 +97,11 @@ fn afterNotNull(v: S32?) -> S32 {
     return v + 1
 }
 
+fn coalesceOrReturn(v: Foo) -> String {
+    (v as? Bar) ?: return "?: return: not a bar"
+    return "?: return: " + v.p
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -150,4 +155,6 @@ fn main(world: mut World) {
     stdout.println(earlyReturn(null))
     stdout.println("early return S32: " + earlyReturnS32(41).toString())
     stdout.println("after !!: " + afterNotNull(41).toString())
+    stdout.println(coalesceOrReturn(produce(true)))
+    stdout.println(coalesceOrReturn(produce(false)))
 }

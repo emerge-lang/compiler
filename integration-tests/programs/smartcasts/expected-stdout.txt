@@ -24,3 +24,5 @@ early return: tadaaa
 early return: null
 early return S32: 42
 after !!: 42
+?: return: tadaaa
+?: return: not a bar
