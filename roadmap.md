@@ -7,6 +7,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       its `break` and `continue` statements, through which the code after the loop is reached, too.
    2. after a `while` loop, what its condition being false implies; only sound without a `break` for that loop
    3. `when` with a subject: `is` branches (`when v { is Bar -> v.p }`)
+   4. `and`/`or` are plain invocations of `Bool.and`/`Bool.or` today, so both operands are always evaluated. They
+      should short-circuit where the right-hand side is free of side effects, as the difference can't be observed there.
+      That enables smart casts in the right-hand side from the left one: `not isNull(v) and v.p == ""` (`v` is non-null
+      where the right side is evaluated); for `or`, from the left side being false: `isNull(v) or v.p == ""`
 3. typealiases
 4. additional language constructs
    1. union types: `TypeA | TypeB | TypeC`
