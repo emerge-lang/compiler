@@ -221,10 +221,7 @@ class BoundCastExpression(
         if (staticResult == StaticTypeCheckResult.AlwaysSucceeds) {
             return IrImplicitEvaluationExpressionImpl(
                 IrCodeChunkImpl(listOf(valueToCastTemporary)),
-                object : IrTemporaryValueReference {
-                    override val declaration = valueToCastTemporary
-                    override val type: IrType get() = irTargetType
-                },
+                IrTemporaryValueReferenceImpl(valueToCastTemporary, irTargetType),
             )
         }
 
@@ -276,10 +273,7 @@ class BoundCastExpression(
                     ),
                 ),
             )),
-            object : IrTemporaryValueReference {
-                override val declaration = valueToCastTemporary
-                override val type: IrType get()= this@BoundCastExpression.type.toBackendIr()
-            }
+            IrTemporaryValueReferenceImpl(valueToCastTemporary, irTargetType),
         )
     }
 

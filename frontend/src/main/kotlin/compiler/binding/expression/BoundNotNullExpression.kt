@@ -186,7 +186,8 @@ class BoundNotNullExpression(
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrImplicitEvaluationExpressionImpl(backendIr.first, IrTemporaryValueReferenceImpl(backendIr.second))
+        // the static type of the checked value is not nullable anymore; for value types, this unboxes the value
+        return IrImplicitEvaluationExpressionImpl(backendIr.first, IrTemporaryValueReferenceImpl(backendIr.second, type!!.toBackendIr()))
     }
 
     override fun toBackendIrStatement(): IrExecutable {

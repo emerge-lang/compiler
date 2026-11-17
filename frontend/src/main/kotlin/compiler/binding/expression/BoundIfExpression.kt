@@ -28,6 +28,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -92,13 +93,13 @@ class BoundIfExpression(
             .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_TRUE }
             .asSequence()
             .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, refinement) -> contextForThen.setVariableTypeRefinement(variable, refinement) }
+            .forEach { (variable, intersectWith) -> contextForThen.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, contextForThen)) }
 
         implications
             .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_FALSE }
             .asSequence()
             .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, refinement) -> contextForElse?.setVariableTypeRefinement(variable, refinement) }
+            .forEach { (variable, intersectWith) -> contextForElse?.let { it.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, it)) } }
 
         thenCode.semanticAnalysisPhase2(diagnosis)
         elseCode?.semanticAnalysisPhase2(diagnosis)

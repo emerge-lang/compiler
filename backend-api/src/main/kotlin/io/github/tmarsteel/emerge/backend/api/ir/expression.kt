@@ -47,7 +47,10 @@ interface IrTemporaryValueReference {
 
     /**
      * The type this value is known to have at compile-time. May differ from [IrCreateTemporaryValue.type]
-     * when the frontend can infer additional information on the value, e.g `if (myVal != null) { ... }`
+     * when the frontend can infer additional information on the value, e.g `if (myVal != null) { ... }`.
+     * In that case, it is always a subtype of [IrCreateTemporaryValue.type] and is guaranteed to hold at runtime;
+     * the backend has to convert the value from the representation of [IrCreateTemporaryValue.type] to the one
+     * of this type where they differ (e.g. unboxing).
      */
     val type: IrType get() = declaration.type
 }
@@ -188,6 +191,13 @@ interface IrClassFieldAccessExpression : IrExpression {
 interface IrVariableAccessExpression : IrExpression {
     val variable: IrVariableDeclaration
 
+    /**
+     * The type the value of [variable] is known to have at the point of this access. May be a subtype of
+     * [IrVariableDeclaration.type] where the frontend has refined the type of the variable, e.g. a smart-cast
+     * in `if v is Foo { ... }`. A refined type is guaranteed to hold at runtime; the backend has to convert the
+     * value from the representation of [IrVariableDeclaration.type] to the one of this type where they differ
+     * (e.g. unboxing).
+     */
     override val evaluatesTo: IrType
         get() = variable.type
 }

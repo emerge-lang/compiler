@@ -32,7 +32,6 @@ import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import java.util.IdentityHashMap
 
 interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     /**
@@ -166,13 +165,14 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
 
     class ResultImplication(
         val onResult: ImplyingResult,
-        val variableTypeRefinements: Map<BoundVariable, BoundVariable.TypeRefinement>,
+        /** for each variable: the type to intersect the type of the variable with */
+        val variableTypeRefinements: Map<BoundVariable, BoundTypeReference>,
     ) {
         override fun toString(): String {
             val implies = if (variableTypeRefinements.isEmpty()) "nothing" else {
                 variableTypeRefinements.entries.joinToString(
                     separator = " and ",
-                    transform = { "${it.key.name}: ${it.value.intersectWith}" }
+                    transform = { "${it.key.name}: ${it.value}" }
                 )
             }
             return "$onResult implies that $implies"

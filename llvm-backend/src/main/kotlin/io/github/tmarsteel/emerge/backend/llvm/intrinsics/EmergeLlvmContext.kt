@@ -853,7 +853,8 @@ class EmergeLlvmContext(
                 }
                 return getReferenceSiteType(type.effectiveBound)
             }
-            is IrIntersectionType -> return pointerTo(getAllocationSiteType(type))
+            is IrIntersectionType -> return type.representativeComponent?.let { getReferenceSiteType(it, forceBoxed) }
+                ?: pointerTo(getAllocationSiteType(type))
         }
 
         baseType.autoboxer?.let { return it.getReferenceSiteType(this, type, forceBoxed) }
@@ -962,7 +963,8 @@ class EmergeLlvmContext(
 
                 // there are no other possibilities AFAICT right now
             }
-            is IrIntersectionType -> return EmergeHeapAllocatedValueBaseType
+            is IrIntersectionType -> return type.representativeComponent?.let(::getAllocationSiteType)
+                ?: EmergeHeapAllocatedValueBaseType
         }
     }
 

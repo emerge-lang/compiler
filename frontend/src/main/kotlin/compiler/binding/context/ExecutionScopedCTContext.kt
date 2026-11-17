@@ -11,7 +11,6 @@ import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
-import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
@@ -154,8 +153,6 @@ interface ExecutionScopedCTContext : CTContext {
      * This object is included into IR by [compiler.binding.BoundCodeChunk].
      */
     val irScope: IrVariableDeclaration.Scope
-
-    fun getRefinedTypeOf(variable: BoundVariable): BoundTypeReference?
 
     /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
@@ -340,32 +337,6 @@ open class MutableExecutionScopedCTContext protected constructor(
         check(isScopeBoundary)
 
         IrLexicalVariableScopeImpl()
-    }
-
-    private lateinit var variableTypeRefinements: IdentityHashMap<BoundVariable, BoundVariable.TypeRefinement>
-
-    fun setVariableTypeRefinement(variable: BoundVariable, refinement: BoundVariable.TypeRefinement) {
-        if (!this::variableTypeRefinements.isInitialized) {
-            this.variableTypeRefinements = IdentityHashMap()
-        }
-
-        variableTypeRefinements.putIfAbsent(variable, refinement)?.let { existing ->
-            throw InternalCompilerError("Variable ${variable.name} is already refined to ${existing.intersectWith}; cannot add another refinement to ${refinement.intersectWith} in the same context")
-        }
-    }
-
-    override fun getRefinedTypeOf(variable: BoundVariable): BoundTypeReference? {
-        var refinedType = (parentContext as? ExecutionScopedCTContext)
-            ?.getRefinedTypeOf(variable)
-            ?: variable.typeAtDeclarationTime
-
-        if (this::variableTypeRefinements.isInitialized) {
-            variableTypeRefinements[variable]?.let { local ->
-                refinedType = refinedType?.intersect(local.intersectWith)
-            }
-        }
-
-        return refinedType
     }
 
     fun addVariable(boundVariable: BoundVariable) {

@@ -1,0 +1,14 @@
+Is a bar; p = tadaaa
+a bar with p = tadaaa
+takeBar(tadaaa)
+field: tadaaa
+not a bar
+generic: tadaaa
+generic: not a bar
+S32 + 1 = 42
+not an S32
+array of 3 elements
+not an array
+S32? !! * 2 = 42
+w before: tadaaa
+w after: not a bar

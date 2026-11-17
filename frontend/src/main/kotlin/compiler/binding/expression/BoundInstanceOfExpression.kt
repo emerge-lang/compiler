@@ -7,6 +7,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.BoundFunction
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -16,8 +17,6 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.ast.type.TypeMutability
-import compiler.binding.BoundVariable
-import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.binding.type.ErroneousType
 import compiler.binding.type.GenericTypeReference
@@ -101,13 +100,13 @@ class BoundInstanceOfExpression(
             ?.let { it.referral as? BoundIdentifierExpression.ReferringVariable }
             ?.variable
 
-        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null || !VariableTypeRefinement.canBeRefined(subject)) {
             return emptyList()
         }
 
         return listOf(BoundExpression.ResultImplication(
             ImplyingResult.BOOL_TRUE,
-            mapOf(subject to BoundVariable.TypeRefinement(intersectWith = localTypeToCheck))
+            mapOf(subject to localTypeToCheck)
         ))
     }
 

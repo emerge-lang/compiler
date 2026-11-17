@@ -43,6 +43,7 @@ import compiler.diagnostic.undefinedIdentifier
 import compiler.diagnostic.useOfUninitializedVariable
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
@@ -280,6 +281,7 @@ class BoundIdentifierExpression(
         (referral as? ReferringVariable)?.let { referral ->
             IrVariableAccessExpressionImpl(
                 referral.variable.backendIrDeclaration,
+                type!!.toBackendIr(),
             )
         } ?: TODO("implement type references")
     }
@@ -296,4 +298,5 @@ class BoundIdentifierExpression(
 
 internal class IrVariableAccessExpressionImpl(
     override val variable: IrVariableDeclaration,
+    override val evaluatesTo: IrType = variable.type,
 ) : IrVariableAccessExpression

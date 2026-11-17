@@ -8,6 +8,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.IrVariableAccessExpressionImpl
@@ -59,6 +60,7 @@ class BoundVariableAssignmentStatement(
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetVariable?.also {
             _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(it))
+            _modifiedContext.trackSideEffect(VariableTypeRefinement.Effect.NewValueAssigned(it))
         }
     }
 

@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.binding.context.effect.VariableTypeRefinement
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.diagnostic.MutableGlobalVariableDiagnostic
 import compiler.binding.type.BoundIntersectionTypeReference
@@ -293,7 +294,7 @@ class BoundVariable(
      * e.g. instanceof checks, null checks, partial initialization, ...
      */
     fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
-        return context.getRefinedTypeOf(this)
+        return VariableTypeRefinement.refinedType(this, context)
     }
 
     override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
@@ -681,8 +682,6 @@ class BoundVariable(
             }
         }
     }
-
-    data class TypeRefinement(val intersectWith: BoundTypeReference)
 }
 
 private class IrVariableDeclarationImpl(
