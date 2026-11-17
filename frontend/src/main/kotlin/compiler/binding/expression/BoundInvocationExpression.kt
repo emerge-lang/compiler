@@ -119,14 +119,14 @@ class BoundInvocationExpression(
                 ImplyingResult.NULL_VALUE to ImplyingResult.BOOL_TRUE,
                 ImplyingResult.NON_NULL_VALUE to ImplyingResult.BOOL_FALSE,
             )
-            EmergeConstants.CoreModule.BOOL_NEGATE_FN_NAME -> mapImplications(
+            EmergeConstants.CoreModule.BOOL_BITWISE_NOT_FN_NAME -> mapImplications(
                 arguments.singleOrNull() ?: return emptyList(),
                 ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_FALSE,
                 ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_TRUE,
             )
             // `&` and `|` on Bool: both operands are evaluated (no short-circuiting): if `a & b` is true, both are true
-            EmergeConstants.CoreModule.BOOL_AND_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_TRUE) }
-            EmergeConstants.CoreModule.BOOL_OR_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_FALSE) }
+            EmergeConstants.CoreModule.BOOL_BITWISE_AND_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_TRUE) }
+            EmergeConstants.CoreModule.BOOL_BITWISE_OR_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_FALSE) }
             else -> emptyList()
         }
     }

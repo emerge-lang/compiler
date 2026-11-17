@@ -83,4 +83,6 @@ fn main(world: mut World) {
     b: S32 = 10
     stdout.println("12 & 10 = " + (a & b).toString())
     stdout.println("12 | 10 = " + (a | b).toString())
+    stdout.println("12 xor 10 = " + (a xor b).toString())
+    stdout.println("not 12 = " + (not a).toString())
 }

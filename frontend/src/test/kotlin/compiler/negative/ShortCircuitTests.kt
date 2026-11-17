@@ -33,10 +33,12 @@ class ShortCircuitTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
 
-        "& and | on integers are bitwise" {
+        "&, |, xor and not on integers are bitwise" {
             validateModule("""
                 fn test(a: S32, b: S32, c: S32) -> S32 = a & b | c
                 fn test2(a: U8) -> U8 = a & 0b00001111
+                fn test3(a: S32, b: S32) -> Bool = a xor b == 0
+                fn test4(a: S32) -> S32 = not a
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }

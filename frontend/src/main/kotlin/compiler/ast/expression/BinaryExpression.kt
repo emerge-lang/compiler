@@ -43,8 +43,8 @@ private val COMPARISON_OPRATOR_MAPPING: Map<Any, IrNumericComparisonExpression.P
 )
 
 private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
-    Operator.AMPERSAND to "and",
-    Operator.PIPE to "or",
+    Operator.AMPERSAND to "bitwiseAnd",
+    Operator.PIPE to "bitwiseOr",
     Keyword.XOR to "xor",
     Operator.PLUS to "plus",
     Operator.MINUS to "minus",

@@ -37,9 +37,9 @@ data object EmergeConstants {
         val ANNOTATABLE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Annotatable")
 
         val IS_NULL_FN_NAME = CanonicalElementName.Function(NAME, "isNull")
-        val BOOL_NEGATE_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "negate")
-        val BOOL_AND_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "and")
-        val BOOL_OR_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "or")
+        val BOOL_BITWISE_NOT_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "bitwiseNot")
+        val BOOL_BITWISE_AND_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "bitwiseAnd")
+        val BOOL_BITWISE_OR_FN_NAME = CanonicalElementName.Function(BOOL_TYPE_NAME, "bitwiseOr")
     }
 
     data object ReflectionModule {

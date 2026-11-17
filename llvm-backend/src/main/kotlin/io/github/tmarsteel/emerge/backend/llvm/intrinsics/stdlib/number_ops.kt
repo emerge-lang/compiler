@@ -41,17 +41,17 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         unaryMinus_s32,
         unaryMinus_s64,
         unaryMinus_sWord,
-        negate_s8,
-        negate_u8,
-        negate_s16,
-        negate_u16,
-        negate_s32,
-        negate_u32,
-        negate_s64,
-        negate_u64,
-        negate_sWord,
-        negate_uWord,
-        negate_bool,
+        bitwiseNot_s8,
+        bitwiseNot_u8,
+        bitwiseNot_s16,
+        bitwiseNot_u16,
+        bitwiseNot_s32,
+        bitwiseNot_u32,
+        bitwiseNot_s64,
+        bitwiseNot_u64,
+        bitwiseNot_sWord,
+        bitwiseNot_uWord,
+        bitwiseNot_bool,
         plus_s8,
         plus_u8,
         plus_s16,
@@ -242,12 +242,12 @@ private val unaryMinus_s32 = buildUnaryMinusFn("S32", LlvmS32Type) { s32(it.toIn
 private val unaryMinus_s64 = buildUnaryMinusFn("S64", LlvmS64Type) { s64(it) }
 private val unaryMinus_sWord = buildUnaryMinusFn("SWord", EmergeSWordType) { sWord(it) }
 
-private fun <T : LlvmIntegerType> buildNegateFn(
+private fun <T : LlvmIntegerType> buildBitwiseNotFn(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
 ) : KotlinLlvmFunction<EmergeLlvmContext, T> {
     return KotlinLlvmFunction.define(
-        "emerge.core.${emergeSignedTypeSimpleName}::negate",
+        "emerge.core.${emergeSignedTypeSimpleName}::bitwiseNot",
         llvmType,
     ) {
         instructionAliasAttributes()
@@ -260,17 +260,17 @@ private fun <T : LlvmIntegerType> buildNegateFn(
     }
 }
 
-private val negate_s8 = buildNegateFn("S8", LlvmS8Type)
-private val negate_u8 = buildNegateFn("U8", LlvmU8Type)
-private val negate_s16 = buildNegateFn("S16", LlvmS16Type)
-private val negate_u16 = buildNegateFn("U16", LlvmU16Type)
-private val negate_s32 = buildNegateFn("S32", LlvmS32Type)
-private val negate_u32 = buildNegateFn("U32", LlvmU32Type)
-private val negate_s64 = buildNegateFn("S64", LlvmS64Type)
-private val negate_u64 = buildNegateFn("U64", LlvmU64Type)
-private val negate_sWord = buildNegateFn("SWord", EmergeSWordType)
-private val negate_uWord = buildNegateFn("UWord", EmergeUWordType)
-private val negate_bool = buildNegateFn("Bool", LlvmBooleanType)
+private val bitwiseNot_s8 = buildBitwiseNotFn("S8", LlvmS8Type)
+private val bitwiseNot_u8 = buildBitwiseNotFn("U8", LlvmU8Type)
+private val bitwiseNot_s16 = buildBitwiseNotFn("S16", LlvmS16Type)
+private val bitwiseNot_u16 = buildBitwiseNotFn("U16", LlvmU16Type)
+private val bitwiseNot_s32 = buildBitwiseNotFn("S32", LlvmS32Type)
+private val bitwiseNot_u32 = buildBitwiseNotFn("U32", LlvmU32Type)
+private val bitwiseNot_s64 = buildBitwiseNotFn("S64", LlvmS64Type)
+private val bitwiseNot_u64 = buildBitwiseNotFn("U64", LlvmU64Type)
+private val bitwiseNot_sWord = buildBitwiseNotFn("SWord", EmergeSWordType)
+private val bitwiseNot_uWord = buildBitwiseNotFn("UWord", EmergeUWordType)
+private val bitwiseNot_bool = buildBitwiseNotFn("Bool", LlvmBooleanType)
 
 private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
     emergeFunctionCanonicalName: String,
@@ -829,7 +829,7 @@ private val arithmeticShiftRight_s64 = buildArithmeticBitShiftRightFn("S64", Llv
 private val arithmeticShiftRight_sWord = buildArithmeticBitShiftRightFn("SWord", EmergeSWordType)
 
 private fun <T : LlvmIntegerType> buildBitwiseAndFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
-    "emerge.core.$typeSimpleName::and",
+    "emerge.core.$typeSimpleName::bitwiseAnd",
     llvmType
 ) {
     instructionAliasAttributes()
@@ -843,7 +843,7 @@ private fun <T : LlvmIntegerType> buildBitwiseAndFunction(typeSimpleName: String
 }
 
 private fun <T : LlvmIntegerType> buildBitwiseOrFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
-    "emerge.core.$typeSimpleName::or",
+    "emerge.core.$typeSimpleName::bitwiseOr",
     llvmType
 ) {
     instructionAliasAttributes()
