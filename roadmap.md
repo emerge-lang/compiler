@@ -1,6 +1,12 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-2. smart casts
+2. smart casts. Done: `is`, strict and safe casts, `isNull`, `!!`, `?: return`, `not`/`and`/`or`, the condition of
+   `while`, and branches that are guaranteed to return or throw (`if isNull(v) { return }`). What remains:
+   1. `break` and `continue` as leaving a branch, e.g. `if isNull(v) { continue }`. Today, a branch that may jump is
+      never left out of a join (see `LoopJump`). To leave it out, the join after a loop has to consider the states at
+      its `break` and `continue` statements, through which the code after the loop is reached, too.
+   2. after a `while` loop, what its condition being false implies; only sound without a `break` for that loop
+   3. `when` with a subject: `is` branches (`when v { is Bar -> v.p }`)
 3. typealiases
 4. additional language constructs
    1. union types: `TypeA | TypeB | TypeC`
@@ -297,6 +303,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     x = c.produce()
     ```
     The box held by `c.v` loses one reference too many; the same shape with a boxed `S32` has no invalid accesses
+
+34. the initialization of variables doesn't consider that a branch which is guaranteed to return or throw never reaches
+    the code after it:
+    ```
+    x: S32
+    if cond() {
+        return
+    } else {
+        set x = 1
+    }
+    use(x) // reported as possibly uninitialized
+    ```
+    The joins after branches can leave such branches out per `EphemeralStateClass` (`joinsOnlyBranchesThatCompleteNormally`,
+    built for the smart casts). `VariableInitialization` (and maybe other classes) could opt in, too; it changes
+    existing analyses, so it needs its own tests.
 
 ## Future features
 
