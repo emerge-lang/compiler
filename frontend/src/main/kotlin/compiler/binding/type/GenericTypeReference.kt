@@ -14,6 +14,7 @@ import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
 class GenericTypeReference private constructor(
@@ -57,6 +58,13 @@ class GenericTypeReference private constructor(
     override val inherentTypeBindings get() = throughBound(TypeUnification.EMPTY) { effectiveBound.inherentTypeBindings }
     override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
     override val isPartiallyUnresolved get() = throughBound(false) { effectiveBound.isPartiallyUnresolved }
+
+    override val mentionsTypeVariables: Boolean get() = hasTypeVariables
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = false
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = this.parameter == parameter
+    override val mentionsTypeParameters: Boolean get() = true
+    override val isReadInAllInstantiations: Boolean get() = false
+    override val isOrIntersectsGenericTypeReference: Boolean get() = true
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>): Boolean {
         if (parameter in nonTokenParameters) {
             return false
@@ -288,6 +296,7 @@ class GenericTypeReference private constructor(
     override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(
         parameter.toBackendIr(),
         nullabilityOverride = if (isNarrowed) false else null,
+        givenMutability = givenMutability?.toBackendIr(),
     ) { effectiveBound.toBackendIr() }
 
     override fun equals(other: Any?): Boolean {
@@ -333,9 +342,10 @@ class GenericTypeReference private constructor(
 internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
     override val nullabilityOverride: Boolean? = null,
+    override val givenMutability: IrTypeMutability? = null,
     computeEffectiveBound: () -> IrType,
 ) : IrGenericTypeReference {
     override val effectiveBound: IrType by lazy(computeEffectiveBound)
     override fun toString() = independentToString()
-    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, nullabilityOverride = true) { effectiveBound.asNullable() }
+    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, nullabilityOverride = true, givenMutability = givenMutability) { effectiveBound.asNullable() }
 }

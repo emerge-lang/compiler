@@ -110,6 +110,24 @@ class ExceptionErrors : FreeSpec({
             }
         }
 
+        "cast" - {
+            "a cast can throw" {
+                validateModule("""
+                    class A {}
+                    nothrow fn safe(p: Any) -> A = p as A
+                """.trimIndent())
+                    .shouldFind<NothrowViolationDiagnostic.StrictCast>()
+            }
+
+            "a safe cast cannot" {
+                validateModule("""
+                    class A {}
+                    nothrow fn safe(p: Any) -> A? = p as? A
+                """.trimIndent())
+                    .shouldNotFind<NothrowViolationDiagnostic.StrictCast>()
+            }
+        }
+
         "throw statement" - {
             "in function body" {
                 validateModule("""

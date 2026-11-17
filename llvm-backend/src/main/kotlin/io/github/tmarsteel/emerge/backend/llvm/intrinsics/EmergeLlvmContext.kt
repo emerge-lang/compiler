@@ -157,12 +157,18 @@ class EmergeLlvmContext(
     internal lateinit var reifiedIntersectionTypeClass: EmergeClassType
     /** `emerge.core.reflection.TypeArgument` */
     internal lateinit var reifiedTypeArgumentClass: EmergeClassType
+    /** `emerge.core.reflection.TypeParameterPlaceholder` */
+    internal lateinit var reifiedTypeParameterPlaceholderClass: EmergeClassType
+    /** `emerge.core.reflection.IntersectionTemplate` */
+    internal lateinit var reifiedIntersectionTemplateClass: EmergeClassType
     /** static `emerge.core.reflection.Type` objects, see [staticReifiedType] */
     internal val staticReifiedTypes = HashMap<String, LlvmGlobal<EmergeClassType>>()
     /** `emerge.core.reflection.Type` */
     internal lateinit var reifiedTypeInterface: IrInterface
     /** `emerge.core.reflection.intersectionOf` */
     internal lateinit var intersectionOfFn: IrFunction
+    /** `emerge.core.reflection.withGivenMutability` */
+    internal lateinit var withGivenMutabilityFn: IrFunction
 
     /** function bodies can be defined re-entrantly (destructors), hence a stack */
     private val typeEnvironmentStack = ArrayDeque<TypeEnvironment>()
@@ -302,20 +308,22 @@ class EmergeLlvmContext(
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
             "emerge.platform.ArrayBox" -> boxTypeArray = emergeClassType
-            "emerge.core.Weak" -> weakType = emergeClassType
+            EmergeConstants.CoreModule.WEAK_TYPE_NAME.toString() -> weakType = emergeClassType
             EmergeConstants.PlatformModule.WORLD_TYPE_NAME.toString() -> worldType = emergeClassType
             EmergeConstants.PlatformModule.STACK_TRACE_COLLECTOR_TYPE_NAME.toString() -> stackTraceCollectorType = emergeClassType
             "emerge.platform.FileDescriptorPrintStream" -> fileDescriptorPrintStreamType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
-            "emerge.core.String" -> stringType = emergeClassType
-            "emerge.core.Cell" -> cellType = emergeClassType
-            "emerge.core.Lazy" -> lazyType = emergeClassType
-            "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
-            "emerge.core.reflection.NamedType" -> reifiedNamedTypeClass = emergeClassType
-            "emerge.core.reflection.IntersectionType" -> reifiedIntersectionTypeClass = emergeClassType
-            "emerge.core.reflection.TypeArgument" -> reifiedTypeArgumentClass = emergeClassType
-            "emerge.core.Unit" -> {
+            EmergeConstants.CoreModule.STRING_TYPE_NAME.toString() -> stringType = emergeClassType
+            EmergeConstants.CoreModule.CELL_TYPE_NAME.toString() -> cellType = emergeClassType
+            EmergeConstants.CoreModule.LAZY_TYPE_NAME.toString() -> lazyType = emergeClassType
+            EmergeConstants.CoreModule.ARRAY_INDEX_OUT_OF_BOUNDS_ERROR_TYPE_NAME.toString() -> arrayIndexOutOfBoundsErrorType = emergeClassType
+            EmergeConstants.ReflectionModule.NAMED_TYPE_TYPE_NAME.toString() -> reifiedNamedTypeClass = emergeClassType
+            EmergeConstants.ReflectionModule.INTERSECTION_TYPE_TYPE_NAME.toString() -> reifiedIntersectionTypeClass = emergeClassType
+            EmergeConstants.ReflectionModule.TYPE_ARGUMENT_TYPE_NAME.toString() -> reifiedTypeArgumentClass = emergeClassType
+            EmergeConstants.ReflectionModule.TYPE_PARAMETER_PLACEHOLDER_TYPE_NAME.toString() -> reifiedTypeParameterPlaceholderClass = emergeClassType
+            EmergeConstants.ReflectionModule.INTERSECTION_TEMPLATE_TYPE_NAME.toString() -> reifiedIntersectionTemplateClass = emergeClassType
+            EmergeConstants.CoreModule.UNIT_TYPE_NAME.toString() -> {
                 unitType = emergeClassType
                 pointerToUnitInstance = addGlobal(undefValue(emergeClassType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
             }
@@ -475,6 +483,10 @@ class EmergeLlvmContext(
 
         if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.INTERSECTION_OF_FN_NAME.toString()) {
             intersectionOfFn = fn
+        }
+
+        if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.WITH_GIVEN_MUTABILITY_FN_NAME.toString()) {
+            withGivenMutabilityFn = fn
         }
 
         if (fn.canonicalName.simpleName == "main") {
@@ -747,6 +759,7 @@ class EmergeLlvmContext(
         Llvm.LLVMSetInitializer(metaReifiedTypeGlobal.raw, reifiedNamedTypeClass.buildStaticConstant(mapOf(
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("baseType") to reifiedNamedTypeClass.getTypeinfoInContext(this).static,
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("nullable") to i1(false),
+            reifiedNamedTypeClass.irClass.fieldOfMemberVariable("mutability") to u8(EmergeConstants.ReflectionModule.MUTABILITY_CONST),
             reifiedNamedTypeClass.irClass.fieldOfMemberVariable("arguments") to buildConstantSliceOf(metaReifiedTypeArgs, 0),
         )).raw)
 
@@ -1062,6 +1075,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             reflectAnyTypeFunction,
             reflectionBaseTypeFunction,
             reflectionBaseTypeIsSameObjectAs,
+            reflectionBaseTypeDynamicInstance,
             cellGetFunction,
             cellSetFunction,
             lazyGetFunction,

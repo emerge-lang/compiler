@@ -6,6 +6,7 @@ import emerge.std.collections.ArrayList
 import emerge.core.range.ArrayRange
 import emerge.core.range.Iterable
 import emerge.core.range.UWordRange
+import emerge.core.safemath.plusModulo
 
 export class Unit : const Any {
     private nothrow constructor {}
@@ -336,7 +337,7 @@ export class U64 : const Any & Printable {
             set insertionIndex = insertionIndex - 1
         }
 
-        return String(buf.sliceOrPanic(insertionIndex + 1, buf.size))
+        return String.fromUtf8(buf.sliceOrPanic(insertionIndex + 1, buf.size))
     }
 }
 
@@ -438,24 +439,23 @@ export class Array<Element> : Iterable<Element> {
 
     export nothrow intrinsic fn new<T>(size: UWord, initialValue: T) -> own Array<T>
 
-    export fn copy<T>(borrow source: read Array<out T>, sourceOffset: UWord, borrow dest: mut Array<in T>, destOffset: UWord, length: UWord) {
-        if sourceOffset + length > source.size {
+    export nothrow fn copy<T>(borrow source: read Array<out T>, sourceOffset: UWord, borrow dest: mut Array<in T>, destOffset: UWord, length: UWord) {
+        sourceEnd = sourceOffset.plusModulo(length)
+        if sourceEnd < sourceOffset or sourceEnd > source.size {
             panic("length overflows source")
         }
 
-        if destOffset + length > dest.size {
+        destEnd = destOffset.plusModulo(length)
+        if destEnd < destOffset or destEnd > dest.size {
             panic("length overflows dest")
         }
 
-        var sourceIndex = sourceOffset
-        var destIndex = destOffset
+        // the bounds are checked above, so the indices below cannot overflow
         var nCopied: UWord = 0
         while nCopied < length {
-            element: T = source[sourceIndex]
-            set dest[destIndex] = element
-            set sourceIndex = sourceIndex + 1
-            set destIndex = destIndex + 1
-            set nCopied = nCopied + 1
+            element: T = source.getOrPanic(sourceOffset.plusModulo(nCopied))
+            dest.setOrPanic(destOffset.plusModulo(nCopied), element)
+            set nCopied = nCopied.plusModulo(1 as UWord)
         }
     }
 

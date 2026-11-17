@@ -2,12 +2,14 @@ package compiler.binding.type
 
 import compiler.InternalCompilerError
 import compiler.ast.type.AstSimpleTypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ambiguousType
+import compiler.diagnostic.typeParameterUnavailableWithoutReceiver
 import compiler.diagnostic.unknownType
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -37,10 +39,22 @@ class ErroneousType(
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNonNullableNothing = false
     override val isPartiallyUnresolved = true
+
+    override val mentionsTypeVariables: Boolean get() = false
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = false
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = false
+    override val mentionsTypeParameters: Boolean get() = false
+    override val isReadInAllInstantiations: Boolean get() = mutability == TypeMutability.READONLY
+    override val isOrIntersectsGenericTypeReference: Boolean get() = false
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = false
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        if (candidates.isEmpty()) {
+        val unavailableTypeParameter = (astNode as? NamedTypeReference)
+            ?.takeIf { candidates.isEmpty() }
+            ?.let { context.resolveTypeParameterUnavailableWithoutReceiver(it.simpleName) }
+        if (unavailableTypeParameter != null) {
+            diagnosis.typeParameterUnavailableWithoutReceiver(astNode, unavailableTypeParameter)
+        } else if (candidates.isEmpty()) {
             diagnosis.unknownType(this)
         } else {
             diagnosis.ambiguousType(this)

@@ -11,7 +11,24 @@ import kotlin.io.path.exists
 class ProgramTests : FreeSpec({
     val detection = TestEnvironment.detect()
     val environment = (detection as? TestEnvironment.Detection.Available)?.environment
-    val programs = EmergeProgram.discover(Paths.get(System.getProperty("emerge.integration-tests.programs")))
+    // written by tests of the frontend, see GENERATED_PROGRAMS; not checked in
+    val generatedProgramsDirectory = Paths.get(System.getProperty("emerge.integration-tests.generated-programs"))
+    val generatedPrograms = if (generatedProgramsDirectory.exists()) EmergeProgram.discover(generatedProgramsDirectory) else emptyList()
+    val programs = EmergeProgram.discover(Paths.get(System.getProperty("emerge.integration-tests.programs"))) + generatedPrograms
+
+    "generated programs" {
+        val missing = GENERATED_PROGRAMS.filterKeys { name -> generatedPrograms.none { it.name == name } }
+        if (missing.isNotEmpty()) {
+            val message = missing.entries.joinToString(
+                prefix = "Missing generated programs in $generatedProgramsDirectory; run these tests of the frontend first: ",
+                transform = { (name, generator) -> "$generator (writes $name)" },
+            )
+            if (!TestEnvironment.isOptional) {
+                fail("$message\nSet -D${TestEnvironment.PROPERTY_OPTIONAL}=true to skip them instead.")
+            }
+            println("SKIPPED: $message")
+        }
+    }
 
     "environment" {
         programs.shouldNotBeEmpty()
@@ -44,3 +61,8 @@ class ProgramTests : FreeSpec({
         }
     }
 })
+
+/** name of the program to the test of the frontend that writes it */
+private val GENERATED_PROGRAMS = mapOf(
+    "subtypinggrid" to "compiler.compiler.binding.type.RuntimeSubtypingGridTests",
+)

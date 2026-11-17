@@ -10,7 +10,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrReifiedTypeExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
@@ -81,6 +83,44 @@ class ReificationIrTests : FreeSpec({
             .mapNotNull { (it.reference.declaration.value as? IrClassFieldAccessExpression)?.field }
             .toList()
         droppedFields shouldContain field
+    }
+    "base types know the type arguments of their parameterized supertypes, the indirect ones too" {
+        val supertypesModule = validateModule("""
+            interface Plain {}
+            interface A<T> {}
+            interface B<E> : A<Array<E>> & Plain {}
+            class K<X> : B<X?> {}
+            class NoParams : A<S32> {}
+        """.trimIndent()).moduleBackendIrAssumingNoErrors()
+        val supertypesPkg = supertypesModule.packages.single()
+        fun supertypesOf(name: String) = (supertypesPkg.classes + supertypesPkg.interfaces)
+            .single { it.canonicalName.simpleName == name }
+            .parameterizedSupertypes
+            .entries
+            .associate { (baseType, type) -> baseType.canonicalName.simpleName to type }
+
+        supertypesOf("A").keys.shouldBeEmpty()
+
+        val ofB = supertypesOf("B")
+        ofB.keys shouldBe setOf("A")
+        val arrayOfE = ofB.getValue("A").arguments.getValue("T").type.shouldBeInstanceOf<IrParameterizedType>()
+        arrayOfE.simpleType.baseType.canonicalName.simpleName shouldBe "Array"
+        arrayOfE.arguments.values.single().type.shouldBeInstanceOf<IrGenericTypeReference>().parameter.name shouldBe "E"
+
+        val ofK = supertypesOf("K")
+        ofK.keys shouldBe setOf("A", "B")
+        val nullableX = ofK.getValue("B").arguments.getValue("E").type.shouldBeInstanceOf<IrGenericTypeReference>()
+        nullableX.parameter.name shouldBe "X"
+        nullableX.nullabilityOverride shouldBe true
+        val arrayOfNullableX = ofK.getValue("A").arguments.getValue("T").type.shouldBeInstanceOf<IrParameterizedType>()
+        val elementType = arrayOfNullableX.arguments.values.single().type.shouldBeInstanceOf<IrGenericTypeReference>()
+        elementType.parameter.name shouldBe "X"
+        elementType.nullabilityOverride shouldBe true
+
+        val ofNoParams = supertypesOf("NoParams")
+        ofNoParams.keys shouldBe setOf("A")
+        ofNoParams.getValue("A").arguments.getValue("T").type.shouldBeInstanceOf<IrSimpleType>()
+            .baseType.canonicalName.simpleName shouldBe "S32"
     }
 })
 

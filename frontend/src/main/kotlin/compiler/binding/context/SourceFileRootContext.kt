@@ -97,6 +97,7 @@ class SourceFileRootContext(
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
+            override fun resolveTypeParameterUnavailableWithoutReceiver(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> = emptySequence()
             override fun hasUnresolvableImportForSimpleName(simpleName: String): Boolean {
                 return false
@@ -111,7 +112,7 @@ class SourceFileRootContext(
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
                 },
-                (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it, null) },
+                (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it) },
                 emptyList(),
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()

@@ -11,6 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.jna.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -59,6 +60,9 @@ internal class EmergeClassType private constructor(
         if (this.irClass.canonicalName.toString() == "emerge.platform.ArrayBox") {
             return@lazy StaticAndDynamicTypeInfo.define(
                 { ctx -> ctx.rawArrayClazz.canonicalName.toString() },
+                context.rawArrayClazz,
+                context.rawArrayClazz.isConst,
+                context.rawArrayClazz.isNonToken,
                 context.rawArrayClazz.allDistinctSupertypesExceptAny,
                 finalizerFunction = { _ -> destructor },
                 runtimeTypeGetter = { context -> context.registerIntrinsic(arrayRuntimeTypeGetter) },
@@ -79,6 +83,9 @@ internal class EmergeClassType private constructor(
 
         StaticAndDynamicTypeInfo.define(
             { _ -> reflectedBaseType.canonicalName.toString() },
+            irClass,
+            reflectedBaseType.isConst,
+            reflectedBaseType.isNonToken,
             irClass.allDistinctSupertypesExceptAny,
             runtimeTypeGetter = { context -> buildRuntimeTypeGetter(context, this@EmergeClassType, irClass) },
             finalizerFunction = { _ -> destructor },
@@ -337,7 +344,8 @@ internal class EmergeClassType private constructor(
                             getelementptr(self).member(field).get().dereference("ta$index").reinterpretAs(PointerToReifiedType),
                         )
                     }
-                    ret(newNamedType(selfTypeInfo, false, typeArguments))
+                    // an object doesn't know the mutability of the references to it
+                    ret(newNamedType(selfTypeInfo, false, IrTypeMutability.READONLY, typeArguments))
                 }
             }
 
@@ -405,10 +413,14 @@ internal class EmergeInterfaceTypeinfoHolder(
 
             val constant = TypeinfoType.GENERIC.buildConstantIn(context) {
                 setValue(TypeinfoType.GENERIC.supertypes, supertypesArrayPtr)
+                setValue(TypeinfoType.GENERIC.supertypeTemplates, context.staticSupertypeTemplates(emergeInterface))
                 setValue(TypeinfoType.GENERIC.anyValueVirtuals, context.poisonValue(EmergeAnyValueVirtualsType))
                 setNull(TypeinfoType.GENERIC.dynamicTypeInfoPtr)
                 setValue(TypeinfoType.GENERIC.canonicalNamePtr, namePtr)
                 setValue(TypeinfoType.GENERIC.arrayElementLayoutKind, context.uWord(ArrayElementLayoutKind.REFERENCE.code))
+                setValue(TypeinfoType.GENERIC.isConst, context.i1(emergeInterface.isConst))
+                setValue(TypeinfoType.GENERIC.isNonToken, context.i1(emergeInterface.isNonToken))
+                setValue(TypeinfoType.GENERIC.isClass, context.i1(false))
                 setValue(TypeinfoType.GENERIC.vtable, context.poisonValue(VTableType(0)))
             }
 

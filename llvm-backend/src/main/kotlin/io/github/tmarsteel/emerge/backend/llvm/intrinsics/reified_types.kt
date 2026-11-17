@@ -33,12 +33,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.u8
+import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -145,8 +146,7 @@ internal val IrType.mentionsTypeParameter: Boolean get() = when (this) {
 }
 
 /**
- * @return a static `emerge.core.reflection.Type` object describing [type]. Mutability is not part of the runtime
- * type information, so types that differ only in mutability share the object.
+ * @return a static `emerge.core.reflection.Type` object describing [type].
  */
 internal fun EmergeLlvmContext.staticReifiedType(type: IrType): LlvmGlobal<EmergeClassType> {
     check(!type.mentionsTypeParameter) {
@@ -157,11 +157,12 @@ internal fun EmergeLlvmContext.staticReifiedType(type: IrType): LlvmGlobal<Emerg
     staticReifiedTypes[key]?.let { return it }
 
     return when (type) {
-        is IrSimpleType -> buildStaticNamedType(key, type.baseType, type.isNullable, emptyList())
+        is IrSimpleType -> buildStaticNamedType(key, type.baseType, type.isNullable, type.mutability, emptyList())
         is IrParameterizedType -> buildStaticNamedType(
             key,
             type.simpleType.baseType,
             type.isNullable,
+            type.mutability,
             type.simpleType.baseType.parameters.map { type.arguments.getValue(it.name) },
         )
         is IrIntersectionType -> {
@@ -180,22 +181,30 @@ internal fun EmergeLlvmContext.staticReifiedType(type: IrType): LlvmGlobal<Emerg
     }
 }
 
+/**
+ * @param key the key to register the object under in [EmergeLlvmContext.staticReifiedTypes]; null to not share it
+ * @param reifyArgument builds the runtime type information for the type of a type argument
+ */
 private fun EmergeLlvmContext.buildStaticNamedType(
-    key: String,
+    key: String?,
     baseType: IrBaseType,
     nullable: Boolean,
+    mutability: IrTypeMutability,
     arguments: List<IrParameterizedType.Argument>,
+    reifyArgument: (IrType) -> LlvmGlobal<EmergeClassType> = ::staticReifiedType,
 ): LlvmGlobal<EmergeClassType> {
     val clazz = reifiedNamedTypeClass
     val global = addGlobal(undefValue(clazz), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-    // register before building the initializer; the arguments array and the typeinfo of NamedType refer back to this
-    staticReifiedTypes[key] = global
+    if (key != null) {
+        // register before building the initializer; the arguments array and the typeinfo of NamedType refer back to this
+        staticReifiedTypes[key] = global
+    }
 
     val argumentObjects = arguments.map { argument ->
         val argumentClazz = reifiedTypeArgumentClass
         val constant = argumentClazz.buildStaticConstant(mapOf(
             argumentClazz.irClass.fieldOfMemberVariable("variance") to u8(argument.variance.runtimeCode).asConstant(),
-            argumentClazz.irClass.fieldOfMemberVariable("value") to staticReifiedType(argument.type),
+            argumentClazz.irClass.fieldOfMemberVariable("value") to reifyArgument(argument.type),
         ))
         addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     }
@@ -204,6 +213,7 @@ private fun EmergeLlvmContext.buildStaticNamedType(
     val constant = clazz.buildStaticConstant(mapOf(
         clazz.irClass.fieldOfMemberVariable("baseType") to LlvmConstant(typeinfoPointerOf(baseType).raw, pointerTo(TypeinfoType.GENERIC)),
         clazz.irClass.fieldOfMemberVariable("nullable") to i1(nullable).asConstant(),
+        clazz.irClass.fieldOfMemberVariable("mutability") to u8(mutability.runtimeCode).asConstant(),
         clazz.irClass.fieldOfMemberVariable("arguments") to argumentsArray,
     ))
     Llvm.LLVMSetInitializer(global.raw, constant.raw)
@@ -222,6 +232,86 @@ private fun EmergeLlvmContext.staticReferenceArray(
     return buildConstantSliceOf(arrayGlobal, elements.size.toLong())
 }
 
+/**
+ * @return a pointer to a static array object with one `emerge.core.reflection.NamedType` per entry of
+ * [IrBaseType.parameterizedSupertypes] of [baseType]. Where a supertype mentions a type parameter of [baseType],
+ * the object is a template: an `emerge.core.reflection.TypeParameterPlaceholder` stands for the type parameter,
+ * and the stdlib substitutes it at runtime. Empty for `null`.
+ */
+internal fun EmergeLlvmContext.staticSupertypeTemplates(baseType: IrBaseType?): LlvmValue<LlvmPointerType<LlvmVoidType>> {
+    val templates = baseType?.parameterizedSupertypes?.values?.map { staticTypeTemplate(baseType, it) } ?: emptyList()
+    val arrayConstant = EmergeReferenceArrayType.buildConstantIn(
+        this,
+        templates,
+        staticReifiedType(IrSimpleTypeImpl(reifiedNamedTypeClass.irClass, IrTypeMutability.IMMUTABLE, false)),
+    ) { it }
+    return addGlobal(arrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL).reinterpretAs(pointerTo(LlvmVoidType))
+}
+
+/**
+ * Like [staticReifiedType], but [type] may mention the type parameters of [owner]; see [staticSupertypeTemplates].
+ * Templates are not shared.
+ */
+private fun EmergeLlvmContext.staticTypeTemplate(owner: IrBaseType, type: IrType): LlvmGlobal<EmergeClassType> {
+    if (!type.mentionsTypeParameter) {
+        return staticReifiedType(type)
+    }
+
+    return when (type) {
+        is IrGenericTypeReference -> {
+            val index = owner.parameters.indexOf(type.parameter)
+            if (index < 0) {
+                throw CodeGenerationException("${type.parameter.name} is not a type parameter of ${owner.canonicalName}")
+            }
+            val nullability = when (type.nullabilityOverride) {
+                null -> EmergeConstants.ReflectionModule.PLACEHOLDER_NULLABILITY_OF_ARGUMENT
+                true -> EmergeConstants.ReflectionModule.PLACEHOLDER_NULLABLE
+                false -> EmergeConstants.ReflectionModule.PLACEHOLDER_NOT_NULLABLE
+            }
+            val clazz = reifiedTypeParameterPlaceholderClass
+            addGlobal(
+                clazz.buildStaticConstant(mapOf(
+                    clazz.irClass.fieldOfMemberVariable("index") to uWord(index.toULong()).asConstant(),
+                    clazz.irClass.fieldOfMemberVariable("nullability") to u8(nullability).asConstant(),
+                    clazz.irClass.fieldOfMemberVariable("givenMutability") to u8(
+                        type.givenMutability?.runtimeCode ?: EmergeConstants.ReflectionModule.PLACEHOLDER_MUTABILITY_OF_ARGUMENT
+                    ).asConstant(),
+                )),
+                LlvmThreadLocalMode.NOT_THREAD_LOCAL,
+            )
+        }
+        is IrParameterizedType -> {
+            val base = type.simpleType.baseType
+            buildStaticNamedType(
+                null,
+                base,
+                type.isNullable,
+                type.mutability,
+                base.parameters.map { type.arguments.getValue(it.name) },
+            ) { staticTypeTemplate(owner, it) }
+        }
+        is IrIntersectionType -> {
+            val clazz = reifiedIntersectionTemplateClass
+            val components = type.components.map { staticTypeTemplate(owner, it) }
+            val componentsArray = staticReferenceArray(components, IrSimpleTypeImpl(reifiedTypeInterface, IrTypeMutability.IMMUTABLE, false))
+            addGlobal(
+                clazz.buildStaticConstant(mapOf(
+                    clazz.irClass.fieldOfMemberVariable("components") to componentsArray,
+                )),
+                LlvmThreadLocalMode.NOT_THREAD_LOCAL,
+            )
+        }
+        is IrSimpleType -> throw CodeGenerationException("unreachable, simple types don't mention type parameters")
+    }
+}
+
+internal val IrTypeMutability.runtimeCode: UByte get() = when (this) {
+    IrTypeMutability.READONLY -> EmergeConstants.ReflectionModule.MUTABILITY_READ
+    IrTypeMutability.MUTABLE -> EmergeConstants.ReflectionModule.MUTABILITY_MUT
+    IrTypeMutability.IMMUTABLE -> EmergeConstants.ReflectionModule.MUTABILITY_CONST
+    IrTypeMutability.OWN -> EmergeConstants.ReflectionModule.MUTABILITY_OWN
+}
+
 internal val IrTypeVariance.runtimeCode: UByte get() = when (this) {
     IrTypeVariance.INVARIANT -> EmergeConstants.ReflectionModule.VARIANCE_INVARIANT
     IrTypeVariance.IN -> EmergeConstants.ReflectionModule.VARIANCE_IN
@@ -231,15 +321,15 @@ internal val IrTypeVariance.runtimeCode: UByte get() = when (this) {
 private fun <T : LlvmType> LlvmValue<T>.asConstant(): LlvmConstant<T> = this as? LlvmConstant<T> ?: LlvmConstant(raw, type)
 
 /**
- * identifies the runtime type information for [type]; ignores mutability
+ * identifies the runtime type information for [type]
  */
 private fun reifiedTypeKey(type: IrType): String {
     val nullableSuffix = if (type.isNullable) "?" else ""
     return when (type) {
-        is IrSimpleType -> type.baseType.canonicalName.toString() + nullableSuffix
+        is IrSimpleType -> "${type.mutability} " + type.baseType.canonicalName.toString() + nullableSuffix
         is IrParameterizedType -> {
             val base = type.simpleType.baseType
-            base.canonicalName.toString() + base.parameters.joinToString(",", "<", ">") { parameter ->
+            "${type.mutability} " + base.canonicalName.toString() + base.parameters.joinToString(",", "<", ">") { parameter ->
                 val argument = type.arguments.getValue(parameter.name)
                 "${argument.variance} ${reifiedTypeKey(argument.type)}"
             } + nullableSuffix
@@ -315,12 +405,20 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
         return when (type) {
             is IrGenericTypeReference -> {
                 val borrowed = environment.resolve(type.parameter)
-                when (val override = type.nullabilityOverride) {
+                val withNullability = when (val override = type.nullabilityOverride) {
                     null -> {
                         borrowed.afterReferenceCreated(isNullable = false)
                         borrowed
                     }
                     else -> callWithNullability(borrowed, override)
+                }
+                when (val givenMutability = type.givenMutability) {
+                    null -> withNullability
+                    else -> {
+                        val withMutability = callWithGivenMutability(withNullability, givenMutability)
+                        withNullability.afterReferenceDropped(isNullable = false)
+                        withMutability
+                    }
                 }
             }
             is IrParameterizedType -> {
@@ -332,6 +430,7 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
                 val namedType = newNamedType(
                     context.typeinfoPointerOf(base).reinterpretAs(pointerTo(TypeinfoType.GENERIC)),
                     type.isNullable,
+                    type.mutability,
                     arguments,
                 )
                 arguments.forEach { (_, argumentType) -> argumentType.afterReferenceDropped(isNullable = false) }
@@ -340,11 +439,14 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
             is IrIntersectionType -> {
                 val componentObjects = type.components.map { lowerReifiedType(it) }
                 val componentsArray = newReferenceArrayOf(componentObjects, IrSimpleTypeImpl(context.reifiedTypeInterface, IrTypeMutability.IMMUTABLE, false))
+                check(context.intersectionOfFn.hasNothrowAbi) {
+                    "${context.intersectionOfFn.canonicalName} must be nothrow, the backend depends on it"
+                }
                 @Suppress("UNCHECKED_CAST")
                 val intersection = call(
-                    context.intersectionOfFn.llvmRef as LlvmFunction<EmergeFallibleCallResult<LlvmPointerType<out EmergeHeapAllocated>>>,
+                    context.intersectionOfFn.llvmRef as LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
                     listOf(buildArraySliceOfEntireArray(componentsArray)),
-                ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+                )
                 componentsArray.afterReferenceDropped(isNullable = false)
                 intersection
             }
@@ -361,6 +463,7 @@ context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun newNamedType(
     baseType: LlvmValue<LlvmPointerType<TypeinfoType>>,
     nullable: Boolean,
+    mutability: IrTypeMutability,
     arguments: List<Pair<IrTypeVariance, ReifiedTypeValue>>,
 ): ReifiedTypeValue {
     with(builder) {
@@ -376,11 +479,31 @@ internal fun newNamedType(
             listOf(
                 baseType,
                 context.i1(nullable),
+                context.u8(mutability.runtimeCode),
                 buildArraySliceOfEntireArray(argumentsArray),
             ),
         )
         argumentsArray.afterReferenceDropped(isNullable = false)
         return namedType.reinterpretAs(PointerToReifiedType)
+    }
+}
+
+/**
+ * @param type borrowed
+ * @return `type.withGivenMutability(mutability)`, a reference owned by the caller
+ */
+context(builder: BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun callWithGivenMutability(type: ReifiedTypeValue, mutability: IrTypeMutability): ReifiedTypeValue {
+    with(builder) {
+        val fn = context.withGivenMutabilityFn
+        check(fn.hasNothrowAbi) {
+            "${fn.canonicalName} must be nothrow, the backend depends on it"
+        }
+        @Suppress("UNCHECKED_CAST")
+        return call(
+            fn.llvmRef as LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
+            listOf(type, context.u8(mutability.runtimeCode)),
+        )
     }
 }
 
@@ -395,12 +518,15 @@ private fun callWithNullability(type: ReifiedTypeValue, nullable: Boolean): Reif
             .flatMap { it.overloads }
             .single { it.canonicalName.simpleName == EmergeConstants.ReflectionModule.TYPE_WITH_NULLABILITY_FN_NAME }
         val address = callIntrinsic(getDynamicCallAddress, listOf(type, context.uWord(fn.signatureHashes.first())))
+        check(fn.hasNothrowAbi) {
+            "${fn.canonicalName} must be nothrow, the backend depends on it"
+        }
         @Suppress("UNCHECKED_CAST")
         return call(
             address,
-            fn.llvmFunctionType as LlvmFunctionType<EmergeFallibleCallResult<LlvmPointerType<out EmergeHeapAllocated>>>,
+            fn.llvmFunctionType as LlvmFunctionType<LlvmPointerType<out EmergeHeapAllocated>>,
             listOf(type, context.i1(nullable)),
-        ).abortOnException { exceptionPtr -> propagateOrPanic(exceptionPtr) }
+        )
     }
 }
 

@@ -60,6 +60,7 @@
                     <systemPropertyVariables>
                         <emerge.integration-tests.repository-root>${project.basedir}/..</emerge.integration-tests.repository-root>
                         <emerge.integration-tests.programs>${project.basedir}/programs</emerge.integration-tests.programs>
+                        <emerge.integration-tests.generated-programs>${project.basedir}/target/generated-programs</emerge.integration-tests.generated-programs>
                         <emerge.integration-tests.work-directory>${project.build.directory}/programs</emerge.integration-tests.work-directory>
                     </systemPropertyVariables>
                 </configuration>

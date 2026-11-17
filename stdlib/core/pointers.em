@@ -17,4 +17,4 @@ export token class AddressSpace {
 
 // whether [value] is null. Defined separately from [addressOf] because a null-check
 // tells nothing about the layout of the memory, whereas inspecting the address more deeply does.
-export intrinsic nothrow fn isNull(value: Any?) -> Bool
+export intrinsic nothrow fn isNull(borrow value: Any?) -> Bool

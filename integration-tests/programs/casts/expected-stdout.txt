@@ -1,0 +1,113 @@
+Array<String> is Array<String>: yes
+Array<String> is Array<S8>: no
+Array<String> is Array<out Any>: yes
+Array<String> is Array<Any>: no
+Array<String> is Array<*>: yes
+Array<String> is Iterable<String>: yes
+Array<String> is Iterable<S32>: no
+Array<String> as? Array<S8> is null: yes
+Array<S8> as Array<S8>: 3 elements
+Box<Dog> is Box<Dog>: yes
+Box<Dog> is Box<Cat>: no
+Box<Dog> is Box<Animal>: no
+Box<Dog> is Box<out Animal>: yes
+Box<Dog> is Box<in Dog>: yes
+Box<Dog> is Box<in Animal>: no
+Box<Box<Dog>> is Box<Box<Dog>>: yes
+Box<Box<Dog>> is Box<Box<Cat>>: no
+Box<Box<Dog>> is Box<out Box<out Animal>>: yes
+Box<Box<Dog>> is Box<Box<out Animal>>: no
+Nest<Dog> is Seq<Box<Dog>>: yes
+Nest<Dog> is Seq<Box<Cat>>: no
+Nest<Dog> is Seq<Dog>: no
+Nest<Dog> is Seq<out Box<out Animal>>: yes
+Sorted<String, StringComparator> is Sorted<String, *>: yes
+Sorted<String, StringComparator> is Sorted<S32, *>: no
+Sorted<String, StringComparator> is Sorted<*, *>: yes
+null is Dog: no
+null is Dog?: yes
+null is Box<Dog>?: yes
+Box<Dog> is Box<Dog>?: yes
+Box<Dog> is Box<Dog?>: no
+Box<Dog> is Box<out Dog?>: yes
+Dog is Animal & Named: yes
+Cat is Animal & Named: no
+Box<Dog> is Box<Dog> & Animal: no
+Dog is T = Animal: yes
+Dog is T = Cat: no
+Box<Dog> is T = Box<out Animal>: yes
+Box<Dog> is T = Box<Cat>: no
+null is T = Dog?: yes
+null is T = Dog: no
+Box<Dog> is Box<T = Dog>: yes
+Box<Dog> is Box<T = Cat>: no
+Box<mut Dog> is Box<mut Dog>: yes
+Box<mut Dog> is Box<Dog>: no
+Box<mut Dog> is Box<const Dog>: no
+Box<mut Dog> is Box<out Dog>: yes
+Box<mut Dog> is Box<out mut Animal>: yes
+Box<Dog> is Box<mut Dog>: no
+Box<Dog> is Box<out mut Animal>: no
+Box<Dog> is Box<out Animal>: yes
+Box<mut Dog> is T = Box<mut Dog>: yes
+Box<mut Dog> is T = Box<Dog>: no
+Box<mut Dog> is Box<T = mut Dog>: yes
+Box<mut Dog> is Box<T = Dog>: no
+Dog through a read reference is T = Dog: yes
+Dog through a read reference is T = mut Dog: no
+Dog through a read reference is T = const Dog: no
+Dog through a mut reference is T = Dog: yes
+Dog through a mut reference is T = mut Dog: yes
+Dog through a mut reference is T = const Dog: no
+Dog through a read reference is mut Dog: no
+String through a read reference is T = String: yes
+Dog is NonToken: yes
+Square is Shape: yes
+Channel is NonToken: no
+Channel is Stream: yes
+Channel is Named: yes
+Channel is Named & NonToken: no
+Box<Dog> is NonToken: yes
+Box<Channel> is NonToken: no
+Box<Channel> is Box<Channel>: yes
+Box<Channel> is Box<out Named>: yes
+Box<Channel> is Box<out NonToken>: no
+Box<Dog> is Box<out NonToken>: yes
+Wrapper<Dog> is Named: yes
+Wrapper<Dog> is Named & NonToken: yes
+Wrapper<Channel> is Named: yes
+Wrapper<Channel> is Named & NonToken: no
+Dog is T = NonToken: yes
+Channel is T = NonToken: no
+Wrapper<Channel> is T = NonToken: no
+Wrapper<Dog> is A & B = Named & NonToken: yes
+Wrapper<Channel> is A & B = Named & NonToken: no
+Wrapper<Channel> is A & B = Named & Wrapper<Channel>: yes
+Box<Channel> as? NonToken is null: yes
+const T, T = mut Animal: own casts.Animal & own emerge.core.NonToken
+const T, T = mut Animal is below NonToken: yes
+const T, T = mut Animal is below const Animal: yes
+A & B, A = const Animal, B = mut Named: own casts.Animal & own casts.Named & own emerge.core.NonToken
+A & B, A = const Animal, B = mut Named is below NonToken: yes
+A & B, A = Animal, B = mut Named: mut casts.Animal & mut casts.Named
+A & B, A = Animal, B = mut Named is below NonToken: no
+Dog & Cat is below String: yes
+Dog & Animal is below String: no
+Dog? & Cat? is below String?: yes
+Dog? & Cat? is below String: no
+Box<Dog & Cat> is below Box<own Nothing>: yes
+Box<own Nothing> is below Box<Dog & Cat>: yes
+A & B, A = Dog, B = Cat is below String: yes
+cast to Box<Dog> succeeded
+Box<Dog> as? Box<Cat> is null: yes
+null as? Box<Dog> is null: yes
+null as Box<Dog>? is null: yes
+cast to T = Box<Dog> succeeded
+cast to T = Dog succeeded
+a Dog is Animal, known statically: yes
+cast of a Dog to Animal succeeded, known statically
+a Dog as? Animal is null, known statically: no
+null is Animal?, known statically: yes
+a Dog is Cat, known statically: no
+a Dog through a read reference is mut Dog, known statically: no
+casting a read reference to a Dog to T = mut Dog

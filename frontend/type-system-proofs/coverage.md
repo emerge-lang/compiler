@@ -159,7 +159,7 @@ frontend's is by reading (`BoundTypeReference.mayBeTokenUnless`, `TokenRule.chec
 | That the mutability of a reference limits its type arguments; the `NonToken` added where an intersection gives its components a common mutability | ✗ | — |
 | Function calls (a function is a list of statements), nullability, intersections other than with `NonToken`, exceptions | ✗ | — |
 | Closures (rule 6) | ✗ not in the language yet | — |
-| Casts | ✗ they can forget a token, see `docs/tokens.md` | — |
+| Casts | ✗ the check at runtime applies the token rule, see `docs/tokens.md`; that is tested (`RuntimeSubtypingGridTests`), not proven | — |
 
 The mutability rules are left out on purpose: assignability is subtyping and the token rule there, so the theorems
 do not rest on them.
@@ -167,7 +167,18 @@ do not rest on them.
 ## Outside the proven model entirely
 
 * Overload resolution
-* Casts and instance-of checks (`as`, `is`): out of scope until there is runtime reflection on type argument
+* Casts and instance-of checks (`as`, `is`): the runtime decides them with a subtype relation of its own
+  (`emerge.core.reflection.isSubtypeOf`), which the integration tests compare with the frontend's over the types
+  of `TypeGrid` that have no type parameters (`RuntimeSubtypingGridTests`), mutability and the token rules
+  included
+* Wildcard type arguments (`Sorted<String, *>`): the model has none. The frontend resolves `*` to `out` the bound
+  of the parameter, with the other type arguments instantiated in it and `out Any?` for the parameter itself
+  (`CTContext.resolveTypeArguments`), before anything the model describes; what it resolves to is a type of the
+  model. `TypeGrid` has such types (`Dep<A, *>` with `class Dep<K, V : Seq<K>>`, `Slf<*>` with
+  `class Slf<X : Ord<X>>`), so `OracleGrid.unify_agrees` compares the frontend with the model on what they
+  resolve to, and `RuntimeSubtypingGridTests` the runtime with the frontend. That every instance of the type is
+  below the type with the wildcard (`Sorted<String, X>` below `Sorted<String, *>` for each `X` within the bound)
+  is not proven; the grid and the frontend tests (`TypeErrors`, "wildcard type argument") have examples
 * Constructors and object initialization (`PartialObjectInitialization`), mixins: these are simple enough that proving
   them formally seems not worthwhile at the moment
 * Lifetimes and own-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only.

@@ -1,20 +1,32 @@
 package emerge.core
 
 import emerge.core.safemath.plusModulo
+import emerge.platform.panic
 import emerge.core.utf8.rejectInvalidUtf8
 
 export class String : const NonToken {
     export utf8Data: Array<S8> = init
-    
-    export constructor {
-        rejectInvalidUtf8(self.utf8Data)
+
+    private nothrow constructor {}
+
+    // @return a String of the given bytes
+    // @throws InvalidUtf8Exception if the bytes are not valid UTF-8
+    export fn fromUtf8(capture utf8Data: Array<S8>) -> own String {
+        rejectInvalidUtf8(utf8Data)
+        return String(utf8Data)
     }
 
-    export operator fn plus(self, borrow other: read String) -> own String {
-        newData: own Array<S8> = Array.new(self.utf8Data.size + other.utf8Data.size, 0 as S8)
+    export nothrow operator fn plus(self, borrow other: read String) -> own String {
+        newSize = self.utf8Data.size.plusModulo(other.utf8Data.size)
+        if newSize < self.utf8Data.size {
+            panic("the concatenated string is too large")
+        }
+
+        newData: own Array<S8> = Array.new(newSize, 0 as S8)
         Array.copy(self.utf8Data, 0, newData, 0, self.utf8Data.size)
         Array.copy(other.utf8Data, 0, newData, self.utf8Data.size, other.utf8Data.size)
 
+        // one valid UTF-8 sequence after another is valid UTF-8
         return String(newData)
     }
 

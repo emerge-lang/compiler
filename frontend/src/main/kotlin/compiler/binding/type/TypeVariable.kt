@@ -52,6 +52,14 @@ class TypeVariable private constructor(
 
     override val inherentTypeBindings = TypeUnification.EMPTY
 
+    // not delegated: the answers of the GenericTypeReference are those for the type parameter, not for a variable of it
+    override val mentionsTypeVariables: Boolean get() = true
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = this.parameter == parameter
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = false
+    override val mentionsTypeParameters: Boolean get() = false
+    override val isReadInAllInstantiations: Boolean get() = false
+    override val isOrIntersectsGenericTypeReference: Boolean get() = false
+
     override fun defaultMutabilityTo(mutability: TypeMutability?): TypeVariable {
         return rewrap(asGeneric.defaultMutabilityTo(mutability))
     }

@@ -79,22 +79,55 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * adding modules or dependencies to existing projects
         * if emerge ecosystem/libraries are already a thing: manage dependencies
 12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
-    type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
+    type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields
+    (so a member function without a receiver cannot use the type parameters of its type, like a static method in
+    Java: `TypeParameterUnavailableWithoutReceiverDiagnostic`), and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
-    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` still only check the base type
-    (`BoundInstanceOfExpression.validateTypeCheck` drops the type arguments). Remaining work:
-    1. implement `isSubtypeOf` on `Type`, like the compiler does for `BoundTypeReference`
-       * how to keep these in sync?? Tests, tests, tests!
-    2. implement wildcard generic parameters to address unchecked generics, where the wildcard is always
-       treated as if it was the bound of the parameter. E.g. given `class Pair<out A, out B>`,
-       `x as Pair<String, *>` is treated like `Pair<String, Any?>`
-    3. use that check in `is` and `as`. Afterwards, an `Array<String>` must not possibly be referenced as an
-       `Array<S8>`
-    4. mutability is not part of the runtime type information, so a cast may only keep or weaken the mutability
-       (`x: read Any; x as read Foo` is fine, `x as mut Foo` is a compile-time error). In argument positions the
-       source type says nothing about (`x: read Any; x as Array<mut Foo>`), only `read` is allowed; `own` is
-       never a cast target. Today `BoundCastExpression` takes the mutability as written, which is a soundness hole
-       independent of type arguments
+    `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments,
+    nullability and mutability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
+    (`emerge.core.reflection.isSubtypeOf`, `isInstanceOf`). A type without type arguments is still checked by
+    its base type alone, which allocates nothing.
+    A wildcard is the star projection of Kotlin: `out` the bound of the parameter, as the other type arguments
+    make it. With `class Sorted<T, C : Comparator<T>>`, `x is Sorted<String, *>` asks for a
+    `Sorted<String, out Comparator<String>>` (`CTContext.resolveTypeArguments`).
+    * the subtype relation of the runtime has to agree with the compiler's. `RuntimeSubtypingGridTests` in the
+      frontend generates an emerge program from `TypeGrid` that compares the two, the integration tests run it
+    * for the type arguments of supertypes (`class Nest<E> : Seq<Box<E>>`), every typeinfo has templates of its
+      parameterized supertypes (`IrBaseType.parameterizedSupertypes`), which the runtime instantiates
+    * mutability: an object doesn't know the mutability of the references to it, but it knows its type
+      arguments, mutability included (`NamedType.mutability`): an array created as an `Array<mut Foo>` is one
+      for as long as it lives, whatever the references to it say. So `x is Array<mut Foo>` is checked. For the
+      value itself, the mutability comes from the static type of the reference that is checked: where the target
+      says its mutability, the frontend rejects a cast that strengthens it (`x: read Any`, `x as mut Foo`;
+      `BoundCastExpression.validateMutability`), and where the target is a type parameter, the check at runtime compares the
+      mutability of the reference with that of the type argument (`castTo::<mut Foo>(x)` with a `read`
+      parameter throws a `CastError`)
+    * tokens: the typeinfo says of every base type whether its instances are no tokens
+      (`IrBaseType.isNonToken`), so the runtime knows that classes are `NonToken` without saying so, and what
+      may be a token (`mayBeToken`), type arguments included. Its subtype relation has the token rule of the
+      compiler: an object that may be or hold a token is no value of a type that cannot be one, so no cast
+      forgets or freezes a token (see [docs/tokens.md](docs/tokens.md)). Where that takes the type arguments of
+      the object, the check is not done by the base type alone: `x is NonToken` and `x is Shape` for an
+      interface `Shape : NonToken`, on an `x` that may be a token
+    * the typeinfo says what is a class, so the runtime takes an intersection of two different classes
+      (`N & M`) for `Nothing` like the compiler does. No value has such a type, it shows in type arguments
+
+    Where the static type of the value tells the result of an `is`, `as` or `as?` already, the compiler warns
+    (`StaticTypeCheckResult.of`):
+    * the check always succeeds, the value is of a subtype (`TypeCheckAlwaysSucceedsDiagnostic`). There is no
+      check at runtime then, and such an `as` doesn't throw. Not reported: a cast of a value of an intersection
+      type, which is how to tell apart the members of the components (`(p as A).foo()`)
+    * the check never succeeds (`TypeCheckNeverSucceedsDiagnostic`): one of the types is a class that the other
+      rules out, the type arguments for the same base type have no type in common (`x: Box<Dog>`,
+      `x is Box<Cat>`), or the check asks for a mutability the reference doesn't have (`x: read Dog`,
+      `x is mut Dog`). The latter is not said of an `x: read Any`: the object may be of a class that is const by
+      itself, which is a value of any mutability. For `as`, strengthening the mutability stays an error
+      (`ForbiddenCastDiagnostic`)
+
+    Remaining work:
+    1. there are no smart casts yet that would make the mutability of an `is` matter
+    2. a check against a type with type arguments allocates: the `NamedType` of the object, and one for each
+       supertype it is translated to (see item 33)
 13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
@@ -119,6 +152,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        `Throwable` that `action` throws, `Error`s included. This is needed because `try`/`catch` can't do it:
        `Error`s pass through every `catch` (see [design.md](design.md#errors-are-not-caught)), so today a
        `nothrow` function cannot call anything that may throw.
+       * TODO once it exists: `Array.copy` is `nothrow` and panics on bad bounds only because `String.plus`
+         and through it `emerge.core.reflection.Type.toString` have to be `nothrow`, for the message of a
+         `CastError`. Make `Array.copy` throwing again, and have `Type.toString` use this builtin instead
 14. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...
@@ -332,6 +368,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     `class K<T : const Any?> { var kept: T? = null }` reports "A const value is needed here. Required: const T,
     Found: read T" on `kept`. Without `var`, or as `var kept: T = init`, it is accepted. `emerge.core.Lazy` works
     around it, its intrinsic writes `_value` regardless
+40. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
+    (see [design.md](design.md#errors-are-not-caught)):
+    `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
+    `try` block calls, the same `CastError` passes through the `catch`, as it should
+    (`BoundInvocationExpression` checks `is Error` at the landingpad; a `throw` in the `try` block itself, which
+    is what a failing cast is, goes to the `catch` unchecked).
 
 ## Future features
 

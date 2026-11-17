@@ -1042,9 +1042,9 @@ class TokenErrors : FreeSpec({
         }
     }
 
-    "casts are not checked for tokens yet" {
-        // a cast doesn't check type arguments at runtime, so it can forget a token; that is left to the day casts
-        // become sound
+    "casts are checked for tokens at runtime" {
+        // the token rule is part of the check a cast does at runtime (emerge.core.reflection.isSubtypeOf), so a
+        // cast cannot forget a token; nothing is rejected at compile time for it
         validateModule("""
             interface Animal {}
             interface Named {}

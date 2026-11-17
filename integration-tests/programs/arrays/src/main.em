@@ -56,7 +56,7 @@ fn main(world: mut World) {
 
     bytes: mut Array<S8> = [66, 66]
     setIn(bytes)
-    stdout.println(String(bytes))
+    stdout.println(String.fromUtf8(bytes))
 
     nested: mut Array<Array<S32>> = Array.new::<Array<S32>>(2, ints)
     set nested[1] = buf
@@ -74,7 +74,7 @@ fn main(world: mut World) {
     stdout.println(total.toString())
 
     h = Holder([72, 105])
-    stdout.println(String(h.data))
+    stdout.println(String.fromUtf8(h.data))
 
     gh = GenericHolder(ints)
     stdout.println(sumS32(gh.value).toString())

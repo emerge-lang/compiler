@@ -126,7 +126,7 @@ class BoundInvocationExpression(
             receiverExpression?.semanticAnalysisPhase1(diagnosis)
             receiverExpression?.markEvaluationResultUsed()
             valueArguments.forEach { it.semanticAnalysisPhase1(diagnosis) }
-            typeArguments = declaration.typeArguments?.map { context.resolveTypeArgument(it, null) }
+            typeArguments = declaration.typeArguments?.map { context.resolveTypeArgument(it) }
             typeArguments?.forEach {
                 if (it.astNode is AstWildcardTypeArgument) {
                     diagnosis.wildcardTypeArgumentOnInvocation(it)
@@ -782,7 +782,8 @@ internal fun buildGenericInvocationLikeIr(
                     val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
                         landingpadContext.swCtx,
                         IrTemporaryValueReferenceImpl(exceptionTemporary),
-                        landingpadContext.swCtx.error,
+                        landingpadContext.swCtx.error.getBoundReferenceAssertNoTypeParameters(),
+                        null,
                     ))
 
                     val catchOrThrowBranch = IrConditionalBranchImpl(

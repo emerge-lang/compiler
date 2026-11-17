@@ -326,8 +326,13 @@ jobs:
           tar --extract --gzip \
             --directory "${{ runner.temp }}/emerge-toolchain" \
             --file "${{ runner.temp }}/tarball/${{ needs.linux-distributables.outputs.tarball-filename }}"
-      # tests the toolchain from the tarball, not the working copy; the checkout is only for the test programs.
-      # The tarball has no jre directory until its configure.sh has run, so the JDK from above runs the toolchain
+      # some of the programs are not in git: tests of the frontend write them to integration-tests/target/generated-programs.
+      # This job doesn't share a workspace with the one that runs all the frontend tests, so they are written again here
+      - name: generate programs
+        run: mvn -B -pl frontend -am test "-Dkotest.filter.specs=*RuntimeSubtypingGridTests"
+      # tests the toolchain from the tarball, not the working copy; the checkout is only for the test programs
+      # and the generated ones. The tarball has no jre directory until its configure.sh has run, so the JDK from
+      # above runs the toolchain
       - name: run emerge programs
         run: mvn -B -pl integration-tests verify "-Demerge.integration-tests.toolchain-dir=${{ runner.temp }}/emerge-toolchain"
       - name: upload compiler and program output

@@ -30,6 +30,7 @@ import compiler.diagnostic.StaticFunctionDeclaredOverrideDiagnostic
 import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeParameterNameConflictDiagnostic
+import compiler.diagnostic.TypeParameterUnavailableWithoutReceiverDiagnostic
 import compiler.diagnostic.UndeclaredOverrideDiagnostic
 import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
@@ -746,6 +747,74 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<TypeParameterNameConflictDiagnostic>()
+        }
+
+        "type parameters of the type are not available in member functions without a receiver" - {
+            "in the signature" {
+                validateModule("""
+                    class Box<T> {
+                        fn wrap(value: T) -> Box<T> = Box(value)
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeParameterUnavailableWithoutReceiverDiagnostic>(allowMultiple = true) {
+                        it.parameter.name.value shouldBe "T"
+                    }
+                    .shouldNotFind<UnknownTypeDiagnostic>()
+            }
+
+            "in the body" {
+                validateModule("""
+                    class Box<T> {
+                        fn holds(borrow value: Any?) -> Bool = value is T
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeParameterUnavailableWithoutReceiverDiagnostic> {
+                        it.parameter.name.value shouldBe "T"
+                    }
+                    .shouldNotFind<UnknownTypeDiagnostic>()
+            }
+
+            "in the bound of a type parameter of the function" {
+                validateModule("""
+                    class Box<T> {
+                        fn foo<U : T>() {}
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeParameterUnavailableWithoutReceiverDiagnostic>()
+            }
+
+            "in an interface" {
+                validateModule("""
+                    interface Seq<E> {
+                        fn hasElement(borrow value: Any?) -> Bool = value is E
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeParameterUnavailableWithoutReceiverDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "the type parameter is not a type variable of the invocation" {
+                validateModule("""
+                    class Box<T> {
+                        v: T = init
+                        fn wrap<U>(value: U) -> Box<U> = Box(value)
+                    }
+                    fn test() -> Box<S32> = Box.wrap::<S32>(3)
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with a receiver they are available" {
+                validateModule("""
+                    class Box<T> {
+                        v: T = init
+                        fn holds(self, borrow value: Any?) -> Bool = value is T
+                        fn rewrap(self) -> Box<T> = Box(self.v)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
         }
 
         "declaration-site variance is not supported" {

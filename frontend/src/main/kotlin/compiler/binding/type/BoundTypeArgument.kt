@@ -38,6 +38,13 @@ class BoundTypeArgument(
     override val span get() = astNode.span
     override val isNonNullableNothing get() = type.isNonNullableNothing
     override val isPartiallyUnresolved get()= type.isPartiallyUnresolved
+
+    override val mentionsTypeVariables: Boolean get() = type.mentionsTypeVariables
+    override fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean = type.mentionsTypeVariable(parameter)
+    override fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean = type.mentionsTypeParameter(parameter)
+    override val mentionsTypeParameters: Boolean get() = type.mentionsTypeParameters
+    override val isReadInAllInstantiations: Boolean get() = type.isReadInAllInstantiations
+    override val isOrIntersectsGenericTypeReference: Boolean get() = type.isOrIntersectsGenericTypeReference
     // an `in` argument reads as Any?
     override fun mayBeTokenUnless(nonTokenParameters: Collection<BoundTypeParameter>) = variance == TypeVariance.IN || type.mayBeTokenUnless(nonTokenParameters)
 

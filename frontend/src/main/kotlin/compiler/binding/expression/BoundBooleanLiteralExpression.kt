@@ -64,7 +64,7 @@ class BoundBooleanLiteralExpression(
     }
 }
 
-private class IrBooleanLiteralExpressionImpl(
+internal class IrBooleanLiteralExpressionImpl(
     override val evaluatesTo: IrType,
     override val value: Boolean,
 ) : IrBooleanLiteralExpression

@@ -52,6 +52,13 @@ sealed interface BoundTypeReference {
      */
     val assignmentMutability: TypeMutability get() = mutability
 
+    /**
+     * Whether this is a type of objects that are const by themselves (see [BoundBaseType.isConst]): references to
+     * them are immutable whatever mutability they are written with, and are as good as any for assigning.
+     */
+    val isOfConstClass: Boolean
+        get() = mutability == TypeMutability.IMMUTABLE && assignmentMutability == TypeMutability.OWN
+
     val span: Span?
 
     /**
@@ -69,6 +76,38 @@ sealed interface BoundTypeReference {
      * are [isPartiallyUnresolved].
      */
     val isPartiallyUnresolved: Boolean
+
+    /**
+     * Whether this type mentions a [TypeVariable], also in the bounds of the [GenericTypeReference]s in it.
+     */
+    val mentionsTypeVariables: Boolean
+
+    /**
+     * Whether this type mentions the [TypeVariable] of [parameter].
+     */
+    fun mentionsTypeVariable(parameter: BoundTypeParameter): Boolean
+
+    /**
+     * Whether this type mentions [parameter], as a [GenericTypeReference].
+     */
+    fun mentionsTypeParameter(parameter: BoundTypeParameter): Boolean
+
+    /**
+     * Whether this type mentions any type parameter, as a [GenericTypeReference].
+     */
+    val mentionsTypeParameters: Boolean
+
+    /**
+     * Whether a reference of this type is a `read` one, whatever the type parameters in it are bound to. A mutability
+     * on a type parameter is met with that of the type argument: both `T` and `read T` are `mut` references for a `mut`
+     * type argument.
+     */
+    val isReadInAllInstantiations: Boolean
+
+    /**
+     * Whether this type is a [GenericTypeReference], or an intersection with one; nullability aside.
+     */
+    val isOrIntersectsGenericTypeReference: Boolean
 
     /**
      * Whether a value of this type may be a token ([BoundBaseType.isToken]), or hold one. It cannot where

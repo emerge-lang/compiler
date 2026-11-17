@@ -62,8 +62,10 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        context.resolveType(NamedTypeReference(name))
-            .takeUnless { it is ErroneousType }
+        val preExistingType = context.resolveType(NamedTypeReference(name)).takeUnless { it is ErroneousType }
+            // a type parameter of the base type takes its name in the functions without a receiver, too
+            ?: context.resolveTypeParameterUnavailableWithoutReceiver(name)?.let { GenericTypeReference(NamedTypeReference(name), it) }
+        preExistingType
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }

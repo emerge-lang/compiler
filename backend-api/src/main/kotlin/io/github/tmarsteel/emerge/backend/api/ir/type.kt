@@ -52,6 +52,14 @@ interface IrGenericTypeReference : IrType {
      */
     val nullabilityOverride: Boolean?
 
+    /**
+     * `null` if this is a plain reference to the type parameter: at runtime the mutability is that of the type
+     * argument. Otherwise, the mutability written on the reference (`mut T`): at runtime the type is the type
+     * argument, of the mutability that both it and this ask for (`mut T` of a `read Foo` is a `mut Foo`, of a
+     * `const Foo` it is an `own Foo`).
+     */
+    val givenMutability: IrTypeMutability?
+
     override val mutability get() = effectiveBound.mutability
     override val isNullable get() = effectiveBound.isNullable
     override fun asNullable(): IrGenericTypeReference

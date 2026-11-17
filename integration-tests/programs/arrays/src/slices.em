@@ -60,7 +60,7 @@ fn sliceTests(stdout: mut PrintStream) {
     stdout.println(sumS32(gh.value).toString())
 
     h = Holder("Hello".utf8Data.slice(1, 3))
-    stdout.println(String(h.data))
+    stdout.println(String.fromUtf8(h.data))
 
     target: mut Array<S32> = Array.new::<S32>(4, 0)
     Array.copy(s, 0, target, 1, 2)

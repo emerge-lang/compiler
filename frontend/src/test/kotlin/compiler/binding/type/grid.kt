@@ -9,7 +9,8 @@ import compiler.compiler.negative.useValidModule
  * within `Ctx`, so they can mention its type parameters.
  */
 internal object TypeGrid {
-    val swCtx = useValidModule("""
+    /** the declarations the types of the grid refer to */
+    val moduleSource = """
         interface A {}
         interface B {}
         interface C : A {}
@@ -28,8 +29,12 @@ internal object TypeGrid {
         token class Clk : Tok & A {}
         interface Shp : NonToken {}
         class Pl : Shp & A {}
+        class Dep<K, V : Seq<K>> {}
+        class Slf<X : Ord<X>> {}
         class Ctx<P, Q : A, R : A?, F : Ord<in F>, S : Seq<out P>, T : A & B, U : R> {}
-    """.trimIndent())
+    """.trimIndent()
+
+    val swCtx = useValidModule(moduleSource)
 
     /** the type parameters of `Ctx`, with their bounds */
     val ctxBounds = listOf("P" to "Any?", "Q" to "A", "R" to "A?", "F" to "Ord<in F>", "S" to "Seq<out P>", "T" to "A & B", "U" to "R")
@@ -98,6 +103,12 @@ internal object TypeGrid {
         "NonToken", "mut NonToken", "NonToken?", "Shp", "own Shp", "const Shp", "Pl", "mut Pl", "own Pl",
         "A & NonToken", "own A & NonToken", "P & NonToken", "own Q & NonToken",
         "Box<Clk>", "own Box<Clk>", "Box<out Tok>", "Box<in Clk>", "Box<Pl>", "own Box<Pl>", "Box<out NonToken>", "own Box<A>",
+        // wildcards: out the bound of the parameter, as the other type arguments make it (Dep), with out Any? for
+        // the parameter itself (Slf); and what they have to take
+        "Box<*>", "Seq<*>", "Duo<A, *>", "Duo<*, *>", "Box<Box<*>>",
+        "Dep<A, *>", "Dep<C, *>", "Dep<*, *>", "Dep<P, *>", "Dep<A, *>?", "mut Dep<A, *>", "Box<Dep<A, *>>",
+        "Dep<A, IntSeq>", "Dep<A, Seq<A>>", "Dep<C, Seq<C>>", "Dep<A, out Seq<C>>", "Dep<P, Seq<P>>", "Dep<out A, *>",
+        "Slf<*>", "Slf<N>", "mut Slf<N>", "Slf<out Ord<N>>", "Box<Slf<*>>",
     ).map { it to swCtx.parseTypeIn("Ctx", it) }
 
     /** the type parameters of Ctx, bound in ways that tell their mutability and nullability apart, each within its bound */

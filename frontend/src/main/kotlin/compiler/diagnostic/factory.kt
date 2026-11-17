@@ -77,6 +77,10 @@ fun Diagnosis.unknownType(erroneousType: ErroneousType) {
     add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasUnresolvableImportForSimpleName(erroneousType.simpleName)))
 }
 
+fun Diagnosis.typeParameterUnavailableWithoutReceiver(reference: AstSimpleTypeReference, parameter: BoundTypeParameter) {
+    add(TypeParameterUnavailableWithoutReceiverDiagnostic(reference, parameter.astNode))
+}
+
 fun Diagnosis.ambiguousType(errorneousType: ErroneousType) {
     add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }, errorneousType.context.hasAmbiguousImportOrDeclarationsForSimpleName(errorneousType.simpleName)))
 }
@@ -722,8 +726,12 @@ fun Diagnosis.forbiddenCast(castOp: BoundCastExpression, reason: String, span: S
     add(ForbiddenCastDiagnostic(castOp.declaration, reason, span))
 }
 
-fun Diagnosis.typeCheckOnVolatileTypeParameter(node: BoundExpression<*>, typeToCheck: BoundTypeReference) {
-    add(TypeCheckOnVolatileTypeParameterDiagnostic(typeToCheck.span ?: node.declaration.span))
+fun Diagnosis.typeCheckAlwaysSucceeds(kind: TypeCheckKind, typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference, span: Span) {
+    add(TypeCheckAlwaysSucceedsDiagnostic(kind, typeOfValue, typeToCheck, span))
+}
+
+fun Diagnosis.typeCheckNeverSucceeds(kind: TypeCheckKind, typeOfValue: BoundTypeReference, typeToCheck: BoundTypeReference, reason: String, span: Span) {
+    add(TypeCheckNeverSucceedsDiagnostic(kind, typeOfValue, typeToCheck, reason, span))
 }
 
 fun Diagnosis.nullCheckOnNonNullableValue(value: BoundExpression<*>) {

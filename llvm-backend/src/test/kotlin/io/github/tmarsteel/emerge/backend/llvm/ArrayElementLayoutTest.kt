@@ -4,6 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
@@ -83,6 +84,9 @@ private object LayoutMockSourceLocation : IrSourceLocation {
 
 private open class LayoutMockClass(override val canonicalName: CanonicalElementName.BaseType) : IrClass {
     override val supertypes = emptySet<IrInterface>()
+    override val parameterizedSupertypes = emptyMap<IrInterface, IrParameterizedType>()
+    override val isConst = false
+    override val isNonToken = true
     override val parameters = emptyList<IrBaseType.Parameter>()
     override val memberFunctions = emptyList<IrOverloadGroup<IrMemberFunction>>()
     override val memberVariables = emptyList<IrClass.MemberVariable>()

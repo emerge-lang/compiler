@@ -18,7 +18,7 @@ internal object TokenRule {
         if (!assigneeType.mayBeToken || targetType.mayBeToken) {
             return null
         }
-        if (targetType.mentionsTypeVariables() || assigneeType.mentionsTypeVariables()) {
+        if (targetType.mentionsTypeVariables || assigneeType.mentionsTypeVariables) {
             // not decided as long as a variable is not bound. The types of a call are checked again once they are
             // inferred; until then this rule must not fail the unification that is to find the bindings.
             return null
