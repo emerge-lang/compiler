@@ -11,6 +11,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.type.isAssignableTo
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -100,6 +101,9 @@ class BoundThrowExpression(
             context,
             throwableExpression.toBackendIrExpression(),
             throwableExpression.isEvaluationResultReferenceCounted,
+            throwableIsStaticallyAnError = throwableExpression.type?.isAssignableTo(
+                context.swCtx.error.getBoundReferenceAssertNoTypeParameters().withMutability(TypeMutability.READONLY)
+            ) == true,
             declaration.span,
         )
     }
@@ -109,14 +113,56 @@ class BoundThrowExpression(
     }
 }
 
+/**
+ * @param throwableIsStaticallyAnError whether the static type of [throwableExpression] is a subtype of
+ * `emerge.core.Error`. If not, and if the throw is inside a `try` block, that is checked at runtime: an `Error`
+ * is not to be caught, it must not go to the `catch`.
+ */
 internal fun buildIrThrow(
     context: ExecutionScopedCTContext,
     throwableExpression: IrExpression,
     throwableInstanceIsReferenceCounted: Boolean,
+    throwableIsStaticallyAnError: Boolean,
     throwLocation: Span,
 ): IrExecutable {
     val throwLocationStatement = IrUpdateSourceLocationStatementImpl(throwLocation)
     val throwableInstance = IrCreateTemporaryValueImpl(throwableExpression)
+
+    val cleanupCode = (context.getExceptionHandlingLocalDeferredCode() + context.getDeferredCodeForThrow())
+        .mapToBackendIrWithDebugLocations()
+
+    // same as the landingpad of an invocation (see buildGenericInvocationLikeIr): Errors pass by the catch.
+    // They leave the function, so the scopes around the try have to be cleaned up, too.
+    // Builds new IR on every call, as the code is needed twice: after fillStackTrace returns, and in its landingpad
+    fun buildThrowCode(): List<IrExecutable> {
+        if (!context.isInTryContext) {
+            return listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance)))
+        }
+
+        val throwPastCatch = IrCodeChunkImpl(
+            context.getDeferredCodeForUncatchableThrow().mapToBackendIrWithDebugLocations()
+            +
+            listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance), ignoreLocalCatchBlock = true))
+        )
+        if (throwableIsStaticallyAnError) {
+            return listOf(throwPastCatch)
+        }
+
+        val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
+            context.swCtx,
+            IrTemporaryValueReferenceImpl(throwableInstance),
+            context.swCtx.error.getBoundReferenceAssertNoTypeParameters(),
+            null,
+        ))
+        return listOf(
+            isError,
+            IrConditionalBranchImpl(
+                condition = IrTemporaryValueReferenceImpl(isError),
+                thenBranch = throwPastCatch,
+                elseBranch = IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance)),
+            ),
+        )
+    }
 
     // calling fillStackTrace can throw an exception; that should be ignored. But it needs to be properly dropped/refcounted,
     // so that is more elaborate here; might make sense to look into addSuppressed like Java has
@@ -136,8 +182,7 @@ internal fun buildIrThrow(
         IrCodeChunkImpl(listOf(
             fillStackTraceExceptionTemporary,
             IrDropStrongReferenceStatementImpl(fillStackTraceExceptionTemporary),
-            IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
-        )),
+        ) + buildThrowCode()),
     )
 
     val fillStackTraceFn = context.swCtx.getPackage(EmergeConstants.UnwindModule.NAME)
@@ -154,9 +199,6 @@ internal fun buildIrThrow(
         fillStackTraceLandingpad,
     ))
 
-    val cleanupCode = (context.getExceptionHandlingLocalDeferredCode() + context.getDeferredCodeForThrow())
-        .mapToBackendIrWithDebugLocations()
-
     return IrCodeChunkImpl(listOfNotNull(
         throwableInstance,
         IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableInstanceIsReferenceCounted },
@@ -164,8 +206,7 @@ internal fun buildIrThrow(
         throwLocationStatement,
         fillStackTraceCall,
         throwLocationStatement,
-        IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
-    ))
+    ) + buildThrowCode())
 }
 
 internal class IrThrowStatementImpl(

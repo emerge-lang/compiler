@@ -113,6 +113,15 @@ interface ExecutionScopedCTContext : CTContext {
     fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable>
 
     /**
+     * For a throwable that passes by the `catch` (an `emerge.core.Error`), and so leaves the function though it is
+     * thrown inside a `try` block: all the deferred code that [getExceptionHandlingLocalDeferredCode] does not cover.
+     * That is the code that was deferred in the parent of the closest context with [isTryContext] = `true`, up to and
+     * including the next parent with [isFunctionRoot] = `true`, in the **reverse** order of how it was added
+     * via [addDeferredCode]. If there is no context marked with [isTryContext], this is the same as [getDeferredCodeForThrow].
+     */
+    fun getDeferredCodeForUncatchableThrow(): Sequence<DeferrableExecutable>
+
+    /**
      * @param parentLoop the loop which is exited or continued; currently must be [parentLoop]
      */
     fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable>
@@ -237,8 +246,11 @@ open class MutableExecutionScopedCTContext protected constructor(
         parent
     }
 
-    private val parentTryContext: ExecutionScopedCTContext? by lazy {
-        hierarchy.drop(1)
+    /**
+     * the closest context with [isTryContext] = `true`; that is `this` for the first statement of a `try` block
+     */
+    private val closestTryContext: ExecutionScopedCTContext? by lazy {
+        hierarchy
             .filterIsInstance<ExecutionScopedCTContext>()
             .firstOrNull { it.isTryContext }
     }
@@ -251,7 +263,7 @@ open class MutableExecutionScopedCTContext protected constructor(
     override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
 
     override val isTryContext = false
-    override val isInTryContext get() = isTryContext || parentTryContext != null
+    override val isInTryContext get() = closestTryContext != null
 
     private var localDeferredCode: ArrayList<DeferrableExecutable>? = null
 
@@ -283,19 +295,30 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun getExceptionHandlingLocalDeferredCode(): Sequence<DeferrableExecutable> {
-        parentTryContext
+        closestTryContext
             ?.let { return getDeferredCodeUpToIncluding(it) }
 
         return emptySequence()
     }
 
     override fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable> {
-        val parentEHContext = parentTryContext
-        if (parentEHContext != null) {
+        if (closestTryContext != null) {
             return emptySequence()
         }
 
         return getFunctionDeferredCode()
+    }
+
+    override fun getDeferredCodeForUncatchableThrow(): Sequence<DeferrableExecutable> {
+        val tryContext = closestTryContext ?: return getFunctionDeferredCode()
+        val functionContext = parentFunctionContext ?: this
+        return hierarchy
+            .dropWhile { it !== tryContext }
+            .drop(1)
+            .takeWhileAndNext { it !== functionContext }
+            .flatMap {
+                (it as? MutableExecutionScopedCTContext)?.localDeferredCode?.asReversed() ?: emptyList()
+            }
     }
 
     override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {

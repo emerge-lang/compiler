@@ -129,6 +129,9 @@ class SourceFileRootContext(
             override fun getDeferredCodeForThrow(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
+            override fun getDeferredCodeForUncatchableThrow(): Sequence<DeferrableExecutable> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
             override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }

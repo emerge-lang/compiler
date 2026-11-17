@@ -1,0 +1,13 @@
+caught: oops
+caught: oops
+caught: oops
+the variable around the try blocks is still there
+the variable of the try block is gone
+thrown by a function, caught: oops
+throwing an Oops in the try block
+thrown in the try block, caught: oops
+a local variable of the try block
+thrown in the try block as a Throwable, caught: oops
+inner catch: oops
+outer catch: oops
+throwing a Fatal in the try block, as a Throwable

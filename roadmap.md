@@ -1,12 +1,5 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-1. bugs
-    1. an `Error` thrown directly within a `try` block is caught by its `catch`, though `Error`s are not to be caught
-       (see [design.md](design.md#errors-are-not-caught)):
-       `try { x as Array<S8> } catch e { ... }` catches the `CastError` of the cast. Thrown from a function that the
-       `try` block calls, the same `CastError` passes through the `catch`, as it should
-       (`BoundInvocationExpression` checks `is Error` at the landingpad; a `throw` in the `try` block itself, which
-       is what a failing cast is, goes to the `catch` unchecked).
 2. smart casts
 3. typealiases
 4. additional language constructs
