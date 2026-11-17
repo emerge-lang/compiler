@@ -174,9 +174,11 @@ do not rest on them.
 * Wildcard type arguments (`Sorted<String, *>`): the model has none. The frontend resolves `*` to `out` the bound
   of the parameter, with the other type arguments instantiated in it and `out Any?` for the parameter itself
   (`CTContext.resolveTypeArguments`), before anything the model describes; what it resolves to is a type of the
-  model. That every instance of the type is below the type with the wildcard (`Sorted<String, X>` below
-  `Sorted<String, *>` for each `X` within the bound) is neither proven nor checked over `TypeGrid`, which has no
-  wildcards; the frontend tests have examples (`TypeErrors`, "wildcard type argument")
+  model. `TypeGrid` has such types (`Dep<A, *>` with `class Dep<K, V : Seq<K>>`, `Slf<*>` with
+  `class Slf<X : Ord<X>>`), so `OracleGrid.unify_agrees` compares the frontend with the model on what they
+  resolve to, and `RuntimeSubtypingGridTests` the runtime with the frontend. That every instance of the type is
+  below the type with the wildcard (`Sorted<String, X>` below `Sorted<String, *>` for each `X` within the bound)
+  is not proven; the grid and the frontend tests (`TypeErrors`, "wildcard type argument") have examples
 * Constructors and object initialization (`PartialObjectInitialization`), mixins: these are simple enough that proving
   them formally seems not worthwhile at the moment
 * Lifetimes and own-reference tracking (`VariableLifetime`); `Ops.v` covers the static promises of references only.
