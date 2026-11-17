@@ -102,6 +102,13 @@ fn coalesceOrReturn(v: Foo) -> String {
     return "?: return: " + v.p
 }
 
+fn bothNotNull(a: S32?, b: S32?) -> String {
+    if isNull(a) or isNull(b) {
+        return "or: one is null"
+    }
+    return "or: sum = " + (a + b).toString()
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -157,4 +164,11 @@ fn main(world: mut World) {
     stdout.println("after !!: " + afterNotNull(41).toString())
     stdout.println(coalesceOrReturn(produce(true)))
     stdout.println(coalesceOrReturn(produce(false)))
+    stdout.println(bothNotNull(40, 2))
+    stdout.println(bothNotNull(40, null))
+    if not (v is Bar) {
+        stdout.println("not: not a bar")
+    } else {
+        stdout.println("not: " + v.p)
+    }
 }

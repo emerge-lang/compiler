@@ -582,4 +582,72 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "boolean operators pass the implications of their operands on" - {
+        "not" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Foo) {
+                    if not isNull(v) {
+                        takeBar(v)
+                    }
+                    if not (w is Bar) {
+                    } else {
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) {
+                    if v is Bar and not isNull(w) {
+                        takeTwoBars(v, w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, not where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar and cond() {
+                    } else {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "or, where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Bar?) {
+                    if isNull(v) or isNull(w) {
+                        return
+                    }
+                    takeTwoBars(v, w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "or, not where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar or cond() {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })

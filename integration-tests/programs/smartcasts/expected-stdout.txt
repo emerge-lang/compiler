@@ -26,3 +26,6 @@ early return S32: 42
 after !!: 42
 ?: return: tadaaa
 ?: return: not a bar
+or: sum = 42
+or: one is null
+not: tadaaa
