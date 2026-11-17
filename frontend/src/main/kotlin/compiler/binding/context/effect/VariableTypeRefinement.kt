@@ -1,7 +1,9 @@
 package compiler.binding.context.effect
 
+import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.LoopExecutionScopedCTContext
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeReference
 
@@ -15,6 +17,8 @@ import compiler.binding.type.BoundTypeReference
  */
 object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeRefinement.State, VariableTypeRefinement.Effect> {
     override fun getInitialState(subject: BoundVariable): State = State.UNREFINED
+
+    override val joinsOnlyBranchesThatCompleteNormally = true
 
     override fun fold(state: State, effect: Effect): State {
         return when (effect) {
@@ -104,8 +108,9 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
 
             // an assignment later in the body of a loop that started after the refinement was established
             // changes the value for the next iteration; the side effect of that assignment is not visible
-            // from here, so the refinement cannot be trusted
-            return !context.getRepetitionBehaviorRelativeTo(establishedIn).mayRepeat
+            // from here, so the refinement cannot be trusted. establishedIn is not necessarily an ancestor of
+            // context (the refinement may come from a branch, e.g. `if isNull(v) { return }`), so compare the loops
+            return context.innermostLoop === establishedIn.innermostLoop
         }
 
         override fun equals(other: Any?): Boolean {
@@ -118,6 +123,9 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
             return System.identityHashCode(establishedIn) * 31 + intersectWith.hashCode()
         }
     }
+
+    private val ExecutionScopedCTContext.innermostLoop: BoundLoop<*>?
+        get() = (this as? LoopExecutionScopedCTContext<*>)?.loopNode ?: parentLoop
 
     sealed class Effect(override val subject: BoundVariable) : SideEffect<BoundVariable> {
         override val stateClass get() = VariableTypeRefinement

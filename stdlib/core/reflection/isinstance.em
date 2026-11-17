@@ -10,7 +10,7 @@ export nothrow fn isInstanceOf(borrow instance: Any?, borrow type: ReflectionBas
         return false
     }
 
-    return (instance ?: panic("unreachable")).reflectionBaseType.isSubtypeOf(type)
+    return instance.reflectionBaseType.isSubtypeOf(type)
 }
 
 // whether [instance], referred to by a reference of the type [reference], is a value of [type]: of its base
@@ -24,7 +24,7 @@ export nothrow fn isInstanceOf(instance: Any?, type: const Type, reference: cons
         return type.isNullable()
     }
 
-    typeOfInstance = (instance ?: panic("unreachable")).type.withMutability(mutabilityOfReference(reference))
+    typeOfInstance = instance.type.withMutability(mutabilityOfReference(reference))
     return typeOfInstance.isSubtypeOf(type)
 }
 
@@ -35,7 +35,7 @@ nothrow fn castErrorOf(instance: Any?, type: const Type, reference: const Type) 
         return CastError(null, type)
     }
 
-    return CastError((instance ?: panic("unreachable")).type.withMutability(mutabilityOfReference(reference)), type)
+    return CastError(instance.type.withMutability(mutabilityOfReference(reference)), type)
 }
 
 // whether `null` is a value of [self]

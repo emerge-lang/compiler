@@ -20,3 +20,6 @@ isNull: tadaaa
 isNull: null
 safe cast: tadaaa
 safe cast: not a bar
+early return: tadaaa
+early return: null
+early return S32: 42

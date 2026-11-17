@@ -369,4 +369,99 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "after an if whose branch cannot complete normally, the implications of the other branch hold" - {
+        "isNull with an early return" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    if isNull(v) {
+                        return "null"
+                    }
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "is-check with an else branch that returns" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar {
+                    } else {
+                        return
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "inside a loop, for the same iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    while cond() {
+                        if isNull(w) {
+                            return
+                        }
+                        takeBar(w)
+                        set w = null
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the branch may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                        if cond() {
+                            return
+                        }
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not if the other branch assigns a new value" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    } else {
+                        set w = null
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not in a loop that can assign a new value on an earlier iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        takeBar(w)
+                        set w = null
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })

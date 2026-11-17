@@ -85,6 +85,13 @@ class BoundIfExpression(
         elseCode?.setEvaluationResultUsage(valueUsage)
     }
 
+    /**
+     * Where the condition was false; the context of the `else` branch, or an empty one if there is none. It carries the
+     * implications of the condition being false, for the code after the `if` where the then branch doesn't complete
+     * normally (e.g. `if isNull(v) { return }`).
+     */
+    private val contextWhenFalse: MutableExecutionScopedCTContext = contextForElse ?: MutableExecutionScopedCTContext.deriveFrom(condition.modifiedContext)
+
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         condition.semanticAnalysisPhase2(diagnosis)
 
@@ -99,7 +106,7 @@ class BoundIfExpression(
             .filter { it.onResult == BoundExpression.ImplyingResult.BOOL_FALSE }
             .asSequence()
             .flatMap { it.variableTypeRefinements.entries }
-            .forEach { (variable, intersectWith) -> contextForElse?.let { it.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, it)) } }
+            .forEach { (variable, intersectWith) -> contextWhenFalse.trackSideEffect(VariableTypeRefinement.Effect.Refine(variable, intersectWith, contextWhenFalse)) }
 
         thenCode.semanticAnalysisPhase2(diagnosis)
         elseCode?.semanticAnalysisPhase2(diagnosis)
@@ -126,7 +133,7 @@ class BoundIfExpression(
     override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
         MultiBranchJoinExecutionScopedCTContext(condition.modifiedContext, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
     } else {
-        SingleBranchJoinExecutionScopedCTContext(condition.modifiedContext, thenCode.modifiedContext)
+        SingleBranchJoinExecutionScopedCTContext(condition.modifiedContext, thenCode.modifiedContext, contextWhenFalse)
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

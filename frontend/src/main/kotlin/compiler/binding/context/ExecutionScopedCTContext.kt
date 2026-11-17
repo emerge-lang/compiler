@@ -9,8 +9,10 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BaseTypeField
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.DestructorCodeGenerator
+import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
+import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.mixinNotAllowed
@@ -499,6 +501,12 @@ open class MutableExecutionScopedCTContext protected constructor(
 class SingleBranchJoinExecutionScopedCTContext(
     internal val beforeBranch: ExecutionScopedCTContext,
     private val atEndOfBranch: ExecutionScopedCTContext,
+    /**
+     * The context of the path where the branch is not taken, e.g. after the condition of an `if` without `else` was
+     * false. Must be [beforeBranch] or derived from it.
+     * @see EphemeralStateClass.joinsOnlyBranchesThatCompleteNormally
+     */
+    private val whenNotTaken: ExecutionScopedCTContext = beforeBranch,
 ) : ExecutionScopedCTContext by beforeBranch {
     override fun <Subject : Any, State> getEphemeralState(
         stateClass: EphemeralStateClass<Subject, State, *>,
@@ -521,6 +529,10 @@ class SingleBranchJoinExecutionScopedCTContext(
     }
 
     private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        if (stateClass.joinsOnlyBranchesThatCompleteNormally && !atEndOfBranch.completesNormally) {
+            return whenNotTaken.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
+        }
+
         val stateAfterBranch = atEndOfBranch.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
         return stateClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
     }
@@ -557,7 +569,16 @@ class MultiBranchJoinExecutionScopedCTContext(
     }
 
     private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
-        return atEndOfBranches.asSequence()
+        var branches = atEndOfBranches.asSequence()
+        if (stateClass.joinsOnlyBranchesThatCompleteNormally) {
+            branches = branches.filter { it.completesNormally }
+            if (branches.none()) {
+                // the code after is unreachable
+                return stateBeforeBranch
+            }
+        }
+
+        return branches
             .map { it.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject) }
             .reduce(stateClass::combineExclusiveBranches)
     }
@@ -568,6 +589,9 @@ class MultiBranchJoinExecutionScopedCTContext(
  * [beforeInvocation]. The [SideEffect]s that happened between the two, while evaluating the arguments, are
  * considered using [EphemeralStateClass.endInvocation].
  */
+private val ExecutionScopedCTContext.completesNormally: Boolean
+    get() = !getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate
+
 class InvocationJoinExecutionScopedCTContext(
     private val beforeInvocation: ExecutionScopedCTContext,
     internal val afterArguments: ExecutionScopedCTContext,

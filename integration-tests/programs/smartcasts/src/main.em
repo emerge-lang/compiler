@@ -78,6 +78,20 @@ fn safeCastNonNull(v: Foo) -> String {
     }
 }
 
+fn earlyReturn(v: Bar?) -> String {
+    if isNull(v) {
+        return "early return: null"
+    }
+    return "early return: " + v.p
+}
+
+fn earlyReturnS32(v: S32?) -> S32 {
+    if isNull(v) {
+        return 0
+    }
+    return v + 1
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -127,4 +141,7 @@ fn main(world: mut World) {
     stdout.println(isNullFalseField(null))
     stdout.println(safeCastNonNull(produce(true)))
     stdout.println(safeCastNonNull(produce(false)))
+    stdout.println(earlyReturn(Bar("tadaaa")))
+    stdout.println(earlyReturn(null))
+    stdout.println("early return S32: " + earlyReturnS32(41).toString())
 }
