@@ -79,7 +79,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * adding modules or dependencies to existing projects
         * if emerge ecosystem/libraries are already a thing: manage dependencies
 12. checked casts with type arguments. Type parameters are reified: every generic function receives the runtime
-    type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields, and
+    type of each of its type parameters as a hidden argument, every generic class stores them in hidden fields
+    (so a member function without a receiver cannot use the type parameters of its type, like a static method in
+    Java: `TypeParameterUnavailableWithoutReceiverDiagnostic`), and
     every array object knows its element type (`emerge.core.reflection.Type`, `NamedType`, `IntersectionType`,
     `TypeArgument`; `typeOf::<T>()` yields it). `is` and `as` check the whole type at runtime, type arguments,
     nullability and mutability included, for every kind of type: `x is Array<S8>`, `x as Foo?`, `x is T`, `x is A & B`
@@ -119,8 +121,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     3. where the static type of the value already tells the result, say so: skip the check where it always
        succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
     4. `CastError` doesn't say what the value was and what was expected
-    5. a type parameter of a class is not available in its member functions without a receiver; `is T` there
-       fails in the backend
 13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?

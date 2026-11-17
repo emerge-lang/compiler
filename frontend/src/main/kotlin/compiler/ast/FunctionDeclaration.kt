@@ -23,11 +23,13 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundParameterList
 import compiler.binding.BoundTopLevelFunction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.ReceiverlessMemberFunctionContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.binding.type.RootResolvedTypeReference
@@ -76,7 +78,9 @@ data class FunctionDeclaration(
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
-        val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
+        val declaresReceiver = parameters.parameters.firstOrNull()?.name?.value == BoundParameterList.RECEIVER_PARAMETER_NAME
+        val contextOfSignature = if (declaresReceiver) context else ReceiverlessMemberFunctionContext(context)
+        val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(contextOfSignature)
         val functionRootContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionRootContext, { boundFn }, attributes)
         val lazyReceiverType = { context.resolveType(receiverType) as RootResolvedTypeReference }

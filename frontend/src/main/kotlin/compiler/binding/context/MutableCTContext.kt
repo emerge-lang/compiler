@@ -105,6 +105,14 @@ open class MutableCTContext(
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
+    override fun resolveTypeParameterUnavailableWithoutReceiver(simpleName: String): BoundTypeParameter? {
+        if (simpleName in typeParameters) {
+            // shadowed
+            return null
+        }
+        return parentContext.resolveTypeParameterUnavailableWithoutReceiver(simpleName)
+    }
+
     override fun resolveBaseType(simpleName: String): Sequence<BoundBaseType> {
         return handleCyclicInvocation(
             Pair(this, simpleName),
@@ -137,6 +145,10 @@ open class MutableCTContext(
         if (ref is NamedTypeReference) {
             resolveTypeParameter(ref.simpleName)?.let { parameter ->
                 return GenericTypeReference(ref, parameter)
+            }
+            if (resolveTypeParameterUnavailableWithoutReceiver(ref.simpleName) != null) {
+                // the parameter still takes the name; ErroneousType.validate reports why it cannot be used
+                return ErroneousType(this, ref, ref.arguments?.let { resolveTypeArguments(it, null) }, emptyList())
             }
         }
 

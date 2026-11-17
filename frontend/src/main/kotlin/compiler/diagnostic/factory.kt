@@ -77,6 +77,10 @@ fun Diagnosis.unknownType(erroneousType: ErroneousType) {
     add(UnknownTypeDiagnostic(erroneousType.astNode, erroneousType.context.hasUnresolvableImportForSimpleName(erroneousType.simpleName)))
 }
 
+fun Diagnosis.typeParameterUnavailableWithoutReceiver(reference: AstSimpleTypeReference, parameter: BoundTypeParameter) {
+    add(TypeParameterUnavailableWithoutReceiverDiagnostic(reference, parameter.astNode))
+}
+
 fun Diagnosis.ambiguousType(errorneousType: ErroneousType) {
     add(AmbiguousTypeReferenceDiagnostic(errorneousType.astNode, errorneousType.candidates.map { it.canonicalName }, errorneousType.context.hasAmbiguousImportOrDeclarationsForSimpleName(errorneousType.simpleName)))
 }

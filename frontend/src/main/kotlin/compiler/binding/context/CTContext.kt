@@ -97,6 +97,13 @@ interface CTContext {
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
+    /**
+     * @return the type parameter of the enclosing base type named [simpleName], if it is not available in this
+     * context ([resolveTypeParameter] doesn't find it) because the code is in a member function that doesn't
+     * declare a receiver: the type arguments belong to an object, and there is none.
+     */
+    fun resolveTypeParameterUnavailableWithoutReceiver(simpleName: String): BoundTypeParameter?
+
     val allTypeParameters: Sequence<BoundTypeParameter>
 
     /**
