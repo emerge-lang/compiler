@@ -28,6 +28,16 @@ export nothrow fn isInstanceOf(instance: Any?, type: const Type, reference: cons
     return typeOfInstance.isSubtypeOf(type)
 }
 
+// what `as` throws when [instance], referred to by a reference of the type [reference], is no value of [type]:
+// when isInstanceOf denies it for the same arguments. The compiler generates the invocation.
+nothrow fn castErrorOf(instance: Any?, type: const Type, reference: const Type) -> own CastError {
+    if isNull(instance) {
+        return CastError(null, type)
+    }
+
+    return CastError((instance ?: panic("unreachable")).type.withMutability(mutabilityOfReference(reference)), type)
+}
+
 // whether `null` is a value of [self]
 nothrow fn isNullable(capture self: const Type) -> Bool {
     if self is NamedType {

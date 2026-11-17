@@ -252,6 +252,68 @@ internal fun buildInstanceOf(
     )
 }
 
+/**
+ * @param typeOfValue the static type of [value], see [buildInstanceOf]
+ * @return an [IrExpression] that evaluates to the `emerge.core.CastError` for a failed cast of [value] to [typeToCheck].
+ * The error says what the value is and what [typeToCheck] is, so both types are reified here, also where
+ * [buildInstanceOf] gets by with the base type. That is fine, this code only runs when the cast has failed.
+ */
+internal fun buildCastError(
+    swCtx: SoftwareContext,
+    value: IrTemporaryValueReference,
+    typeToCheck: BoundTypeReference,
+    typeOfValue: BoundTypeReference?,
+): IrImplicitEvaluationExpression {
+    val castErrorFn = swCtx.getPackage(swCtx.reflectionBaseType.canonicalName.packageName)
+        ?.getTopLevelFunctionOverloadSetsBySimpleName(CAST_ERROR_FACTORY_FN_NAME)
+        ?.singleOrNull()
+        ?.overloads
+        ?.singleOrNull()
+        ?: throw InternalCompilerError("Could not unambiguously determine the function $CAST_ERROR_FACTORY_FN_NAME")
+    check(castErrorFn.attributes.isDeclaredNothrow) {
+        "$CAST_ERROR_FACTORY_FN_NAME must be nothrow, a failing cast has no landingpad for it"
+    }
+
+    val irTypeOfReifiedTypes = IrSimpleTypeImpl(
+        swCtx.reflectionType.toBackendIr(),
+        IrTypeMutability.IMMUTABLE,
+        isNullable = false,
+    )
+    val typeTemporary = IrCreateTemporaryValueImpl(
+        IrReifiedTypeExpressionImpl(typeToCheck.toBackendIr(), irTypeOfReifiedTypes)
+    )
+    val referenceTypeTemporary = IrCreateTemporaryValueImpl(
+        IrReifiedTypeExpressionImpl(swCtx.reificationOfReferenceMutability(typeOfValue), irTypeOfReifiedTypes)
+    )
+    val castErrorTemporary = IrCreateTemporaryValueImpl(
+        IrStaticDispatchFunctionInvocationImpl(
+            castErrorFn.toBackendIr(),
+            listOf(
+                value,
+                IrTemporaryValueReferenceImpl(typeTemporary),
+                IrTemporaryValueReferenceImpl(referenceTypeTemporary),
+            ),
+            emptyMap(),
+            castErrorFn.returnType!!.toBackendIr(),
+            null, // declared nothrow, see above
+        )
+    )
+
+    return IrImplicitEvaluationExpressionImpl(
+        IrCodeChunkImpl(listOf(
+            typeTemporary,
+            referenceTypeTemporary,
+            castErrorTemporary,
+            IrDropStrongReferenceStatementImpl(referenceTypeTemporary),
+            IrDropStrongReferenceStatementImpl(typeTemporary),
+        )),
+        IrTemporaryValueReferenceImpl(castErrorTemporary),
+    )
+}
+
+/** `emerge.core.reflection.castErrorOf(Any?, Type, Type)` */
+private const val CAST_ERROR_FACTORY_FN_NAME = "castErrorOf"
+
 internal class IrBaseTypeReflectionExpressionImpl(
     override val baseType: IrBaseType,
     override val evaluatesTo: IrType,

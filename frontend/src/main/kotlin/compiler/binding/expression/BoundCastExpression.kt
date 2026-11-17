@@ -1,6 +1,5 @@
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
 import compiler.ast.Expression
 import compiler.ast.expression.AstCastExpression
 import compiler.ast.type.TypeMutability
@@ -18,7 +17,6 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
-import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -28,8 +26,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
  * `value as T` and `value as? T`: checks at runtime that the value is of the type, see [buildInstanceOf]; the
@@ -212,28 +208,11 @@ class BoundCastExpression(
             )
         }
 
-        val classCastErrorBoundType = context.swCtx
-            .resolveBaseType(EmergeConstants.CoreModule.CAST_ERROR_TYPE_NAME)
-            ?: throw InternalCompilerError("Could not resolve base type ${EmergeConstants.CoreModule.CAST_ERROR_TYPE_NAME}")
-
-        val exceptionInstanceExpr = buildGenericInvocationLikeIr(
-            context,
-            declaration.span,
-            emptyList(),
-            { arguments, landingpad ->
-                IrStaticDispatchFunctionInvocationImpl(
-                    classCastErrorBoundType.constructor!!.toBackendIr(),
-                    arguments,
-                    emptyMap(),
-                    IrSimpleTypeImpl(
-                        classCastErrorBoundType.toBackendIr(),
-                        IrTypeMutability.OWN,
-                        isNullable = false,
-                    ),
-                    landingpad,
-                )
-            },
-            assumeNothrow = true, // the constructor of the cast error is nothrow
+        val exceptionInstanceExpr = buildCastError(
+            context.swCtx,
+            IrTemporaryValueReferenceImpl(valueToCastTemporary),
+            typeToCheck!!,
+            value.type,
         )
 
         return IrImplicitEvaluationExpressionImpl(
@@ -246,7 +225,7 @@ class BoundCastExpression(
                     elseBranch = buildIrThrow(
                         context,
                         exceptionInstanceExpr,
-                        throwableInstanceIsReferenceCounted = true, // ctor invocation, is always counted
+                        throwableInstanceIsReferenceCounted = true, // the result of an invocation, is always counted
                         declaration.span,
                     ),
                 ),

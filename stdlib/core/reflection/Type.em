@@ -20,7 +20,7 @@ export interface Type {
     // the first of the named types this type is composed of
     export nothrow fn firstComponent(capture self) -> const NamedType
 
-    export fn toString(self) -> String
+    export nothrow fn toString(self) -> String
 }
 
 export class NamedType : const Type {
@@ -49,7 +49,7 @@ export class NamedType : const Type {
 
     export override nothrow fn firstComponent(capture self) -> const NamedType = self
 
-    export override fn toString(self) -> String {
+    export override nothrow fn toString(self) -> String {
         bt = self.baseType
         var str = bt.canonicalName
         if self.mutability == MUTABILITY_MUT {
@@ -63,11 +63,13 @@ export class NamedType : const Type {
         }
 
         if self.arguments.size > 0 {
-            set str = str + "<" + self.arguments[0].toString()
-            foreach a in self.arguments[1..<$] {
-                set str = str + ", " + a.toString()
+            set str = str + "<" + self.arguments.getOrPanic(0).toString()
+            var index: UWord = 1
+            while index < self.arguments.size {
+                set str = str + ", " + self.arguments.getOrPanic(index).toString()
+                set index = index.plusModulo(1 as UWord)
             }
-            set  str = str + ">"
+            set str = str + ">"
         }
 
         if self.nullable {
@@ -96,10 +98,12 @@ export class IntersectionType : const Type {
 
     export override nothrow fn firstComponent(capture self) -> const NamedType = self.components.getOrPanic(0)
 
-    export override fn toString(self) -> String {
-        var str = self.components[0].toString()
-        foreach c in self.components[1..<$] {
-            set str = str + " & " + c.toString()
+    export override nothrow fn toString(self) -> String {
+        var str = self.components.getOrPanic(0).toString()
+        var index: UWord = 1
+        while index < self.components.size {
+            set str = str + " & " + self.components.getOrPanic(index).toString()
+            set index = index.plusModulo(1 as UWord)
         }
 
         return str
@@ -126,7 +130,7 @@ class TypeParameterPlaceholder : const Type {
         panic("a type parameter placeholder is not a type")
     }
 
-    override fn toString(self) -> String = "<type parameter>"
+    override nothrow fn toString(self) -> String = "<type parameter>"
 
     // @return the type that stands in the place of this placeholder when [argument] is the type argument
     nothrow fn applyNullabilityTo(self, capture argument: const Type) -> const Type {
@@ -163,7 +167,7 @@ class IntersectionTemplate : const Type {
         panic("an intersection template is not a type")
     }
 
-    override fn toString(self) -> String = "<intersection template>"
+    override nothrow fn toString(self) -> String = "<intersection template>"
 }
 
 export class TypeArgument : const Any {
@@ -171,7 +175,7 @@ export class TypeArgument : const Any {
     export variance: U8 = init
     export value: const Type = init
 
-    export fn toString(self) -> String {
+    export nothrow fn toString(self) -> String {
         if self.variance == VARIANCE_INVARIANT {
             return self.value.toString()
         }

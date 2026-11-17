@@ -206,7 +206,7 @@ fn varianceTests(stdout: mut PrintStream) {
     byteSource: Array<S8> = [72, 105, 33]
     byteDest: mut Array<S8> = Array.new::<S8>(3, 0 as S8)
     Array.copy(byteSource, 0, byteDest, 0, 3)
-    stdout.println(String(byteDest))
+    stdout.println(String.fromUtf8(byteDest))
 
     stdout.println("-- generic creation probe")
     created = makeGeneric(1234 as S32)

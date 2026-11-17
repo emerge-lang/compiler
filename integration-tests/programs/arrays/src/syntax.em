@@ -29,7 +29,7 @@ fn syntaxTests(stdout: mut PrintStream) {
         stdout.println("never")
     }
 
-    stdout.println(String("Hello".utf8Data[1..<$ - 1]))
+    stdout.println(String.fromUtf8("Hello".utf8Data[1..<$ - 1]))
 
     m: mut Array<S32> = Array.new::<S32>(3, 0)
     set m[$ - 1] = 9

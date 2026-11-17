@@ -120,7 +120,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        supertype it is translated to (see item 33)
     3. where the static type of the value already tells the result, say so: skip the check where it always
        succeeds, and report a cast that can never succeed (`ForbiddenCastDiagnostic` is unused so far)
-    4. `CastError` doesn't say what the value was and what was expected
 13. Function types
     1. add function types to the grammar and type system.
        * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
@@ -145,6 +144,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        `Throwable` that `action` throws, `Error`s included. This is needed because `try`/`catch` can't do it:
        `Error`s pass through every `catch` (see [design.md](design.md#errors-are-not-caught)), so today a
        `nothrow` function cannot call anything that may throw.
+       * TODO once it exists: `Array.copy` is `nothrow` and panics on bad bounds only because `String.plus`
+         and through it `emerge.core.reflection.Type.toString` have to be `nothrow`, for the message of a
+         `CastError`. Make `Array.copy` throwing again, and have `Type.toString` use this builtin instead
 14. functional-style collection operations
     1. start simple with forEach
     2. go on with filter, map, fold, ...

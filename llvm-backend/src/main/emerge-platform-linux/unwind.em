@@ -193,7 +193,7 @@ private fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const Stri
 
     trimmedName: own _ = Array.new::<S8>(actualNameLength, 0 as S8)
     Array.copy(nameBuf, 0, trimmedName, 0, actualNameLength)
-    return String(trimmedName)
+    return String.fromUtf8(trimmedName)
 }
 
 // BEGIN code to print the stack trace during a panic. Is supposed to not do heap
