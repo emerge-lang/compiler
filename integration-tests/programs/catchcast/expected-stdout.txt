@@ -1,0 +1,1 @@
+casting an Array<String> to Array<S8> in the try block

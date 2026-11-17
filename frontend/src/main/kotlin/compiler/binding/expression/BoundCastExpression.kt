@@ -271,6 +271,7 @@ class BoundCastExpression(
                         context,
                         exceptionInstanceExpr,
                         throwableInstanceIsReferenceCounted = true, // the result of an invocation, is always counted
+                        throwableIsStaticallyAnError = true, // a CastError
                         declaration.span,
                     ),
                 ),

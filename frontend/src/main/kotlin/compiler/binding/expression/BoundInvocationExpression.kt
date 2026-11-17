@@ -774,7 +774,8 @@ internal fun buildGenericInvocationLikeIr(
                     IrVariableAccessExpressionImpl(throwableVar.backendIrDeclaration)
                 )
                 val rethrowStmt = IrCodeChunkImpl(
-                    context.getDeferredCodeForThrow().mapToBackendIrWithDebugLocations()
+                    // also when an Error passes by the catch, the scopes around the try have to be cleaned up
+                    context.getDeferredCodeForUncatchableThrow().mapToBackendIrWithDebugLocations()
                     +
                     listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary), ignoreLocalCatchBlock = true))
                 )
