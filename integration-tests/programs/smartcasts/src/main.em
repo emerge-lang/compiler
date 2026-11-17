@@ -92,6 +92,11 @@ fn earlyReturnS32(v: S32?) -> S32 {
     return v + 1
 }
 
+fn afterNotNull(v: S32?) -> S32 {
+    v!!
+    return v + 1
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -144,4 +149,5 @@ fn main(world: mut World) {
     stdout.println(earlyReturn(Bar("tadaaa")))
     stdout.println(earlyReturn(null))
     stdout.println("early return S32: " + earlyReturnS32(41).toString())
+    stdout.println("after !!: " + afterNotNull(41).toString())
 }

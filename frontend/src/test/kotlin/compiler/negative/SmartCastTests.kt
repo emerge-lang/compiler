@@ -509,4 +509,41 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "a not-null assertion refines the variable in the code after it" - {
+        "in the following statements" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    v!!
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the following arguments" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    takeTwoBars(v!!, v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a branch that may not have run" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if cond() {
+                        v!!
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })
