@@ -22,6 +22,7 @@ class AstWhileLoop(
             context,
             this,
             boundCondition,
+            bodyContext,
             boundBody,
         )
 

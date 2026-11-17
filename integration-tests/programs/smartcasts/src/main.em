@@ -109,6 +109,21 @@ fn bothNotNull(a: S32?, b: S32?) -> String {
     return "or: sum = " + (a + b).toString()
 }
 
+class Node {
+    value: S32 = init
+    next: Node? = init
+}
+
+fn sumOfList(start: Node?) -> S32 {
+    var sum: S32 = 0
+    var node = start
+    while not isNull(node) {
+        set sum = sum + node.value
+        set node = node.next
+    }
+    return sum
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -171,4 +186,5 @@ fn main(world: mut World) {
     } else {
         stdout.println("not: " + v.p)
     }
+    stdout.println("while: sum = " + sumOfList(Node(20, Node(20, Node(2, null)))).toString())
 }

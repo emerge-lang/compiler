@@ -650,4 +650,48 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "the condition of a while loop refines the variable in the body" - {
+        "for each iteration, also when the body assigns a new value" {
+            validateModule("""
+                $declarations
+                fn next(b: Bar) -> Bar? = null
+                fn test(start: Bar?) {
+                    var node = start
+                    while not isNull(node) {
+                        takeBar(node)
+                        set node = next(node)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a new value is assigned in the body" {
+            validateModule("""
+                $declarations
+                fn next(b: Bar) -> Bar? = null
+                fn test(start: Bar?) {
+                    var node = start
+                    while not isNull(node) {
+                        set node = next(node)
+                        takeBar(node)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the loop" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    while v is Bar {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })
