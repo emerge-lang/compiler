@@ -150,7 +150,13 @@ class BoundObjectMemberAssignmentStatement(
         }
 
         physicalMembers.singleOrNull()?.let { member ->
-            targetObjectExpression.tryAsVariable()?.let { memberOwnerVariable ->
+            val memberOwnerVariable = targetObjectExpression.tryAsVariable()
+            if (memberOwnerVariable == null && !member.isReAssignable) {
+                // only objects in a variable can be partially initialized (self in a constructor); any other object
+                // was fully initialized by its constructor
+                diagnosis.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this@BoundObjectMemberAssignmentStatement)
+            }
+            memberOwnerVariable?.let { memberOwnerVariable ->
                 val repetitionRelativeToMemberHolder = context.getRepetitionBehaviorRelativeTo(memberOwnerVariable.modifiedContext)
 
                 initializationStateBefore = context.getEphemeralState(PartialObjectInitialization, memberOwnerVariable).getMemberInitializationState(member)
