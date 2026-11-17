@@ -18,3 +18,5 @@ isNull: S32 + 1 = 42
 isNull: null
 isNull: tadaaa
 isNull: null
+safe cast: tadaaa
+safe cast: not a bar

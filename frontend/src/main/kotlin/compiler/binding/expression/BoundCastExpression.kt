@@ -57,6 +57,26 @@ class BoundCastExpression(
     override lateinit var type: BoundTypeReference
         private set
 
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        // the result of the cast is the value or null, so what holds for the value holds for the result, too
+        val fromValue = value.implications
+        if (!safeCast) {
+            return fromValue
+        }
+
+        // a safe cast evaluates to null unless the value is of the type
+        val localTypeToCheck = typeToCheck
+        val subject = value.tryAsVariable()
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null || !VariableTypeRefinement.canBeRefined(subject)) {
+            return fromValue
+        }
+
+        return fromValue + BoundExpression.ResultImplication(
+            BoundExpression.ImplyingResult.NON_NULL_VALUE,
+            mapOf(subject to localTypeToCheck),
+        )
+    }
+
     /** the type the value is checked against at runtime; for `as? T` that is `T`, though [type] is `T?` */
     private var typeToCheck: BoundTypeReference? = null
     private val isTypedNumericLiteral get() = value is BoundNumericLiteral

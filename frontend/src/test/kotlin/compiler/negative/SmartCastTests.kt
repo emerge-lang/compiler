@@ -327,4 +327,46 @@ class SmartCastTests : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
     }
+
+    "a safe cast evaluating to non-null refines the variable" - {
+        "in the else branch of isNull" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    if isNull(v as? Bar) {
+                        return "not a bar"
+                    } else {
+                        takeBar(v)
+                        return v.p
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "also from a nullable type" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo?) {
+                    if isNull(v as? Bar) {
+                    } else {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the then branch of isNull" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if isNull(v as? Bar) {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
 })

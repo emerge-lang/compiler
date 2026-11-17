@@ -70,6 +70,14 @@ fn isNullFalseField(v: Bar?) -> String {
     }
 }
 
+fn safeCastNonNull(v: Foo) -> String {
+    if isNull(v as? Bar) {
+        return "safe cast: not a bar"
+    } else {
+        return "safe cast: " + v.p
+    }
+}
+
 fn afterStrictCastToS32(v: Any) -> S32 {
     v as S32
     return v + 1
@@ -117,4 +125,6 @@ fn main(world: mut World) {
     stdout.println(isNullFalse(null))
     stdout.println(isNullFalseField(Bar("tadaaa")))
     stdout.println(isNullFalseField(null))
+    stdout.println(safeCastNonNull(produce(true)))
+    stdout.println(safeCastNonNull(produce(false)))
 }
