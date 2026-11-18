@@ -10,6 +10,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundExpression.Companion.wrapIrAsStatement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -44,14 +46,36 @@ class BoundCastExpression(
     val value: BoundExpression<*>,
     val safeCast: Boolean,
 ) : BoundExpression<Expression> by value {
-    override val modifiedContext = if (safeCast) value.modifiedContext else {
+    /** the code after a strict cast only runs if the cast succeeded */
+    private val contextAfterStrictCast: MutableExecutionScopedCTContext? = if (safeCast) null else {
         val newCtx = MutableExecutionScopedCTContext.deriveFrom(value.modifiedContext)
         newCtx.trackSideEffect(CallFrameExit.Effect.ThrowsPossibly)
         newCtx
     }
+    override val modifiedContext: ExecutionScopedCTContext = contextAfterStrictCast ?: value.modifiedContext
 
     override lateinit var type: BoundTypeReference
         private set
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        // the result of the cast is the value or null, so what holds for the value holds for the result, too
+        val fromValue = value.implications
+        if (!safeCast) {
+            return fromValue
+        }
+
+        // a safe cast evaluates to null unless the value is of the type
+        val localTypeToCheck = typeToCheck
+        val subject = VariableTypeRefinement.pathOf(value)
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
+            return fromValue
+        }
+
+        return fromValue + BoundExpression.ResultImplication(
+            BoundExpression.ImplyingResult.NON_NULL_VALUE,
+            mapOf(subject to localTypeToCheck),
+        )
+    }
 
     /** the type the value is checked against at runtime; for `as? T` that is `T`, though [type] is `T?` */
     private var typeToCheck: BoundTypeReference? = null
@@ -117,6 +141,13 @@ class BoundCastExpression(
         }
 
         this.type = if (safeCast) targetType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else targetType
+
+        // a strict cast throws unless the value is of the type; so in the code after it, the variable is of that type
+        val localTypeToCheck = typeToCheck
+        val subject = VariableTypeRefinement.pathOf(value)
+        if (contextAfterStrictCast != null && localTypeToCheck != null && localTypeToCheck !is ErroneousType && subject != null) {
+            contextAfterStrictCast.trackSideEffect(VariableTypeRefinement.Effect.Refine(subject, localTypeToCheck, contextAfterStrictCast))
+        }
     }
 
     /**
@@ -221,10 +252,7 @@ class BoundCastExpression(
         if (staticResult == StaticTypeCheckResult.AlwaysSucceeds) {
             return IrImplicitEvaluationExpressionImpl(
                 IrCodeChunkImpl(listOf(valueToCastTemporary)),
-                object : IrTemporaryValueReference {
-                    override val declaration = valueToCastTemporary
-                    override val type: IrType get() = irTargetType
-                },
+                IrTemporaryValueReferenceImpl(valueToCastTemporary, irTargetType),
             )
         }
 
@@ -276,10 +304,7 @@ class BoundCastExpression(
                     ),
                 ),
             )),
-            object : IrTemporaryValueReference {
-                override val declaration = valueToCastTemporary
-                override val type: IrType get()= this@BoundCastExpression.type.toBackendIr()
-            }
+            IrTemporaryValueReferenceImpl(valueToCastTemporary, irTargetType),
         )
     }
 

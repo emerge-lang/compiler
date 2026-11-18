@@ -3,7 +3,10 @@ package compiler.binding
 import compiler.ast.AstWhileLoop
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrConditionalBranchImpl
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -20,6 +23,8 @@ class BoundWhileLoop(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstWhileLoop,
     val condition: BoundCondition,
+    /** the context [body] is bound in */
+    private val bodyContext: MutableExecutionScopedCTContext,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstWhileLoop> {
     override val modifiedContext = SingleBranchJoinExecutionScopedCTContext(
@@ -44,6 +49,10 @@ class BoundWhileLoop(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
             condition.semanticAnalysisPhase2(diagnosis)
+
+            // the body runs after the condition was true, in each iteration
+            VariableTypeRefinement.trackImplications(condition.implications, BoundExpression.ImplyingResult.BOOL_TRUE, bodyContext)
+
             body.semanticAnalysisPhase2(diagnosis)
         }
     }

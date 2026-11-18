@@ -5,7 +5,9 @@ import compiler.ast.type.TypeReference
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -26,7 +28,17 @@ class BoundNullCoalescingExpression(
     val nullableExpression: BoundExpression<*>,
     val alternativeExpression: BoundExpression<*>,
 ) : BoundExpression<BinaryExpression> {
-    override val modifiedContext: ExecutionScopedCTContext = SingleBranchJoinExecutionScopedCTContext(nullableExpression.modifiedContext, alternativeExpression.modifiedContext)
+    /**
+     * Where the value was not null and the alternative is not evaluated. Carries the implications of that, for the code
+     * after where the alternative doesn't complete normally (e.g. `v ?: return`).
+     */
+    private val contextWhenNonNull = MutableExecutionScopedCTContext.deriveFrom(nullableExpression.modifiedContext)
+
+    override val modifiedContext: ExecutionScopedCTContext = SingleBranchJoinExecutionScopedCTContext(
+        nullableExpression.modifiedContext,
+        alternativeExpression.modifiedContext,
+        contextWhenNonNull,
+    )
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         nullableExpression.setNothrow(boundary)
@@ -60,6 +72,7 @@ class BoundNullCoalescingExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.semanticAnalysisPhase2(diagnosis)
+        VariableTypeRefinement.trackImplications(nullableExpression.implications, BoundExpression.ImplyingResult.NON_NULL_VALUE, contextWhenNonNull)
         alternativeExpression.semanticAnalysisPhase2(diagnosis)
 
         val notNullableType = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)

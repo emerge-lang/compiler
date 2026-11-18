@@ -22,10 +22,12 @@ import compiler.InternalCompilerError
 import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundBinaryExpression
 import compiler.binding.expression.BoundComparisonExpression
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundNullCoalescingExpression
+import compiler.binding.expression.BoundShortCircuitExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -41,8 +43,8 @@ private val COMPARISON_OPRATOR_MAPPING: Map<Any, IrNumericComparisonExpression.P
 )
 
 private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
-    Keyword.AND to "and",
-    Keyword.OR to "or",
+    Operator.AMPERSAND to "bitwiseAnd",
+    Operator.PIPE to "bitwiseOr",
     Keyword.XOR to "xor",
     Operator.PLUS to "plus",
     Operator.MINUS to "minus",
@@ -64,6 +66,12 @@ class BinaryExpression(
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         if (operator.operatorElement == Operator.NULL_COALESCE) {
             return bindToAsNullCoalescing(context)
+        }
+        if (operator.operatorElement == Keyword.AND) {
+            return bindToAsShortCircuit(context, BoundShortCircuitExpression.Operator.AND)
+        }
+        if (operator.operatorElement == Keyword.OR) {
+            return bindToAsShortCircuit(context, BoundShortCircuitExpression.Operator.OR)
         }
 
         val comparisonPredicate = COMPARISON_OPRATOR_MAPPING[operator.operatorElement]
@@ -119,6 +127,13 @@ class BinaryExpression(
             compareToInvocation,
             predicate,
         )
+    }
+
+    private fun bindToAsShortCircuit(context: ExecutionScopedCTContext, operator: BoundShortCircuitExpression.Operator): BoundShortCircuitExpression {
+        val boundLeftHandSide = leftHandSide.bindTo(context)
+        val contextForRightHandSide = MutableExecutionScopedCTContext.deriveConditionalFrom(boundLeftHandSide.modifiedContext)
+        val boundRightHandSide = rightHandSide.bindTo(contextForRightHandSide)
+        return BoundShortCircuitExpression(context, this, operator, boundLeftHandSide, contextForRightHandSide, boundRightHandSide)
     }
 
     private fun bindToAsNullCoalescing(context: ExecutionScopedCTContext): BoundNullCoalescingExpression {

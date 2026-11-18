@@ -164,7 +164,6 @@ private val AstSemanticOperator.infixPower: Int
         Operator.NULL_COALESCE -> 10
 
         Keyword.OR -> 20
-        Keyword.XOR -> 21
         Keyword.AND -> 22
 
         Operator.LESS_THAN,
@@ -175,6 +174,10 @@ private val AstSemanticOperator.infixPower: Int
         Operator.NOT_EQUALS -> 30
 
         Operator.RANGE_UNTIL -> 35
+
+        Operator.PIPE -> 36
+        Keyword.XOR -> 37
+        Operator.AMPERSAND -> 38
 
         Operator.PLUS,
         Operator.MINUS -> 40

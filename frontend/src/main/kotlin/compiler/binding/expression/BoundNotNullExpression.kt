@@ -30,6 +30,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
@@ -57,11 +59,13 @@ class BoundNotNullExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override val modifiedContext: ExecutionScopedCTContext = run {
+    /** the code after the assertion only runs if the value is not null */
+    private val contextAfterAssertion: MutableExecutionScopedCTContext = run {
         val newCtx = MutableExecutionScopedCTContext.deriveFrom(nullableExpression.modifiedContext)
         newCtx.trackSideEffect(CallFrameExit.Effect.ThrowsPossibly)
         newCtx
     }
+    override val modifiedContext: ExecutionScopedCTContext = contextAfterAssertion
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         nullableExpression.semanticAnalysisPhase1(diagnosis)
@@ -84,6 +88,13 @@ class BoundNotNullExpression(
         nullableExpression.semanticAnalysisPhase2(diagnosis)
         type = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
             ?: expectedEvaluationResultType
+
+        // in the code after it, the variable is not null
+        val subject = VariableTypeRefinement.pathOf(nullableExpression)
+        val nonNullType = nullableExpression.type?.takeIf { it.isNullable }?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+        if (subject != null && nonNullType != null) {
+            contextAfterAssertion.trackSideEffect(VariableTypeRefinement.Effect.Refine(subject, nonNullType, contextAfterAssertion))
+        }
     }
 
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
@@ -186,7 +197,8 @@ class BoundNotNullExpression(
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrImplicitEvaluationExpressionImpl(backendIr.first, IrTemporaryValueReferenceImpl(backendIr.second))
+        // the static type of the checked value is not nullable anymore; for value types, this unboxes the value
+        return IrImplicitEvaluationExpressionImpl(backendIr.first, IrTemporaryValueReferenceImpl(backendIr.second, type!!.toBackendIr()))
     }
 
     override fun toBackendIrStatement(): IrExecutable {

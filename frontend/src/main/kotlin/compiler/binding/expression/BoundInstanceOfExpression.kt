@@ -7,6 +7,8 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.BoundFunction
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -16,6 +18,7 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.binding.type.ErroneousType
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.NullableTypeReference
@@ -91,6 +94,20 @@ class BoundInstanceOfExpression(
 
     /** is set during [semanticAnalysisPhase2] */
     private var staticResult: StaticTypeCheckResult = StaticTypeCheckResult.Unknown
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        val localTypeToCheck = typeToCheck
+        val subject = VariableTypeRefinement.pathOf(expressionToCheck)
+
+        if (localTypeToCheck == null || localTypeToCheck is ErroneousType || subject == null) {
+            return emptyList()
+        }
+
+        return listOf(BoundExpression.ResultImplication(
+            ImplyingResult.BOOL_TRUE,
+            mapOf(subject to localTypeToCheck)
+        ))
+    }
 
     override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do:

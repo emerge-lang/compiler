@@ -23,5 +23,5 @@ private nothrow fn castErrorMessage(actualType: const Type?, expectedType: const
         return "Cannot cast null to " + expectedType.toString()
     }
 
-    return "Cannot cast a value of type " + (actualType ?: panic("unreachable")).toString() + " to " + expectedType.toString()
+    return "Cannot cast a value of type " + actualType.toString() + " to " + expectedType.toString()
 }

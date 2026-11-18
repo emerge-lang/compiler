@@ -30,7 +30,7 @@ import compiler.lexer.OperatorToken
 
 private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
     Operator.MINUS to "unaryMinus",
-    Keyword.NOT to "negate",
+    Keyword.NOT to "bitwiseNot",
 )
 
 class UnaryExpression(

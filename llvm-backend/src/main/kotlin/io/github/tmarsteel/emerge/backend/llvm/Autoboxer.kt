@@ -554,7 +554,7 @@ internal fun IrType.boundBaseTypeOrNull(): IrBaseType? = when (this) {
     is IrSimpleType -> baseType
     is IrParameterizedType -> simpleType.baseType
     is IrGenericTypeReference -> effectiveBound.boundBaseTypeOrNull()
-    is IrIntersectionType -> null
+    is IrIntersectionType -> representativeComponent?.boundBaseTypeOrNull()
 }
 
 private val boxDestructor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(

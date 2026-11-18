@@ -40,18 +40,23 @@ class IfExpression (
         val thenCodeAsChunk: AstCodeChunk = if (thenCode is AstCodeChunk) thenCode else AstCodeChunk(listOf(thenCode as Statement))
         val elseCodeAsChunk: AstCodeChunk? = if (elseCode == null) null else if (elseCode is AstCodeChunk) elseCode else AstCodeChunk(listOf(elseCode as Statement))
 
+        val contextForThen = MutableExecutionScopedCTContext.deriveNewScopeFrom(
+            boundCondition.modifiedContext,
+            ExecutionScopedCTContext.Repetition.MAYBE,
+        )
+        val contextForElse = if (elseCodeAsChunk != null) MutableExecutionScopedCTContext.deriveNewScopeFrom(
+            boundCondition.modifiedContext,
+            ExecutionScopedCTContext.Repetition.MAYBE,
+        ) else null
+
         return BoundIfExpression(
             boundCondition.modifiedContext,
             this,
             boundCondition,
-            thenCodeAsChunk.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
-                boundCondition.modifiedContext,
-                ExecutionScopedCTContext.Repetition.MAYBE,
-            )),
-            elseCodeAsChunk?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
-                boundCondition.modifiedContext,
-                ExecutionScopedCTContext.Repetition.MAYBE,
-            )),
+            contextForThen,
+            thenCodeAsChunk.bindTo(contextForThen),
+            contextForElse,
+            elseCodeAsChunk?.bindTo(contextForElse!!),
         )
     }
 }

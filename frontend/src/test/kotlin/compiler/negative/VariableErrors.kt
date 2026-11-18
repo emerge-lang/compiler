@@ -216,6 +216,63 @@ class VariableErrors : FreeSpec({
                 .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
+        "cannot assign to a member variable that is not re-assignable" - {
+            "of an object in a variable" {
+                validateModule("""
+                    class Inner {
+                        x: S32 = init
+                    }
+                    fn test(i: mut Inner) {
+                        set i.x = 2
+                    }
+                """.trimIndent())
+                    .shouldFind<IllegalAssignmentDiagnostic>()
+            }
+
+            "of an object reached through a member" {
+                validateModule("""
+                    class Inner {
+                        x: S32 = init
+                    }
+                    class Outer {
+                        inner: mut Inner = init
+                    }
+                    fn test(o: mut Outer) {
+                        set o.inner.x = 2
+                    }
+                """.trimIndent())
+                    .shouldFind<IllegalAssignmentDiagnostic>()
+            }
+
+            "of an object returned by an invocation" {
+                validateModule("""
+                    class Inner {
+                        x: S32 = init
+                    }
+                    fn make() -> mut Inner = Inner(1)
+                    fn test() {
+                        set make().x = 2
+                    }
+                """.trimIndent())
+                    .shouldFind<IllegalAssignmentDiagnostic>()
+            }
+
+            "but to one that is, through any path" {
+                validateModule("""
+                    class Inner {
+                        var x: S32 = init
+                    }
+                    class Outer {
+                        inner: mut Inner = init
+                    }
+                    fn test(o: mut Outer) {
+                        set o.inner.x = 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
         "cannot assign to not-null assertion" {
             validateModule("""
                 fn foo() {

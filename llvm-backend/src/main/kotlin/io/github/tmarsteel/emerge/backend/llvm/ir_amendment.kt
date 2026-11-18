@@ -40,7 +40,31 @@ internal val IrType.autoboxer: Autoboxer? get() = when(this) {
     is IrSimpleType -> baseType.autoboxer
     // type parameters bound by an array are represented like arrays
     is IrGenericTypeReference -> effectiveBound.autoboxer?.takeIf { it === Autoboxer.ArraySlice }
-    else -> null
+    is IrIntersectionType -> representativeComponent?.autoboxer
+}
+
+/**
+ * The component of this intersection that determines how values of the intersection type are represented: the one
+ * whose base type is a class (all classes are final, so all components with a class as base type have the same base
+ * type; otherwise the intersection would be empty). E.g. `Bar` for `T & Bar`, which the frontend produces for a
+ * smart-cast of a variable of type `T` in `if v is Bar`.
+ *
+ * `null` if there is no such component; then values of the intersection are references to any object.
+ */
+internal val IrIntersectionType.representativeComponent: IrType? by tackLazyVal {
+    components
+        .asSequence()
+        .filter { it.isNullable == this.isNullable }
+        // prefer the precise types over type parameters bound by the class
+        .sortedBy { it is IrGenericTypeReference }
+        .firstOrNull { it.isBoundByClass }
+}
+
+private val IrType.isBoundByClass: Boolean get() = when (this) {
+    is IrSimpleType -> baseType is IrClass
+    is IrParameterizedType -> simpleType.isBoundByClass
+    is IrGenericTypeReference -> effectiveBound.isBoundByClass
+    is IrIntersectionType -> representativeComponent != null
 }
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }

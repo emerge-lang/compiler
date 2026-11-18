@@ -38,19 +38,19 @@ export class S8 : const Any & Printable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S8
-    export intrinsic nothrow operator fn negate(self) -> S8
+    export intrinsic nothrow operator fn bitwiseNot(self) -> S8
 
     export intrinsic operator fn plus(self, summand: S8) -> S8
     export intrinsic operator fn minus(self, operand: S8) -> S8
     export intrinsic operator fn times(self, factor: S8) -> S8
     export intrinsic operator fn divideBy(self, divisor: S8) -> S8
-    export intrinsic nothrow operator fn rem(self, divisor: S8) -> S8
+    export intrinsic nothrow fn rem(self, divisor: S8) -> S8
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S8
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S8
-    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S8
-    export intrinsic nothrow operator fn `and`(self, other: S8) -> S8
-    export intrinsic nothrow operator fn `or`(self, other: S8) -> S8
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> S8
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> S8
+    export intrinsic nothrow fn arithmeticBitShiftRight(self, amount: U8) -> S8
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: S8) -> S8
+    export intrinsic nothrow operator fn bitwiseOr(self, other: S8) -> S8
     export intrinsic nothrow operator fn `xor`(self, other: S8) -> S8
 
     export intrinsic nothrow operator fn compareTo(self, other: S8) -> S8
@@ -75,18 +75,18 @@ export class S8 : const Any & Printable {
 export class U8 : const Any & Printable {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> U8
+    export intrinsic nothrow operator fn bitwiseNot(self) -> U8
 
     export intrinsic operator fn plus(self, summand: U8) -> U8
     export intrinsic operator fn minus(self, operand: U8) -> U8
     export intrinsic operator fn times(self, factor: U8) -> U8
     export intrinsic operator fn divideBy(self, divisor: U8) -> U8
-    export intrinsic nothrow operator fn rem(self, divisor: U8) -> U8
+    export intrinsic nothrow fn rem(self, divisor: U8) -> U8
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U8
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U8
-    export intrinsic nothrow operator fn `and`(self, other: U8) -> U8
-    export intrinsic nothrow operator fn `or`(self, other: U8) -> U8
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> U8
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> U8
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: U8) -> U8
+    export intrinsic nothrow operator fn bitwiseOr(self, other: U8) -> U8
     export intrinsic nothrow operator fn `xor`(self, other: U8) -> U8
 
     export intrinsic nothrow operator fn compareTo(self, other: U8) -> S8
@@ -108,19 +108,19 @@ export class S16 : const Any & Printable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S16
-    export intrinsic nothrow operator fn negate(self) -> S16
+    export intrinsic nothrow operator fn bitwiseNot(self) -> S16
 
     export intrinsic operator fn plus(self, summand: S16) -> S16
     export intrinsic operator fn minus(self, operand: S16) -> S16
     export intrinsic operator fn times(self, factor: S16) -> S16
     export intrinsic operator fn divideBy(self, divisor: S16) -> S16
-    export intrinsic nothrow operator fn rem(self, divisor: S16) -> S16
+    export intrinsic nothrow fn rem(self, divisor: S16) -> S16
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S16
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S16
-    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S16
-    export intrinsic nothrow operator fn `and`(self, other: S16) -> S16
-    export intrinsic nothrow operator fn `or`(self, other: S16) -> S16
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> S16
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> S16
+    export intrinsic nothrow fn arithmeticBitShiftRight(self, amount: U8) -> S16
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: S16) -> S16
+    export intrinsic nothrow operator fn bitwiseOr(self, other: S16) -> S16
     export intrinsic nothrow operator fn `xor`(self, other: S16) -> S16
 
     export intrinsic nothrow operator fn compareTo(self, other: S16) -> S16
@@ -144,18 +144,18 @@ export class S16 : const Any & Printable {
 export class U16 : const Any & Printable {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> U16
+    export intrinsic nothrow operator fn bitwiseNot(self) -> U16
 
     export intrinsic operator fn plus(self, summand: U16) -> U16
     export intrinsic operator fn minus(self, operand: U16) -> U16
     export intrinsic operator fn times(self, factor: U16) -> U16
     export intrinsic operator fn divideBy(self, divisor: U16) -> U16
-    export intrinsic nothrow operator fn rem(self, divisor: U16) -> U16
+    export intrinsic nothrow fn rem(self, divisor: U16) -> U16
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S16
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S16
-    export intrinsic nothrow operator fn `and`(self, other: U16) -> U16
-    export intrinsic nothrow operator fn `or`(self, other: U16) -> U16
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> S16
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> S16
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: U16) -> U16
+    export intrinsic nothrow operator fn bitwiseOr(self, other: U16) -> U16
     export intrinsic nothrow operator fn `xor`(self, other: U16) -> U16
 
     export intrinsic nothrow operator fn compareTo(self, other: U16) -> S16
@@ -176,19 +176,19 @@ export class S32 : const Any & Printable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S32
-    export intrinsic nothrow operator fn negate(self) -> S32
+    export intrinsic nothrow operator fn bitwiseNot(self) -> S32
 
     export intrinsic operator fn plus(self, summand: S32) -> S32
     export intrinsic operator fn minus(self, operand: S32) -> S32
     export intrinsic operator fn times(self, factor: S32) -> S32
     export intrinsic operator fn divideBy(self, divisor: S32) -> S32
-    export intrinsic nothrow operator fn rem(self, divisor: S32) -> S32
+    export intrinsic nothrow fn rem(self, divisor: S32) -> S32
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S32
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S32
-    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S32
-    export intrinsic nothrow operator fn `and`(self, other: S32) -> S32
-    export intrinsic nothrow operator fn `or`(self, other: S32) -> S32
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> S32
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> S32
+    export intrinsic nothrow fn arithmeticBitShiftRight(self, amount: U8) -> S32
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: S32) -> S32
+    export intrinsic nothrow operator fn bitwiseOr(self, other: S32) -> S32
     export intrinsic nothrow operator fn `xor`(self, other: S32) -> S32
 
     export intrinsic nothrow operator fn compareTo(self, other: S32) -> S32
@@ -211,18 +211,18 @@ export class S32 : const Any & Printable {
 export class U32 : const Any & Printable {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> U32
+    export intrinsic nothrow operator fn bitwiseNot(self) -> U32
 
     export intrinsic operator fn plus(self, summand: U32) -> U32
     export intrinsic operator fn minus(self, operand: U32) -> U32
     export intrinsic operator fn times(self, factor: U32) -> U32
     export intrinsic operator fn divideBy(self, divisor: U32) -> U32
-    export intrinsic nothrow operator fn rem(self, divisor: U32) -> U32
+    export intrinsic nothrow fn rem(self, divisor: U32) -> U32
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U32
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U32
-    export intrinsic nothrow operator fn `and`(self, other: U32) -> U32
-    export intrinsic nothrow operator fn `or`(self, other: U32) -> U32
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> U32
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> U32
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: U32) -> U32
+    export intrinsic nothrow operator fn bitwiseOr(self, other: U32) -> U32
     export intrinsic nothrow operator fn `xor`(self, other: U32) -> U32
 
     export intrinsic nothrow operator fn compareTo(self, other: U32) -> S32
@@ -242,19 +242,19 @@ export class S64 : const Any & Printable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S64
-    export intrinsic nothrow operator fn negate(self) -> S64
+    export intrinsic nothrow operator fn bitwiseNot(self) -> S64
 
     export intrinsic operator fn plus(self, summand: S64) -> S64
     export intrinsic operator fn minus(self, operand: S64) -> S64
     export intrinsic operator fn times(self, factor: S64) -> S64
     export intrinsic operator fn divideBy(self, divisor: S64) -> S64
-    export intrinsic nothrow operator fn rem(self, divisor: S64) -> S64
+    export intrinsic nothrow fn rem(self, divisor: S64) -> S64
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S64
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S64
-    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S64
-    export intrinsic nothrow operator fn `and`(self, other: S64) -> S64
-    export intrinsic nothrow operator fn `or`(self, other: S64) -> S64
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> S64
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> S64
+    export intrinsic nothrow fn arithmeticBitShiftRight(self, amount: U8) -> S64
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: S64) -> S64
+    export intrinsic nothrow operator fn bitwiseOr(self, other: S64) -> S64
     export intrinsic nothrow operator fn `xor`(self, other: S64) -> S64
 
     export intrinsic nothrow operator fn compareTo(self, other: S64) -> S64
@@ -282,18 +282,18 @@ export class S64 : const Any & Printable {
 export class U64 : const Any & Printable {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> U64
+    export intrinsic nothrow operator fn bitwiseNot(self) -> U64
 
     export intrinsic operator fn plus(self, summand: U64) -> U64
     export intrinsic operator fn minus(self, operand: U64) -> U64
     export intrinsic operator fn times(self, factor: U64) -> U64
     export intrinsic operator fn divideBy(self, divisor: U64) -> U64
-    export intrinsic nothrow operator fn rem(self, divisor: U64) -> U64
+    export intrinsic nothrow fn rem(self, divisor: U64) -> U64
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U64
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U64
-    export intrinsic nothrow operator fn `and`(self, other: U64) -> U64
-    export intrinsic nothrow operator fn `or`(self, other: U64) -> U64
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> U64
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> U64
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: U64) -> U64
+    export intrinsic nothrow operator fn bitwiseOr(self, other: U64) -> U64
     export intrinsic nothrow operator fn `xor`(self, other: U64) -> U64
 
     export intrinsic nothrow operator fn compareTo(self, other: U64) -> S64
@@ -345,19 +345,19 @@ export class SWord : const Any & Printable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> SWord
-    export intrinsic nothrow operator fn negate(self) -> SWord
+    export intrinsic nothrow operator fn bitwiseNot(self) -> SWord
 
     export intrinsic operator fn plus(self, summand: SWord) -> SWord
     export intrinsic operator fn minus(self, operand: SWord) -> SWord
     export intrinsic operator fn times(self, factor: SWord) -> SWord
     export intrinsic operator fn divideBy(self, divisor: SWord) -> SWord
-    export intrinsic nothrow operator fn rem(self, divisor: SWord) -> SWord
+    export intrinsic nothrow fn rem(self, divisor: SWord) -> SWord
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> SWord
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> SWord
-    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> SWord
-    export intrinsic nothrow operator fn `and`(self, other: SWord) -> SWord
-    export intrinsic nothrow operator fn `or`(self, other: SWord) -> SWord
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> SWord
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> SWord
+    export intrinsic nothrow fn arithmeticBitShiftRight(self, amount: U8) -> SWord
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: SWord) -> SWord
+    export intrinsic nothrow operator fn bitwiseOr(self, other: SWord) -> SWord
     export intrinsic nothrow operator fn `xor`(self, other: SWord) -> SWord
 
     export intrinsic nothrow operator fn compareTo(self, other: SWord) -> SWord
@@ -381,18 +381,18 @@ export class SWord : const Any & Printable {
 export class UWord : const Any & Printable {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> UWord
+    export intrinsic nothrow operator fn bitwiseNot(self) -> UWord
 
     export intrinsic operator fn plus(self, summand: UWord) -> UWord
     export intrinsic operator fn minus(self, operand: UWord) -> UWord
     export intrinsic operator fn times(self, factor: UWord) -> UWord
     export intrinsic operator fn divideBy(self, dividend: UWord) -> UWord
-    export intrinsic nothrow operator fn rem(self, divisor: UWord) -> UWord
+    export intrinsic nothrow fn rem(self, divisor: UWord) -> UWord
     
-    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> UWord
-    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> UWord
-    export intrinsic nothrow operator fn `and`(self, other: UWord) -> UWord
-    export intrinsic nothrow operator fn `or`(self, other: UWord) -> UWord
+    export intrinsic nothrow fn bitShiftLeft(self, amount: U8) -> UWord
+    export intrinsic nothrow fn logicalBitShiftRight(self, amount: U8) -> UWord
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: UWord) -> UWord
+    export intrinsic nothrow operator fn bitwiseOr(self, other: UWord) -> UWord
     export intrinsic nothrow operator fn `xor`(self, other: UWord) -> UWord
 
     export intrinsic nothrow operator fn compareTo(self, other: UWord) -> SWord
@@ -414,10 +414,10 @@ export class UWord : const Any & Printable {
 export class Bool : const Any {
     private nothrow constructor {}
 
-    export intrinsic nothrow operator fn negate(self) -> Bool
+    export intrinsic nothrow operator fn bitwiseNot(self) -> Bool
 
-    export intrinsic nothrow operator fn `and`(self, other: Bool) -> Bool
-    export intrinsic nothrow operator fn `or`(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn bitwiseAnd(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn bitwiseOr(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn `xor`(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn equals(self, other: Bool) -> Bool
 }

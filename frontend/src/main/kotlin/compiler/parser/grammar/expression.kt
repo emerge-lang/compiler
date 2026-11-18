@@ -604,6 +604,10 @@ val BinaryOperator = eitherOf {
     operator(Operator.GREATER_THAN_OR_EQUALS)
     operator(Operator.LESS_THAN_OR_EQUALS)
 
+    // Bitwise
+    operator(Operator.AMPERSAND)
+    operator(Operator.PIPE)
+
     // Logic
     keyword(Keyword.AND)
     keyword(Keyword.OR)

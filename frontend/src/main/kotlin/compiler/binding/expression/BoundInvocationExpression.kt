@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
 import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
@@ -81,6 +82,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BoundInvocationExpression(
     /** the context after all [valueArguments] have been evaluated */
@@ -106,6 +108,39 @@ class BoundInvocationExpression(
     private var chosenOverload: OverloadCandidateEvaluation? = null
 
     override val type: BoundTypeReference? get() = chosenOverload?.returnType ?: chosenOverload?.candidate?.returnType
+
+    override val implications: List<BoundExpression.ResultImplication> get() {
+        val fn = functionToInvoke ?: return emptyList()
+        val arguments = listOfNotNull(receiverExpression) + valueArguments
+        return when (fn.canonicalName) {
+            // isNull(x) is true iff x evaluates to null
+            EmergeConstants.CoreModule.IS_NULL_FN_NAME -> mapImplications(
+                arguments.singleOrNull() ?: return emptyList(),
+                ImplyingResult.NULL_VALUE to ImplyingResult.BOOL_TRUE,
+                ImplyingResult.NON_NULL_VALUE to ImplyingResult.BOOL_FALSE,
+            )
+            EmergeConstants.CoreModule.BOOL_BITWISE_NOT_FN_NAME -> mapImplications(
+                arguments.singleOrNull() ?: return emptyList(),
+                ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_FALSE,
+                ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_TRUE,
+            )
+            // `&` and `|` on Bool: both operands are evaluated (no short-circuiting): if `a & b` is true, both are true
+            EmergeConstants.CoreModule.BOOL_BITWISE_AND_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_TRUE to ImplyingResult.BOOL_TRUE) }
+            EmergeConstants.CoreModule.BOOL_BITWISE_OR_FN_NAME -> arguments.flatMap { mapImplications(it, ImplyingResult.BOOL_FALSE to ImplyingResult.BOOL_FALSE) }
+            else -> emptyList()
+        }
+    }
+
+    /**
+     * @param mapping for each result of [argument]: the result of this invocation that it is implied by
+     * @return the implications of [argument], for the results of this invocation
+     */
+    private fun mapImplications(argument: BoundExpression<*>, vararg mapping: Pair<ImplyingResult, ImplyingResult>): List<BoundExpression.ResultImplication> {
+        return argument.implications.mapNotNull { implication ->
+            val onResult = mapping.firstOrNull { it.first == implication.onResult }?.second ?: return@mapNotNull null
+            BoundExpression.ResultImplication(onResult, implication.typeRefinements)
+        }
+    }
 
     var typeArguments: List<BoundTypeArgument>? = null
         private set

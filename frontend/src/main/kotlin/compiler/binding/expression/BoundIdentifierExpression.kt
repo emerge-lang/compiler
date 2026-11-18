@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -29,6 +30,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.VariableUsedAsMutable
@@ -43,6 +45,7 @@ import compiler.diagnostic.undefinedIdentifier
 import compiler.diagnostic.useOfUninitializedVariable
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
@@ -58,6 +61,18 @@ class BoundIdentifierExpression(
             is ReferringType -> localReferral.reference
             null -> null
         }
+
+    override val implications: List<BoundExpression.ResultImplication> get() = VariableTypeRefinement.nonNullImplications(this)
+
+    /** @see VariableTypeRefinement.pathOf */
+    val refinablePath: VariableTypeRefinement.Path? get() {
+        val variable = (referral as? ReferringVariable)?.variable ?: return null
+        if (!VariableTypeRefinement.canBeRefined(variable)) {
+            return null
+        }
+
+        return VariableTypeRefinement.Path(variable, emptyList())
+    }
 
     var referral: Referral? = null
         private set
@@ -280,6 +295,7 @@ class BoundIdentifierExpression(
         (referral as? ReferringVariable)?.let { referral ->
             IrVariableAccessExpressionImpl(
                 referral.variable.backendIrDeclaration,
+                type!!.toBackendIr(),
             )
         } ?: TODO("implement type references")
     }
@@ -296,4 +312,5 @@ class BoundIdentifierExpression(
 
 internal class IrVariableAccessExpressionImpl(
     override val variable: IrVariableDeclaration,
+    override val evaluatesTo: IrType = variable.type,
 ) : IrVariableAccessExpression

@@ -51,6 +51,15 @@ interface EphemeralStateClass<Subject : Any, State, Effect : SideEffect<Subject>
      * is reverted to [beforeInvocation], everything else is retained from [afterArguments].
      */
     fun endInvocation(beforeInvocation: State, afterArguments: State): State = afterArguments
+
+    /**
+     * If `true`, the contexts after branches (e.g. after an `if`) only consider the states at the end of the branches
+     * that can complete normally; a branch that is guaranteed to return, throw or terminate the program never reaches
+     * the code after. E.g. after `if isNull(v) { return }`, only the path where `isNull(v)` is false continues.
+     *
+     * Must be `false` for states about how code exits (e.g. [CallFrameExit]).
+     */
+    val joinsOnlyBranchesThatCompleteNormally: Boolean get() = false
 }
 
 abstract class SingletonEphemeralStateClass<State, Effect : SingletonEphemeralStateClass.SingletonEffect> :

@@ -5,6 +5,8 @@ import compiler.binding.BoundLoop
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.LoopJump
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -18,7 +20,9 @@ class BoundBreakExpression(
     override val declaration: AstBreakExpression,
 ) : BoundScopeAbortingExpression() {
     private var parentLoop: BoundLoop<*>? = null
-    override val modifiedContext get()= context
+    override val modifiedContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context).also {
+        it.trackSideEffect(LoopJump.Effect)
+    }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.parentLoop

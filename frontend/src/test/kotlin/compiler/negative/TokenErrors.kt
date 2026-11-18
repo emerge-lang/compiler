@@ -1054,13 +1054,14 @@ class TokenErrors : FreeSpec({
                 value: T = init
             }
             token interface Stream {}
-            fn test(a: read Animal, any: read Any, s: read Stream) {
+            // a separate parameter for each cast: a cast refines the type of the variable for the code after it
+            fn test(a: read Animal, any1: read Any, any2: read Any, any3: read Any, s1: read Stream, s2: read Stream) {
                 d: read Dog = a as read Dog
-                n = any as read NonToken
-                sh = any as read Shape
-                b = any as read Box<S32>
-                named = s as read Named
-                isNamed = s is Named
+                n = any1 as read NonToken
+                sh = any2 as read Shape
+                b = any3 as read Box<S32>
+                named = s1 as read Named
+                isNamed = s2 is Named
             }
         """.trimIndent()) should haveNoDiagnostics()
     }

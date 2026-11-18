@@ -1,0 +1,965 @@
+package compiler.compiler.negative
+
+import compiler.diagnostic.UnsafeObjectTraversalDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
+import io.kotest.core.spec.style.FreeSpec
+
+/**
+ * The backends trust the refined types of variables (they decide the representation of values), so the refinements
+ * must be sound: they end where the variable can hold another value.
+ */
+class SmartCastTests : FreeSpec({
+    val declarations = """
+        interface Foo {}
+        class Bar : Foo {
+            p: String = init
+        }
+        fn takeBar(v: Bar) {}
+        fn takeMutBar(v: mut Bar) {}
+        fn takeTwoBars(a: Bar, b: Bar) {}
+        fn produce() -> Foo = Bar("x")
+        fn cond() -> Bool = true
+    """.trimIndent()
+
+    "in the branch of an is-check, the variable has the refined type" - {
+        "parameter" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    if v is Bar {
+                        takeBar(v)
+                        return v.p
+                    }
+                    return ""
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "re-assignable local variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "global variable" {
+            validateModule("""
+                $declarations
+                g: const Foo = Bar("x")
+                fn test() {
+                    if g is Bar {
+                        takeBar(g)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "the refinement ends" - {
+        "after the if" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "in the else branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar {
+                    } else {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "when a new value is assigned to the variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        set w = produce()
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "when a new value may have been assigned to the variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        if cond() {
+                            set w = produce()
+                        }
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "in a loop that can assign a new value to the variable on an earlier iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        while cond() {
+                            takeBar(w)
+                            set w = produce()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "the refinement holds" - {
+        "in a loop, for a variable that cannot be re-assigned" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar {
+                        while cond() {
+                            takeBar(v)
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "when the is-check is inside the loop" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    while cond() {
+                        if w is Bar {
+                            takeBar(w)
+                        }
+                        set w = produce()
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "after an assignment in an unrelated branch" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    var other = produce()
+                    if w is Bar {
+                        if cond() {
+                            set other = produce()
+                        }
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "a strict cast refines the variable in the code after it" - {
+        "in the following statements" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    v as Bar
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the following arguments" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    takeTwoBars(v as Bar, v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "keeping the mutability of the variable" {
+            validateModule("""
+                $declarations
+                fn test(v: mut Foo) {
+                    v as Bar
+                    takeMutBar(v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a safe cast" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    v as? Bar
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after a branch that may not have run" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if cond() {
+                        v as Bar
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "inside the try block, but not after it, where the catch block may have run instead" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    try {
+                        v as Bar
+                        takeBar(v)
+                    } catch e {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                // exactly one: the one after the try
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after a new value is assigned" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    w as Bar
+                    set w = produce()
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "isNull returning false refines the variable to non-null" - {
+        "in the else branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    if isNull(v) {
+                        return "null"
+                    } else {
+                        takeBar(v)
+                        return v.p
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "for value types" {
+            validateModule("""
+                $declarations
+                fn test(v: S32?) -> S32 {
+                    if isNull(v) {
+                        return 0
+                    } else {
+                        return v + 1
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the then branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the if" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                    } else {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "a safe cast evaluating to non-null refines the variable" - {
+        "in the else branch of isNull" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    if isNull(v as? Bar) {
+                        return "not a bar"
+                    } else {
+                        takeBar(v)
+                        return v.p
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "also from a nullable type" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo?) {
+                    if isNull(v as? Bar) {
+                    } else {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the then branch of isNull" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if isNull(v as? Bar) {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "after an if whose branch cannot complete normally, the implications of the other branch hold" - {
+        "isNull with an early return" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    if isNull(v) {
+                        return "null"
+                    }
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "is-check with an else branch that returns" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar {
+                    } else {
+                        return
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "inside a loop, for the same iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    while cond() {
+                        if isNull(w) {
+                            return
+                        }
+                        takeBar(w)
+                        set w = null
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the branch may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if isNull(v) {
+                        if cond() {
+                            return
+                        }
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not if the other branch assigns a new value" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    } else {
+                        set w = null
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not in a loop that can assign a new value on an earlier iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        takeBar(w)
+                        set w = null
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        // break and continue leave a branch, too, and lead to the code after the loop
+        "not if the branch may leave through a break, after returning otherwise" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        if cond() {
+                            if cond() {
+                                set w = null
+                                break
+                            }
+                            return
+                        }
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not if the body of a loop may continue, after returning otherwise" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        return
+                    }
+                    while cond() {
+                        if cond() {
+                            set w = null
+                            continue
+                        }
+                        return
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "a not-null assertion refines the variable in the code after it" - {
+        "in the following statements" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    v!!
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the following arguments" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    takeTwoBars(v!!, v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a branch that may not have run" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    if cond() {
+                        v!!
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "after a null-coalescing whose alternative cannot complete normally, the value is not null" - {
+        "the variable" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    v ?: return "null"
+                    takeBar(v)
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "the variable of a safe cast" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) -> String {
+                    (v as? Bar) ?: return "not a bar"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the alternative may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) {
+                    x = v ?: Bar("y")
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "boolean operators pass the implications of their operands on" - {
+        "not" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Foo) {
+                    if not isNull(v) {
+                        takeBar(v)
+                    }
+                    if not (w is Bar) {
+                    } else {
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) {
+                    if v is Bar and not isNull(w) {
+                        takeTwoBars(v, w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, not where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar and cond() {
+                    } else {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "or, where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Bar?) {
+                    if isNull(v) or isNull(w) {
+                        return
+                    }
+                    takeTwoBars(v, w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "or, not where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if v is Bar or cond() {
+                        takeBar(v)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "& on Bool, where it is true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) {
+                    if v is Bar & (not isNull(w)) {
+                        takeTwoBars(v, w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "| on Bool, where it is false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?, w: Bar?) {
+                    if isNull(v) | isNull(w) {
+                        return
+                    }
+                    takeTwoBars(v, w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "and/or refine the variable in their right-hand side from the left-hand side" - {
+        "and, from the left-hand side being true" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo?) -> Bool = v is Bar and v.p == "x"
+                fn test2(v: Bar?) -> Bool = not isNull(v) and v.p == "x"
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "or, from the left-hand side being false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = isNull(v) or v.p == "x"
+                fn test2(v: Foo) -> Bool = not (v is Bar) or v.p == "x"
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and, not from the left-hand side being false" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = isNull(v) and v.p == "x"
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+
+        "or, not from the left-hand side being true" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = not isNull(v) or v.p == "x"
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+
+        "nested, from all enclosing left-hand sides" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> Bool = v is Bar and (cond() or (not isNull(w) and v.p == w.p))
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not with & on Bool, which always evaluates both sides" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> Bool = (not isNull(v)) & (v.p == "x")
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+    }
+
+    "after and/or, where the right-hand side doesn't complete normally, from the left-hand side" - {
+        "or" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    not isNull(v) or return "null"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "and" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    isNull(v) and return "null"
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the right-hand side may complete normally" {
+            validateModule("""
+                $declarations
+                fn test(v: Bar?) -> String {
+                    not isNull(v) or cond()
+                    return v.p
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+    }
+
+    "the condition of a while loop refines the variable in the body" - {
+        "for each iteration, also when the body assigns a new value" {
+            validateModule("""
+                $declarations
+                fn next(b: Bar) -> Bar? = null
+                fn test(start: Bar?) {
+                    var node = start
+                    while not isNull(node) {
+                        takeBar(node)
+                        set node = next(node)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a new value is assigned in the body" {
+            validateModule("""
+                $declarations
+                fn next(b: Bar) -> Bar? = null
+                fn test(start: Bar?) {
+                    var node = start
+                    while not isNull(node) {
+                        set node = next(node)
+                        takeBar(node)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the loop" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    while v is Bar {
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
+    "the conditions of a when without subject refine variables like an if-else chain" - {
+        "in the branch of the condition, and in the following branches where it was false" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> String = when {
+                    v is Bar -> v.p
+                    isNull(w) -> "null"
+                    else -> w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not in the branches before" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo, w: Bar?) -> String = when {
+                    cond() -> w.p
+                    isNull(w) -> "null"
+                    else -> "x"
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+    }
+
+    "member variables" - {
+        val holder = """
+            class Holder : NonToken {
+                f: Foo = init
+                var g: Foo = init
+                n: Bar? = init
+                next: Holder? = init
+
+                fn describe(self) -> String {
+                    if self.f is Bar {
+                        return self.f.p
+                    }
+                    return "not a bar"
+                }
+            }
+        """.trimIndent()
+
+        "that are not re-assignable are refined" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if h.f is Bar {
+                        takeBar(h.f)
+                    }
+                    h.f as Bar
+                    takeBar(h.f)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "are refined to non-null" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if isNull(h.n) {
+                        return
+                    }
+                    takeBar(h.n)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "through a path of member variables" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if not isNull(h.next) {
+                        if h.next.f is Bar {
+                            takeBar(h.next.f)
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a while loop that walks a list" {
+            validateModule("""
+                $declarations
+                $holder
+                fn last(h: Holder) -> Holder {
+                    var node = h
+                    while not isNull(node.next) {
+                        set node = node.next
+                    }
+                    return node
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "that are re-assignable, only on const objects" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: const Holder) {
+                    if h.g is Bar {
+                        takeBar(h.g)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+
+            validateModule("""
+                $declarations
+                $holder
+                fn test(h: Holder) {
+                    if h.g is Bar {
+                        takeBar(h.g)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the variable is assigned another object" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(a: Holder, b: Holder) {
+                    var h = a
+                    if h.f is Bar {
+                        set h = b
+                        takeBar(h.f)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not of another object" {
+            validateModule("""
+                $declarations
+                $holder
+                fn test(a: Holder, b: Holder) {
+                    if a.f is Bar {
+                        takeBar(b.f)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+})

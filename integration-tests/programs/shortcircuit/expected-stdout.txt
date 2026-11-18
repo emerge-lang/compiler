@@ -1,0 +1,36 @@
+false and true:
+  evaluated lhs
+  = false
+true and true:
+  evaluated lhs
+  evaluated rhs
+  = true
+true or false:
+  evaluated lhs
+  = true
+false or false:
+  evaluated lhs
+  evaluated rhs
+  = false
+false & true:
+  evaluated lhs
+  evaluated rhs
+  = false
+true | false:
+  evaluated lhs
+  evaluated rhs
+  = true
+and: not x
+and: is x
+and: not x
+or: null or x
+or: null or x
+or: neither
+or return: null
+or return: z
+first is not one
+first is one
+12 & 10 = 8
+12 | 10 = 14
+12 xor 10 = 6
+not 12 = -13

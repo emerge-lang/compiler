@@ -1,0 +1,34 @@
+Is a bar; p = tadaaa
+a bar with p = tadaaa
+takeBar(tadaaa)
+field: tadaaa
+not a bar
+generic: tadaaa
+generic: not a bar
+S32 + 1 = 42
+not an S32
+array of 3 elements
+not an array
+S32? !! * 2 = 42
+w before: tadaaa
+w after: not a bar
+after strict cast: tadaaa
+after strict cast to S32: 42
+isNull: S32 + 1 = 42
+isNull: null
+isNull: tadaaa
+isNull: null
+safe cast: tadaaa
+safe cast: not a bar
+early return: tadaaa
+early return: null
+early return S32: 42
+after !!: 42
+?: return: tadaaa
+?: return: not a bar
+or: sum = 42
+or: one is null
+not: tadaaa
+while: sum = 42
+member: not a bar
+member: tadaaa

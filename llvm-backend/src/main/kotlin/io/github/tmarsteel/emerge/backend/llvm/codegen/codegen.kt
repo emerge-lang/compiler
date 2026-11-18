@@ -26,6 +26,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIsNullExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
@@ -51,6 +52,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatem
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.api.ir.independentEquals
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.autoBoxOrUnbox
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
@@ -146,6 +148,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.memberVariable
 import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
+import io.github.tmarsteel.emerge.backend.llvm.representativeComponent
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
@@ -195,7 +198,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrRegisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "registering weak references")
             callIntrinsic(registerWeakReferenceToAnyValue, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
+                getPointerToStructMember(
+                    code.referenceStoredIn.objectValue.declaration.llvmValue
+                        .reinterpretAs(context.getReferenceSiteType(code.referenceStoredIn.objectValue.type)),
+                    code.referenceStoredIn.field,
+                ),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
@@ -203,7 +210,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrUnregisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "unregistering weak references")
             callIntrinsic(unregisterWeakReferenceToAnyValue, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
+                getPointerToStructMember(
+                    code.referenceStoredIn.objectValue.declaration.llvmValue
+                        .reinterpretAs(context.getReferenceSiteType(code.referenceStoredIn.objectValue.type)),
+                    code.referenceStoredIn.field,
+                ),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
@@ -734,7 +745,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             return ExpressionResult.Value(autoboxedReturnValue)
         }
-        is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
+        is IrVariableAccessExpression -> {
+            val value = expression.variable.emitRead!!()
+            if (expression.evaluatesTo.independentEquals(expression.variable.type)) {
+                return ExpressionResult.Value(value)
+            }
+
+            // the frontend has refined the type of the variable at this point (e.g. a smart-cast); the value is
+            // in the representation of the declared type
+            val converted = autoBoxOrUnbox(value, expression.variable.type, expression.evaluatesTo)
+                .reinterpretAs(context.getReferenceSiteType(expression.evaluatesTo))
+            return ExpressionResult.Value(converted)
+        }
         is IrIntegerLiteralExpression,
         is IrBooleanLiteralExpression,
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.literalConstant(expression)!!)
@@ -1031,7 +1053,9 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
     @Suppress("UNCHECKED_CAST")
     structPointer as LlvmValue<LlvmPointerType<LlvmType>>
 
-    check(structPointer.type.pointed is EmergeClassType)
+    check(structPointer.type.pointed is EmergeClassType) {
+        "cannot create a pointer to a member on this value; expected a pointer to an ${EmergeClassType::class.simpleName} but got ${structPointer.type}"
+    }
     @Suppress("UNCHECKED_CAST")
     return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeClassType>>)
         .member(member)
@@ -1066,6 +1090,8 @@ internal fun IrType.findSimpleTypeBound(): IrSimpleType {
         carry = when (carry) {
             is IrParameterizedType -> carry.simpleType
             is IrGenericTypeReference -> carry.effectiveBound
+            is IrIntersectionType -> carry.representativeComponent
+                ?: throw CodeGenerationException("The intersection type $carry has no simple type bound")
             else -> error("how the hell did this happen??")
         }
     }

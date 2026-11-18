@@ -22,6 +22,7 @@ import compiler.ast.Expression
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.context.effect.VariableTypeRefinement
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
@@ -78,6 +79,11 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      *                      is captured.
      */
     fun setEvaluationResultUsage(valueUsage: ValueUsage)
+
+    /**
+     * implications depending on the behavior of this expression. Available after [semanticAnalysisPhase2]
+     */
+    val implications: List<ResultImplication> get()= emptyList()
 
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for
@@ -144,6 +150,32 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
             } else {
                 IrExpressionSideEffectsStatementImpl(asIrExpression)
             }
+        }
+    }
+
+    enum class ImplyingResult(val description: String) {
+        BOOL_TRUE("evaluates to true"),
+        BOOL_FALSE("evaluates to false"),
+        NULL_VALUE("evaluates to null"),
+        NON_NULL_VALUE("evaluates to a non-null value"),
+        ;
+
+        override fun toString(): String = description
+    }
+
+    class ResultImplication(
+        val onResult: ImplyingResult,
+        /** for each variable or member variable reached from it: the type to intersect its type with */
+        val typeRefinements: Map<VariableTypeRefinement.Path, BoundTypeReference>,
+    ) {
+        override fun toString(): String {
+            val implies = if (typeRefinements.isEmpty()) "nothing" else {
+                typeRefinements.entries.joinToString(
+                    separator = " and ",
+                    transform = { "${it.key}: ${it.value}" }
+                )
+            }
+            return "$onResult implies that $implies"
         }
     }
 }
