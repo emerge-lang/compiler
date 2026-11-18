@@ -24,7 +24,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.CallFrameExit
 import compiler.binding.context.effect.SingletonEphemeralStateClass.Companion.getEphemeralState
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
+import compiler.binding.expression.buildUnitInstanceIr
 import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -228,19 +228,7 @@ class BoundCodeChunk(
             }
         } else {
             lastStatement?.toBackendIrStatement()?.let(plainStatements::add)
-            irImplicitValueTemporary = IrCreateTemporaryValueImpl(
-                IrStaticDispatchFunctionInvocationImpl(
-                    context.swCtx.unit.resolveMemberFunction("instance")
-                        .single { it.parameterCount == 0 }
-                        .overloads
-                        .single()
-                        .toBackendIr(),
-                    emptyList(),
-                    emptyMap(),
-                    context.swCtx.unit.irReadNotNullReference,
-                    null,
-                )
-            )
+            irImplicitValueTemporary = IrCreateTemporaryValueImpl(context.swCtx.buildUnitInstanceIr())
             plainStatements.add(irImplicitValueTemporary)
         }
 

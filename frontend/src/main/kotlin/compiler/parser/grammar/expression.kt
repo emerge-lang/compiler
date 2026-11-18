@@ -19,52 +19,13 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.AstAnnotationSet
-import compiler.ast.AstBreakExpression
-import compiler.ast.AstContinueExpression
-import compiler.ast.AstSemanticOperator
-import compiler.ast.AstThrowExpression
-import compiler.ast.AstWhenExpression
-import compiler.ast.Executable
-import compiler.ast.IfExpression
-import compiler.ast.ReturnExpression
-import compiler.ast.Statement
-import compiler.ast.TypeArgumentBundle
-import compiler.ast.VariableDeclaration
-import compiler.ast.expression.ArrayLiteralExpression
-import compiler.ast.expression.AstCatchBlockExpression
-import compiler.ast.expression.AstIndexedLengthExpression
-import compiler.ast.expression.AstTryCatchExpression
-import compiler.ast.expression.BooleanLiteralExpression
-import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.NullLiteralExpression
-import compiler.ast.expression.NumericLiteralExpression
-import compiler.ast.expression.ParenthesisedExpression
-import compiler.ast.expression.StringLiteralExpression
+import compiler.ast.*
+import compiler.ast.expression.*
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.Keyword.CATCH
-import compiler.lexer.Keyword.CONTINUE
-import compiler.lexer.Keyword.ELSE
-import compiler.lexer.Keyword.IF
-import compiler.lexer.Keyword.TRY
-import compiler.lexer.Keyword.WHEN
-import compiler.lexer.KeywordToken
-import compiler.lexer.NumericLiteralToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.StringLiteralContentToken
-import compiler.parser.CastExpressionPostfix
-import compiler.parser.ExpressionPostfix
-import compiler.parser.IndexAccessExpressionPostfix
-import compiler.parser.InstanceOfExpressionPostfix
-import compiler.parser.InvocationExpressionPostfix
-import compiler.parser.MemberAccessExpressionPostfix
-import compiler.parser.NotNullExpressionPostfix
-import compiler.parser.OperatorExpressionBuilder
-import compiler.parser.PrefixedOperand
+import compiler.lexer.*
+import compiler.lexer.Keyword.*
+import compiler.parser.*
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.mapResult
@@ -322,17 +283,46 @@ val IfExpression = sequence("if-expression") {
     }
 
 val WhenBranch = sequence("when branch") {
-    ref(Expression)
+    eitherOf {
+        ref(ExpressionPostfixInstanceOf)
+        // needs to be before binary op, so when x { -2 -> ... } gets parsed as "x == -2" instead of "x - 2"
+        ref(Expression)
+        sequence {
+            ref(BinaryOperator)
+            ref(Expression)
+        }
+    }
     operator(Operator.RETURNS)
     ref(BracedCodeOrSingleStatement)
     operator(Operator.NEWLINE)
 }
     .astTransformation { tokens ->
-        val value = tokens.next() as AstExpression
-        val arrow = tokens.next() as OperatorToken
-        val code = tokens.next() as Executable
+        var next = tokens.next()
+        val condition = when (next) {
+            is InstanceOfExpressionPostfix -> {
+                val value = next
+                next = tokens.next()
+                AstWhenExpression.Branch.Condition.InstanceOf(value)
+            }
+            is AstSemanticOperator -> {
+                val operator = next
+                val value = tokens.next()!! as AstExpression
+                next = tokens.next()
+                AstWhenExpression.Branch.Condition.Binary(operator, value)
+            }
+            else -> {
+                check(next is AstExpression)
+                val value = next
+                next = tokens.next()
+                AstWhenExpression.Branch.Condition.Value(value)
+            }
+        }
 
-        AstWhenExpression.Branch(value, arrow, code)
+        val arrow = next as OperatorToken
+        next = tokens.next()!!
+        val code = next as Executable
+
+        AstWhenExpression.Branch(condition, arrow, code)
     }
 
 val WhenElseBranch = sequence("else branch") {
@@ -616,6 +606,7 @@ val BinaryOperator = eitherOf {
     // MISC
     operator(Operator.NULL_COALESCE)
     operator(Operator.RANGE_UNTIL)
+    keyword(Keyword.IN)
 }
     .astTransformation { tokens ->
         when (val element = tokens.next()!!) {

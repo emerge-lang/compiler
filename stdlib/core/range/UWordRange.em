@@ -57,4 +57,26 @@ export class UWordRange : Iterable<UWord> & SizedRange<UWord> & BidirectionalRan
     }
 
     export override fn asRange(capture self) -> own UWordRange = UWordRange(self.start, self.endExclusive)
+
+    export operator fn contains(self, value: UWord) -> Bool = value >= self.start and value < self.endExclusive
+    export operator fn contains(self, value: U8) -> Bool = self.contains(value.toUWord())
+    export operator fn contains(self, value: U16) -> Bool = self.contains(value.toUWord())
+    export operator fn contains(self, value: U32) -> Bool = self.contains(value.toUWord())
+    export operator fn contains(self, value: U64) -> Bool = value >= self.start.asU64() and value < self.endExclusive.asU64()
+    export operator fn contains(self, value: S8) -> Bool = value >= 0 and self.contains(value.asU8().toUWord())
+    export operator fn contains(self, value: S16) -> Bool = value >= 0 and self.contains(value.asU16().toUWord())
+    export operator fn contains(self, value: S32) -> Bool = value >= 0 and self.contains(value.asU32().toUWord())
+    export operator fn contains(self, value: S64) -> Bool {
+        if value < 0 {
+            return false
+        }
+
+        valU64 = value.asU64()
+        if valU64 > UWord.max().asU64() {
+            return false
+        }
+
+        // valU64 is in UWord range, so safe to convert
+        return self.contains(valU64.asUWord())
+    }
 }

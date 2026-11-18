@@ -63,6 +63,7 @@ export class S8 : const Any & Printable {
     export intrinsic nothrow fn toS16(self) -> S16
     export intrinsic nothrow fn toS32(self) -> S32
     export intrinsic nothrow fn toS64(self) -> S64
+    export intrinsic nothrow fn toSWord(self) -> SWord
 
     export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
@@ -70,6 +71,9 @@ export class S8 : const Any & Printable {
     }
 
     export intrinsic nothrow fn copy(self) -> S8
+
+    export nothrow fn min() -> S8 = -128
+    export nothrow fn max() -> S8 = 127
 }
 
 export class U8 : const Any & Printable {
@@ -97,11 +101,15 @@ export class U8 : const Any & Printable {
     export intrinsic nothrow fn toU16(self) -> U16
     export intrinsic nothrow fn toU32(self) -> U32
     export intrinsic nothrow fn toU64(self) -> U64
+    export intrinsic nothrow fn toUWord(self) -> UWord
 
     export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
+
+    export nothrow fn min() -> U8 = 0
+    export nothrow fn max() -> U8 = 255
 }
 
 export class S16 : const Any & Printable {
@@ -132,6 +140,7 @@ export class S16 : const Any & Printable {
 
     export intrinsic nothrow fn toS32(self) -> S32
     export intrinsic nothrow fn toS64(self) -> S64
+    export intrinsic nothrow fn toSWord(self) -> SWord
 
     export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
@@ -139,6 +148,9 @@ export class S16 : const Any & Printable {
     }
 
     export intrinsic nothrow fn copy(self) -> S16
+
+    export nothrow fn min() -> S16 = -32768
+    export nothrow fn max() -> S16 = 32767
 }
 
 export class U16 : const Any & Printable {
@@ -165,11 +177,15 @@ export class U16 : const Any & Printable {
 
     export intrinsic nothrow fn toU32(self) -> U32
     export intrinsic nothrow fn toU64(self) -> U64
+    export intrinsic nothrow fn toUWord(self) -> UWord
 
     export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
+
+    export nothrow fn min() -> U16 = 0
+    export nothrow fn max() -> U16 = 65535
 }
 
 export class S32 : const Any & Printable {
@@ -199,6 +215,7 @@ export class S32 : const Any & Printable {
     export intrinsic nothrow fn asU32(self) -> U32
 
     export intrinsic nothrow fn toS64(self) -> S64
+    export intrinsic nothrow fn toSWord(self) -> SWord
 
     export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
@@ -206,6 +223,9 @@ export class S32 : const Any & Printable {
     }
 
     export intrinsic nothrow fn copy(self) -> S32
+
+    export nothrow fn min() -> S32 = -2147483648
+    export nothrow fn max() -> S32 = 2147483647
 }
 
 export class U32 : const Any & Printable {
@@ -231,11 +251,15 @@ export class U32 : const Any & Printable {
     export intrinsic nothrow fn asS32(self) -> S32
 
     export intrinsic nothrow fn toU64(self) -> U64
+    export intrinsic nothrow fn toUWord(self) -> UWord
 
     export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
+
+    export nothrow fn min() -> S32 = -2147483648
+    export nothrow fn max() -> S32 = 2147483647
 }
 
 export class S64 : const Any & Printable {
@@ -277,6 +301,9 @@ export class S64 : const Any & Printable {
     }
 
     export intrinsic nothrow fn copy(self) -> S64
+
+    export nothrow fn min() -> S64 = -9223372036854775808
+    export nothrow fn max() -> S64 = 9223372036854775807
 }
 
 export class U64 : const Any & Printable {
@@ -339,6 +366,9 @@ export class U64 : const Any & Printable {
 
         return String.fromUtf8(buf.sliceOrPanic(insertionIndex + 1, buf.size))
     }
+
+    export nothrow fn min() -> U64 = 0
+    export nothrow fn max() -> U64 = 18446744073709551615
 }
 
 export class SWord : const Any & Printable {
@@ -376,6 +406,9 @@ export class SWord : const Any & Printable {
     }
 
     export intrinsic nothrow fn copy(self) -> SWord
+
+    export intrinsic nothrow fn min() -> SWord
+    export intrinsic nothrow fn max() -> SWord
 }
 
 export class UWord : const Any & Printable {
@@ -409,6 +442,9 @@ export class UWord : const Any & Printable {
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asU64().printTo(stream)
     }
+
+    export nothrow fn min() -> UWord = 0
+    export intrinsic nothrow fn max() -> UWord
 }
 
 export class Bool : const Any {
@@ -420,6 +456,8 @@ export class Bool : const Any {
     export intrinsic nothrow operator fn bitwiseOr(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn `xor`(self, other: Bool) -> Bool
     export intrinsic nothrow operator fn equals(self, other: Bool) -> Bool
+
+    export nothrow fn toString(self) = if self "true" else "false"
 }
 
 export class Array<Element> : Iterable<Element> {

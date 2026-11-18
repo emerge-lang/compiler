@@ -24,10 +24,19 @@ class SequenceRule(
             }
         }
 
-        return subRules[ruleIndex].match(tokens, atIndex).flatMap { stepOption ->
-            when (stepOption) {
-                is MatchingResult.Error -> sequenceOf(stepOption)
-                is MatchingResult.Success -> match(tokens, stepOption.continueAtIndex, priorResults + stepOption.item, ruleIndex + 1)
+        return sequence {
+            // The remaining sub-rules only depend on where they start, not on how the current one matched. Without
+            // this, ambiguous constructs multiply: on a syntax error further down, every combination of every
+            // ambiguity before it gets tried again, which is exponential in the size of the input.
+            // See [MatchingResult.Success.continueAtIndex].
+            val continuationsTried = HashSet<Int>()
+            for (stepOption in subRules[ruleIndex].match(tokens, atIndex)) {
+                when (stepOption) {
+                    is MatchingResult.Error -> yield(stepOption)
+                    is MatchingResult.Success -> if (continuationsTried.add(stepOption.continueAtIndex)) {
+                        yieldAll(match(tokens, stepOption.continueAtIndex, priorResults + stepOption.item, ruleIndex + 1))
+                    }
+                }
             }
         }
     }

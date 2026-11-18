@@ -1,0 +1,7 @@
+circle
+circle with radius 2 is round with 0 sides
+polygon: square with side 3
+square with side 3 is polygon with 4 sides
+polygon: triangle
+triangle is polygon with 3 sides
+nothing

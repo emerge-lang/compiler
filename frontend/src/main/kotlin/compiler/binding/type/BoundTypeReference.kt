@@ -286,6 +286,21 @@ sealed interface BoundTypeReference {
     }
 
     /**
+     * The classes that values of this type can be instances of at runtime, where the compiler can know all of them.
+     * Only valid from semantic analysis phase 2 on: that's when the supertypes of all base types are known.
+     */
+    fun possibleRuntimeTypes(): PossibleRuntimeTypes = PossibleRuntimeTypes.Open("the compiler cannot know all the subtypes of `$this`")
+
+    /**
+     * Whether checking a value of the type [typeOfValue] against [this] takes no more than the base type of the object:
+     * [this] is a type without type arguments that is not nullable, any reference of [typeOfValue] is of a mutability
+     * that fits, and no token can get forgotten. Then the check allocates nothing, see
+     * `emerge.core.reflection.isInstanceOf`. And it succeeds for all objects whose class is a subtype of the base type
+     * of [this].
+     */
+    fun subtypeCheckWithRequiresOnlyBaseType(typeOfValue: BoundTypeReference?): Boolean = false
+
+    /**
      * For parameterized types contains the bindings already resulting from that parameterization
      * in the [TypeUnification.left] part:
      *

@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.AstVisibility
 import compiler.ast.DEFAULT_IMPORT_PACKAGES
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
@@ -35,6 +36,14 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
 
     abstract fun withAstNode(newNode: AstVisibility): BoundVisibility
 
+    /**
+     * The base types declared within the boundary of this visibility, if the compiler sees the code of all of them;
+     * `null` if code that the compiler doesn't see can declare base types within this boundary (e.g. other modules
+     * for [ExportedScope]). Because a subtype can't be more visible than its supertype, this is a superset of all
+     * the subtypes of a base type with `this` visibility.
+     */
+    abstract val baseTypesWithinBoundary: Sequence<BoundBaseType>?
+
     fun coerceAtMost(other: BoundVisibility): BoundVisibility {
         if (this.isPossiblyBroaderThan(other)) {
             return other.withAstNode(this.astNode)
@@ -65,6 +74,8 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         }
 
         override fun isStrictlyBroaderThan(other: BoundVisibility) = false
+
+        override val baseTypesWithinBoundary: Sequence<BoundBaseType> get() = context.sourceFile.context.types.asSequence()
 
         override fun isPossiblyBroaderThan(other: BoundVisibility) = when(other) {
             is FileScope -> this.lexerFile != other.lexerFile
@@ -101,9 +112,21 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     ) : BoundVisibility() {
         override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
             val owningModule = context.moduleContext.moduleName
-            if (owningModule != packageName && owningModule.containsOrEquals(packageName)) {
+            if (!isWithinOwningModule) {
                 diagnosis.visibilityTooBroad(owningModule, this)
             }
+        }
+
+        private val isWithinOwningModule: Boolean get() = context.moduleContext.moduleName.containsOrEquals(packageName)
+
+        override val baseTypesWithinBoundary: Sequence<BoundBaseType>? get() {
+            if (!isWithinOwningModule) {
+                return null
+            }
+
+            return context.moduleContext.sourceFiles.asSequence()
+                .filter { packageName.containsOrEquals(it.context.packageName) }
+                .flatMap { it.context.types }
         }
 
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
@@ -168,6 +191,8 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             is ExportedScope -> false
             else -> true
         }
+
+        override val baseTypesWithinBoundary: Sequence<BoundBaseType>? get() = null
 
         override fun isPossiblyBroaderThan(other: BoundVisibility) = when (other) {
             is ExportedScope -> false

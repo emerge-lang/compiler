@@ -30,9 +30,15 @@ class RepeatingRule<Item : Any>(
     }
 
     private suspend fun SequenceScope<MatchingResult<RepeatedMatch<Item>>>.match(tokens: Array<Token>, atIndex: Int, resultsThusFar: List<MatchingResult.Success<Item>>) {
+        // see SequenceRule: alternatives that end at the same token cannot lead to different outcomes, so only the first
+        // one is continued
+        val continuationsTried = HashSet<Int>()
         for (subResult in subRule.match(tokens, atIndex)) {
             when (subResult) {
                 is MatchingResult.Success<Item> -> {
+                    if (!continuationsTried.add(subResult.continueAtIndex)) {
+                        continue
+                    }
                     if (resultsThusFar.size.toUInt() + 1u < upperBound) {
                         match(tokens, subResult.continueAtIndex, resultsThusFar + subResult)
                     } else {
