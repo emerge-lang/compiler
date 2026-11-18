@@ -23,16 +23,8 @@ import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.expression.BoundBinaryExpression
-import compiler.binding.expression.BoundComparisonExpression
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundNullCoalescingExpression
-import compiler.binding.expression.BoundShortCircuitExpression
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
+import compiler.binding.expression.*
+import compiler.lexer.*
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 
 private val COMPARISON_OPRATOR_MAPPING: Map<Any, IrNumericComparisonExpression.Predicate> = mapOf(
@@ -52,6 +44,7 @@ private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
     Operator.TIMES to "times",
     Operator.EQUALS to "equals",
     Operator.NOT_EQUALS to "equals",
+    Keyword.IN to "contains",
 )
 
 class BinaryExpression(
@@ -66,6 +59,9 @@ class BinaryExpression(
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         if (operator.operatorElement == Operator.NULL_COALESCE) {
             return bindToAsNullCoalescing(context)
+        }
+        if (operator.operatorElement == Keyword.IN) {
+            return bindToAsContains(context)
         }
         if (operator.operatorElement == Keyword.AND) {
             return bindToAsShortCircuit(context, BoundShortCircuitExpression.Operator.AND)
@@ -126,6 +122,25 @@ class BinaryExpression(
             this,
             compareToInvocation,
             predicate,
+        )
+    }
+
+    private fun bindToAsContains(context: ExecutionScopedCTContext): BoundBinaryExpression {
+        val containsInvocation = InvocationExpression(
+            MemberAccessExpression(
+                rightHandSide,
+                OperatorToken(Operator.DOT, operator.token.span),
+                IdentifierToken("contains", operator.token.span),
+            ),
+            null,
+            listOf(leftHandSide),
+            leftHandSide.span..rightHandSide.span,
+        ).bindTo(context)
+
+        return BoundBinaryExpression(
+            context,
+            this,
+            containsInvocation,
         )
     }
 

@@ -289,7 +289,7 @@ val WhenBranch = sequence("when branch") {
         ref(Expression)
         sequence {
             ref(BinaryOperator)
-            ref(ExpressionOperand)
+            ref(Expression)
         }
     }
     operator(Operator.RETURNS)
@@ -306,9 +306,9 @@ val WhenBranch = sequence("when branch") {
             }
             is AstSemanticOperator -> {
                 val operator = next
-                val value = tokens.next()!! as PrefixedOperand
+                val value = tokens.next()!! as AstExpression
                 next = tokens.next()
-                AstWhenExpression.Branch.Condition.Binary(operator, OperatorExpressionBuilder.buildOperatorExpression(listOf(value), emptyList()))
+                AstWhenExpression.Branch.Condition.Binary(operator, value)
             }
             else -> {
                 check(next is AstExpression)
@@ -606,6 +606,7 @@ val BinaryOperator = eitherOf {
     // MISC
     operator(Operator.NULL_COALESCE)
     operator(Operator.RANGE_UNTIL)
+    keyword(Keyword.IN)
 }
     .astTransformation { tokens ->
         when (val element = tokens.next()!!) {

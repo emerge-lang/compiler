@@ -3,23 +3,10 @@ package compiler.parser
 import compiler.InternalCompilerError
 import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
-import compiler.ast.expression.AstCastExpression
-import compiler.ast.expression.AstIndexAccessExpression
-import compiler.ast.expression.AstInstanceOfExpression
-import compiler.ast.expression.AstRangeExpression
-import compiler.ast.expression.BinaryExpression
-import compiler.ast.expression.InvocationExpression
-import compiler.ast.expression.MemberAccessExpression
-import compiler.ast.expression.NotNullExpression
-import compiler.ast.expression.NumericLiteralExpression
-import compiler.ast.expression.UnaryExpression
+import compiler.ast.expression.*
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
+import compiler.lexer.*
 
 /**
  * Given the expression itself, it returns a new expression that contains the information about the postfix.
@@ -171,7 +158,8 @@ private val AstSemanticOperator.infixPower: Int
         Operator.GREATER_THAN,
         Operator.GREATER_THAN_OR_EQUALS,
         Operator.EQUALS,
-        Operator.NOT_EQUALS -> 30
+        Operator.NOT_EQUALS,
+        Keyword.IN -> 30
 
         Operator.RANGE_UNTIL -> 35
 
