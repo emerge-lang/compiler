@@ -1,38 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib
 
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntrinsic
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmS8Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmU8Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.SignedMin
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s16
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s64
-import io.github.tmarsteel.emerge.backend.llvm.dsl.s8
-import io.github.tmarsteel.emerge.backend.llvm.dsl.u8
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.*
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlineThrow
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.sWord
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
+import java.math.BigInteger
 
 internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContext, out LlvmType>> by lazy {
     listOf(
@@ -151,15 +124,21 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         convert_s8_to_s16,
         convert_s8_to_s32,
         convert_s8_to_s64,
+        convert_s8_to_sWord,
         convert_s16_to_s32,
         convert_s16_to_s64,
+        convert_s16_to_sWord,
         convert_s32_to_s64,
+        convert_s32_to_sWord,
         convert_u8_to_u16,
         convert_u8_to_u32,
         convert_u8_to_u64,
+        convert_u8_to_uWord,
         convert_u16_to_u32,
         convert_u16_to_u64,
+        convert_u16_to_uWord,
         convert_u32_to_u64,
+        convert_u32_to_uWord,
         convert_s64_to_sWord_lossy,
         convert_u64_to_uWord_lossy,
         convert_uWord_to_u64_lossy,
@@ -214,6 +193,9 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         copy_s32,
         copy_s64,
         copy_sWord,
+        uword_max,
+        sword_max,
+        sword_min,
     )
 }
 
@@ -602,18 +584,34 @@ private fun <T : LlvmFixedIntegerType> buildSignedEnlargeFn(fromType: LlvmFixedI
     instructionAliasAttributes()
 
     val self by param(fromType)
-
     body {
         ret(enlargeSigned(self, toType))
+    }
+}
+
+private fun buildSignedToWordFn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeSWordType>(
+    "emerge.core.S${fromType.nBits}::toSWord",
+    EmergeSWordType,
+) {
+    assert(fromType.isSigned)
+
+    instructionAliasAttributes()
+
+    val self by param(fromType)
+    body {
+        ret(enlargeSigned(self, EmergeSWordType))
     }
 }
 
 private val convert_s8_to_s16 = buildSignedEnlargeFn(LlvmS8Type, LlvmS16Type)
 private val convert_s8_to_s32 = buildSignedEnlargeFn(LlvmS8Type, LlvmS32Type)
 private val convert_s8_to_s64 = buildSignedEnlargeFn(LlvmS8Type, LlvmS64Type)
+private val convert_s8_to_sWord = buildSignedToWordFn(LlvmS8Type)
 private val convert_s16_to_s32 = buildSignedEnlargeFn(LlvmS16Type, LlvmS32Type)
 private val convert_s16_to_s64 = buildSignedEnlargeFn(LlvmS16Type, LlvmS64Type)
+private val convert_s16_to_sWord = buildSignedToWordFn(LlvmS16Type)
 private val convert_s32_to_s64 = buildSignedEnlargeFn(LlvmS32Type, LlvmS64Type)
+private val convert_s32_to_sWord = buildSignedToWordFn(LlvmS32Type)
 
 private fun <T : LlvmFixedIntegerType> buildUnsignedEnlargeFn(fromType: LlvmFixedIntegerType, toType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
     "emerge.core.U${fromType.nBits}::toU${toType.nBits}",
@@ -625,18 +623,34 @@ private fun <T : LlvmFixedIntegerType> buildUnsignedEnlargeFn(fromType: LlvmFixe
     instructionAliasAttributes()
 
     val self by param(fromType)
-
     body {
         ret(enlargeUnsigned(self, toType))
+    }
+}
+
+private fun buildUnsignedToWordFn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>(
+    "emerge.core.U${fromType.nBits}::toUWord",
+    EmergeUWordType,
+) {
+    assert(!fromType.isSigned)
+
+    instructionAliasAttributes()
+
+    val self by param(fromType)
+    body {
+        ret(enlargeUnsigned(self, EmergeUWordType))
     }
 }
 
 private val convert_u8_to_u16 = buildUnsignedEnlargeFn(LlvmU8Type, LlvmU16Type)
 private val convert_u8_to_u32 = buildUnsignedEnlargeFn(LlvmU8Type, LlvmU32Type)
 private val convert_u8_to_u64 = buildUnsignedEnlargeFn(LlvmU8Type, LlvmU64Type)
+private val convert_u8_to_uWord = buildUnsignedToWordFn(LlvmU8Type)
 private val convert_u16_to_u32 = buildUnsignedEnlargeFn(LlvmU16Type, LlvmU32Type)
 private val convert_u16_to_u64 = buildUnsignedEnlargeFn(LlvmU16Type, LlvmU64Type)
+private val convert_u16_to_uWord = buildUnsignedToWordFn(LlvmU16Type)
 private val convert_u32_to_u64 = buildUnsignedEnlargeFn(LlvmU32Type, LlvmU64Type)
+private val convert_u32_to_uWord = buildUnsignedToWordFn(LlvmU32Type)
 
 private fun <From : LlvmIntegerType, To : LlvmIntegerType> buildLossyConversionFn(
     fullSymbol: String,
@@ -925,3 +939,53 @@ private val copy_s16 = buildCopyFunction("S16", LlvmS16Type)
 private val copy_s32 = buildCopyFunction("S32", LlvmS32Type)
 private val copy_s64 = buildCopyFunction("S64", LlvmS64Type)
 private val copy_sWord = buildCopyFunction("SWord", EmergeSWordType)
+
+private val uword_max = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeUWordType>(
+    "emerge.core.UWord::max",
+    EmergeUWordType,
+) {
+    instructionAliasAttributes()
+
+    body {
+        ret(context.uWord(EmergeUWordType.getMaxUnsignedValueInContext(context).ulongValueExact()))
+    }
+}
+
+private val sword_min = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeSWordType>(
+    "emerge.core.SWord::min",
+    EmergeSWordType,
+) {
+    instructionAliasAttributes()
+
+    body {
+        ret(context.sWord(- nBitsSet(EmergeSWordType.getNBitsInContext(context) - 1u).toLong()))
+    }
+}
+
+private val sword_max = KotlinLlvmFunction.define<EmergeLlvmContext, EmergeSWordType>(
+    "emerge.core.SWord::max",
+    EmergeSWordType,
+) {
+    instructionAliasAttributes()
+
+    body {
+        ret(context.sWord((nBitsSet(EmergeSWordType.getNBitsInContext(context) - 1u) - 1u).toLong()))
+    }
+}
+
+private fun BigInteger.ulongValueExact(): ULong {
+    require(this <= ULong.MAX_VALUE.toBigInteger())
+    return this.toLong().toULong()
+}
+
+private fun nBitsSet(nBits: UInt): ULong {
+    require(nBits <= 64u)
+    var value = 0uL
+    var bitsRemaining = nBits
+    while (bitsRemaining > 0u) {
+        value = (value shl 1) or 1u
+        bitsRemaining -= 1u
+    }
+
+    return value
+}
