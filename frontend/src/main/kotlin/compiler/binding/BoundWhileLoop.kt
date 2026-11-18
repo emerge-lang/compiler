@@ -23,7 +23,6 @@ class BoundWhileLoop(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstWhileLoop,
     val condition: BoundCondition,
-    /** the context [body] is bound in */
     private val bodyContext: MutableExecutionScopedCTContext,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstWhileLoop> {
@@ -50,7 +49,6 @@ class BoundWhileLoop(
         return seanHelper.phase2(diagnosis) {
             condition.semanticAnalysisPhase2(diagnosis)
 
-            // the body runs after the condition was true, in each iteration
             VariableTypeRefinement.trackImplications(condition.implications, BoundExpression.ImplyingResult.BOOL_TRUE, bodyContext)
 
             body.semanticAnalysisPhase2(diagnosis)

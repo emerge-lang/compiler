@@ -595,11 +595,6 @@ class MultiBranchJoinExecutionScopedCTContext(
 }
 
 /**
- * Models the context after an invocation has returned. [afterArguments] must be (an indirect child of)
- * [beforeInvocation]. The [SideEffect]s that happened between the two, while evaluating the arguments, are
- * considered using [EphemeralStateClass.endInvocation].
- */
-/**
  * @receiver the context at the end of a branch
  * @return whether the code after the branch can be reached through it: `false` iff it is guaranteed to return, throw or
  * terminate the program, and doesn't `break` or `continue` (through which the code after an enclosing loop is reached)
@@ -612,6 +607,11 @@ private fun ExecutionScopedCTContext.canCompleteNormally(beforeBranch: Execution
     return getEphemeralStateRelativeTo(beforeBranch, LoopJump.initialState, LoopJump, SingletonEphemeralStateClass.Subject).mayHaveJumped
 }
 
+/**
+ * Models the context after an invocation has returned. [afterArguments] must be (an indirect child of)
+ * [beforeInvocation]. The [SideEffect]s that happened between the two, while evaluating the arguments, are
+ * considered using [EphemeralStateClass.endInvocation].
+ */
 class InvocationJoinExecutionScopedCTContext(
     private val beforeInvocation: ExecutionScopedCTContext,
     internal val afterArguments: ExecutionScopedCTContext,
