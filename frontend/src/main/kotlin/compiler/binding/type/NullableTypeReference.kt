@@ -106,6 +106,11 @@ class NullableTypeReference private constructor(
         return nested.hasSameBaseTypeAs(other)
     }
 
+    override fun possibleRuntimeTypes(): PossibleRuntimeTypes = when (val ofNested = nested.possibleRuntimeTypes()) {
+        is PossibleRuntimeTypes.Closed -> ofNested.copy(includesNull = true)
+        is PossibleRuntimeTypes.Open -> ofNested
+    }
+
     override fun isDisjointWith(other: BoundTypeReference): Boolean {
         return nested.isDisjointWith(other)
     }

@@ -201,7 +201,7 @@ private val IrType.simpleName: String get() = when (this) {
 /**
  * @return all [IrExecutable]s and [IrExpression]s below [root], in a pre-order traversal
  */
-private fun collectIr(root: Any): List<Any> {
+internal fun collectIr(root: Any): List<Any> {
     val visited: MutableSet<Any> = Collections.newSetFromMap(IdentityHashMap())
     val result = ArrayList<Any>()
     fun visit(node: Any) {

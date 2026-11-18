@@ -40,6 +40,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
+import compiler.binding.type.PossibleRuntimeTypes
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.CollectingDiagnosis
@@ -188,6 +189,7 @@ class BoundBaseType(
             bindTimeDiagnosis.replayOnto(diagnosis)
 
             annotations.semanticAnalysisPhase1(diagnosis)
+            visibility.semanticAnalysisPhase1(diagnosis)
 
             typeParameters?.forEach {
                 it.semanticAnalysisPhase1(diagnosis)
@@ -562,6 +564,28 @@ class BoundBaseType(
         if (supertype === context.swCtx.nonToken) return isNonToken
 
         return supertype in this.superTypes.preprocessedInheritanceTree.parameterizedSupertypes.keys
+    }
+
+    /**
+     * The classes that values of this type can be at runtime, see [BoundTypeReference.possibleRuntimeTypes].
+     * Only valid from semantic analysis phase 2 on, when the supertypes of all base types are known.
+     */
+    val possibleRuntimeTypes: PossibleRuntimeTypes by lazy {
+        if (!kind.allowsSubtypes) {
+            return@lazy PossibleRuntimeTypes.Closed(setOf(this), includesNull = false)
+        }
+
+        // a subtype cannot be more visible than its supertype (see RootResolvedTypeReference.validate), so all
+        // subtypes are declared within the boundary of this types visibility
+        val candidates = visibility.baseTypesWithinBoundary
+            ?: return@lazy PossibleRuntimeTypes.Open("`$canonicalName` is $visibility, so code in other modules can declare subtypes of it")
+
+        PossibleRuntimeTypes.Closed(
+            candidates
+                .filter { !it.kind.allowsSubtypes && it isSubtypeOf this }
+                .toCollection(LinkedHashSet()),
+            includesNull = false,
+        )
     }
 
     enum class Kind(

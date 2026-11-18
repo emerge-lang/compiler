@@ -171,6 +171,28 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
+    override fun possibleRuntimeTypes(): PossibleRuntimeTypes = baseType.possibleRuntimeTypes
+
+    override fun subtypeCheckWithRequiresOnlyBaseType(typeOfValue: BoundTypeReference?): Boolean {
+        if (!arguments.isNullOrEmpty()) {
+            return false
+        }
+
+        // if the type of the value is a type parameter, this is the mutability of its bound, and the mutability of the
+        // type argument is assignable wherever that is
+        val mutabilityOfValue = typeOfValue?.mutability ?: TypeMutability.READONLY
+        if (!isOfConstClass && !mutabilityOfValue.isAssignableTo(mutability)) {
+            return false
+        }
+
+        // What may be a token is no value of a type that cannot be one (see TokenRule), and whether an object may be
+        // a token is up to its type arguments, too: a `Box<SystemClock>` is no `NonToken`. The base type says it all
+        // where this type has no objection, where the value is known to be no token, and where the object has no
+        // type arguments: it is of this very class then, and that has none.
+        val objectsHaveNoTypeArguments = !baseType.kind.allowsSubtypes && baseType.typeParameters.isNullOrEmpty()
+        return mayBeToken || typeOfValue?.mayBeToken == false || objectsHaveNoTypeArguments
+    }
+
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return when (other) {
             is RootResolvedTypeReference -> this.baseType == other.baseType

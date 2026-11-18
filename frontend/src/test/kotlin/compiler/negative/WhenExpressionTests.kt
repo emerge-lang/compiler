@@ -5,7 +5,10 @@ import compiler.diagnostic.*
 import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.beInstanceOf
 
 class WhenExpressionTests : FreeSpec({
@@ -541,6 +544,8 @@ class WhenExpressionTests : FreeSpec({
                 p2: S32 = 2
             }
             
+            class C : I {}
+            
             fn test(p: I) -> S32 = when p {
                 is A -> p.p1
                 is B -> p.p2
@@ -548,6 +553,348 @@ class WhenExpressionTests : FreeSpec({
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()
+    }
+
+    "exhaustiveness" - {
+        "is not required for a statement" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                class B : I {}
+                intrinsic fn sideEffect()
+                fn test(p: I) {
+                    when p {
+                        is A -> sideEffect()
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "is not required for a Unit value" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                class B : I {}
+                intrinsic fn sideEffect()
+                fn test(p: I) = when p {
+                    is A -> sideEffect()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "module-private interface" - {
+            "all classes covered" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    fn test(p: I) -> S32 = when p {
+                        is A -> 1
+                        is B -> 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "a class is missing" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    class C : I {}
+                    fn test(p: I) -> S32 = when p {
+                        is A -> 1
+                    }
+                """.trimIndent())
+                    .shouldFind<WhenNotExhaustiveDiagnostic> {
+                        it.missingClasses.map { c -> c.simpleName }.toSet() shouldBe setOf("B", "C")
+                        it.missesNull shouldBe false
+                        it.reasonSubjectTypeIsOpen shouldBe null
+                    }
+                    .shouldNotFind<MissingElseBranchDiagnostic>()
+            }
+
+            "covered by an intermediate interface" {
+                validateModule("""
+                    interface I {}
+                    interface J : I {}
+                    class A : J {}
+                    class B : J {}
+                    class C : I {}
+                    fn test(p: I) -> S32 = when p {
+                        is J -> 1
+                        is C -> 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "covered by the type of the subject itself" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    fn test(p: I, q: S32) -> S32 = when p {
+                        q -> 1
+                        is I -> 2
+                    }
+                """.trimIndent())
+                    .shouldFind<TypeCheckAlwaysSucceedsDiagnostic>() // the is I, not the exhaustiveness
+                    .shouldNotFind<WhenNotExhaustiveDiagnostic>()
+            }
+
+            "with smart casts" {
+                validateModule("""
+                    interface I {}
+                    class A : I {
+                        a: S32 = 1
+                    }
+                    class B : I {
+                        b: S32 = 2
+                    }
+                    fn test(p: I) -> S32 = when p {
+                        is A -> p.a
+                        is B -> p.b
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with a subject that is not a variable" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    intrinsic fn compute() -> I
+                    fn test() -> S32 = when compute() {
+                        is A -> 1
+                        is B -> 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "with a named subject" {
+                validateModule("""
+                    interface I {}
+                    class A : I {
+                        a: S32 = 1
+                    }
+                    class B : I {}
+                    intrinsic fn compute() -> I
+                    fn test() -> S32 = when x = compute() {
+                        is A -> x.a
+                        is B -> 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "of a type refined by an outer if" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    fn test(p: Any) -> S32 {
+                        if p is I {
+                            return when p {
+                                is A -> 1
+                                is B -> 2
+                            }
+                        }
+                        return 0
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "file-private interface" {
+            validateModule("""
+                private interface I {}
+                private class A : I {}
+                class B : I {}
+                fn test(p: I) -> S32 = when p {
+                    is A -> 1
+                    is B -> 2
+                }
+            """.trimIndent())
+                .shouldNotFind<WhenNotExhaustiveDiagnostic>()
+        }
+
+        "package-private interface" {
+            validateModule("""
+                package(testmodule) interface I {}
+                class A : I {}
+                class B : I {}
+                fn test(p: I) -> S32 = when p {
+                    is A -> 1
+                    is B -> 2
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "class subject" {
+            validateModule("""
+                export class A {}
+                fn test(p: A) -> S32 = when p {
+                    is A -> 1
+                }
+            """.trimIndent())
+                .shouldNotFind<WhenNotExhaustiveDiagnostic>()
+        }
+
+        "exported interface" {
+            validateModule("""
+                export interface I {}
+                export class A : I {}
+                fn test(p: I) -> S32 = when p {
+                    is A -> 1
+                }
+            """.trimIndent())
+                .shouldFind<WhenNotExhaustiveDiagnostic> {
+                    it.reasonSubjectTypeIsOpen shouldNotBe null
+                    it.message shouldContain "exported"
+                }
+        }
+
+        "type parameter subject" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                fn test<T : I>(p: T) -> S32 = when p {
+                    is A -> 1
+                }
+            """.trimIndent())
+                .shouldFind<WhenNotExhaustiveDiagnostic> {
+                    it.reasonSubjectTypeIsOpen shouldNotBe null
+                }
+        }
+
+        "checks for a mutability that doesn't fit don't count" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                fn test(p: read I) -> S32 = when p {
+                    is mut A -> 1
+                }
+            """.trimIndent())
+                .shouldFind<WhenNotExhaustiveDiagnostic> {
+                    it.missingClasses.map { c -> c.simpleName } shouldBe listOf("A")
+                }
+        }
+
+        "nullable subject" - {
+            "with a null branch" {
+                validateModule("""
+                    interface I {}
+                    class A : I {
+                        a: S32 = 1
+                    }
+                    class B : I {}
+                    fn test(p: I?) -> S32 = when p {
+                        null -> 0
+                        is A -> p.a
+                        is B -> 2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "the null branch makes the subject non-null in the other branches" {
+                validateModule("""
+                    interface I {
+                        fn n(self) -> S32
+                    }
+                    class A : I {
+                        override fn n(self) -> S32 = 1
+                    }
+                    class B : I {
+                        override fn n(self) -> S32 = 2
+                    }
+                    fn test(p: I?) -> S32 = when p {
+                        null -> 0
+                        is A -> 1
+                        else -> p.n()
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics(allowedSeverities = setOf(Diagnostic.Severity.CONSECUTIVE, Diagnostic.Severity.WARNING))
+            }
+
+            "without a null branch" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    fn test(p: I?) -> S32 = when p {
+                        is A -> 1
+                    }
+                """.trimIndent())
+                    .shouldFind<WhenNotExhaustiveDiagnostic> {
+                        it.missingClasses.shouldBeEmpty()
+                        it.missesNull shouldBe true
+                    }
+            }
+        }
+
+        "termination analysis" - {
+            "all branches return" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    fn test(p: I) -> S32 {
+                        when p {
+                            is A -> return 1
+                            is B -> return 2
+                        }
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "not all classes covered" {
+                validateModule("""
+                    interface I {}
+                    class A : I {}
+                    class B : I {}
+                    fn test(p: I) -> S32 {
+                        when p {
+                            is A -> return 1
+                        }
+                    }
+                """.trimIndent())
+                    .shouldFind<UncertainTerminationDiagnostic>()
+            }
+        }
+
+        "unreachable else branch" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                class B : I {}
+                fn test(p: I) -> S32 = when p {
+                    is A -> 1
+                    is B -> 2
+                    else -> 3
+                }
+            """.trimIndent())
+                .shouldFind<UnreachableWhenElseBranchDiagnostic>()
+        }
+
+        "else branch of a non-exhaustive when is reachable" {
+            validateModule("""
+                interface I {}
+                class A : I {}
+                class B : I {}
+                fn test(p: I) -> S32 = when p {
+                    is A -> 1
+                    else -> 3
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "binary ops" {

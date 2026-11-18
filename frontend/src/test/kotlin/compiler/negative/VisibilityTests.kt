@@ -9,6 +9,7 @@ import compiler.diagnostic.ElementNotAccessibleDiagnostic
 import compiler.diagnostic.HiddenTypeExposedDiagnostic
 import compiler.diagnostic.MissingModuleDependencyDiagnostic
 import compiler.diagnostic.OverrideRestrictsVisibilityDiagnostic
+import compiler.diagnostic.PackageVisibilityTooBroadDiagnostic
 import compiler.diagnostic.ShadowedVisibilityDiagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
@@ -446,5 +447,27 @@ class VisibilityTests : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<OverrideRestrictsVisibilityDiagnostic>()
+    }
+
+    "package visibility" - {
+        "can be limited to the package of the module" {
+            validateModules(IntegrationTestModule.of("test.a", """
+                package test.a
+
+                package(test.a) interface I {}
+            """.trimIndent()))
+                .shouldHaveNoDiagnostics()
+        }
+
+        "cannot be broader than the module" {
+            validateModules(IntegrationTestModule.of("test.a", """
+                package test.a
+
+                package(test) interface I {}
+            """.trimIndent()))
+                .shouldFind<PackageVisibilityTooBroadDiagnostic> {
+                    it.owningModule.toString() shouldBe "test.a"
+                }
+        }
     }
 })

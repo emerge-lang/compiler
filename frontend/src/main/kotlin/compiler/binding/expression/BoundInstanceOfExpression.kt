@@ -8,7 +8,6 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.effect.VariableTypeRefinement
-import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.BoundFunction
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -185,32 +184,6 @@ internal fun validateTypeCheck(fullTypeToCheck: BoundTypeReference): BoundTypeRe
 }
 
 /**
- * Whether checking a value of the type [typeOfValue] against [this] takes no more than the base type of the object:
- * [this] is a type without type arguments that is not nullable, any reference of [typeOfValue] is of a mutability
- * that fits, and no token can get forgotten. Then the check allocates nothing, see
- * `emerge.core.reflection.isInstanceOf`.
- */
-private fun BoundTypeReference.isCheckedByBaseTypeAlone(typeOfValue: BoundTypeReference?): Boolean {
-    if (this !is RootResolvedTypeReference || !arguments.isNullOrEmpty()) {
-        return false
-    }
-
-    // if the type of the value is a type parameter, this is the mutability of its bound, and the mutability of the
-    // type argument is assignable wherever that is
-    val mutabilityOfValue = typeOfValue?.mutability ?: TypeMutability.READONLY
-    if (!isOfConstClass && !mutabilityOfValue.isAssignableTo(mutability)) {
-        return false
-    }
-
-    // What may be a token is no value of a type that cannot be one (see TokenRule), and whether an object may be
-    // a token is up to its type arguments, too: a `Box<SystemClock>` is no `NonToken`. The base type says it all
-    // where this type has no objection, where the value is known to be no token, and where the object has no
-    // type arguments: it is of this very class then, and that has none.
-    val objectsHaveNoTypeArguments = !baseType.kind.allowsSubtypes && baseType.typeParameters.isNullOrEmpty()
-    return mayBeToken || typeOfValue?.mayBeToken == false || objectsHaveNoTypeArguments
-}
-
-/**
  * @return the overload of `emerge.core.reflection.isInstanceOf` whose second parameter is of the base type [typeParameterBaseType]
  */
 private fun SoftwareContext.isInstanceOfFunction(typeParameterBaseType: BoundBaseType, parameterCount: Int): BoundFunction {
@@ -268,7 +241,7 @@ internal fun buildInstanceOf(
     val typeTemporary: IrCreateTemporaryValue
     var referenceTypeTemporary: IrCreateTemporaryValue? = null
     val typeIsOwnedByThisCode: Boolean
-    if (typeToCheck.isCheckedByBaseTypeAlone(typeOfValue)) {
+    if (typeToCheck.subtypeCheckWithRequiresOnlyBaseType(typeOfValue)) {
         isInstanceFn = swCtx.isInstanceOfFunction(swCtx.reflectionBaseType, 2)
         typeTemporary = IrCreateTemporaryValueImpl(
             IrBaseTypeReflectionExpressionImpl(

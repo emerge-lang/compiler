@@ -709,3 +709,16 @@ fun Diagnosis.invalidAnnotationMember(member: BoundBaseTypeMemberVariable, annot
 fun Diagnosis.whenBranchNeedsSubject(branch: AstWhenExpression.Branch) {
     add(WhenBranchNeedsSubjectDiagnostic(branch))
 }
+
+fun Diagnosis.whenNotExhaustive(whenKeyword: KeywordToken, result: WhenExhaustiveness.Result) {
+    when (result) {
+        is WhenExhaustiveness.Result.NotExhaustive -> add(WhenNotExhaustiveDiagnostic(whenKeyword, result.missingClasses, result.missesNull, null))
+        is WhenExhaustiveness.Result.SubjectTypeIsOpen -> add(WhenNotExhaustiveDiagnostic(whenKeyword, emptySet(), false, result.reason))
+        WhenExhaustiveness.Result.Exhaustive,
+        WhenExhaustiveness.Result.Unknown -> {}
+    }
+}
+
+fun Diagnosis.unreachableWhenElseBranch(elseKeyword: KeywordToken) {
+    add(UnreachableWhenElseBranchDiagnostic(elseKeyword))
+}

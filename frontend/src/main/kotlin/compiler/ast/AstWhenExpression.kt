@@ -1,13 +1,18 @@
 package compiler.ast
 
 import compiler.ast.expression.BinaryExpression
+import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.NullLiteralExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundIfExpression
+import compiler.binding.expression.BoundInstanceOfExpression
+import compiler.binding.expression.BoundWhenExhaustivenessFallback
 import compiler.binding.expression.BoundWhenExpression
+import compiler.binding.expression.WhenExhaustiveness
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.whenBranchNeedsSubject
 import compiler.lexer.*
@@ -38,8 +43,20 @@ class AstWhenExpression(
             data class Value(val value: Expression) : Condition {
                 override val span get()= value.span
 
-                override fun build(subject: Expression?, branch: Branch, diagnosis: CollectingDiagnosis): Expression = if (subject == null) value else {
-                    BinaryExpression(
+                /** whether this is a `null -> ...` branch */
+                val isNullBranch: Boolean get() = value is NullLiteralExpression
+
+                override fun build(subject: Expression?, branch: Branch, diagnosis: CollectingDiagnosis): Expression = when {
+                    subject == null -> value
+                    // equality with null doesn't need an equals operator, and isNull tells the compiler that the
+                    // subject isn't null in the other branches
+                    isNullBranch -> InvocationExpression(
+                        IdentifierExpression(IdentifierToken(EmergeConstants.CoreModule.IS_NULL_FN_NAME.simpleName, branch.span)),
+                        null,
+                        listOf(subject),
+                        branch.span,
+                    )
+                    else -> BinaryExpression(
                         subject,
                         AstSemanticOperator(OperatorToken(Operator.EQUALS, branch.span)),
                         value
@@ -79,6 +96,18 @@ class AstWhenExpression(
         val elseKeyword: KeywordToken,
         val code: Executable,
     )
+
+    /**
+     * Takes the place of the `else` branch of a `when` with `is` branches that has none, see [BoundWhenExhaustivenessFallback].
+     */
+    class ExhaustivenessFallback(
+        override val span: Span,
+        private val exhaustiveness: WhenExhaustiveness,
+    ) : Expression {
+        override fun bindTo(context: ExecutionScopedCTContext): BoundWhenExhaustivenessFallback {
+            return BoundWhenExhaustivenessFallback(context, this, exhaustiveness)
+        }
+    }
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         /*
@@ -149,7 +178,18 @@ class AstWhenExpression(
             subjectName = IdentifierExpression(subjectNameToken)
         }
 
-        val chain: Executable? = branches.foldRight<Branch, Executable?>(elseBranch?.code) { branch, otherwise ->
+        /*
+        Where there are `is` branches, the compiler may know all subtypes of the subject. If the branches cover all of
+        them, there is no need for an else branch. This can only be determined after semantic analysis phase 2, though.
+        So such a when gets an else branch in any case. If the when is exhaustive, that is unreachable code;
+        otherwise, it does nothing, just like an absent else branch would.
+         */
+        val exhaustiveness = if (subjectName != null && branches.any { it.condition is Branch.Condition.InstanceOf }) {
+            WhenExhaustiveness(hasNullBranch = branches.any { (it.condition as? Branch.Condition.Value)?.isNullBranch == true })
+        } else null
+        val elseCode: Executable? = elseBranch?.code ?: exhaustiveness?.let { ExhaustivenessFallback(generatedSpan, it) }
+
+        val chain: Executable? = branches.foldRight<Branch, Executable?>(elseCode) { branch, otherwise ->
             IfExpression(
                 span = branch.condition.span .. branch.code.span,
                 ifKeyword = whenKeyword,
@@ -165,11 +205,20 @@ class AstWhenExpression(
             boundSubject?.defaultOwnership = VariableOwnership.BORROWED
         }
         val boundChain = (chain as Statement?)?.bindTo(boundSubject?.modifiedContext ?: scope)
+        if (exhaustiveness != null) {
+            // the chain has exactly one if per branch; the else code (and whatever ifs it contains) comes after
+            var boundIf = boundChain as BoundIfExpression?
+            repeat(branches.size) {
+                (boundIf!!.condition.expression as? BoundInstanceOfExpression)?.let(exhaustiveness::registerInstanceOfCheck)
+                boundIf = boundIf.elseCode?.statements?.singleOrNull() as? BoundIfExpression
+            }
+        }
 
         return BoundWhenExpression(
             context,
             this,
             bindTimeDiagnosis,
+            exhaustiveness,
             BoundCodeChunk(
                 scope,
                 AstCodeChunk(listOfNotNull(subjectDeclaration, chain), generatedSpan),
