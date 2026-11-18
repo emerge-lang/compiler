@@ -6,6 +6,8 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.InvocationJoinExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
 
 /**
  * @param desugared see [AstWhenExpression.bindTo]; bound to a scope of its own
@@ -13,6 +15,7 @@ import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 class BoundWhenExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstWhenExpression,
+    val bindTimeDiagnosis: CollectingDiagnosis,
     val desugared: BoundCodeChunk,
 ) : BoundExpression<Expression> by desugared {
     /**
@@ -23,4 +26,9 @@ class BoundWhenExpression(
         context,
         listOf(InvocationJoinExecutionScopedCTContext(context, desugared.modifiedContext)),
     )
+
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        bindTimeDiagnosis.replayOnto(diagnosis)
+        desugared.semanticAnalysisPhase1(diagnosis)
+    }
 }

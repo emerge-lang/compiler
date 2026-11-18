@@ -1,15 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
-import compiler.diagnostic.ConditionNotBooleanDiagnostic
-import compiler.diagnostic.FunctionMissingAttributeDiagnostic
-import compiler.diagnostic.IllegalAssignmentDiagnostic
-import compiler.diagnostic.MissingElseBranchDiagnostic
-import compiler.diagnostic.MultipleVariableDeclarationsDiagnostic
-import compiler.diagnostic.OperatorNotDeclaredDiagnostic
-import compiler.diagnostic.ReturnTypeMismatchDiagnostic
-import compiler.diagnostic.UndefinedIdentifierDiagnostic
-import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.*
 import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -537,5 +529,35 @@ class WhenExpressionTests : FreeSpec({
             """.trimIndent())
                 .shouldFind<ReturnTypeMismatchDiagnostic>()
         }
+    }
+
+    "instanceof checks" {
+        validateModule("""
+            interface I {}
+            class A : I {
+                p1: S32 = 1
+            }
+            class B : I {
+                p2: S32 = 2
+            }
+            
+            fn test(p: I) -> S32 = when p {
+                is A -> p.p1
+                is B -> p.p2
+                else -> 0
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
+
+    "binary ops" {
+        validateModule("""
+            fn test(p: S32) -> UWord = when p {
+                < 0 -> 0
+                1 -> 100
+                else -> 1
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
     }
 })

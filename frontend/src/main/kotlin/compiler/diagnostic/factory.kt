@@ -1,67 +1,16 @@
 package compiler.diagnostic
 
-import compiler.ast.AstFunctionAttribute
-import compiler.ast.AstPackageName
-import compiler.ast.BaseTypeConstructorDeclaration
-import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.BaseTypeEntryDeclaration
-import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.Expression
-import compiler.ast.FunctionDeclaration
-import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
+import compiler.ast.*
 import compiler.ast.expression.MemberAccessExpression
-import compiler.ast.type.AstIntersectionType
-import compiler.ast.type.AstSimpleTypeReference
-import compiler.ast.type.AstTypeArgument
-import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.binding.AccessorKind
-import compiler.binding.BoundAnnotation
-import compiler.binding.BoundAssignmentStatement
-import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
-import compiler.binding.BoundImportDeclaration
-import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundObjectMemberAssignmentStatement
-import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundParameter
-import compiler.binding.BoundVariable
-import compiler.binding.BoundVisibility
-import compiler.binding.DefinitionWithVisibility
-import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeEntry
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
-import compiler.binding.basetype.BoundMixinStatement
-import compiler.binding.basetype.BoundSupertypeDeclaration
-import compiler.binding.basetype.InheritedBoundMemberFunction
-import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
+import compiler.ast.type.*
+import compiler.binding.*
+import compiler.binding.basetype.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableLifetime
-import compiler.binding.expression.BoundBreakExpression
-import compiler.binding.expression.BoundCastExpression
-import compiler.binding.expression.BoundContinueExpression
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundIdentifierExpression
-import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.BoundMemberVariableReadExpression
-import compiler.binding.expression.BoundNotNullExpression
-import compiler.binding.expression.BoundReturnExpression
-import compiler.binding.expression.BoundThrowExpression
+import compiler.binding.expression.*
 import compiler.binding.impurity.Impurity
-import compiler.binding.type.BoundIntersectionTypeReference
-import compiler.binding.type.BoundTypeArgument
-import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.ErroneousType
-import compiler.binding.type.TypeUseSite
+import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -90,7 +39,7 @@ fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler
 }
 
 fun Diagnosis.illegalIntersectionType(ref: BoundIntersectionTypeReference, reason: String) {
-    add(IllegalIntersectionTypeDiagnostic(reason, ref.span ?: compiler.lexer.Span.UNKNOWN))
+    add(IllegalIntersectionTypeDiagnostic(reason, ref.span ?: Span.UNKNOWN))
 }
 
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
@@ -755,4 +704,8 @@ fun Diagnosis.valueNotAnnotatable(annotation: BoundAnnotation) {
 
 fun Diagnosis.invalidAnnotationMember(member: BoundBaseTypeMemberVariable, annotation: BoundAnnotation, reason: String, spanOverride: Span? = null) {
     add(InvalidAnnotationMemberDiagnostic(member.entryDeclaration, annotation.astNode, reason, spanOverride))
+}
+
+fun Diagnosis.whenBranchNeedsSubject(branch: AstWhenExpression.Branch) {
+    add(WhenBranchNeedsSubjectDiagnostic(branch))
 }
