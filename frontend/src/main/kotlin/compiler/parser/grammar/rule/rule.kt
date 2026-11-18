@@ -19,11 +19,19 @@
 package compiler.parser.grammar.rule
 
 import compiler.InternalCompilerError
-import compiler.lexer.Token
 import compiler.diagnostic.ParsingMismatchDiagnostic
+import compiler.lexer.Token
 
 sealed interface MatchingResult<out Item : Any> {
-    class Success<out Item : Any>(val item: Item, val continueAtIndex: Int) : MatchingResult<Item>
+    class Success<out Item : Any>(
+        val item: Item,
+        /**
+         * Rules must not depend on anything other than the tokens and this index to match what comes after. Hence, of
+         * two [Success]es with the same [continueAtIndex], only the first one needs to be pursued (see [SequenceRule]
+         * and [RepeatingRule]): if the first one doesn't lead to a successful parse, the other one won't either.
+         */
+        val continueAtIndex: Int,
+    ) : MatchingResult<Item>
     class Error(val diagnostic: ParsingMismatchDiagnostic) : MatchingResult<Nothing>
 }
 
