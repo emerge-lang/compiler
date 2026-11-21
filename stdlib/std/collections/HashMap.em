@@ -46,18 +46,44 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
         return null
     }
 
-    export operator fn getAtIndex(self: mut _, index: Key) -> Value? {
+    export override operator fn getAtIndex(self, borrow index: Key) -> Value? {
+        return getEntry(key)?.value
+    }
+
+    export override operator fn contains(self, borrow index: Key) {
+        return not isNull(getEntry(key))
+    }
+
+    private fn getEntry(self, borrow key: Key) -> MapEntry<Key, Value>? {
         hash = key.hashWith(self.hashAlgorithm)
         bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             for entry in bucket {
                 if entry.key.equals(key) {
-                    return entry.value
+                    return entry
                 }
             }
         }
         
+        return null
+    }
+
+    export override fn remove(self: mut _, key: Key) -> Value? {
+        hash = entry.key.hashWith(self.hashAlgorithm)
+        bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
+        var bucket = self.buckets[bucketIndex]
+        if not isNull(bucket) {
+            for entryIndex in 0..<bucket.size {
+                entry = bucket[entryIndex]
+                if entry.key.equals(key) {
+                    bucket.removeAtIndex(entryIndex)
+                    set self.size = self.size - 1
+                    return entry.value
+                }
+            }
+        }
+
         return null
     }
 
@@ -93,7 +119,7 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
     private var indexInBackBucketPlus1: UWord = if self.map.buckets.size > 0 {
         self.map.buckets[$ - 1].size
     } else {
-        0
+        1
     }
 
     private nothrow constructor {}
