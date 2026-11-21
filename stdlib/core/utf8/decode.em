@@ -78,3 +78,28 @@ export class InvalidUtf8Exception : Throwable {
         mixin ThrowableTrait(self._message)
     }
 }
+
+export class StringCodepointsRange : FiniteRange<out UWord> {
+    private string: String = init
+    private var atIndex = 0
+    private var nextIndex = 0
+
+    export get fn front(self) -> UWord {
+        if self.atIndex >= self.string.utf8data.size {
+            throw EmptyRangeException()
+        }
+
+        result = getNextCodepointAt(self.string.utf8data, self.atIndex)
+
+        set self.nextIndex = result.second ?: self.string.utf8data.size
+        return result.first
+    }
+
+    export fn popFront(self: mut _) {
+        if self.atIndex == 0 and self.nextIndex == 0 {
+            self.front()
+        }
+
+        set self.index = self.nextIndex
+    }
+}
