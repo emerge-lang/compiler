@@ -26,7 +26,7 @@ it shows and why; the tables below are the map.
 
 | file                 | what it shows                                                                                   | headline results                                                        |
 |----------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
-| `Model.v`            | the types, mutabilities, variances, ownerships, and the `Environment` of class declarations     |                                                                         |
+| `Model.v`            | the types (union types among them, which the frontend doesn't have yet), mutabilities, variances, ownerships, and the `Environment` of class declarations |                                                                         |
 | `Subtyping.v`        | unify, the model of `BoundTypeReference.unify`, and instantiation                               | `unify_fuel_monotone`                                                   |
 | `Ops.v`              | mutability and aliasing: references to a block make no conflicting promises                   | `references_are_conflict_free`, `assignability_respects_mutability`     |
 | `Ownership.v`        | owned and ref slots (not implemented in the Kotlin frontend yet)                               | `no_conflicts_through_a_view`, `instantiation_preserves_ownership_assignability` |
@@ -54,6 +54,7 @@ it shows and why; the tables below are the map.
 | `Composition.v`      | instantiating twice is instantiating once with the bindings instantiated: member access in generic code, overrides | `generic_member_read_sound`, `generic_member_write_sound`, `override_parameter_composed`, `override_return_composed` |
 | `FBounded.v`         | inference with type variables bounded by type variables (`B : List<A>`, `T : A & Comparable<T>`), for free and member functions, also of classes whose type parameters are bounded so (`class Node<T : Ord<in T>>`) | `invocation_with_bounded_variables_sound`, `member_call_with_bounded_variables_sound` |
 | `Explicit.v`         | explicit type arguments for a function whose type parameters are bounded by types mentioning them, bound in turn and checked against their bounds | `explicit_invocation_with_bounded_variables_sound` |
+| `Unions.v`           | union types, `A \| B`: a union assignee is taken where each component is, a union target takes a value where a component does; termination, reflexivity and transitivity on class types and unions of them | `union_below_iff`, `union_takes_component`, `ufrag_transitive` |
 | `Oracle.v`           | the machinery of the oracle: an `Environment` made of the frontend's tables, the comparison of answers, the checks of the conjectures, each shown to be the conjecture restricted to a grid | `report_sound`, `checked`, `mentions_only_b_iff` |
 | `Generated/Grid.v`   | written by `RocqOracleTests`, not in git: `TypeGrid` as an `Environment`, and the frontend's answers over it | |
 | `OracleGrid.v`       | the model evaluated on the grid, against the frontend; the allowlist of known divergences | `unify_agrees`, `conjectures_checked`, `encoding_agrees`, `tokens_stay_visible`, `token_rules_only_reject` |
@@ -81,6 +82,7 @@ Most results hold for a fragment of the types, a boolean predicate on `EType`:
 | `afrag`       | `Inference.v`     | the types of arguments: `in_fragment`                                                                    |
 | `yfrag`       | `GenericArguments.v` | the types of arguments in generic code: `gfrag`, Nothing only as `Nothing`, not as an intersection or a type parameter bounded by it (`bottom_only`), the type parameters of the caller none of those inferred |
 | `caller_type` | `GenericCode.v`   | the types of generic code: `ktfrag`, the references to the type parameters of the caller |
+| `ufrag`       | `Unions.v`        | `in_fragment`, and non-empty unions of types of it, nullable or not: `A \| B`, `(A \| B)?`, `A? \| B`, `(A \| B) \| C` |
 
 ### What the proofs assume
 
@@ -103,6 +105,7 @@ of the theorems, mostly bundled in records:
 | `arguments_without_contravariance`             | `Constraints.v`   | premise of a call to a function with a bound that mentions type variables (`FBounded`, `Explicit`): its arguments and explicit type arguments are without contravariance, and the program has `supertypes_without_contravariance`. Calls to other functions take neither (`Constraints.strict`) |
 | `supertypes_without_contravariance`            | `Inference.v`     | about the program, taken as part of the one above, so only of calls to functions with bounds that mention type variables: no supertype declaration has an in-variant type argument, nested ones included (`class H<T> : Base<Consumer<in T>>` has one), so normalizing an argument to a supertype keeps it without contravariance. Part of `tame_inheritance`, too |
 | dispatch finds a function                      | `Overrides.v`     | not a premise, as the model has no dispatch: a class overrides every function it inherits, or a mixin provides it. The compiler reports `AbstractInheritedFunctionNotImplementedDiagnostic` otherwise (`PossiblyMixedInBoundMemberFunction.semanticAnalysisPhase3`) |
+| `terminates`                                   | `Unions.v`        | premise about the environment at hand: unify terminates on its class types, for the theorems of `Unions.v` that say an assignment is accepted (unify on a union is a search through the components); it follows from `unify_terminates_on` (`terminates_on_classes`) |
 | `unify_terminates_on`                          | `Conjectures.v`   | premise about the environment at hand: unify terminates on `gfrag` in it. The claim that it does wherever inheritance isn't expansive (`non_expansive`, which the frontend enforces in `ExpansiveInheritance.kt`) and the type arguments of supertypes are without contravariance (`tame_inheritance`), `unify_always_terminates`, is false: with `fn f<T : Cn<Cn<in T>>>(t: T)`, deciding `T` below `Cn<in T>` decides it again (`Examples.unify_always_terminates_is_false`); the frontend fails such a goal, the model doesn't (coverage #16) |
 
 The functions `intersect` and `closestCommonSupertypeWith` are fields of the `Environment`, which Rocq
@@ -142,7 +145,7 @@ are checked too). Where nothing fits, a descriptive name of four letters or more
 | `P`, `A`                     | a parameter type and an argument type of a call                             |
 | `B`                          | a bound                                                                     |
 | `V`                          | the declared type of a member                                               |
-| `xs`, `ys`, `zs`, `cs`       | lists of types; `cs` the components of an intersection                      |
+| `xs`, `ys`, `zs`, `cs`, `us` | lists of types; `cs` the components of an intersection, `us` those of a union |
 | `Ps`, `As`                   | the parameter types and the argument types of a call                        |
 | `ps`, `vs`                   | lists of type parameters; `vs` the type variables of a `GenericRef`         |
 | `c`, `sub`                   | a class; `sub` one below another                                            |

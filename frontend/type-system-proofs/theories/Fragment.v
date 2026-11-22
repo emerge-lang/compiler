@@ -87,10 +87,10 @@ Proof.
 Qed.
 
 Lemma is_component_not_nullable: forall x, is_component x = true -> is_nullable env x = false.
-Proof. intros [| |[gm nn p b]| | | |] H; cbn [is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
+Proof. intros [| |[gm nn p b]| | | | |] H; cbn [is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
 
 Lemma kept_component_nullable: forall x, is_kept_component x = true -> is_nullable env x = true.
-Proof. intros [|n|[gm nn p b]| | | |] H; cbn [is_kept_component] in H; try discriminate H; [reflexivity|exact H]. Qed.
+Proof. intros [|n|[gm nn p b]| | | | |] H; cbn [is_kept_component] in H; try discriminate H; [reflexivity|exact H]. Qed.
 
 (* The components of an intersection of the fragment: non-null, or all keeping their nullability *)
 Lemma intersection_gfrag_cases: forall cs, gfrag (Intersection cs) = true ->
@@ -165,7 +165,7 @@ Lemma gfrag_cases: forall t, gfrag t = true ->
     \/ (exists gm nn p vs, t = Generic (mkGenericRef gm nn p vs) /\ vs = [])
     \/ (exists cs, t = Intersection cs).
 Proof.
-    intros [m c args|x|[gm nn p [|v vs]]|me msg|v o x|g|cs] H; simpl in H; try discriminate H.
+    intros [m c args|x|[gm nn p [|v vs]]|me msg|v o x|g|cs|uns] H; simpl in H; try discriminate H.
     - left. eauto.
     - right. left. apply andb_true_iff in H. exists x. split; [reflexivity|exact H].
     - right. right. left. exists gm, nn, p, []. split; reflexivity.
@@ -176,20 +176,20 @@ Lemma component_cases: forall x, is_component x = true -> gfrag x = true ->
     (exists m c' arguments, x = RootResolved m c' arguments)
     \/ (exists gm nn p vs, x = Generic (mkGenericRef gm nn p vs) /\ is_nullable env x = false /\ vs = []).
 Proof.
-    intros [m c' args|n|[gm nn p [|v vs]]|me msg|v o n|g|cs] Hc H; simpl in H; try discriminate H; try discriminate Hc.
+    intros [m c' args|n|[gm nn p [|v vs]]|me msg|v o n|g|cs|uns] Hc H; simpl in H; try discriminate H; try discriminate Hc.
     - left. eauto.
     - right. exists gm, nn, p, []. split; [reflexivity|]. split; [apply negb_true_iff; exact Hc|reflexivity].
 Qed.
 
 Lemma non_null_not_nullable: forall t, non_null t = true -> is_nullable env t = false.
-Proof. intros [| |[gm nn p b]| | | |] H; cbn [non_null is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
+Proof. intros [| |[gm nn p b]| | | | |] H; cbn [non_null is_component] in H; try discriminate H; try reflexivity; apply negb_true_iff, H. Qed.
 
 Lemma in_fragment_gfrag: forall k,
     (forall t, depth t <= k -> in_fragment env t = true -> gfrag t = true)
     /\ (forall a, argument_depth a <= k -> argument_in_fragment env a = true -> argument_gfrag a = true).
 Proof.
     induction k as [|k [IHt IHa]].
-    { split; [intros [m c args|[m c args| | | | | |]| | | | |] Hd H|intros [| | | |v o n| |] Hd H]; simpl in Hd, H;
+    { split; [intros [m c args|[m c args| | | | | | |]| | | | | |] Hd H|intros [| | | |v o n| | |] Hd H]; simpl in Hd, H;
           try discriminate H; lia. }
     assert (Hroot: forall m c args, depth (RootResolved m c args) <= S k -> in_fragment env (RootResolved m c args) = true ->
         gfrag (RootResolved m c args) = true).
@@ -199,13 +199,13 @@ Proof.
     - intros t Hd H. destruct (fragment_cases env t H) as [[m [c [args ->]]]|[m [c [args [-> H']]]]].
       + exact (Hroot m c args Hd H).
       + rewrite depth_nullable in Hd. change (true && gfrag (RootResolved m c args) = true). apply Hroot; [lia|exact H'].
-    - intros [| | | |v o n| |] Hd H; simpl in H; try discriminate H. simpl in Hd. apply IHt; [lia|exact H].
+    - intros [| | | |v o n| | |] Hd H; simpl in H; try discriminate H. simpl in Hd. apply IHt; [lia|exact H].
 Qed.
 
 Lemma in_fragment_is_gfrag: forall t, in_fragment env t = true -> gfrag t = true.
 Proof. intros t. apply (proj1 (in_fragment_gfrag (depth t))). lia. Qed.
 
 Lemma gfrag_not_variable: forall t, gfrag t = true -> is_type_variable t = false.
-Proof. intros [| | | | |g|] H; simpl in H; try discriminate H; reflexivity. Qed.
+Proof. intros [| | | | |g| |] H; simpl in H; try discriminate H; reflexivity. Qed.
 
 End Fragment.

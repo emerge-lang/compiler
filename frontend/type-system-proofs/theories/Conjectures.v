@@ -160,6 +160,7 @@ Fixpoint parameter_occurrences (nested: bool) (t: EType): list (TypeParameterId 
     | TypeArgument _ _ n => parameter_occurrences nested n
     | Nullable n => parameter_occurrences nested n
     | Intersection components => flat_map (parameter_occurrences nested) components
+    | Union us => flat_map (parameter_occurrences nested) us
     | _ => []
     end.
 
@@ -170,6 +171,7 @@ Fixpoint constructed_types (t: EType): list (Class * list EType) :=
     | TypeArgument _ _ n => constructed_types n
     | Nullable n => constructed_types n
     | Intersection components => flat_map constructed_types components
+    | Union us => flat_map constructed_types us
     | _ => []
     end.
 

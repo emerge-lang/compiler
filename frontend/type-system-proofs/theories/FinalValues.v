@@ -49,12 +49,12 @@ Qed.
 Lemma reflexive_never_fails: forall t, gfrag env t = true -> never_fails env t t.
 Proof.
     intros t. remember (esize t) as k eqn:Hk. revert t Hk. induction k as [k IH] using lt_wf_ind. intros t -> H.
-    destruct t as [m c args|n|[gm nn p bound]|me msg|v o n|g|cs]; simpl in H; try discriminate H.
+    destruct t as [m c args|n|[gm nn p bound]|me msg|v o n|g|cs|uns]; simpl in H; try discriminate H.
     - (* a class type: its type arguments, each for itself *)
       destruct (root_gfrag env m c args H) as [Hl Hargs].
       assert (Hall: forall a, In a args -> never_fails env a a).
       { intros a Hin. pose proof (Hargs a Hin) as Ha. pose proof (esize_in args a Hin) as Hs.
-        destruct a as [| | | |va oa na| |]; simpl in Ha; try discriminate Ha.
+        destruct a as [| | | |va oa na| | |]; simpl in Ha; try discriminate Ha.
         assert (Hn: never_fails env na na) by (apply (IH (esize na)); [simpl in Hs |- *; lia|reflexivity|exact Ha]).
         apply never_fails_step. intros f s. rewrite gunify_type_arguments by exact Ha.
         rewrite ownership_is_assignable_to_itself.
@@ -81,7 +81,7 @@ Proof.
       destruct (is_nullable env (Intersection cs)) eqn:En.
       + (* components that keep their nullability: `cn?` takes it without null through cn, a reference through itself *)
         destruct (Fragment.kept_intersection_gfrag env cs H En) as [_ [Hk _]]. destruct (Hk c Hc) as [Hkc _].
-        destruct c as [|cn|[gm ngm p bound]| | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
+        destruct c as [|cn|[gm ngm p bound]| | | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
         * assert (Hgcn: gfrag env cn = true) by (simpl in Hgc; apply andb_true_iff in Hgc; exact (proj2 Hgc)).
           assert (Hcn: never_fails env cn cn) by (apply (IH (esize cn)); [simpl in Hs |- *; lia|reflexivity|exact Hgcn]).
           apply never_fails_step. intros f s. rewrite (step_nullable_any env f cn (Intersection cs) s H).
@@ -107,7 +107,7 @@ Proof.
     intros cs C H Hc. pose proof (gfrag_component env cs C H Hc) as Hgc. pose proof (reflexive_never_fails C Hgc) as Hcc.
     destruct (is_nullable env (Intersection cs)) eqn:En.
     - destruct (Fragment.kept_intersection_gfrag env cs H En) as [_ [Hk _]]. destruct (Hk C Hc) as [Hkc _].
-      destruct C as [|cn|[gm ngm p bound]| | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
+      destruct C as [|cn|[gm ngm p bound]| | | | |]; cbn [is_kept_component] in Hkc; try discriminate Hkc.
       + assert (Hgcn: gfrag env cn = true) by (simpl in Hgc; apply andb_true_iff in Hgc; exact (proj2 Hgc)).
         pose proof (reflexive_never_fails cn Hgcn) as Hcn.
         apply never_fails_step. intros f s. rewrite (step_nullable_any env f cn (Intersection cs) s H).

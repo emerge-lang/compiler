@@ -165,6 +165,10 @@ Inductive EType :=
     | TypeVariable (generic: GenericRef)
     (* BoundIntersectionTypeReference; its mutability is the intersection of that of the components *)
     | Intersection (components: list EType)
+    (* A union type, `A | B`: a value of it is a value of one of the components. Not in the Kotlin
+       frontend yet (roadmap: union types); modelled first. Its mutability is the union of that of
+       the components: what every component allows. *)
+    | Union (components: list EType)
 (* GenericTypeReference; the mutability is `givenMutability`, written or applied. The bound is the
    parameter's (Environment.parameter_bound); the effective bound is that with the mutability and
    nullability of this reference applied, and the type variables (Subtyping.effective_bound).

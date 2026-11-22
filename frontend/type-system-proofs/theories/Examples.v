@@ -147,6 +147,7 @@ Fixpoint ety_eqb (a b: EType): bool :=
     | TypeArgument v o n, TypeArgument v' o' n' => Variance_beq v v' && own_eqb o o' && ety_eqb n n'
     | TypeVariable g, TypeVariable g' => gref_eqb g g'
     | Intersection cs, Intersection cs' => list_eqb_with ety_eqb cs cs'
+    | Union us, Union us' => list_eqb_with ety_eqb us us'
     | _, _ => false
     end.
 
@@ -191,7 +192,7 @@ Qed.
 
 Lemma ety_eqb_eq: forall z y0, ety_eqb z y0 = true -> z = y0.
 Proof.
-    fix IH 1. intros [m c args|n|g|m msg|v o n|g|cs] [m' c' args'|n'|g'|mm msg'|v' o' n'|g'|cs'] H;
+    fix IH 1. intros [m c args|n|g|m msg|v o n|g|cs|uns] [m' c' args'|n'|g'|mm msg'|v' o' n'|g'|cs'|uns'] H;
         cbn [ety_eqb] in H; try discriminate H.
     - apply andb_true_iff in H. destruct H as [H Ha]. apply andb_true_iff in H. destruct H as [Hm Hc].
       rewrite (opt_mut_eqb_eq m m' Hm). unfold class_eqb in Hc. destruct (Class_eq_dec c c') as [<-|]; [|discriminate Hc].
@@ -204,17 +205,19 @@ Proof.
     - f_equal. exact (gref_eqb_eq g g' H).
     - f_equal. revert cs' H. induction cs as [|x cs IHa]; intros [|y cs'] Ha; try discriminate Ha; [reflexivity|].
       cbn [list_eqb_with] in Ha. apply andb_true_iff in Ha. destruct Ha as [Hx Ha]. f_equal; [exact (IH x y Hx)|exact (IHa cs' Ha)].
+    - f_equal. revert uns' H. induction uns as [|x uns IHa]; intros [|y uns'] Ha; try discriminate Ha; [reflexivity|].
+      cbn [list_eqb_with] in Ha. apply andb_true_iff in Ha. destruct Ha as [Hx Ha]. f_equal; [exact (IH x y Hx)|exact (IHa uns' Ha)].
 Qed.
 
 Lemma is_top_eq: forall t, is_top t = true -> t = top_type.
 Proof.
-    intros [|[m c args| | | | | |]| | | | |] H; try discriminate H.
+    intros [|[m c args| | | | | | |]| | | | | |] H; try discriminate H.
     destruct m as [[]|], c, args; try discriminate H; reflexivity.
 Qed.
 
 Lemma is_bottom_eq: forall t, is_bottom t = true -> t = bottom_type.
 Proof.
-    intros [m c args| | | | | |] H; try discriminate H.
+    intros [m c args| | | | | | |] H; try discriminate H.
     destruct m as [[]|], c, args; try discriminate H; reflexivity.
 Qed.
 

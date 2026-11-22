@@ -21,6 +21,34 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | 18 | Calls in generic code with an argument `Box<in Nothing?>` or `Box<Nothing?>` against another whose type argument is a type parameter (◐) | `fn f<T>(a: T, b: T)`, `f(Box<P>, Box<in Nothing?>)` in generic code | The join is `Box<in P & Nothing?>`: the intersection is Nothing without null, which `GenericArguments.bottom_only` excludes, so `closest_common_supertype_keeps_bottom_only` is false of the frontend (step 14). The theorems of generic code taking it say nothing about the frontend until `bottom_only` admits such intersections, which rests on unify treating an intersection that is Nothing as Nothing (the frontend does since step 14, the model doesn't yet). `OracleGrid.v` excuses the 38 pairs of `TypeGrid` it fails on, and only those: where the join, but for its intersections as in-variant type arguments, is `bottom_only` |
 | 19 | Tokens: that the theorems about what unify accepts and keeps (transitivity, reflexivity, substitution, the soundness of calls and of inference) hold of unify with the token rules (◐) | `fn f<T>(x: own T) { c: const T = x }` is rejected by the frontend; `own A & NonToken` is assignable to `const A` | The frontend's unify is `Subtyping.unify_with_tokens`: `unify`, and on top of it that a value which may be a token (`may_be_token`) is not assignable to a type that cannot be one, and that an `own` component of an intersection that cannot be a token is tried as `const` too (`flipped_candidates`). The rules are a layer that only makes assignments fail, so what a theorem says of an assignment `unify` accepts (the mutability it respects, what member access and calls may rely on) holds of every assignment the frontend accepts: checked over `TypeGrid` (`OracleGrid.token_rules_only_reject`), not proven. So is the invariant of the rules, that nothing which may be a token is below a type that cannot be one (`OracleGrid.tokens_stay_visible`). The theorems that an assignment is accepted (transitivity, the substitution lemma, intersect below both) are about `unify` without the rules, and are not shown of `unify_with_tokens`; the frontend's `CommonTypesTests`, `UnificationPropertiesTests` and `MemberAccessPropertiesTests` check them over the grid, tokens included. The model's `instantiate` doesn't intersect with `NonToken` where the frontend does (`const T` of a `mut A` is `own A & NonToken`, `GenericTypeReference.instantiateAllParameters`), nor does its `with_mutability` of an intersection |
 
+## Union types
+
+The model has union types, `A | B` (`Model.Union`; a value of the union is a value of one of the components), ahead of the
+frontend (roadmap: union types). Unify on them is a search, as on intersections: a union target takes a value with the
+first component that does (`Subtyping.union_body`, the components that are type variables last; of an intersection
+assignee, first a component of the intersection that is below the whole union), a union assignee is
+taken where each of its components is (`union_flipped_unify`); a union reads as what every component allows (the join
+of their mutabilities, `Model.union`), is null where a component is, and is assigned as the join of what the components
+are assigned as. The fragments of the other files leave unions out, so every theorem about them holds as before; what
+is proven of unions is in `Unions.v`, over class types and unions of them (`ufrag`), where unify terminates on the class
+types of the program (`terminates`, which follows from `unify_terminates_on`).
+
+| area | status | where |
+|---|---|---|
+| A union assignee is taken exactly where each of its components is (`A \| B` below z iff A and B are) | ✓ | `Unions.union_below_iff` |
+| A union target takes a value of a class type, nullable or not, only with one of its components (a value of `A \| B` is an A or a B; of `(A \| B)?` an A, a B or null): what an exhaustiveness check of `when` over the components rests on | ✓ for every assignee that is a type of values | `union_takes_component`, `nullable_union_takes_component` |
+| What is below a component is below the union; every type of the fragment is below itself | ◐ rests on `terminates`: the components before the one that takes the value have to answer | `below_union_of_component`, `ufrag_reflexive` |
+| Transitivity on class types and unions of them | ◐ rests on `terminates` | `ufrag_transitive` |
+| An intersection with a component below a union is below the union (`(A \| B) & C` is below `A \| B`): a union target tries the components of an intersection assignee against the whole union first, then its own components against the intersection | ◐ rests on `terminates` for the components tried first | `below_union_of_intersection_component`, `intersection_with_union_below_union` |
+| Unify terminates on unions of class types where it does on class types | ◐ rests on `terminates` | `ufrag_terminates` |
+| Assignability respects mutability, unions included | ✓ of unions whose components are all types of objects (`can_refer_to_object`: a union with a component that is Nothing, or erroneous, is left out) | `Ops.unify_respects_mutability` |
+| Unions among the types of generic code: with type parameters or intersections as components, in type arguments (`Box<A \| B>`), as the types of parameters of calls, in bounds, as member types; instantiation (`union_instances`) | ✗ the fragments of those files leave unions out | — |
+| The frontend | ✗ there are no union types in it yet; the oracle sees none | — |
+
+A union with a const component among others, `Const \| mut A`, reads as `read` and is assigned as `mut`: it is the one
+type of the model that is assigned as something other than its mutability without being const (`Generics.not_top_const`
+is about the fragment of type parameters and intersections for that reason).
+
 ## Subtyping (unify)
 
 | area | status | where |
@@ -31,6 +59,7 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 | Type parameters, `m T`, `T!`, `T?`, intersections: transitivity | ◐ proven only to never reject; accepting rests on `unify_terminates_on` | `Generics.v`, `Conjectures.v` |
 | Reflexivity on type parameters and intersections | ◐ same | `FinalValues.v` |
 | Erroneous types | ✗ modelled in unify, no theorem | — |
+| Union types | see [union types](#union-types) | `Unions.v` |
 | The frontend's unify is the model's with the token rules (`unify_with_tokens`), over the types of `TypeGrid` | ✓ by computation, but intersections of disjoint classes, which the frontend takes below every type (step 14) | `OracleGrid.unify_agrees` |
 | Tokens: what may be a token is the frontend's, of every type of the grid and its parts | ✓ by computation | `OracleGrid.encoding_agrees` |
 | Tokens: nothing that may be a token is below a type that cannot be one; the token rules only reject | ◐ over `TypeGrid` by computation, no theorem (#19) | `OracleGrid.tokens_stay_visible`, `token_rules_only_reject` |
