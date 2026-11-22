@@ -2,9 +2,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 1. typealiases
 2. additional language constructs
-   1. union types: `TypeA | TypeB | TypeC`
-      * support exhaustiveness check on `when`
-   2. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
+   1. inferable types? Be able to mention `_` anywhere where inference is supported and have that part of the
       type be filled in by the compiler. Useful for the foreach syntax sugar: range: mut InputRange<_> = iterable.asRange()
 3. Stdlib basics
     * some good standard collections

@@ -34,6 +34,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.MissingElseBranchDiagnostic
@@ -103,12 +104,13 @@ class BoundIfExpression(
         elseCode?.semanticAnalysisPhase2(diagnosis)
 
         if (isInExpressionContext && elseCode != null) {
+            // the value is one of the branches: the union of their types, exactly
             type = listOfNotNull(
                 thenCode.type,
                 elseCode.type,
             )
                 .takeUnless { it.isEmpty() }
-                ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
+                ?.let { BoundUnionTypeReference.ofComponents(context, null, it, simplify = true) }
         } else if (isInExpressionContext) {
             val thenType = thenCode.type
             if (thenType != null && !thenType.isUnitOrNothing) {

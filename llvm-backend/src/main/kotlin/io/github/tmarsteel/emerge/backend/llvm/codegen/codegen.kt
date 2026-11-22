@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIsNullExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
@@ -1092,6 +1093,7 @@ internal fun IrType.findSimpleTypeBound(): IrSimpleType {
             is IrGenericTypeReference -> carry.effectiveBound
             is IrIntersectionType -> carry.representativeComponent
                 ?: throw CodeGenerationException("The intersection type $carry has no simple type bound")
+            is IrUnionType -> throw CodeGenerationException("The union type $carry has no simple type bound")
             else -> error("how the hell did this happen??")
         }
     }

@@ -48,11 +48,14 @@ data object EmergeConstants {
         val TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "Type")
         val NAMED_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "NamedType")
         val INTERSECTION_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "IntersectionType")
+        val UNION_TYPE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UnionType")
         val TYPE_ARGUMENT_TYPE_NAME = CanonicalElementName.BaseType(NAME, "TypeArgument")
         val TYPE_PARAMETER_PLACEHOLDER_TYPE_NAME = CanonicalElementName.BaseType(NAME, "TypeParameterPlaceholder")
         val INTERSECTION_TEMPLATE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "IntersectionTemplate")
+        val UNION_TEMPLATE_TYPE_NAME = CanonicalElementName.BaseType(NAME, "UnionTemplate")
         val TYPE_WITH_NULLABILITY_FN_NAME = "withNullability"
         val INTERSECTION_OF_FN_NAME = CanonicalElementName.Function(NAME, "intersectionOf")
+        val UNION_OF_FN_NAME = CanonicalElementName.Function(NAME, "unionOf")
         val WITH_GIVEN_MUTABILITY_FN_NAME = CanonicalElementName.Function(NAME, "withGivenMutability")
         val TYPEOF_FN_NAME = CanonicalElementName.Function(NAME, "typeOf")
 

@@ -131,6 +131,7 @@ class BoundTypeArgument(
             is BoundIntersectionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry) {
                 "$assigneeType is not a subtype of $this"
             }
+            is BoundUnionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is ErroneousType -> {
                 return unify(assigneeType.asNothing, assignmentLocation, carry)
             }
@@ -390,6 +391,7 @@ private fun BoundTypeReference.mentionsVariantlyBoundParameter(context: TypeUnif
     is NullableTypeReference -> nested.mentionsVariantlyBoundParameter(context)
     is BoundTypeArgument -> type.mentionsVariantlyBoundParameter(context)
     is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameter(context) }
+    is BoundUnionTypeReference -> components.any { it.mentionsVariantlyBoundParameter(context) }
     else -> false
 }
 
@@ -397,6 +399,7 @@ private fun BoundTypeReference.mentionsVariantlyBoundParameterInTypeArguments(co
     is RootResolvedTypeReference -> arguments.orEmpty().any { it.mentionsVariantlyBoundParameter(context) }
     is NullableTypeReference -> nested.mentionsVariantlyBoundParameterInTypeArguments(context)
     is BoundIntersectionTypeReference -> components.any { it.mentionsVariantlyBoundParameterInTypeArguments(context) }
+    is BoundUnionTypeReference -> components.any { it.mentionsVariantlyBoundParameterInTypeArguments(context) }
     else -> false
 }
 

@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -54,6 +55,7 @@ data class BoundTypeParameter(
     private fun findSelfReferenceAtTop(ref: TypeReference): TypeReference? = when (ref) {
         is NamedTypeReference -> ref.takeIf { it.simpleName == name }
         is AstIntersectionType -> ref.components.firstNotNullOfOrNull(::findSelfReferenceAtTop)
+        is AstUnionType -> ref.components.firstNotNullOfOrNull(::findSelfReferenceAtTop)
         else -> null
     }
 

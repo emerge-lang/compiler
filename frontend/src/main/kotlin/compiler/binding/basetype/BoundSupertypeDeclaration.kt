@@ -7,6 +7,7 @@ import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
@@ -127,6 +128,7 @@ private fun BoundTypeReference.collectBaseTypes(into: MutableSet<BoundBaseType>)
         is NullableTypeReference -> nested.collectBaseTypes(into)
         is BoundTypeArgument -> type.collectBaseTypes(into)
         is BoundIntersectionTypeReference -> components.forEach { it.collectBaseTypes(into) }
+        is BoundUnionTypeReference -> components.forEach { it.collectBaseTypes(into) }
         is GenericTypeReference -> {
             // `T : Comparable<T>` would recurse forever without the check
             val bound = parameter.bound

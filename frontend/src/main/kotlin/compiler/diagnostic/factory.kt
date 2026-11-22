@@ -42,6 +42,10 @@ fun Diagnosis.illegalIntersectionType(ref: BoundIntersectionTypeReference, reaso
     add(IllegalIntersectionTypeDiagnostic(reason, ref.span ?: Span.UNKNOWN))
 }
 
+fun Diagnosis.simplifiableUnionType(verbose: AstUnionType, simpler: BoundTypeReference) {
+    add(SimplifiableUnionTypeDiagnostic(verbose, simpler))
+}
+
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
     add(ValueNotAssignableDiagnostic(targetType, sourceType, reason, assignmentLocation))
 }

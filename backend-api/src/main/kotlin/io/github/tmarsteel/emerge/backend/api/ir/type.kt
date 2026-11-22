@@ -68,3 +68,11 @@ interface IrGenericTypeReference : IrType {
 interface IrIntersectionType : IrType {
     val components: List<IrType>
 }
+
+/**
+ * `A | B`: a value of it is a value of one of the [components]. The components are never unions, and they are
+ * nullable iff the union is.
+ */
+interface IrUnionType : IrType {
+    val components: List<IrType>
+}

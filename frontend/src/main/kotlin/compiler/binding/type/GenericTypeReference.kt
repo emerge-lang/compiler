@@ -191,6 +191,7 @@ class GenericTypeReference private constructor(
                     reason = { "$assigneeType cannot be proven to be a subtype of $this" },
                 )
             }
+            is BoundUnionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
     }
 
@@ -222,7 +223,8 @@ class GenericTypeReference private constructor(
                     effectiveBound.closestCommonSupertypeWith(other.effectiveBound)
                 }
             }
-            is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
+            is BoundTypeArgument,
+            is BoundUnionTypeReference -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is RootResolvedTypeReference -> {
                 if (other.baseType == context.swCtx.nothing && other.assignmentMutability.isAssignableTo(this.assignmentMutability)) {

@@ -11,6 +11,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundUnionTypeReference.Companion.unionedComponents
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.illegalIntersectionType
@@ -381,6 +382,15 @@ class BoundIntersectionTypeReference private constructor(
         ): BoundTypeReference {
             components.singleOrNull()?.let { return it }
 
+            // a union component distributes: `(A | B) & C` is `(A & C) | (B & C)`, so an intersection never holds a union
+            val unionIndex = components.indexOfFirst { it.unionedComponents().size > 1 }
+            if (unionIndex >= 0) {
+                val alternatives = components[unionIndex].unionedComponents().map { alternative ->
+                    ofComponents(context, null, components.toMutableList().also { it[unionIndex] = alternative }, simplify)
+                }
+                return BoundUnionTypeReference.ofComponents(context, null, alternatives, simplify)
+            }
+
             val intersection = ofComponentsKeepingMutabilities(context, ref, components, simplify)
             if (intersection.mayBeToken && components.any { !it.mayBeToken }) {
                 // the components take the mutability they have in common, and a const one, which is no token for
@@ -453,6 +463,7 @@ class BoundIntersectionTypeReference private constructor(
                     )
                 }
                 is BoundIntersectionTypeReference,
+                is BoundUnionTypeReference,
                 is GenericTypeReference,
                 is RootResolvedTypeReference,
                 is NullableTypeReference,
@@ -631,6 +642,8 @@ private fun BoundTypeReference.asRootResolvedComponents(): List<RootResolvedType
     is ErroneousType -> emptyList()
     is TypeVariable -> error("cannot validate during type inference")
     is BoundIntersectionTypeReference -> this.components.flatMap { it.asRootResolvedComponents() }
+    // a value of a union is of one component only, which says nothing about the parameterizations of all of them
+    is BoundUnionTypeReference -> emptyList()
 }
 
 private class IrIntersectionTypeImpl(

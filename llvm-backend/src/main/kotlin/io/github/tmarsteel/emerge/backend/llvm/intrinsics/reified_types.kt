@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -143,6 +144,7 @@ internal val IrType.mentionsTypeParameter: Boolean get() = when (this) {
     is IrSimpleType -> false
     is IrParameterizedType -> arguments.values.any { it.type.mentionsTypeParameter }
     is IrIntersectionType -> components.any { it.mentionsTypeParameter }
+    is IrUnionType -> components.any { it.mentionsTypeParameter }
 }
 
 /**
@@ -171,6 +173,18 @@ internal fun EmergeLlvmContext.staticReifiedType(type: IrType): LlvmGlobal<Emerg
             staticReifiedTypes[key] = global
             val components = type.components.map { staticReifiedType(it) }
             val componentsArray = staticReferenceArray(components, IrSimpleTypeImpl(reifiedNamedTypeClass.irClass, IrTypeMutability.IMMUTABLE, false))
+            val constant = clazz.buildStaticConstant(mapOf(
+                clazz.irClass.fieldOfMemberVariable("components") to componentsArray,
+            ))
+            Llvm.LLVMSetInitializer(global.raw, constant.raw)
+            global
+        }
+        is IrUnionType -> {
+            val clazz = reifiedUnionTypeClass
+            val global = addGlobal(undefValue(clazz), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+            staticReifiedTypes[key] = global
+            val components = type.components.map { staticReifiedType(it) }
+            val componentsArray = staticReferenceArray(components, IrSimpleTypeImpl(reifiedTypeInterface, IrTypeMutability.IMMUTABLE, false))
             val constant = clazz.buildStaticConstant(mapOf(
                 clazz.irClass.fieldOfMemberVariable("components") to componentsArray,
             ))
@@ -301,6 +315,17 @@ private fun EmergeLlvmContext.staticTypeTemplate(owner: IrBaseType, type: IrType
                 LlvmThreadLocalMode.NOT_THREAD_LOCAL,
             )
         }
+        is IrUnionType -> {
+            val clazz = reifiedUnionTemplateClass
+            val components = type.components.map { staticTypeTemplate(owner, it) }
+            val componentsArray = staticReferenceArray(components, IrSimpleTypeImpl(reifiedTypeInterface, IrTypeMutability.IMMUTABLE, false))
+            addGlobal(
+                clazz.buildStaticConstant(mapOf(
+                    clazz.irClass.fieldOfMemberVariable("components") to componentsArray,
+                )),
+                LlvmThreadLocalMode.NOT_THREAD_LOCAL,
+            )
+        }
         is IrSimpleType -> throw CodeGenerationException("unreachable, simple types don't mention type parameters")
     }
 }
@@ -335,6 +360,7 @@ private fun reifiedTypeKey(type: IrType): String {
             } + nullableSuffix
         }
         is IrIntersectionType -> type.components.map(::reifiedTypeKey).sorted().joinToString("&")
+        is IrUnionType -> type.components.map(::reifiedTypeKey).sorted().joinToString("|", "[", "]")
         is IrGenericTypeReference -> throw CodeGenerationException("type parameters have no static runtime type information")
     }
 }
@@ -449,6 +475,20 @@ internal fun lowerReifiedType(type: IrType): ReifiedTypeValue {
                 )
                 componentsArray.afterReferenceDropped(isNullable = false)
                 intersection
+            }
+            is IrUnionType -> {
+                val componentObjects = type.components.map { lowerReifiedType(it) }
+                val componentsArray = newReferenceArrayOf(componentObjects, IrSimpleTypeImpl(context.reifiedTypeInterface, IrTypeMutability.IMMUTABLE, false))
+                check(context.unionOfFn.hasNothrowAbi) {
+                    "${context.unionOfFn.canonicalName} must be nothrow, the backend depends on it"
+                }
+                @Suppress("UNCHECKED_CAST")
+                val union = call(
+                    context.unionOfFn.llvmRef as LlvmFunction<LlvmPointerType<out EmergeHeapAllocated>>,
+                    listOf(buildArraySliceOfEntireArray(componentsArray)),
+                )
+                componentsArray.afterReferenceDropped(isNullable = false)
+                union
             }
             is IrSimpleType -> throw CodeGenerationException("unreachable, simple types don't mention type parameters")
         }

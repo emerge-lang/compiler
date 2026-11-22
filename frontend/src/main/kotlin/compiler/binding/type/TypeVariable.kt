@@ -37,7 +37,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class TypeVariable private constructor(
     override val context: CTContext,
-    private val asGeneric: GenericTypeReference,
+    internal val asGeneric: GenericTypeReference,
 ) : BoundTypeReference by asGeneric {
     constructor(ref: GenericTypeReference) : this(
         ref.context,
@@ -121,6 +121,7 @@ class TypeVariable private constructor(
             is RootResolvedTypeReference,
             is GenericTypeReference,
             is BoundIntersectionTypeReference,
+            is BoundUnionTypeReference,
             is BoundTypeArgument, -> {
                 if (!isNullable && assigneeType.isNullable) {
                     return carry.plusDiagnostic(ValueNotAssignableDiagnostic(

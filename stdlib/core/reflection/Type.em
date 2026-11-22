@@ -4,7 +4,8 @@ import emerge.platform.panic
 import emerge.core.safemath.plusModulo
 
 // runtime type information on a type (as opposed to ReflectionBaseType, which describes a base type only):
-// a base type together with nullability, mutability and type arguments, or an intersection of those.
+// a base type together with nullability, mutability and type arguments, an intersection of those, or a union of
+// named types and intersections.
 //
 // Mutability belongs to a reference, not to the object it refers to: an object doesn't know the mutability of
 // the references to it, and the same object is `mut` through one reference and `read` through another. So the
@@ -14,7 +15,8 @@ export interface Type {
     // the same type, with the nullability replaced
     export nothrow fn withNullability(capture self, nullable: Bool) -> const Type
 
-    // the number of named types this type is composed of: 1 for a NamedType, the number of components for an IntersectionType
+    // the number of named types this type is composed of: 1 for a NamedType, the number of components for an
+    // IntersectionType, the sum over the components for a UnionType
     export nothrow fn componentCount(self) -> UWord
 
     // the first of the named types this type is composed of
@@ -110,6 +112,53 @@ export class IntersectionType : const Type {
     }
 }
 
+// `A | B`: a value of it is a value of one of the components. `BoundUnionTypeReference` in the compiler.
+export class UnionType : const Type {
+    // at least two, each a NamedType or an IntersectionType, never a UnionType; nullable iff the union is
+    export components: const Array<const Type> = init
+
+    export override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
+        newComponents: own Array<const Type> = Array.new::<const Type>(self.components.size, self.components.getOrPanic(0))
+        var index: UWord = 0
+        while index < self.components.size {
+            newComponents.setOrPanic(index, self.components.getOrPanic(index).withNullability(nullable))
+            set index = index.plusModulo(1 as UWord)
+        }
+        return UnionType(newComponents)
+    }
+
+    export override nothrow fn componentCount(self) -> UWord {
+        var count: UWord = 0
+        var index: UWord = 0
+        while index < self.components.size {
+            set count = count.plusModulo(self.components.getOrPanic(index).componentCount())
+            set index = index.plusModulo(1 as UWord)
+        }
+        return count
+    }
+
+    export override nothrow fn firstComponent(capture self) -> const NamedType = self.components.getOrPanic(0).firstComponent()
+
+    export override nothrow fn toString(self) -> String {
+        var str = unionComponentToString(self.components.getOrPanic(0))
+        var index: UWord = 1
+        while index < self.components.size {
+            set str = str + " | " + unionComponentToString(self.components.getOrPanic(index))
+            set index = index.plusModulo(1 as UWord)
+        }
+
+        return str
+    }
+}
+
+// an intersection binds tighter than a union, the parentheses are for the reader
+nothrow fn unionComponentToString(component: const Type) -> String {
+    if component is IntersectionType {
+        return "(" + component.toString() + ")"
+    }
+    return component.toString()
+}
+
 // stands for a type parameter of a base type in the templates of its supertypes, see
 // ReflectionBaseType.supertypeTemplates. Never is the type of a value, and never leaves this package.
 class TypeParameterPlaceholder : const Type {
@@ -170,6 +219,24 @@ class IntersectionTemplate : const Type {
     override nothrow fn toString(self) -> String = "<intersection template>"
 }
 
+// a union in the template of a supertype, with at least one component that mentions a type parameter of the base
+// type; see IntersectionTemplate
+class UnionTemplate : const Type {
+    components: const Array<const Type> = init
+
+    override nothrow fn withNullability(capture self, nullable: Bool) -> const Type {
+        panic("a union template is not a type")
+    }
+
+    override nothrow fn componentCount(self) -> UWord = self.components.size
+
+    override nothrow fn firstComponent(capture self) -> const NamedType {
+        panic("a union template is not a type")
+    }
+
+    override nothrow fn toString(self) -> String = "<union template>"
+}
+
 export class TypeArgument : const Any {
     // one of VARIANCE_INVARIANT, VARIANCE_IN, VARIANCE_OUT
     export variance: U8 = init
@@ -220,6 +287,22 @@ export nothrow fn intersectMutability(a: U8, b: U8) -> U8 {
     return MUTABILITY_OWN
 }
 
+// @return the mutability that both [a] and [b] fit: `mut` and `const` together are `read`. The mutability of a
+// union of an `a` and a `b` reference.
+export nothrow fn unionMutability(a: U8, b: U8) -> U8 {
+    if a == b {
+        return a
+    }
+    if a == MUTABILITY_OWN {
+        return b
+    }
+    if b == MUTABILITY_OWN {
+        return a
+    }
+
+    return MUTABILITY_READ
+}
+
 // what `mut T` is, with [self] for `T` and [given] the mutability written: [self], of the mutability that both
 // it and [given] ask for.
 //
@@ -242,6 +325,17 @@ nothrow fn withMutabilityOfAll(capture self: const Type, mutability: U8) -> cons
         return self.asNamedType().withMutability(mutability)
     }
 
+    if self is UnionType {
+        unionComponents = self.asUnionType().components
+        newUnionComponents: own Array<const Type> = Array.new::<const Type>(unionComponents.size, unionComponents.getOrPanic(0))
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            newUnionComponents.setOrPanic(unionIndex, unionComponents.getOrPanic(unionIndex).withMutabilityOfAll(mutability))
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return UnionType(newUnionComponents)
+    }
+
     components = self.asIntersectionType().components
     newComponents: own Array<NamedType> = Array.new::<NamedType>(components.size, components.getOrPanic(0))
     var index: UWord = 0
@@ -261,6 +355,30 @@ export nothrow intrinsic fn typeOf<T>() -> const Type
 // `mut A & const B` is `own A & own B`. Where a component cannot be a token (that `const B`) and the result
 // doesn't say so anymore, it is intersected with NonToken.
 export nothrow fn intersectionOf(capture components: const Array<const Type>) -> const Type {
+    // a union component distributes: `(A | B) & C` is `(A & C) | (B & C)`, so an intersection never holds a union
+    // (`BoundIntersectionTypeReference.ofComponents` in the compiler)
+    var unionIndex: UWord = 0
+    while unionIndex < components.size {
+        if components.getOrPanic(unionIndex) is UnionType {
+            alternatives = components.getOrPanic(unionIndex).asUnionType().components
+            distributed: own Array<const Type> = Array.new::<const Type>(alternatives.size, alternatives.getOrPanic(0))
+            var alternativeIndex: UWord = 0
+            while alternativeIndex < alternatives.size {
+                withAlternative: own Array<const Type> = Array.new::<const Type>(components.size, components.getOrPanic(0))
+                var copyIndex: UWord = 0
+                while copyIndex < components.size {
+                    withAlternative.setOrPanic(copyIndex, components.getOrPanic(copyIndex))
+                    set copyIndex = copyIndex.plusModulo(1 as UWord)
+                }
+                withAlternative.setOrPanic(unionIndex, alternatives.getOrPanic(alternativeIndex))
+                distributed.setOrPanic(alternativeIndex, intersectionOf(withAlternative))
+                set alternativeIndex = alternativeIndex.plusModulo(1 as UWord)
+            }
+            return unionOf(distributed)
+        }
+        set unionIndex = unionIndex.plusModulo(1 as UWord)
+    }
+
     var count: UWord = 0
     var mutability = MUTABILITY_READ
     var anyIsNoToken = false
@@ -307,6 +425,52 @@ export nothrow fn intersectionOf(capture components: const Array<const Type>) ->
     return intersection
 }
 
+// The union of the given types; nested unions are flattened. As in the compiler (`BoundUnionTypeReference.ofComponents`),
+// the union is nullable where a component is, and so are all of its components then: `A | B?` is `(A | B)?`.
+export nothrow fn unionOf(capture components: const Array<const Type>) -> const Type {
+    var count: UWord = 0
+    var anyNullable = false
+    var index: UWord = 0
+    while index < components.size {
+        component = components.getOrPanic(index)
+        if component is UnionType {
+            set count = count.plusModulo(component.asUnionType().components.size)
+        } else {
+            set count = count.plusModulo(1 as UWord)
+        }
+        if component.isNullable() {
+            set anyNullable = true
+        }
+        set index = index.plusModulo(1 as UWord)
+    }
+
+    if count == 1 {
+        return components.getOrPanic(0)
+    }
+
+    flat: own Array<const Type> = Array.new::<const Type>(count, components.getOrPanic(0))
+    var flatIndex: UWord = 0
+    set index = 0
+    while index < components.size {
+        component = components.getOrPanic(index)
+        if component is UnionType {
+            nested = component.asUnionType().components
+            var nestedIndex: UWord = 0
+            while nestedIndex < nested.size {
+                flat.setOrPanic(flatIndex, nested.getOrPanic(nestedIndex).withNullability(anyNullable))
+                set flatIndex = flatIndex.plusModulo(1 as UWord)
+                set nestedIndex = nestedIndex.plusModulo(1 as UWord)
+            }
+        } else {
+            flat.setOrPanic(flatIndex, component.withNullability(anyNullable))
+            set flatIndex = flatIndex.plusModulo(1 as UWord)
+        }
+        set index = index.plusModulo(1 as UWord)
+    }
+
+    return UnionType(flat)
+}
+
 // The casts of this package, for code that is nothrow and knows what it has: `as` throws, so nothrow code cannot use it
 
 nothrow fn asNamedType(capture self: const Type) -> const NamedType {
@@ -315,6 +479,14 @@ nothrow fn asNamedType(capture self: const Type) -> const NamedType {
 
 nothrow fn asIntersectionType(capture self: const Type) -> const IntersectionType {
     return (self as? IntersectionType) ?: panic("not an IntersectionType")
+}
+
+nothrow fn asUnionType(capture self: const Type) -> const UnionType {
+    return (self as? UnionType) ?: panic("not a UnionType")
+}
+
+nothrow fn asUnionTemplate(capture self: const Type) -> const UnionTemplate {
+    return (self as? UnionTemplate) ?: panic("not a UnionTemplate")
 }
 
 nothrow fn asTypeParameterPlaceholder(capture self: const Type) -> const TypeParameterPlaceholder {

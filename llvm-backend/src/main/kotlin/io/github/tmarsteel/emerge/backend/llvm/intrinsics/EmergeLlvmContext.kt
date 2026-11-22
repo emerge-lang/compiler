@@ -155,18 +155,24 @@ class EmergeLlvmContext(
     internal lateinit var reifiedNamedTypeClass: EmergeClassType
     /** `emerge.core.reflection.IntersectionType` */
     internal lateinit var reifiedIntersectionTypeClass: EmergeClassType
+    /** `emerge.core.reflection.UnionType` */
+    internal lateinit var reifiedUnionTypeClass: EmergeClassType
     /** `emerge.core.reflection.TypeArgument` */
     internal lateinit var reifiedTypeArgumentClass: EmergeClassType
     /** `emerge.core.reflection.TypeParameterPlaceholder` */
     internal lateinit var reifiedTypeParameterPlaceholderClass: EmergeClassType
     /** `emerge.core.reflection.IntersectionTemplate` */
     internal lateinit var reifiedIntersectionTemplateClass: EmergeClassType
+    /** `emerge.core.reflection.UnionTemplate` */
+    internal lateinit var reifiedUnionTemplateClass: EmergeClassType
     /** static `emerge.core.reflection.Type` objects, see [staticReifiedType] */
     internal val staticReifiedTypes = HashMap<String, LlvmGlobal<EmergeClassType>>()
     /** `emerge.core.reflection.Type` */
     internal lateinit var reifiedTypeInterface: IrInterface
     /** `emerge.core.reflection.intersectionOf` */
     internal lateinit var intersectionOfFn: IrFunction
+    /** `emerge.core.reflection.unionOf` */
+    internal lateinit var unionOfFn: IrFunction
     /** `emerge.core.reflection.withGivenMutability` */
     internal lateinit var withGivenMutabilityFn: IrFunction
 
@@ -320,9 +326,11 @@ class EmergeLlvmContext(
             EmergeConstants.CoreModule.ARRAY_INDEX_OUT_OF_BOUNDS_ERROR_TYPE_NAME.toString() -> arrayIndexOutOfBoundsErrorType = emergeClassType
             EmergeConstants.ReflectionModule.NAMED_TYPE_TYPE_NAME.toString() -> reifiedNamedTypeClass = emergeClassType
             EmergeConstants.ReflectionModule.INTERSECTION_TYPE_TYPE_NAME.toString() -> reifiedIntersectionTypeClass = emergeClassType
+            EmergeConstants.ReflectionModule.UNION_TYPE_TYPE_NAME.toString() -> reifiedUnionTypeClass = emergeClassType
             EmergeConstants.ReflectionModule.TYPE_ARGUMENT_TYPE_NAME.toString() -> reifiedTypeArgumentClass = emergeClassType
             EmergeConstants.ReflectionModule.TYPE_PARAMETER_PLACEHOLDER_TYPE_NAME.toString() -> reifiedTypeParameterPlaceholderClass = emergeClassType
             EmergeConstants.ReflectionModule.INTERSECTION_TEMPLATE_TYPE_NAME.toString() -> reifiedIntersectionTemplateClass = emergeClassType
+            EmergeConstants.ReflectionModule.UNION_TEMPLATE_TYPE_NAME.toString() -> reifiedUnionTemplateClass = emergeClassType
             EmergeConstants.CoreModule.UNIT_TYPE_NAME.toString() -> {
                 unitType = emergeClassType
                 pointerToUnitInstance = addGlobal(undefValue(emergeClassType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
@@ -483,6 +491,10 @@ class EmergeLlvmContext(
 
         if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.INTERSECTION_OF_FN_NAME.toString()) {
             intersectionOfFn = fn
+        }
+
+        if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.UNION_OF_FN_NAME.toString()) {
+            unionOfFn = fn
         }
 
         if (fn.canonicalName.toString() == EmergeConstants.ReflectionModule.WITH_GIVEN_MUTABILITY_FN_NAME.toString()) {
@@ -855,6 +867,8 @@ class EmergeLlvmContext(
             }
             is IrIntersectionType -> return type.representativeComponent?.let { getReferenceSiteType(it, forceBoxed) }
                 ?: pointerTo(getAllocationSiteType(type))
+            // a value of a union is a reference to an object of any of the components; the value types among them are boxed
+            is IrUnionType -> return pointerTo(getAllocationSiteType(type))
         }
 
         baseType.autoboxer?.let { return it.getReferenceSiteType(this, type, forceBoxed) }
@@ -965,6 +979,7 @@ class EmergeLlvmContext(
             }
             is IrIntersectionType -> return type.representativeComponent?.let(::getAllocationSiteType)
                 ?: EmergeHeapAllocatedValueBaseType
+            is IrUnionType -> return EmergeHeapAllocatedValueBaseType
         }
     }
 

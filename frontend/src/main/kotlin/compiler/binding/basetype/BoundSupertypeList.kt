@@ -2,6 +2,7 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -16,6 +17,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.duplicateSupertype
+import compiler.diagnostic.illegalSupertype
 import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
 import compiler.diagnostic.mutabilityOnSupertype
 import compiler.diagnostic.redundantMutabilityOnSupertype
@@ -27,6 +29,8 @@ class BoundSupertypeList(
     val context: CTContext,
     val clauses: List<BoundSupertypeDeclaration>,
     getTypeDef: () -> BoundBaseType,
+    /** the supertype as declared where it is a union, which is illegal; the clauses are its first alternative then */
+    private val declaredUnion: AstUnionType? = null,
 ) : SemanticallyAnalyzable {
     private val typeDef by lazy(getTypeDef)
 
@@ -117,6 +121,9 @@ class BoundSupertypeList(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
+            if (declaredUnion != null) {
+                diagnosis.illegalSupertype(declaredUnion, "cannot inherit from a union type")
+            }
             sean1BuildPreprocessedInheritanceTree(diagnosis)
 
             clauses
@@ -235,6 +242,11 @@ class BoundSupertypeList(
             val astSupertypes = when (supertype) {
                 is AstSimpleTypeReference -> listOf(supertype)
                 is AstIntersectionType -> supertype.components
+                is AstUnionType -> when (val first = supertype.components.first()) {
+                    is AstSimpleTypeReference -> listOf(first)
+                    is AstIntersectionType -> first.components
+                    is AstUnionType -> throw InternalCompilerError("a union type is never a component of a union type")
+                }
                 null -> emptyList()
             }
             return BoundSupertypeList(
@@ -243,6 +255,7 @@ class BoundSupertypeList(
                     BoundSupertypeDeclaration(typeRootContext, typeDefAccessor, it)
                 },
                 typeDefAccessor,
+                declaredUnion = supertype as? AstUnionType,
             )
         }
     }

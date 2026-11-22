@@ -26,7 +26,7 @@ it shows and why; the tables below are the map.
 
 | file                 | what it shows                                                                                   | headline results                                                        |
 |----------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
-| `Model.v`            | the types (union types among them, which the frontend doesn't have yet), mutabilities, variances, ownerships, and the `Environment` of class declarations |                                                                         |
+| `Model.v`            | the types, mutabilities, variances, ownerships, and the `Environment` of class declarations |                                                                         |
 | `Subtyping.v`        | unify, the model of `BoundTypeReference.unify`, and instantiation                               | `unify_fuel_monotone`                                                   |
 | `Ops.v`              | mutability and aliasing: references to a block make no conflicting promises                   | `references_are_conflict_free`, `assignability_respects_mutability`     |
 | `Ownership.v`        | owned and ref slots (not implemented in the Kotlin frontend yet)                               | `no_conflicts_through_a_view`, `instantiation_preserves_ownership_assignability` |

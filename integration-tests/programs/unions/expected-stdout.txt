@@ -1,0 +1,20 @@
+shape of area 12
+shape of area 9
+label hi
+number 3
+number 4
+circle
+label tagged
+nothing
+Square is Circle | Square: yes
+Label is Circle | Square: no
+7 is Circle | S32: yes
+Square is Circle | S32: no
+Square is A | B = Circle | Square: yes
+Label is A | B = Circle | Square: no
+smart cast: area 16
+unions.Circle | unions.Square
+unions.Circle? | unions.Label?
+Circle is below Circle | Square: yes
+Circle | Square is below Circle: no
+Circle | Square is below Circle | Square | Label: yes

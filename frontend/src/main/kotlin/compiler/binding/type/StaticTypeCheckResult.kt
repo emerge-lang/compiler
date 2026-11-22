@@ -82,6 +82,17 @@ private fun BoundTypeReference.whyNoValueIsOf(target: BoundTypeReference): Strin
         }
     }
 
+    // a value of a union is a value of one of its components: no value of it is one of the target where that holds
+    // of each component; and no value is one of a union target where it is of none of its components
+    if (nonNullableSelf is BoundUnionTypeReference) {
+        val reasons = nonNullableSelf.components.map { it.withCombinedNullability(TypeReference.Nullability.of(this)).whyNoValueIsOf(target) }
+        return if (reasons.all { it != null }) reasons.first() else null
+    }
+    if (nonNullableTarget is BoundUnionTypeReference) {
+        val reasons = nonNullableTarget.components.map { this.whyNoValueIsOf(it.withCombinedNullability(TypeReference.Nullability.of(target))) }
+        return if (reasons.all { it != null }) reasons.first() else null
+    }
+
     val ownComponents = this.namedComponents()
     val targetComponents = target.namedComponents()
     for (own in ownComponents) {
@@ -119,6 +130,8 @@ private fun BoundTypeReference.namedComponents(visitedParameters: Set<BoundTypeP
     is BoundTypeArgument -> type.namedComponents(visitedParameters)
     is GenericTypeReference -> if (parameter in visitedParameters) emptyList() else effectiveBound.namedComponents(visitedParameters + parameter)
     is BoundIntersectionTypeReference -> components.flatMap { it.namedComponents(visitedParameters) }
+    // handled by component in whyNoValueIsOf; a value of a union is a value of one component, not of all
+    is BoundUnionTypeReference,
     is ErroneousType,
     is TypeVariable -> emptyList()
 }

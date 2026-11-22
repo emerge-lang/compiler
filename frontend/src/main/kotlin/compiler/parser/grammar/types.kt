@@ -23,6 +23,7 @@ import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
@@ -36,6 +37,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.parser.AstIntersectionTypePostfix
+import compiler.parser.AstUnionTypePostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
@@ -237,7 +239,8 @@ val IntersectionTypePostifx = sequence("intersection-postfix") {
         AstIntersectionTypePostfix(tokens.next() as OperatorToken, tokens.next() as NamedTypeReference)
     }
 
-val Type: Rule<TypeReference> = sequence("type") {
+/** a named type, or an intersection of those: `A & B & C` */
+val IntersectionType: Rule<TypeReference> = sequence("intersection type") {
     ref(NamedType)
     repeating {
         ref(IntersectionTypePostifx)
@@ -257,4 +260,35 @@ val Type: Rule<TypeReference> = sequence("type") {
         }
 
         AstIntersectionType(listOf(baseRef) + intersections.map { it.reference }, combinedSpan)
+    }
+
+val UnionTypePostfix = sequence("union-postfix") {
+    operator(Operator.PIPE)
+    ref(IntersectionType)
+}
+    .astTransformation { tokens ->
+        AstUnionTypePostfix(tokens.next() as OperatorToken, tokens.next() as TypeReference)
+    }
+
+/** an intersection binds tighter than a union: `A & B | C` is `(A & B) | C` */
+val Type: Rule<TypeReference> = sequence("type") {
+    ref(IntersectionType)
+    repeating {
+        ref(UnionTypePostfix)
+    }
+}
+    .astTransformation { tokens ->
+        val baseRef = tokens.next() as TypeReference
+        val unions = tokens.remainingToList() as List<AstUnionTypePostfix>
+        if (unions.isEmpty()) {
+            return@astTransformation baseRef
+        }
+
+        val combinedSpan = unions.fold(baseRef.span ?: Span.UNKNOWN) { carrySpan, postfix ->
+            carrySpan
+                .rangeTo(postfix.reference.span)
+                .rangeTo(postfix.unionOperator.span)
+        }
+
+        AstUnionType(listOf(baseRef) + unions.map { it.reference }, combinedSpan)
     }

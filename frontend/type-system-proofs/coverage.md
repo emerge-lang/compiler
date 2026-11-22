@@ -23,8 +23,8 @@ refers to them. Keep it up to date with every change to the proofs or to the typ
 
 ## Union types
 
-The model has union types, `A | B` (`Model.Union`; a value of the union is a value of one of the components), ahead of the
-frontend (roadmap: union types). Unify on them is a search, as on intersections: a union target takes a value with the
+The model has union types, `A | B` (`Model.Union`; a value of the union is a value of one of the components), which the
+frontend mirrors (`BoundUnionTypeReference`). Unify on them is a search, as on intersections: a union target takes a value with the
 first component that does (`Subtyping.union_body`, the components that are type variables last; of an intersection
 assignee, first a component of the intersection that is below the whole union), a union assignee is
 taken where each of its components is (`union_flipped_unify`); a union reads as what every component allows (the join
@@ -43,7 +43,7 @@ types of the program (`terminates`, which follows from `unify_terminates_on`).
 | Unify terminates on unions of class types where it does on class types | ◐ rests on `terminates` | `ufrag_terminates` |
 | Assignability respects mutability, unions included | ✓ of unions whose components are all types of objects (`can_refer_to_object`: a union with a component that is Nothing, or erroneous, is left out) | `Ops.unify_respects_mutability` |
 | Unions among the types of generic code: with type parameters or intersections as components, in type arguments (`Box<A \| B>`), as the types of parameters of calls, in bounds, as member types; instantiation (`union_instances`) | ✗ the fragments of those files leave unions out | — |
-| The frontend | ✗ there are no union types in it yet; the oracle sees none | — |
+| The frontend | ◐ `BoundUnionTypeReference` mirrors the model arm by arm (the frontend also distributes `(A \| B) & C` into `(A & C) \| (B & C)`, so an intersection with a union component reaches the model's rule for it only through type variables); the oracle grid has no unions yet, so nothing checks the two against each other | — |
 
 A union with a const component among others, `Const \| mut A`, reads as `read` and is assigned as `mut`: it is the one
 type of the model that is assigned as something other than its mutability without being const (`Generics.not_top_const`

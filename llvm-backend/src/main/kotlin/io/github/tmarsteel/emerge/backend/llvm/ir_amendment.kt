@@ -41,6 +41,8 @@ internal val IrType.autoboxer: Autoboxer? get() = when(this) {
     // type parameters bound by an array are represented like arrays
     is IrGenericTypeReference -> effectiveBound.autoboxer?.takeIf { it === Autoboxer.ArraySlice }
     is IrIntersectionType -> representativeComponent?.autoboxer
+    // the value types among the components are boxed, a union value is a reference to any object
+    is IrUnionType -> null
 }
 
 /**
@@ -65,6 +67,7 @@ private val IrType.isBoundByClass: Boolean get() = when (this) {
     is IrParameterizedType -> simpleType.isBoundByClass
     is IrGenericTypeReference -> effectiveBound.isBoundByClass
     is IrIntersectionType -> representativeComponent != null
+    is IrUnionType -> false
 }
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }

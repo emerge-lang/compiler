@@ -1,6 +1,7 @@
 package compiler.binding.expression
 
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.type.BoundUnionTypeReference.Companion.unionedComponents
 import compiler.binding.type.PossibleRuntimeTypes
 
 /**
@@ -32,12 +33,15 @@ class WhenExhaustiveness(
         val remainingClasses = LinkedHashSet(possibleTypes.classes)
         for (check in instanceOfChecks) {
             val typeToCheck = check.typeToCheck ?: return@lazy Result.Unknown
-            if (!typeToCheck.subtypeCheckWithRequiresOnlyBaseType(check.expressionToCheck.type)) {
-                // conservative: the check may fail for some objects of the class
-                continue
+            // a union covers what each of its components does
+            for (componentToCheck in typeToCheck.unionedComponents()) {
+                if (!componentToCheck.subtypeCheckWithRequiresOnlyBaseType(check.expressionToCheck.type)) {
+                    // conservative: the check may fail for some objects of the class
+                    continue
+                }
+                val baseTypeToCheck = componentToCheck.baseTypeOfLowerBound
+                remainingClasses.removeIf { it isSubtypeOf baseTypeToCheck }
             }
-            val baseTypeToCheck = typeToCheck.baseTypeOfLowerBound
-            remainingClasses.removeIf { it isSubtypeOf baseTypeToCheck }
         }
 
         val missesNull = possibleTypes.includesNull && !hasNullBranch
