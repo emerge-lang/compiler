@@ -20,16 +20,15 @@
  * Then the same with type parameters and intersections (UnionsInGenericCode): on the fragment of
  * Generics.v with unions at the top (Fragment.ugfrag, whose components are non-null), a union is
  * below a type exactly where each of its components is (union_below_iff_in_generic_code), a union
- * takes a class type or a reference with one of its components (union_target_component) and an
- * intersection as a whole or by a component of it (union_target_intersection), and unify never
+ * takes a class type or a reference with one of its components (Rules.union_target_component) and
+ * an intersection as a whole or by a component of it (union_target_intersection), and unify never
  * rejects what transitivity says it should take (transitivity_never_fails_with_unions, from
  * Generics.transitivity_never_fails); where unify terminates on gfrag, it does on the fragment with
  * unions, components that keep their nullability included (kugfrag_terminates), and transitivity
  * is as usual (transitivity_terminating_with_unions).
  *
- * All of it is stated in the terms of Closed.v: the types are closed, so unify is the closed
- * question is_assignable_to, and a step of it on a union or an intersection is a closed search over
- * the components (closed_fold, closed_first).
+ * All of it is in the terms of Closed.v, and reasons by the rules of unify of Rules.v: what is left
+ * here is what the fragments add, the shapes of their types and of the components.
  *)
 
 From EmergeTypeSystem Require Import Model.
@@ -39,6 +38,7 @@ From EmergeTypeSystem Require Import Transitivity.
 From EmergeTypeSystem Require Import Fragment.
 From EmergeTypeSystem Require Import States.
 From EmergeTypeSystem Require Import Closed.
+From EmergeTypeSystem Require Import Rules.
 From EmergeTypeSystem Require Import Generics.
 From EmergeTypeSystem Require Import Conjectures.
 From Stdlib Require Import Bool List Arith Lia.
@@ -93,8 +93,7 @@ Proof.
 Qed.
 
 (* ... and as the targets of a union assignee: none an intersection *)
-Lemma ufrag_target_shape: forall t, ufrag t = true ->
-    match t with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end.
+Lemma ufrag_takes_unions: forall t, ufrag t = true -> takes_unions t.
 Proof.
     intros t H. destruct (ufrag_cases t H) as [Hf|[[us [-> _]]|[us [-> _]]]]; try exact I.
     destruct (fragment_cases env t Hf) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact I.
@@ -123,29 +122,6 @@ Lemma components_no_vars: forall us, ufrag (Union us) = true -> forallb no_vars 
 Proof. intros us H. exact (ufrag_no_vars (Union us) H). Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
-(* Unify on unions, one step                                                                       *)
-(* ---------------------------------------------------------------------------------------------- *)
-
-(* A union target takes a value of a class type, a reference, or a nullable type with the first component that does *)
-Lemma union_target_step: forall n us a, forallb no_vars us = true -> no_vars a = true ->
-    match a with RootResolved _ _ _ | Nullable _ | Generic _ => True | _ => False end ->
-    is_assignable_to env (S n) a (Union us) = closed_first (fun C => is_assignable_to env n a C) us.
-Proof.
-    intros n us a Hus Ha Hs. rewrite assignable_step. destruct a as [| | | | | | |]; try contradiction;
-        cbn [unify_step unify_union]; exact (union_body_closed env wf n us _ [] Hus Ha).
-Qed.
-
-(* A union assignee is taken where each component is, by a target that is no intersection *)
-Lemma union_assignee_step: forall n t us, no_vars t = true -> forallb no_vars us = true ->
-    match t with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end ->
-    is_assignable_to env (S n) (Union us) t = closed_fold (fun C => is_assignable_to env n C t) us.
-Proof.
-    intros n t us Ht Hus Hs. rewrite assignable_step. destruct t as [| |[]| | | | |]; try contradiction;
-        cbn [unify_step unify_root_resolved unify_nullable unify_generic unify_union]; rewrite (union_flipped_closed env wf n _ us [] Ht Hus);
-        apply verdict_with_states.
-Qed.
-
-(* ---------------------------------------------------------------------------------------------- *)
 (* What unify decides of unions                                                                    *)
 (* ---------------------------------------------------------------------------------------------- *)
 
@@ -153,14 +129,8 @@ Qed.
 Theorem union_below_iff: forall us z, ufrag (Union us) = true -> ufrag z = true ->
     assignable (Union us) z <-> forall C, In C us -> assignable C z.
 Proof.
-    intros us z Hus Hz. pose proof (ufrag_target_shape z Hz) as Hsz. pose proof (ufrag_no_vars z Hz) as Hvz.
-    pose proof (components_no_vars us Hus) as Hvus. split.
-    - intros [n H] C Hc. destruct n as [|n]; [discriminate H|]. rewrite (union_assignee_step n z us Hvz Hvus Hsz) in H.
-      exists n. exact (proj1 (closed_fold_true _ us) H C Hc).
-    - intros H. destruct (fuel_for_all (fun n C => is_assignable_to env n C z = Some true) us) as [n Hn].
-      + intros n n' C Hle. exact (assignable_mono env n n' C z Hle).
-      + exact H.
-      + exists (S n). rewrite (union_assignee_step n z us Hvz Hvus Hsz). apply closed_fold_true. exact Hn.
+    intros us z Hus Hz. pose proof (ufrag_takes_unions z Hz) as Hsz. pose proof (ufrag_no_vars z Hz) as Hvz. pose proof (components_no_vars us Hus) as Hvus.
+    split; [exact (union_assignee_components env wf z us Hvz Hvus Hsz)|exact (union_assignee_taken env wf z us Hvz Hvus Hsz)].
 Qed.
 
 (* A union target takes a value with one of its components: a value of `A | B` is an A or a B. That
@@ -208,19 +178,14 @@ Lemma ufrag_terminates: forall t a, ufrag t = true -> ufrag a = true -> answers 
 Proof.
     intros t a. remember (esize t + esize a) as k eqn:Hk. revert t a Hk. induction k as [k IH] using lt_wf_ind. intros t a -> Ht Ha.
     pose proof (ufrag_no_vars t Ht) as Hvt. pose proof (ufrag_no_vars a Ha) as Hva.
-    (* a union assignee: each component, with fuel for all of them *)
+    (* a union assignee: each component *)
     assert (Hflip: forall us, ufrag (Union us) = true -> esize (Union us) <= esize a -> answers t (Union us)).
-    { intros us Hus Hsz. destruct (fuel_for_all (fun n C => is_assignable_to env n C t <> None) us) as [n Hn].
-      - intros n n' C Hle. exact (answers_mono env n n' C t Hle).
-      - intros C Hc. pose proof (esize_in us C Hc). exact (IH (esize t + esize C) ltac:(cbn [esize] in Hsz; lia) t C eq_refl Ht (ufrag_components us Hus C Hc)).
-      - exists (S n). rewrite (union_assignee_step n t us Hvt (components_no_vars us Hus) (ufrag_target_shape t Ht)). exact (closed_fold_some _ us Hn). }
+    { intros us Hus Hsz. apply (union_assignee_answers env wf t us Hvt (components_no_vars us Hus) (ufrag_takes_unions t Ht)).
+      intros C Hc. pose proof (esize_in us C Hc). exact (IH (esize t + esize C) ltac:(cbn [esize] in Hsz; lia) t C eq_refl Ht (ufrag_components us Hus C Hc)). }
     (* a union target, and an assignee that is a type of values: the first component that takes it *)
-    assert (Hsearch: forall us, ufrag (Union us) = true -> esize (Union us) <= esize t ->
-        match a with RootResolved _ _ _ | Nullable _ | Generic _ => True | _ => False end -> answers (Union us) a).
-    { intros us Hus Hsz Hsa. destruct (fuel_for_all (fun n C => is_assignable_to env n a C <> None) us) as [n Hn].
-      - intros n n' C Hle. exact (answers_mono env n n' a C Hle).
-      - intros C Hc. pose proof (esize_in us C Hc). exact (IH (esize C + esize a) ltac:(cbn [esize] in Hsz; lia) C a eq_refl (ufrag_components us Hus C Hc) Ha).
-      - exists (S n). rewrite (union_target_step n us a (components_no_vars us Hus) Hva Hsa). exact (closed_first_some _ us Hn). }
+    assert (Hsearch: forall us, ufrag (Union us) = true -> esize (Union us) <= esize t -> searched_in_unions a -> answers (Union us) a).
+    { intros us Hus Hsz Hsa. apply (union_target_answers env wf us a (components_no_vars us Hus) Hva Hsa).
+      intros C Hc. pose proof (esize_in us C Hc). exact (IH (esize C + esize a) ltac:(cbn [esize] in Hsz; lia) C a eq_refl (ufrag_components us Hus C Hc) Ha). }
     destruct (ufrag_cases t Ht) as [Hft|[[us [-> [Hne Hus]]]|[us [-> [Hne Hus]]]]];
         destruct (ufrag_cases a Ha) as [Hfa|[[zs [-> [Hnea Has]]]|[zs [-> [Hnea Has]]]]].
     - exact (terminates_answers t a Hft Hfa).
@@ -249,21 +214,15 @@ Lemma below_union_of_component: forall x us C, ufrag x = true -> ufrag (Union us
 Proof.
     intros x. remember (esize x) as k eqn:Hk. revert x Hk. induction k as [k IH] using lt_wf_ind. intros x -> us C Hx Hus Hc HxC.
     pose proof (components_no_vars us Hus) as Hvus. pose proof (ufrag_no_vars x Hx) as Hvx.
+    destruct (ufrag_cases x Hx) as [Hfx|[[xs [Ex [Hne Hxs]]]|[xs [Ex [Hne Hxs]]]]].
     (* a value of a type that is no union: the first component that takes it, where all answer *)
-    assert (Hsearch: match x with RootResolved _ _ _ | Nullable _ | Generic _ => True | _ => False end -> assignable x (Union us)).
-    { intros Hsx. destruct (fuel_for_all (fun n C' => is_assignable_to env n x C' <> None) us) as [n0 Hn0].
-      - intros n n' C' Hle. exact (answers_mono env n n' x C' Hle).
-      - intros C' Hc'. exact (ufrag_terminates C' x (ufrag_components us Hus C' Hc') Hx).
-      - destruct HxC as [n HxC]. exists (S (max n n0)). rewrite (union_target_step (max n n0) us x Hvus Hvx Hsx).
-        apply (closed_first_found _ us C); [intros C' Hc'; apply (answers_mono env n0); [lia|exact (Hn0 C' Hc')]|exact Hc|].
-        apply (assignable_mono env n); [lia|exact HxC]. }
-    destruct (ufrag_cases x Hx) as [Hfx|[[xs [-> [Hne Hxs]]]|[xs [-> [Hne Hxs]]]]].
-    - apply Hsearch. destruct (fragment_cases env x Hfx) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact I.
-    - (* a union: each of its components is below C, so below the union *)
-      apply (union_below_iff xs (Union us) Hx Hus). intros D Hd. pose proof (esize_in xs D Hd).
-      apply (IH (esize D) ltac:(cbn [esize]; lia) D eq_refl us C (Hxs D Hd) Hus Hc).
-      exact (proj1 (union_below_iff xs C Hx (ufrag_components us Hus C Hc)) HxC D Hd).
-    - exact (Hsearch I).
+    1, 3: apply (union_target_takes env wf us x C Hvus Hvx); [| |exact Hc|exact HxC];
+          [first [destruct (fragment_cases env x Hfx) as [[m [c [args ->]]]|[m [c [args [-> _]]]]]; exact I|rewrite Ex; exact I]|];
+          intros C' Hc'; exact (ufrag_terminates C' x (ufrag_components us Hus C' Hc') Hx).
+    (* a union: each of its components is below C, so below the union *)
+    subst x. apply (union_below_iff xs (Union us) Hx Hus). intros D Hd. pose proof (esize_in xs D Hd).
+    apply (IH (esize D) ltac:(cbn [esize]; lia) D eq_refl us C (Hxs D Hd) Hus Hc).
+    exact (proj1 (union_below_iff xs C Hx (ufrag_components us Hus C Hc)) HxC D Hd).
 Qed.
 
 (* Every type of the fragment is assignable to itself *)
@@ -278,47 +237,17 @@ Proof.
     - destruct (IH (esize (Union us)) ltac:(cbn [esize]; lia) (Union us) eq_refl Ht) as [n H]. exists (S n). exact H.
 Qed.
 
-(* An intersection with a component below a union is below the union, as every value of the
-   intersection is a value of the component: `(A | B) & C` is below `A | B`. The components before
-   that one have to answer *)
-Theorem below_union_of_intersection_component: forall cs x us, forallb no_vars cs = true -> forallb no_vars us = true ->
-    In x cs -> assignable x (Union us) -> (forall y, In y cs -> answers (Union us) y) ->
-    assignable (Intersection cs) (Union us).
-Proof.
-    intros cs x us Hcs Hus Hx [n H] Hall.
-    destruct (fuel_for_all (fun n y => is_assignable_to env n y (Union us) <> None) cs) as [n0 Hn0].
-    { intros n1 n2 y Hle. exact (answers_mono env n1 n2 y (Union us) Hle). }
-    { exact Hall. }
-    exists (S (max n n0)). rewrite assignable_step. cbn [unify_step unify_union].
-    pose proof (intersection_flipped_closed env wf (max n n0) (Union us) cs [] Hus Hcs) as E.
-    rewrite (closed_first_found _ cs x) in E;
-        [|intros y Hy; apply (answers_mono env n0); [lia|exact (Hn0 y Hy)]|exact Hx|apply (assignable_mono env n); [lia|exact H]].
-    destruct (intersection_flipped_unify (unify env (max n n0)) (Union us) cs []) as [[s'|]|]; try discriminate E. reflexivity.
-Qed.
-
-(* So `(A | B) & C` is below `A | B` on the fragment: the union is one of the components *)
+(* So `(A | B) & C` is below `A | B` on the fragment: the union is one of the components, every value of the
+   intersection a value of it (Rules.intersection_below_union_by_component), and the components before it answer *)
 Theorem intersection_with_union_below_union: forall cs us, ufrag (Union us) = true -> (forall y, In y cs -> ufrag y = true) ->
     In (Union us) cs -> assignable (Intersection cs) (Union us).
 Proof.
-    intros cs us Hus Hcs Hin.
-    apply (below_union_of_intersection_component cs (Union us) us); [|exact (components_no_vars us Hus)|exact Hin|exact (ufrag_reflexive (Union us) Hus)|].
+    intros cs us Hus Hcs Hin. apply (intersection_below_union_by_component env wf us cs (Union us) (components_no_vars us Hus)).
     - apply forallb_forall. intros y Hy. exact (ufrag_no_vars y (Hcs y Hy)).
     - intros y Hy. exact (ufrag_terminates (Union us) y Hus (Hcs y Hy)).
+    - exact Hin.
+    - exact (ufrag_reflexive (Union us) Hus).
 Qed.
-
-(* Through a nullable type: a value of a class type, or one that may be null *)
-Lemma below_nullable_root: forall m c args y, assignable (RootResolved m c args) (Nullable y) <-> assignable (RootResolved m c args) y.
-Proof.
-    intros m c args y. split; intros [n H]; [destruct n as [|n]; [discriminate H|]; exists n; exact H|exists (S n); exact H].
-Qed.
-
-Lemma below_nullable_nullable: forall x' y, assignable (Nullable x') (Nullable y) <-> assignable x' y.
-Proof.
-    intros x' y. split; intros [n H]; [destruct n as [|n]; [discriminate H|]; exists n; exact H|exists (S n); exact H].
-Qed.
-
-Lemma nullable_not_below_root: forall x' m c args, ~ assignable (Nullable x') (RootResolved m c args).
-Proof. intros x' m c args [n H]. destruct n as [|n]; discriminate H. Qed.
 
 (* Transitivity: a type below another, which is below a third, is below the third. The unions are
    taken apart into their components, down to the class types, where Transitivity.transitivity holds *)
@@ -351,11 +280,11 @@ Proof.
     all: repeat match goal with H: in_fragment env ?t = true |- _ =>
         destruct (fragment_cases env t H) as [[? [? [? ->]]]|[? [? [? [-> _]]]]]; clear H end.
     all: repeat match goal with
-         | H: assignable (Nullable _) (RootResolved _ _ _) |- _ => exfalso; exact (nullable_not_below_root _ _ _ _ H)
-         | H: assignable (RootResolved ?m ?c ?a) (Nullable ?y) |- _ => apply (below_nullable_root m c a y) in H
-         | H: assignable (Nullable ?x') (Nullable ?y) |- _ => apply (below_nullable_nullable x' y) in H
-         | |- assignable (RootResolved ?m ?c ?a) (Nullable ?y) => apply (below_nullable_root m c a y)
-         | |- assignable (Nullable ?x') (Nullable ?y) => apply (below_nullable_nullable x' y)
+         | H: assignable (Nullable _) (RootResolved _ _ _) |- _ => exfalso; exact (nullable_not_below_root env _ _ _ _ H)
+         | H: assignable (RootResolved ?m ?c ?a) (Nullable ?y) |- _ => apply (below_nullable_root env m c a y) in H
+         | H: assignable (Nullable ?x') (Nullable ?y) |- _ => apply (below_nullable_nullable env x' y) in H
+         | |- assignable (RootResolved ?m ?c ?a) (Nullable ?y) => apply (below_nullable_root env m c a y)
+         | |- assignable (Nullable ?x') (Nullable ?y) => apply (below_nullable_nullable env x' y)
          end.
     all: first
         [ destruct Hxy as [n1 H1]; destruct Hyz as [n2 H2]; exists (n1 + n2); exact (Transitivity.transitivity env wf n1 n2 _ _ _ Hx Hy Hz H1 H2)
@@ -409,6 +338,13 @@ Proof. intros us H. exact (kugfrag_no_vars (Union us) H). Qed.
 
 Lemma kcomponent_gfrag: forall us C, kugfrag env (Union us) = true -> In C us -> gfrag env C = true.
 Proof. intros us C H Hc. exact (kept_union_component_gfrag env C (proj2 (kugfrag_union env us H) C Hc)). Qed.
+
+(* The types of the fragment as the targets of a union assignee, and as the assignees of a union target *)
+Lemma kugfrag_takes_unions: forall t, kugfrag env t = true -> match t with Intersection _ => False | _ => True end -> takes_unions t.
+Proof. intros t H Hs. pose proof (kugfrag_shape env t H). destruct t as [| | | | | | |]; try contradiction; exact I. Qed.
+
+Lemma gfrag_searched_in_unions: forall t, gfrag env t = true -> match t with Intersection _ => False | _ => True end -> searched_in_unions t.
+Proof. intros t H Hs. pose proof (gfrag_cases env t H) as Hc. destruct t as [| | | | | | |]; try exact I; try contradiction; simpl in H; discriminate H. Qed.
 
 (* A component of an intersection of the fragment: a class type, a reference, or one of them made nullable *)
 Lemma intersection_component_shape: forall cs C, gfrag env (Intersection cs) = true -> In C cs ->
@@ -469,224 +405,90 @@ Proof.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
-(* Unify on the fragment, one step, closed                                                         *)
+(* A union as the assignee: taken where each component is, an intersection target included         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* ... and an intersection with a component of it that is below the whole union, or else with a component of
-   its own that takes the intersection *)
-Lemma union_intersection_step: forall n us cs, forallb no_vars us = true -> forallb no_vars cs = true ->
-    is_assignable_to env (S n) (Intersection cs) (Union us)
-    = match closed_first (fun C => is_assignable_to env n C (Union us)) cs with
-      | Some false => closed_first (fun C => is_assignable_to env n (Intersection cs) C) us
-      | r => r
-      end.
-Proof.
-    intros n us cs Hus Hcs. rewrite assignable_step. cbn [unify_step unify_union].
-    rewrite <- (intersection_flipped_closed env wf n (Union us) cs [] Hus Hcs), <- (union_body_closed env wf n us (Intersection cs) [] Hus Hcs).
-    destruct (intersection_flipped_unify (unify env n) (Union us) cs []) as [[s'|]|]; reflexivity.
-Qed.
-
-(* A nullable target takes a type of gfrag where what it wraps takes the type without null (Generics.step_nullable_any) *)
-Lemma nullable_target_step: forall n z' a, gfrag env a = true ->
-    is_assignable_to env (S n) a (Nullable z') = is_assignable_to env n (without_null env a) z'.
-Proof. intros n z' a Ha. unfold is_assignable_to, empty_unification. rewrite (step_nullable_any env n z' a [] Ha). reflexivity. Qed.
-
-(* An intersection target takes a value where each of its components does (Generics.inter_body) *)
-Lemma intersection_target_step: forall n cs a, forallb no_vars cs = true -> no_vars a = true -> inter_shape env cs a ->
-    is_assignable_to env (S n) a (Intersection cs) = closed_fold (fun C => is_assignable_to env n a C) cs.
-Proof.
-    intros n cs a Hcs Ha Hs. rewrite <- (intersection_body_closed env wf n cs a [] Hcs Ha). unfold is_assignable_to, empty_unification.
-    rewrite (inter_body env n cs a [] _ Hs eq_refl). reflexivity.
-Qed.
-
-(* A class type or a reference takes an intersection by the first component it takes *)
-Lemma flat_target_intersection_step: forall n t cs, no_vars t = true -> forallb no_vars cs = true ->
-    match t with RootResolved _ _ _ | Generic _ => True | _ => False end ->
-    is_assignable_to env (S n) (Intersection cs) t = closed_first (fun C => is_assignable_to env n C t) cs.
-Proof.
-    intros n t cs Ht Hcs Hs. rewrite assignable_step. destruct t as [| |[]| | | | |]; try contradiction;
-        cbn [unify_step unify_root_resolved unify_generic]; exact (intersection_flipped_closed env wf n _ cs [] Ht Hcs).
-Qed.
-
-(* A class type, a reference, or an intersection of the fragment rejects a possibly null value (a reference to a type
-   parameter of a nullable bound, as it is, rejects `X?` too) *)
-Lemma nullable_rejected: forall n t x, gfrag env t = true -> flat t -> is_assignable_to env n (Nullable x) t <> Some true.
-Proof.
-    intros n t x Ht Hf H. destruct n as [|n]; [discriminate H|]. destruct t as [| |[]| | | |cs|]; try contradiction.
-    - discriminate H.
-    - discriminate H.
-    - unfold is_assignable_to, empty_unification in H. destruct (unify env (S n) (Intersection cs) (Nullable x) (Ongoing [])) as [[s'|]|] eqn:E; try discriminate H.
-      exact (inter_takes_no_nullable_any env (S n) cs x [] s' Ht E).
-Qed.
-
-(* ---------------------------------------------------------------------------------------------- *)
-(* A union as the assignee: taken where each component is                                          *)
-(* ---------------------------------------------------------------------------------------------- *)
-
-Theorem union_assignee_components: forall us y, ugfrag env (Union us) = true -> ugfrag env y = true ->
+(* An intersection target takes each component of the union with each of its components; it takes the union
+   with each of them (Rules.intersection_target_components, union_assignee_components) *)
+Lemma ugfrag_union_components: forall us y, ugfrag env (Union us) = true -> ugfrag env y = true ->
     assignable (Union us) y -> forall C, In C us -> assignable C y.
 Proof.
-    intros us y Hus Hy [n H] C Hc. pose proof (union_components_no_vars us Hus) as Hvus. pose proof (ugfrag_no_vars y Hy) as Hvy.
-    destruct n as [|n]; [discriminate H|]. pose proof (ugfrag_shape env y Hy) as Hsy.
-    assert (Hflat: match y with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end -> assignable C y).
-    { intros Hs. rewrite (union_assignee_step env wf n y us Hvy Hvus Hs) in H. exists n. exact (proj1 (closed_fold_true _ us) H C Hc). }
-    destruct y as [| | | | | |ys|]; try contradiction; try (apply Hflat; exact I).
-    (* an intersection: each of its components took the union, so takes the component, so the intersection does *)
-    rewrite (intersection_target_step n ys (Union us) (gfrag_components_no_vars env ys Hy) Hvus I) in H.
-    pose proof (proj1 (closed_fold_true _ ys) H) as Hall. destruct n as [|n].
-    { destruct (intersection_components env ys Hy) as [Hne _]. destruct ys as [|Y ys]; [contradiction (Hne eq_refl)|discriminate (Hall Y (or_introl eq_refl))]. }
-    exists (S (S n)). rewrite (intersection_target_step (S n) ys C (gfrag_components_no_vars env ys Hy) (gfrag_no_vars env C (component_gfrag us C Hus Hc))).
-    - apply closed_fold_true. intros Y Hin. pose proof (Hall Y Hin) as HY. pose proof (intersection_component_shape ys Y Hy Hin) as Hsh.
-      rewrite (union_assignee_step env wf n Y us (gfrag_no_vars env Y (intersection_component_gfrag ys Y Hy Hin)) Hvus
-          ltac:(destruct Y as [| | | | | | |]; try contradiction; exact I)) in HY.
-      apply (assignable_mono env n (S n)); [lia|exact (proj1 (closed_fold_true _ us) HY C Hc)].
-    - pose proof (component_flat us C Hus Hc). destruct C as [| | | | | | |]; try contradiction; exact I.
+    intros us y Hus Hy H C Hc. pose proof (union_components_no_vars us Hus) as Hvus. pose proof (ugfrag_no_vars y Hy) as Hvy.
+    pose proof (gfrag_no_vars env C (component_gfrag us C Hus Hc)) as Hvc.
+    destruct y as [| | | | | |ys|]; try exact (union_assignee_components env wf _ us Hvy Hvus (kugfrag_takes_unions _ (ugfrag_kugfrag env _ Hy) I) H C Hc).
+    pose proof (gfrag_components_no_vars env ys Hy) as Hvys.
+    apply (intersection_target_takes env wf ys C Hvys Hvc ltac:(pose proof (component_flat us C Hus Hc); destruct C as [| | | | | | |]; try contradiction; exact I)).
+    intros Y Hin. pose proof (intersection_component_shape ys Y Hy Hin) as Hsh.
+    apply (union_assignee_components env wf Y us (gfrag_no_vars env Y (intersection_component_gfrag ys Y Hy Hin)) Hvus
+        ltac:(destruct Y as [| | | | | | |]; try contradiction; exact I)); [|exact Hc].
+    exact (intersection_target_components env wf ys (Union us) Hvys Hvus I H Y Hin).
 Qed.
 
-(* The converse: a union is taken where each of its components is *)
-Theorem union_assignee_taken: forall us y, ugfrag env (Union us) = true -> ugfrag env y = true ->
+Lemma ugfrag_union_taken: forall us y, ugfrag env (Union us) = true -> ugfrag env y = true ->
     (forall C, In C us -> assignable C y) -> assignable (Union us) y.
 Proof.
     intros us y Hus Hy H. pose proof (union_components_no_vars us Hus) as Hvus. pose proof (ugfrag_no_vars y Hy) as Hvy.
-    destruct (ugfrag_union env us Hus) as [Hne Hcs].
-    destruct (fuel_for_all (fun n C => is_assignable_to env n C y = Some true) us) as [n Hn].
-    { intros n n' C Hle. exact (assignable_mono env n n' C y Hle). }
-    { exact H. }
-    pose proof (ugfrag_shape env y Hy) as Hsy.
-    assert (Hflat: match y with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end -> assignable (Union us) y).
-    { intros Hs. exists (S n). rewrite (union_assignee_step env wf n y us Hvy Hvus Hs). apply closed_fold_true. exact Hn. }
-    destruct y as [| | | | | |ys|]; try contradiction; try (apply Hflat; exact I).
-    (* an intersection: each of its components takes each component of the union, so the union *)
-    destruct n as [|n]; [destruct us as [|C us']; [contradiction (Hne eq_refl)|discriminate (Hn C (or_introl eq_refl))]|].
+    destruct y as [| | | | | |ys|]; try exact (union_assignee_taken env wf _ us Hvy Hvus (kugfrag_takes_unions _ (ugfrag_kugfrag env _ Hy) I) H).
     pose proof (gfrag_components_no_vars env ys Hy) as Hvys.
-    exists (S (S n)). rewrite (intersection_target_step (S n) ys (Union us) Hvys Hvus I). apply closed_fold_true.
-    intros Y Hin. pose proof (intersection_component_shape ys Y Hy Hin) as Hsh.
-    rewrite (union_assignee_step env wf n Y us (gfrag_no_vars env Y (intersection_component_gfrag ys Y Hy Hin)) Hvus
+    apply (intersection_target_takes env wf ys (Union us) Hvys Hvus I). intros Y Hin. pose proof (intersection_component_shape ys Y Hy Hin) as Hsh.
+    apply (union_assignee_taken env wf Y us (gfrag_no_vars env Y (intersection_component_gfrag ys Y Hy Hin)) Hvus
         ltac:(destruct Y as [| | | | | | |]; try contradiction; exact I)).
-    apply closed_fold_true. intros C Hc. pose proof (Hn C Hc) as Hu. pose proof (component_flat us C Hus Hc) as Hfc.
-    rewrite (intersection_target_step n ys C Hvys (gfrag_no_vars env C (component_gfrag us C Hus Hc))
-        ltac:(destruct C as [| | | | | | |]; try contradiction; exact I)) in Hu.
-    exact (proj1 (closed_fold_true _ ys) Hu Y Hin).
+    intros C Hc. pose proof (component_flat us C Hus Hc) as Hfc.
+    exact (intersection_target_components env wf ys C Hvys (gfrag_no_vars env C (component_gfrag us C Hus Hc))
+        ltac:(destruct C as [| | | | | | |]; try contradiction; exact I) (H C Hc) Y Hin).
 Qed.
 
 (* A union is below a type exactly where each of its components is *)
 Theorem union_below_iff_in_generic_code: forall us y, ugfrag env (Union us) = true -> ugfrag env y = true ->
     assignable (Union us) y <-> forall C, In C us -> assignable C y.
-Proof.
-    intros us y Hus Hy. split; [exact (union_assignee_components us y Hus Hy)|exact (union_assignee_taken us y Hus Hy)].
-Qed.
-
-(* Where every component never fails, the union never fails, into a target that is no intersection *)
-Lemma union_assignee_never_fails: forall z us, match z with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end ->
-    no_vars z = true -> forallb no_vars us = true ->
-    (forall C, In C us -> never_fails z C) -> never_fails z (Union us).
-Proof.
-    intros z us Hshape Hz Hus H n E. destruct n as [|n]; [discriminate E|]. rewrite (union_assignee_step env wf n z us Hz Hus Hshape) in E.
-    exact (closed_fold_not_false _ us (fun C Hc => H C Hc n) E).
-Qed.
+Proof. intros us y Hus Hy. split; [exact (ugfrag_union_components us y Hus Hy)|exact (ugfrag_union_taken us y Hus Hy)]. Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
-(* A union as the target: takes a value with one of its components                                 *)
+(* A union as the target                                                                           *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 (* Only a nullable type takes a possibly null value, and takes what it wraps *)
 Theorem nullable_assignee_target: forall x y, no_vars x = true -> kugfrag env y = true -> assignable (Nullable x) y ->
     exists y', y = Nullable y' /\ assignable x y'.
 Proof.
-    intros x y Hx Hy [n H]. destruct n as [|n]; [discriminate H|].
+    intros x y Hx Hy H.
     destruct (kugfrag_cases env y Hy) as [Hg|[[us [-> [_ Hus]]]|[us [-> [_ Hus]]]]].
-    - destruct (gfrag_cases env y Hg) as [[m [c [args ->]]]|[[y' [-> _]]|[[gm [nn [p [vs [-> _]]]]]|[cs ->]]]];
-          try (exfalso; exact (nullable_rejected (S n) _ x Hg I H)).
-      exists y'. split; [reflexivity|]. exists n. exact H.
-    - exfalso. rewrite (union_target_step env wf n us (Nullable x) (kcomponents_no_vars us Hy) Hx I) in H.
-      destruct (closed_first_true _ us H) as [C [Hc HC]].
-      exact (nullable_rejected n C x (kept_union_component_gfrag env C (Hus C Hc)) (kept_union_component_flat env C (Hus C Hc)) HC).
-    - exists (Union us). split; [reflexivity|]. exists n. exact H.
+    - destruct H as [n H]. destruct (gfrag_cases env y Hg) as [[m [c [args ->]]]|[[y' [-> _]]|[[gm [nn [p [vs [-> _]]]]]|[cs ->]]]];
+          try (exfalso; exact (nullable_rejected env n _ x Hg I H)).
+      exists y'. split; [reflexivity|]. destruct n as [|n]; [discriminate H|]. exists n. exact H.
+    - exfalso. destruct (union_target_component env wf us (Nullable x) (kcomponents_no_vars us Hy) Hx I H) as [C [Hc [n HC]]].
+      exact (nullable_rejected env n C x (kept_union_component_gfrag env C (Hus C Hc)) (kept_union_component_flat env C (Hus C Hc)) HC).
+    - exists (Union us). split; [reflexivity|]. exact (proj1 (below_nullable_nullable env x (Union us)) H).
 Qed.
 
-(* A value of a class type or a reference is taken by one of the components *)
-Theorem union_target_component: forall us x, kugfrag env (Union us) = true -> no_vars x = true ->
-    match x with RootResolved _ _ _ | Generic _ => True | _ => False end ->
-    assignable x (Union us) -> exists C, In C us /\ assignable x C.
-Proof.
-    intros us x Hus Hx Hs [n H]. destruct n as [|n]; [discriminate H|].
-    rewrite (union_target_step env wf n us x (kcomponents_no_vars us Hus) Hx ltac:(destruct x as [| | | | | | |]; try contradiction; exact I)) in H.
-    destruct (closed_first_true _ us H) as [C [Hc HC]]. exists C. split; [exact Hc|exists n; exact HC].
-Qed.
-
-(* An intersection is below a union by one of its components, or as a whole by a component of the union *)
-Theorem intersection_assignee_below_union: forall ys zs, forallb no_vars ys = true -> forallb no_vars zs = true ->
-    assignable (Intersection ys) (Union zs) ->
-    (exists C, In C ys /\ assignable C (Union zs)) \/ (exists y, In y zs /\ assignable (Intersection ys) y).
-Proof.
-    intros ys zs Hys Hzs [n H]. destruct n as [|n]; [discriminate H|]. rewrite (union_intersection_step n zs ys Hzs Hys) in H.
-    destruct (closed_first (fun C => is_assignable_to env n C (Union zs)) ys) as [[]|] eqn:E; try discriminate H.
-    - left. destruct (closed_first_true _ ys E) as [C [Hc HC]]. exists C. split; [exact Hc|exists n; exact HC].
-    - right. destruct (closed_first_true _ zs H) as [y [Hy Hu]]. exists y. split; [exact Hy|exists n; exact Hu].
-Qed.
-
-(* ... where the component is below one of the components of the union: `(A | B) & C` is below `A | B` by its
-   component `A | B` (the frontend distributes, so the component there is `A & C`, below `A`) *)
+(* An intersection is taken by a union by a component of it that is below one of the components of the union, or as
+   a whole: `(A | B) & C` is below `A | B` by its component `A | B` (the frontend distributes, so the component there
+   is `A & C`, below `A`) *)
 Theorem union_target_intersection: forall us cs, kugfrag env (Union us) = true -> gfrag env (Intersection cs) = true ->
     assignable (Intersection cs) (Union us) ->
     (exists y, In y us /\ assignable (Intersection cs) y) \/ (exists C y, In C cs /\ In y us /\ assignable C y).
 Proof.
     intros us cs Hus Hcs H. pose proof (kcomponents_no_vars us Hus) as Hvus.
-    destruct (intersection_assignee_below_union cs us (gfrag_components_no_vars env cs Hcs) Hvus H) as [[C [Hc HCu]]|Hwhole]; [right|left; exact Hwhole].
+    destruct (intersection_below_union env wf us cs Hvus (gfrag_components_no_vars env cs Hcs) H) as [[C [Hc HCu]]|Hwhole]; [right|left; exact Hwhole].
     pose proof (intersection_component_shape cs C Hcs Hc) as Hsh. pose proof (gfrag_no_vars env C (intersection_component_gfrag cs C Hcs Hc)) as Hvc.
     destruct C as [m c args|x|g|me msg|v o x|g|cs'|us']; try contradiction.
-    - destruct (union_target_component us (RootResolved m c args) Hus Hvc I HCu) as [y [Hy Hxy]]. exists (RootResolved m c args), y. auto.
+    - destruct (union_target_component env wf us (RootResolved m c args) Hvus Hvc I HCu) as [y [Hy Hxy]]. exists (RootResolved m c args), y. auto.
     - exfalso. destruct (nullable_assignee_target x (Union us) Hvc Hus HCu) as [y' [Eq _]]. discriminate Eq.
-    - destruct (union_target_component us (Generic g) Hus Hvc I HCu) as [y [Hy Hxy]]. exists (Generic g), y. auto.
+    - destruct (union_target_component env wf us (Generic g) Hvus Hvc I HCu) as [y [Hy Hxy]]. exists (Generic g), y. auto.
 Qed.
 
-(* A union never rejects what one of its components never rejects *)
-Lemma union_target_never_fails: forall us x C, forallb no_vars us = true -> no_vars x = true -> In C us -> flat x ->
+(* A union never rejects a type of values that one of its components never rejects *)
+Lemma union_never_fails_flat: forall us x C, forallb no_vars us = true -> no_vars x = true -> In C us -> flat x ->
     never_fails C x -> never_fails (Union us) x.
 Proof.
-    intros us x C Hus Hx Hc Hf H n E. destruct n as [|n]; [discriminate E|].
-    destruct x as [m c args| |g| | | |cs|]; try contradiction.
-    - rewrite (union_target_step env wf n us (RootResolved m c args) Hus Hx I) in E. exact (closed_first_not_false _ us C Hc (H n) E).
-    - rewrite (union_target_step env wf n us (Generic g) Hus Hx I) in E. exact (closed_first_not_false _ us C Hc (H n) E).
-    - rewrite (union_intersection_step n us cs Hus Hx) in E.
-      destruct (closed_first (fun C' => is_assignable_to env n C' (Union us)) cs) as [[]|]; [discriminate E| |discriminate E].
-      exact (closed_first_not_false _ us C Hc (H n) E).
-Qed.
-
-(* ... nor an intersection with a component it never rejects *)
-Lemma union_target_intersection_never_fails: forall us cs C, forallb no_vars us = true -> forallb no_vars cs = true -> In C cs ->
-    never_fails (Union us) C -> never_fails (Union us) (Intersection cs).
-Proof.
-    intros us cs C Hus Hcs Hc H n E. destruct n as [|n]; [discriminate E|]. rewrite (union_intersection_step n us cs Hus Hcs) in E.
-    destruct (closed_first (fun C' => is_assignable_to env n C' (Union us)) cs) as [[]|] eqn:F; try discriminate E.
-    exact (closed_first_not_false _ cs C Hc (H n) F).
-Qed.
-
-(* Neither does a class type or a reference *)
-Lemma flat_target_intersection_never_fails: forall z cs C, no_vars z = true -> forallb no_vars cs = true ->
-    match z with RootResolved _ _ _ | Generic _ => True | _ => False end ->
-    In C cs -> never_fails z C -> never_fails z (Intersection cs).
-Proof.
-    intros z cs C Hz Hcs Hs Hc H n E. destruct n as [|n]; [discriminate E|]. rewrite (flat_target_intersection_step n z cs Hz Hcs Hs) in E.
-    exact (closed_first_not_false _ cs C Hc (H n) E).
+    intros us x C Hus Hx Hc Hf H. destruct x as [| | | | | |cs|]; try contradiction;
+        try exact (union_target_never_fails env wf us _ C Hus Hx I Hc H).
+    exact (union_component_intersection_never_fails env wf us cs C Hus Hx Hc H).
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
-(* Through a nullable target                                                                       *)
+(* Nullable types and intersections of the fragment                                                *)
 (* ---------------------------------------------------------------------------------------------- *)
-
-Lemma nullable_target_never_fails: forall z' x, gfrag env x = true -> never_fails z' (without_null env x) -> never_fails (Nullable z') x.
-Proof. intros z' x Hx H n E. destruct n as [|n]; [discriminate E|]. rewrite (nullable_target_step n z' x Hx) in E. exact (H n E). Qed.
-
-Lemma nullable_target_strip: forall z' x, gfrag env x = true -> never_fails (Nullable z') x -> never_fails z' (without_null env x).
-Proof. intros z' x Hx H n E. apply (H (S n)). rewrite (nullable_target_step n z' x Hx). exact E. Qed.
-
-Lemma below_nullable: forall x z', gfrag env x = true -> assignable x (Nullable z') <-> assignable (without_null env x) z'.
-Proof.
-    intros x z' Hx. split; intros [n H].
-    - destruct n as [|n]; [discriminate H|]. exists n. rewrite (nullable_target_step n z' x Hx) in H. exact H.
-    - exists (S n). rewrite (nullable_target_step n z' x Hx). exact H.
-Qed.
 
 (* An intersection that takes a possibly null value keeps the nullability of its components *)
 Lemma nullable_below_intersection: forall y' zs, assignable (Nullable y') (Intersection zs) -> is_nullable env (Intersection zs) = true.
@@ -695,19 +497,19 @@ Proof.
     unfold is_assignable_to, empty_unification in H. rewrite (step_inter_nullable env n zs y' [] E) in H. discriminate H.
 Qed.
 
-(* ---------------------------------------------------------------------------------------------- *)
-(* An intersection as the target: every component takes the assignee                               *)
-(* ---------------------------------------------------------------------------------------------- *)
+(* What an intersection target takes, each of its components takes: of the fragment, the shape of the assignee
+   is as the intersection takes it *)
+Lemma intersection_target_shape: forall zs y, kugfrag env y = true -> assignable y (Intersection zs) -> inter_shape env zs y.
+Proof.
+    intros zs y Hy H. pose proof (kugfrag_shape env y Hy) as Hs. destruct y as [|y'| | | | | |]; try contradiction; try exact I.
+    cbn [inter_shape]. exact (nullable_below_intersection y' zs H).
+Qed.
 
-Lemma intersection_target_components: forall zs y, gfrag env (Intersection zs) = true -> kugfrag env y = true ->
+Lemma ugfrag_intersection_components: forall zs y, gfrag env (Intersection zs) = true -> kugfrag env y = true ->
     assignable y (Intersection zs) -> forall C, In C zs -> assignable y C.
 Proof.
-    intros zs y Hzs Hy [n H] C Hc. pose proof (kugfrag_no_vars y Hy) as Hvy. destruct n as [|n]; [discriminate H|].
-    assert (Hshape: inter_shape env zs y).
-    { pose proof (kugfrag_shape env y Hy) as Hs. destruct y as [|y'| | | | | |]; try contradiction; try exact I.
-      cbn [inter_shape]. exact (nullable_below_intersection y' zs (ex_intro _ (S n) H)). }
-    rewrite (intersection_target_step n zs y (gfrag_components_no_vars env zs Hzs) Hvy Hshape) in H. exists n.
-    exact (proj1 (closed_fold_true _ zs) H C Hc).
+    intros zs y Hzs Hy H.
+    exact (intersection_target_components env wf zs y (gfrag_components_no_vars env zs Hzs) (kugfrag_no_vars y Hy) (intersection_target_shape zs y Hy H) H).
 Qed.
 
 Lemma nullable_intersection_target_components: forall zs y, gfrag env (Nullable (Intersection zs)) = true -> ugfrag env y = true ->
@@ -715,40 +517,28 @@ Lemma nullable_intersection_target_components: forall zs y, gfrag env (Nullable 
 Proof.
     intros zs y Hz Hy H C Hc. pose proof (nullable_intersection_gfrag zs Hz) as Hzs. pose proof (nullable_component_gfrag zs C Hz Hc) as HC.
     destruct (ugfrag_cases env y Hy) as [Hg|[[us [-> [_ Hus]]]|[us [-> [_ Hus]]]]].
-    - apply (below_nullable y C Hg).
-      exact (intersection_target_components zs _ Hzs (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf y Hg))
-          (proj1 (below_nullable y (Intersection zs) Hg) H) C Hc).
-    - apply (union_assignee_taken us (Nullable C) Hy (gfrag_ugfrag env _ HC)). intros D Hd.
-      pose proof (component_gfrag us D Hy Hd) as HD. apply (below_nullable D C HD).
-      apply (intersection_target_components zs _ Hzs (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf D HD))); [|exact Hc].
-      apply (below_nullable D (Intersection zs) HD). exact (union_assignee_components us _ Hy (gfrag_ugfrag env _ Hz) H D Hd).
-    - apply (below_nullable_nullable env). apply (intersection_target_components zs (Union us) Hzs (ugfrag_kugfrag env _ Hy)); [|exact Hc].
+    - apply (below_nullable env y C Hg).
+      exact (ugfrag_intersection_components zs _ Hzs (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf y Hg))
+          (proj1 (below_nullable env y (Intersection zs) Hg) H) C Hc).
+    - apply (ugfrag_union_taken us (Nullable C) Hy (gfrag_ugfrag env _ HC)). intros D Hd.
+      pose proof (component_gfrag us D Hy Hd) as HD. apply (below_nullable env D C HD).
+      apply (ugfrag_intersection_components zs _ Hzs (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf D HD))); [|exact Hc].
+      apply (below_nullable env D (Intersection zs) HD). exact (ugfrag_union_components us _ Hy (gfrag_ugfrag env _ Hz) H D Hd).
+    - apply (below_nullable_nullable env). apply (ugfrag_intersection_components zs (Union us) Hzs (ugfrag_kugfrag env _ Hy)); [|exact Hc].
       apply (below_nullable_nullable env). exact H.
-Qed.
-
-Lemma intersection_target_never_fails: forall zs x, gfrag env (Intersection zs) = true -> no_vars x = true -> inter_shape env zs x ->
-    (forall C, In C zs -> never_fails C x) -> never_fails (Intersection zs) x.
-Proof.
-    intros zs x Hzs Hx Hs H n E. destruct n as [|n]; [discriminate E|].
-    rewrite (intersection_target_step n zs x (gfrag_components_no_vars env zs Hzs) Hx Hs) in E.
-    exact (closed_fold_not_false _ zs (fun C Hc => H C Hc n) E).
 Qed.
 
 Lemma nullable_intersection_target_never_fails: forall zs x, gfrag env (Intersection zs) = true -> gfrag env x = true ->
     (forall C, In C zs -> never_fails (Nullable C) x) -> never_fails (Nullable (Intersection zs)) x.
 Proof.
-    intros zs x Hzs Hx H. apply (nullable_target_never_fails _ x Hx).
+    intros zs x Hzs Hx H. apply (nullable_target_never_fails env _ x Hx).
     pose proof (gfrag_without_null env wf declared declared_wf x Hx) as Hw. pose proof (without_null_shape env x) as Hs.
-    apply (intersection_target_never_fails zs _ Hzs (gfrag_no_vars env _ Hw)).
+    apply (intersection_target_never_fails env wf zs _ (gfrag_components_no_vars env zs Hzs) (gfrag_no_vars env _ Hw)).
     - remember (without_null env x) as w eqn:Ew. destruct w as [| | | | | | |]; try exact I; try contradiction; simpl in Hw; discriminate Hw.
-    - intros C Hc. exact (nullable_target_strip C x Hx (H C Hc)).
+    - intros C Hc. exact (nullable_target_strip env C x Hx (H C Hc)).
 Qed.
 
-(* ---------------------------------------------------------------------------------------------- *)
-(* An intersection as the assignee                                                                 *)
-(* ---------------------------------------------------------------------------------------------- *)
-
-(* A target that is no intersection never rejects an intersection with a component it never rejects *)
+(* A target of the fragment that is no intersection never rejects an intersection with a component it never rejects *)
 Lemma intersection_assignee_never_fails: forall z cs C, ugfrag env z = true ->
     match z with Intersection _ | Nullable (Intersection _) => False | _ => True end ->
     gfrag env (Intersection cs) = true -> In C cs -> never_fails z C -> never_fails z (Intersection cs).
@@ -759,21 +549,21 @@ Proof.
     pose proof (gfrag_components_no_vars env _ Hw) as Hvw.
     destruct (ugfrag_cases env z Hz) as [Hg|[[us [-> [_ Hus]]]|[us [-> [_ Hus]]]]].
     - destruct (gfrag_cases env z Hg) as [[m [c [args ->]]]|[[z' [-> [Hnz Hgz]]]|[[gm [nn [p [vs [-> _]]]]]|[zs ->]]]]; try (exfalso; exact Hsz).
-      + exact (flat_target_intersection_never_fails (RootResolved m c args) cs C Hvz Hvcs I Hc H).
+      + exact (flat_target_intersection_never_fails env wf (RootResolved m c args) cs C Hvz Hvcs I Hc H).
       + (* a nullable type: what it wraps never rejects the component without null, so the intersection without null *)
-        apply (nullable_target_never_fails z' _ Hcs). rewrite (without_null_intersection cs Hcs).
-        pose proof (nullable_target_strip z' C HC H) as H'.
+        apply (nullable_target_never_fails env z' _ Hcs). rewrite (without_null_intersection cs Hcs).
+        pose proof (nullable_target_strip env z' C HC H) as H'.
         assert (Hin: In (without_null env C) (map (without_null env) cs)) by (apply in_map, Hc).
         pose proof (gfrag_no_vars env z' Hgz) as Hvz'.
         destruct (gfrag_cases env z' Hgz) as [[m [c [args ->]]]|[[z'' [-> [Hnz' _]]]|[[gm [nn [p [vs [-> _]]]]]|[zs ->]]]].
-        * exact (flat_target_intersection_never_fails (RootResolved m c args) _ _ Hvz' Hvw I Hin H').
+        * exact (flat_target_intersection_never_fails env wf (RootResolved m c args) _ _ Hvz' Hvw I Hin H').
         * exfalso. cbn [non_null is_component] in Hnz. discriminate Hnz.
-        * exact (flat_target_intersection_never_fails (Generic (mkGenericRef gm nn p vs)) _ _ Hvz' Hvw I Hin H').
+        * exact (flat_target_intersection_never_fails env wf (Generic (mkGenericRef gm nn p vs)) _ _ Hvz' Hvw I Hin H').
         * exfalso. exact Hsz.
-      + exact (flat_target_intersection_never_fails (Generic (mkGenericRef gm nn p vs)) cs C Hvz Hvcs I Hc H).
-    - exact (union_target_intersection_never_fails us cs C Hvz Hvcs Hc H).
-    - apply (nullable_target_never_fails _ _ Hcs). rewrite (without_null_intersection cs Hcs).
-      exact (union_target_intersection_never_fails us _ _ Hvz Hvw (in_map _ cs C Hc) (nullable_target_strip _ C HC H)).
+      + exact (flat_target_intersection_never_fails env wf (Generic (mkGenericRef gm nn p vs)) cs C Hvz Hvcs I Hc H).
+    - exact (union_target_intersection_never_fails env wf us cs C Hvz Hvcs Hc H).
+    - apply (nullable_target_never_fails env _ _ Hcs). rewrite (without_null_intersection cs Hcs).
+      exact (union_target_intersection_never_fails env wf us _ _ Hvz Hvw (in_map _ cs C Hc) (nullable_target_strip env _ C HC H)).
 Qed.
 
 (* An intersection is below a class type or a reference, nullable or not, by one of its components *)
@@ -781,21 +571,16 @@ Lemma intersection_assignee_below_flat: forall ys z, gfrag env (Intersection ys)
     match z with RootResolved _ _ _ | Generic _ | Nullable (RootResolved _ _ _) | Nullable (Generic _) => True | _ => False end ->
     assignable (Intersection ys) z -> exists C, In C ys /\ assignable C z.
 Proof.
-    intros ys z Hys Hz Hs [n H]. pose proof (gfrag_components_no_vars env ys Hys) as Hvys. pose proof (gfrag_no_vars env _ Hz) as Hvz.
-    destruct n as [|n]; [discriminate H|].
-    destruct z as [m c args|z'|g|me msg|v o z'|g|zs|us]; try contradiction.
-    - rewrite (flat_target_intersection_step n (RootResolved m c args) ys Hvz Hvys I) in H.
-      destruct (closed_first_true _ ys H) as [C [Hc HC]]. exists C. split; [exact Hc|exists n; exact HC].
-    - (* nullable: what it wraps takes the intersection without null, by one of its components *)
-      pose proof (gfrag_nullable_inner env z' Hz) as Hgz. rewrite (nullable_target_step n z' _ Hys), (without_null_intersection ys Hys) in H.
-      destruct n as [|n]; [discriminate H|].
-      pose proof (gfrag_without_null env wf declared declared_wf _ Hys) as Hw. rewrite (without_null_intersection ys Hys) in Hw.
-      rewrite (flat_target_intersection_step n z' _ (gfrag_no_vars env z' Hgz) (gfrag_components_no_vars env _ Hw)
-          ltac:(destruct z' as [| | | | | | |]; try (exfalso; exact Hs); exact I)) in H.
-      destruct (closed_first_true _ _ H) as [C' [Hc' HC']]. apply in_map_iff in Hc'. destruct Hc' as [C [<- Hc]]. exists C. split; [exact Hc|].
-      apply (below_nullable C z' (intersection_component_gfrag ys C Hys Hc)). exists n. exact HC'.
-    - rewrite (flat_target_intersection_step n (Generic g) ys Hvz Hvys I) in H.
-      destruct (closed_first_true _ ys H) as [C [Hc HC]]. exists C. split; [exact Hc|exists n; exact HC].
+    intros ys z Hys Hz Hs H. pose proof (gfrag_components_no_vars env ys Hys) as Hvys. pose proof (gfrag_no_vars env _ Hz) as Hvz.
+    destruct z as [m c args|z'|g|me msg|v o z'|g|zs|us]; try contradiction;
+        try exact (intersection_assignee_component env wf _ ys Hvz Hvys I H).
+    (* nullable: what it wraps takes the intersection without null, by one of its components *)
+    pose proof (gfrag_nullable_inner env z' Hz) as Hgz. apply (below_nullable env _ z' Hys) in H. rewrite (without_null_intersection ys Hys) in H.
+    pose proof (gfrag_without_null env wf declared declared_wf _ Hys) as Hw. rewrite (without_null_intersection ys Hys) in Hw.
+    destruct (intersection_assignee_component env wf z' _ (gfrag_no_vars env z' Hgz) (gfrag_components_no_vars env _ Hw)
+        ltac:(destruct z' as [| | | | | | |]; try (exfalso; exact Hs); exact I) H) as [C' [Hc' HC']].
+    apply in_map_iff in Hc'. destruct Hc' as [C [<- Hc]]. exists C. split; [exact Hc|].
+    apply (below_nullable env C z' (intersection_component_gfrag ys C Hys Hc)). exact HC'.
 Qed.
 
 (* ... and below a nullable union likewise, the union taking the intersection without null *)
@@ -803,12 +588,12 @@ Lemma intersection_assignee_below_nullable_union: forall ys zs, gfrag env (Inter
     assignable (Intersection ys) (Nullable (Union zs)) ->
     (exists C, In C ys /\ assignable C (Nullable (Union zs))) \/ (exists y, In y zs /\ assignable (Intersection ys) (Nullable y)).
 Proof.
-    intros ys zs Hys Hzs H. apply (below_nullable _ _ Hys) in H. rewrite (without_null_intersection ys Hys) in H.
+    intros ys zs Hys Hzs H. apply (below_nullable env _ _ Hys) in H. rewrite (without_null_intersection ys Hys) in H.
     pose proof (gfrag_without_null env wf declared declared_wf _ Hys) as Hw. rewrite (without_null_intersection ys Hys) in Hw.
-    destruct (intersection_assignee_below_union _ zs (gfrag_components_no_vars env _ Hw) Hzs H) as [[C' [Hc' HC']]|[y [Hy Hu]]].
+    destruct (intersection_below_union env wf zs _ Hzs (gfrag_components_no_vars env _ Hw) H) as [[C' [Hc' HC']]|[y [Hy Hu]]].
     - left. apply in_map_iff in Hc'. destruct Hc' as [C [<- Hc]]. exists C. split; [exact Hc|].
-      apply (below_nullable C _ (intersection_component_gfrag ys C Hys Hc)). exact HC'.
-    - right. exists y. split; [exact Hy|]. apply (below_nullable _ y Hys). rewrite (without_null_intersection ys Hys). exact Hu.
+      apply (below_nullable env C _ (intersection_component_gfrag ys C Hys Hc)). exact HC'.
+    - right. exists y. split; [exact Hy|]. apply (below_nullable env _ y Hys). rewrite (without_null_intersection ys Hys). exact Hu.
 Qed.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -825,17 +610,17 @@ Proof.
     intros x y z. remember (esize x + esize y + esize z) as k eqn:Hk. revert x y z Hk.
     induction k as [k IH] using lt_wf_ind. intros x y z -> Hx Hy Hz Hxy Hyz.
     pose proof (ugfrag_no_vars x Hx) as Hvx. pose proof (ugfrag_no_vars y Hy) as Hvy. pose proof (ugfrag_no_vars z Hz) as Hvz.
-    pose proof (ugfrag_kugfrag env y Hy) as Ky. pose proof (ugfrag_kugfrag env z Hz) as Kz.
+    pose proof (ugfrag_kugfrag env x Hx) as Kx. pose proof (ugfrag_kugfrag env y Hy) as Ky. pose proof (ugfrag_kugfrag env z Hz) as Kz.
     (* z an intersection: each of its components takes y, and never rejects x *)
     assert (HZI: forall zs, z = Intersection zs -> never_fails z x).
     { intros zs Ez. subst z.
-      apply (intersection_target_never_fails zs x Hz Hvx).
+      apply (intersection_target_never_fails env wf zs x (gfrag_components_no_vars env zs Hz) Hvx).
       - pose proof (ugfrag_shape env x Hx) as Hs. destruct x as [|x'| | | | | |]; try contradiction; try exact I.
         cbn [inter_shape]. destruct (nullable_assignee_target x' y Hvx Ky Hxy) as [y' [Ey Hy']]. subst y.
         exact (nullable_below_intersection y' zs Hyz).
       - intros C Hc. pose proof (esize_in zs C Hc). pose proof (intersection_component_gfrag zs C Hz Hc) as HC.
         exact (IH (esize x + esize y + esize C) ltac:(cbn [esize]; lia) x y C eq_refl Hx Hy (gfrag_ugfrag env C HC) Hxy
-            (intersection_target_components zs y Hz Ky Hyz C Hc)). }
+            (ugfrag_intersection_components zs y Hz Ky Hyz C Hc)). }
     (* z a nullable intersection: each of its components, made nullable, takes y *)
     assert (HZN: forall zs, z = Nullable (Intersection zs) -> never_fails z x).
     { intros zs Ez. subst z. pose proof (nullable_intersection_gfrag zs Hz) as Hzs.
@@ -845,10 +630,10 @@ Proof.
             (nullable_intersection_target_components zs y Hz Hy Hyz C Hc)). }
       destruct (ugfrag_cases env x Hx) as [Gx|[[xs [Ex [_ Hxs]]]|[xs [Ex [_ Hxs]]]]].
       - exact (nullable_intersection_target_never_fails zs x Hzs Gx HIH).
-      - subst x. refine (union_assignee_never_fails (Nullable (Intersection zs)) xs I Hvz (union_components_no_vars xs Hx) _).
+      - subst x. apply (union_assignee_never_fails env wf (Nullable (Intersection zs)) xs Hvz (union_components_no_vars xs Hx) I).
         intros C Hc. pose proof (esize_in xs C Hc).
         exact (IH (esize C + esize y + esize (Nullable (Intersection zs))) ltac:(cbn [esize]; lia) C y _ eq_refl
-            (gfrag_ugfrag env C (component_gfrag xs C Hx Hc)) Hy Hz (union_assignee_components xs y Hx Hy Hxy C Hc) Hyz).
+            (gfrag_ugfrag env C (component_gfrag xs C Hx Hc)) Hy Hz (ugfrag_union_components xs y Hx Hy Hxy C Hc) Hyz).
       - subst x. destruct (nullable_assignee_target (Union xs) y Hvx Ky Hxy) as [y' [Ey Hy']]. subst y.
         intros n E. destruct n as [|n]; [discriminate E|].
         exact (IH (esize (Union xs) + esize y' + esize (Intersection zs)) ltac:(cbn [esize]; lia) (Union xs) y' (Intersection zs) eq_refl
@@ -858,11 +643,11 @@ Proof.
     { intros Hsz.
       destruct (ugfrag_cases env x Hx) as [Gx|[[xs [Ex [_ Hxs]]]|[xs [Ex [_ Hxs]]]]].
       2: { (* x a union: each component is below y, and never rejected by z *) subst x.
-           refine (union_assignee_never_fails z xs _ Hvz (union_components_no_vars xs Hx) _).
+           apply (union_assignee_never_fails env wf z xs Hvz (union_components_no_vars xs Hx)).
            - pose proof (ugfrag_shape env z Hz) as Hs. destruct z as [| | | | | | |]; try contradiction; exact I.
            - intros C Hc. pose proof (esize_in xs C Hc).
              exact (IH (esize C + esize y + esize z) ltac:(cbn [esize]; lia) C y z eq_refl (gfrag_ugfrag env C (component_gfrag xs C Hx Hc)) Hy Hz
-                 (union_assignee_components xs y Hx Hy Hxy C Hc) Hyz). }
+                 (ugfrag_union_components xs y Hx Hy Hxy C Hc) Hyz). }
       2: { (* x a nullable union: y and z are nullable, and the union is below what they wrap *) subst x.
            destruct (nullable_assignee_target (Union xs) y Hvx Ky Hxy) as [y' [Ey Hy']]. subst y.
            destruct (nullable_assignee_target y' z (ugfrag_no_vars _ (ugfrag_nullable env y' Hy)) Kz Hyz) as [z' [Ez Hz']]. subst z.
@@ -872,15 +657,15 @@ Proof.
       (* x of gfrag *)
       destruct (ugfrag_cases env y Hy) as [Gy|[[ys [Ey [_ Hys]]]|[ys [Ey [_ Hys]]]]].
       2: { (* y a union: x is below one of its components, or a component of x is; each is below z *) subst y.
-           assert (Hcomp: forall C, In C ys -> assignable C z) by exact (union_assignee_components ys z Hy Hz Hyz).
+           assert (Hcomp: forall C, In C ys -> assignable C z) by exact (ugfrag_union_components ys z Hy Hz Hyz).
            assert (Hvia: forall x', ugfrag env x' = true -> esize x' <= esize x -> (exists C, In C ys /\ assignable x' C) -> never_fails z x').
            { intros x' Hx' Hsize [C [Hc HC]]. pose proof (esize_in ys C Hc).
              exact (IH (esize x' + esize C + esize z) ltac:(cbn [esize]; lia) x' C z eq_refl Hx' (gfrag_ugfrag env C (component_gfrag ys C Hy Hc)) Hz HC (Hcomp C Hc)). }
-           pose proof (ugfrag_shape env x Hx) as Hs.
+           pose proof (ugfrag_shape env x Hx) as Hs. pose proof (union_components_no_vars ys Hy) as Hvys.
            destruct x as [m c args|x'|g|me msg|v o x'|g|cs|us]; try contradiction.
-           - exact (Hvia _ Hx (le_n _) (union_target_component ys (RootResolved m c args) Ky Hvx I Hxy)).
+           - exact (Hvia _ Hx (le_n _) (union_target_component env wf ys (RootResolved m c args) Hvys Hvx I Hxy)).
            - exfalso. destruct (nullable_assignee_target x' (Union ys) Hvx Ky Hxy) as [y' [Eyn _]]. discriminate Eyn.
-           - exact (Hvia _ Hx (le_n _) (union_target_component ys (Generic g) Ky Hvx I Hxy)).
+           - exact (Hvia _ Hx (le_n _) (union_target_component env wf ys (Generic g) Hvys Hvx I Hxy)).
            - destruct (union_target_intersection ys cs Ky Gx Hxy) as [[y' [Hy' Hu]]|[C [y' [Hc [Hy' HC]]]]].
              + exact (Hvia _ Hx (le_n _) (ex_intro _ y' (conj Hy' Hu))).
              + pose proof (esize_in cs C Hc). pose proof (esize_in ys y' Hy'). pose proof (intersection_component_gfrag cs C Gx Hc) as HC'.
@@ -891,25 +676,26 @@ Proof.
       2: { (* y a nullable union: z is nullable, and x without null is below a component of y, or a component of x is *) subst y.
            destruct (nullable_assignee_target (Union ys) z Hvy Kz Hyz) as [z' [Ez Hz']]. subst z.
            pose proof (ugfrag_nullable env z' Hz) as Hz''. pose proof (ugfrag_kugfrag env z' Hz'') as Kz'.
-           assert (Hcomp: forall C, In C ys -> assignable C z') by exact (union_assignee_components ys z' Hy Hz'' Hz').
+           pose proof (union_components_no_vars ys Hy) as Hvys.
+           assert (Hcomp: forall C, In C ys -> assignable C z') by exact (ugfrag_union_components ys z' Hy Hz'' Hz').
            assert (Hvia: forall x', gfrag env x' = true -> esize x' <= esize x -> (exists C, In C ys /\ assignable (without_null env x') C) ->
                never_fails (Nullable z') x').
            { intros x' Hx' Hsize [C [Hc HC]]. pose proof (esize_in ys C Hc).
              exact (IH (esize x' + esize (Nullable C) + esize (Nullable z')) ltac:(cbn [esize]; lia) x' (Nullable C) (Nullable z') eq_refl
-                 (gfrag_ugfrag env x' Hx') (gfrag_ugfrag env _ (component_nullable_gfrag ys C Hy Hc)) Hz (proj2 (below_nullable x' C Hx') HC)
+                 (gfrag_ugfrag env x' Hx') (gfrag_ugfrag env _ (component_nullable_gfrag ys C Hy Hc)) Hz (proj2 (below_nullable env x' C Hx') HC)
                  (proj2 (below_nullable_nullable env C z') (Hcomp C Hc))). }
-           pose proof (proj1 (below_nullable x (Union ys) Gx) Hxy) as Hwx.
+           pose proof (proj1 (below_nullable env x (Union ys) Gx) Hxy) as Hwx.
            pose proof (gfrag_no_vars env _ (gfrag_without_null env wf declared declared_wf x Gx)) as Hvw.
            destruct (gfrag_cases env x Gx) as [[m [c [args Ex]]]|[[x' [Ex [Hnn Gx']]]|[[gm [nn [p [vs [Ex _]]]]]|[cs Ex]]]]; subst x.
            - rewrite (without_null_unchanged env (RootResolved m c args) eq_refl) in Hwx, Hvw. apply (Hvia _ Gx (le_n _)).
-             rewrite (without_null_unchanged env (RootResolved m c args) eq_refl). exact (union_target_component ys (RootResolved m c args) Ky Hvw I Hwx).
+             rewrite (without_null_unchanged env (RootResolved m c args) eq_refl). exact (union_target_component env wf ys (RootResolved m c args) Hvys Hvw I Hwx).
            - (* a nullable type: what it wraps is below the union, as a whole or by a component *)
              assert (Ew: without_null env (Nullable x') = x') by (cbn [without_null]; exact (without_null_unchanged env x' (non_null_not_nullable env x' Hnn))).
              rewrite Ew in Hwx, Hvw. pose proof (ugfrag_shape env _ (gfrag_ugfrag env _ Gx')) as Hs.
              destruct x' as [m c args|x''|g|me msg|v o x''|g|cs|us]; try contradiction.
-             + apply (Hvia _ Gx (le_n _)). rewrite Ew. exact (union_target_component ys (RootResolved m c args) Ky Hvw I Hwx).
+             + apply (Hvia _ Gx (le_n _)). rewrite Ew. exact (union_target_component env wf ys (RootResolved m c args) Hvys Hvw I Hwx).
              + exfalso. cbn [non_null is_component] in Hnn. discriminate Hnn.
-             + apply (Hvia _ Gx (le_n _)). rewrite Ew. exact (union_target_component ys (Generic g) Ky Hvw I Hwx).
+             + apply (Hvia _ Gx (le_n _)). rewrite Ew. exact (union_target_component env wf ys (Generic g) Hvys Hvw I Hwx).
              + destruct (union_target_intersection ys cs Ky Gx' Hwx) as [[y' [Hy' Hu]]|[C [y' [Hc [Hy' HC]]]]].
                * apply (Hvia _ Gx (le_n _)). rewrite Ew. exact (ex_intro _ y' (conj Hy' Hu)).
                * (* a component of the intersection is below a component of the union, which is below z' *)
@@ -921,7 +707,7 @@ Proof.
                  exact (IH (esize C + esize y' + esize z') ltac:(cbn [esize]; lia) C y' z' eq_refl (gfrag_ugfrag env C HC')
                      (gfrag_ugfrag env y' (component_gfrag ys y' Hy Hy')) Hz'' HC (Hcomp y' Hy')).
              + simpl in Gx'. discriminate Gx'.
-           - apply (Hvia _ Gx (le_n _)). exact (union_target_component ys (without_null env (Generic (mkGenericRef gm nn p vs))) Ky Hvw I Hwx).
+           - apply (Hvia _ Gx (le_n _)). exact (union_target_component env wf ys (without_null env (Generic (mkGenericRef gm nn p vs))) Hvys Hvw I Hwx).
            - (* an intersection: without null, it is below the union as a whole, or by a component *)
              rewrite (without_null_intersection cs Gx) in Hwx.
              pose proof (gfrag_without_null env wf declared declared_wf _ Gx) as Hw. rewrite (without_null_intersection cs Gx) in Hw.
@@ -935,7 +721,7 @@ Proof.
       - (* all three of the fragment of type parameters and intersections: Generics.v *)
         destruct Hxy as [n1 H1]. destruct Hyz as [n2 H2].
         exact (transitivity_never_fails env wf declared declared_wf n1 n2 x y z Gx Gy Gz I I I H1 H2).
-      - (* z a union: y, or a component of it, is below a component of z *) subst z.
+      - (* z a union: y, or a component of it, is below a component of z *) subst z. pose proof (union_components_no_vars zs Hz) as Hvzs.
         assert (Hfx: flat x).
         { pose proof (ugfrag_shape env x Hx) as Hs. destruct x as [|x'| | | | | |]; try contradiction; try exact I.
           - exfalso. destruct (nullable_assignee_target x' y Hvx Ky Hxy) as [y' [Eyn _]]. subst y.
@@ -944,19 +730,20 @@ Proof.
         assert (Hvia: forall y', ugfrag env y' = true -> esize y' <= esize y -> assignable x y' -> (exists C, In C zs /\ assignable y' C) ->
             never_fails (Union zs) x).
         { intros y' Hy' Hsize Hxy' [C [Hc HC]]. pose proof (esize_in zs C Hc).
-          apply (union_target_never_fails zs x C (union_components_no_vars zs Hz) Hvx Hc Hfx).
+          apply (union_never_fails_flat zs x C Hvzs Hvx Hc Hfx).
           exact (IH (esize x + esize y' + esize C) ltac:(cbn [esize]; lia) x y' C eq_refl Hx Hy' (gfrag_ugfrag env C (component_gfrag zs C Hz Hc)) Hxy' HC). }
         destruct (gfrag_cases env y Gy) as [[m [c [args Ey]]]|[[y' [Ey [Hnn Gy']]]|[[gm [nn [p [vs [Ey _]]]]]|[ys Ey]]]]; subst y.
-        + exact (Hvia _ Hy (le_n _) Hxy (union_target_component zs (RootResolved m c args) Kz Hvy I Hyz)).
+        + exact (Hvia _ Hy (le_n _) Hxy (union_target_component env wf zs (RootResolved m c args) Hvzs Hvy I Hyz)).
         + exfalso. destruct (nullable_assignee_target y' (Union zs) Hvy Kz Hyz) as [z' [Ezn _]]. discriminate Ezn.
-        + exact (Hvia _ Hy (le_n _) Hxy (union_target_component zs (Generic (mkGenericRef gm nn p vs)) Kz Hvy I Hyz)).
-        + destruct (intersection_assignee_below_union ys zs (gfrag_components_no_vars env ys Gy) (union_components_no_vars zs Hz) Hyz) as [[C [Hc HC]]|[y' [Hy' Hu]]].
+        + exact (Hvia _ Hy (le_n _) Hxy (union_target_component env wf zs (Generic (mkGenericRef gm nn p vs)) Hvzs Hvy I Hyz)).
+        + destruct (intersection_below_union env wf zs ys Hvzs (gfrag_components_no_vars env ys Gy) Hyz) as [[C [Hc HC]]|[y' [Hy' Hu]]].
           * pose proof (esize_in ys C Hc). pose proof (intersection_component_gfrag ys C Gy Hc) as HC'.
             exact (IH (esize x + esize C + esize (Union zs)) ltac:(cbn [esize]; lia) x C (Union zs) eq_refl Hx (gfrag_ugfrag env C HC') Hz
-                (intersection_target_components ys x Gy (ugfrag_kugfrag env x Hx) Hxy C Hc) HC).
+                (ugfrag_intersection_components ys x Gy Kx Hxy C Hc) HC).
           * exact (Hvia _ Hy (le_n _) Hxy (ex_intro _ y' (conj Hy' Hu))).
       - (* z a nullable union: y without null is below a component of z, as a whole or by a component *) subst z.
-        apply (nullable_target_never_fails (Union zs) x Gx).
+        pose proof (union_components_no_vars zs Hz) as Hvzs.
+        apply (nullable_target_never_fails env (Union zs) x Gx).
         pose proof (gfrag_without_null env wf declared declared_wf x Gx) as Hgw. pose proof (gfrag_no_vars env _ Hgw) as Hvw.
         assert (Hfw: flat (without_null env x)).
         { pose proof (without_null_shape env x) as Hs.
@@ -964,39 +751,39 @@ Proof.
         assert (Hvia: forall y', gfrag env y' = true -> esize y' <= esize y -> assignable x y' -> (exists C, In C zs /\ assignable (without_null env y') C) ->
             never_fails (Union zs) (without_null env x)).
         { intros y' Hy' Hsize Hxy' [C [Hc HC]]. pose proof (esize_in zs C Hc).
-          apply (union_target_never_fails zs _ C (union_components_no_vars zs Hz) Hvw Hc Hfw).
-          apply (nullable_target_strip C x Gx).
+          apply (union_never_fails_flat zs _ C Hvzs Hvw Hc Hfw).
+          apply (nullable_target_strip env C x Gx).
           exact (IH (esize x + esize y' + esize (Nullable C)) ltac:(cbn [esize]; lia) x y' (Nullable C) eq_refl Hx (gfrag_ugfrag env y' Hy')
-              (gfrag_ugfrag env _ (component_nullable_gfrag zs C Hz Hc)) Hxy' (proj2 (below_nullable y' C Hy') HC)). }
-        pose proof (proj1 (below_nullable y (Union zs) Gy) Hyz) as Hwy.
+              (gfrag_ugfrag env _ (component_nullable_gfrag zs C Hz Hc)) Hxy' (proj2 (below_nullable env y' C Hy') HC)). }
+        pose proof (proj1 (below_nullable env y (Union zs) Gy) Hyz) as Hwy.
         pose proof (gfrag_no_vars env _ (gfrag_without_null env wf declared declared_wf y Gy)) as Hvwy.
         destruct (gfrag_cases env y Gy) as [[m [c [args Ey]]]|[[y' [Ey [Hnn Gy']]]|[[gm [nn [p [vs [Ey _]]]]]|[ys Ey]]]]; subst y.
         + rewrite (without_null_unchanged env (RootResolved m c args) eq_refl) in Hwy, Hvwy. apply (Hvia _ Gy (le_n _) Hxy).
-          rewrite (without_null_unchanged env (RootResolved m c args) eq_refl). exact (union_target_component zs (RootResolved m c args) Kz Hvwy I Hwy).
+          rewrite (without_null_unchanged env (RootResolved m c args) eq_refl). exact (union_target_component env wf zs (RootResolved m c args) Hvzs Hvwy I Hwy).
         + (* a nullable type: what it wraps is below the union *)
           assert (Ew: without_null env (Nullable y') = y') by (cbn [without_null]; exact (without_null_unchanged env y' (non_null_not_nullable env y' Hnn))).
           rewrite Ew in Hwy, Hvwy. pose proof (ugfrag_shape env _ (gfrag_ugfrag env _ Gy')) as Hs.
           destruct y' as [m c args|y''|g|me msg|v o y''|g|ys|us]; try contradiction.
-          * apply (Hvia _ Gy (le_n _) Hxy). rewrite Ew. exact (union_target_component zs (RootResolved m c args) Kz Hvwy I Hwy).
+          * apply (Hvia _ Gy (le_n _) Hxy). rewrite Ew. exact (union_target_component env wf zs (RootResolved m c args) Hvzs Hvwy I Hwy).
           * exfalso. cbn [non_null is_component] in Hnn. discriminate Hnn.
-          * apply (Hvia _ Gy (le_n _) Hxy). rewrite Ew. exact (union_target_component zs (Generic g) Kz Hvwy I Hwy).
-          * destruct (intersection_assignee_below_union ys zs (gfrag_components_no_vars env ys Gy') (union_components_no_vars zs Hz) Hwy) as [[C [Hc HC]]|[y' [Hy' Hu]]].
+          * apply (Hvia _ Gy (le_n _) Hxy). rewrite Ew. exact (union_target_component env wf zs (Generic g) Hvzs Hvwy I Hwy).
+          * destruct (intersection_below_union env wf zs ys Hvzs (gfrag_components_no_vars env ys Gy') Hwy) as [[C [Hc HC]]|[y' [Hy' Hu]]].
             { (* x is below the component made nullable, which is below z *)
               pose proof (esize_in ys C Hc). pose proof (nullable_component_gfrag ys C Gy Hc) as HC'.
-              apply (nullable_target_strip (Union zs) x Gx).
+              apply (nullable_target_strip env (Union zs) x Gx).
               exact (IH (esize x + esize (Nullable C) + esize (Nullable (Union zs))) ltac:(cbn [esize]; lia) x (Nullable C) (Nullable (Union zs)) eq_refl
                   Hx (gfrag_ugfrag env _ HC') Hz (nullable_intersection_target_components ys x Gy Hx Hxy C Hc)
                   (proj2 (below_nullable_nullable env C (Union zs)) HC)). }
             { apply (Hvia _ Gy (le_n _) Hxy). rewrite Ew. exact (ex_intro _ y' (conj Hy' Hu)). }
           * simpl in Gy'. discriminate Gy'.
-        + apply (Hvia _ Gy (le_n _) Hxy). exact (union_target_component zs (without_null env (Generic (mkGenericRef gm nn p vs))) Kz Hvwy I Hwy).
+        + apply (Hvia _ Gy (le_n _) Hxy). exact (union_target_component env wf zs (without_null env (Generic (mkGenericRef gm nn p vs))) Hvzs Hvwy I Hwy).
         + (* an intersection: a component of it is below z, or a component of z takes it without null *)
           rewrite (without_null_intersection ys Gy) in Hwy, Hvwy.
-          destruct (intersection_assignee_below_union _ zs Hvwy (union_components_no_vars zs Hz) Hwy) as [[C' [Hc' HC']]|[y' [Hy' Hu]]].
+          destruct (intersection_below_union env wf zs _ Hvzs Hvwy Hwy) as [[C' [Hc' HC']]|[y' [Hy' Hu]]].
           * apply in_map_iff in Hc'. destruct Hc' as [C [<- Hc]]. pose proof (esize_in ys C Hc). pose proof (intersection_component_gfrag ys C Gy Hc) as HC.
-            apply (nullable_target_strip (Union zs) x Gx).
+            apply (nullable_target_strip env (Union zs) x Gx).
             exact (IH (esize x + esize C + esize (Nullable (Union zs))) ltac:(cbn [esize]; lia) x C (Nullable (Union zs)) eq_refl Hx (gfrag_ugfrag env C HC) Hz
-                (intersection_target_components ys x Gy (ugfrag_kugfrag env x Hx) Hxy C Hc) (proj2 (below_nullable C (Union zs) HC) HC')).
+                (ugfrag_intersection_components ys x Gy Kx Hxy C Hc) (proj2 (below_nullable env C (Union zs) HC) HC')).
           * apply (Hvia _ Gy (le_n _) Hxy). exists y'. split; [exact Hy'|]. rewrite (without_null_intersection ys Gy). exact Hu. }
     pose proof (ugfrag_shape env z Hz) as Hsz.
     destruct z as [mz cz zargs|z'|gz|me msg|v o z'|g|zs|zs]; try contradiction; try (apply Hflat; exact I); [|exact (HZI zs eq_refl)].
@@ -1033,41 +820,27 @@ Theorem kugfrag_terminates: forall t a, kugfrag env t = true -> kugfrag env a = 
 Proof.
     intros t a. remember (esize t + esize a) as k eqn:Hk. revert t a Hk. induction k as [k IH] using lt_wf_ind. intros t a -> Ht Ha.
     pose proof (kugfrag_no_vars t Ht) as Hvt. pose proof (kugfrag_no_vars a Ha) as Hva.
-    (* a union assignee, to a target that is no intersection: each component, with fuel for all of them *)
-    assert (Hflip: forall us, kugfrag env (Union us) = true -> esize (Union us) <= esize a ->
-        match t with RootResolved _ _ _ | Nullable _ | Generic _ | Union _ => True | _ => False end -> answers t (Union us)).
-    { intros us Hus Hsz Hst. destruct (fuel_for_all (fun n C => is_assignable_to env n C t <> None) us) as [n Hn].
-      - intros n n' C Hle. exact (answers_mono env n n' C t Hle).
-      - intros C Hc. pose proof (esize_in us C Hc).
-        exact (IH (esize t + esize C) ltac:(cbn [esize] in Hsz; lia) t C eq_refl Ht (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc))).
-      - exists (S n). rewrite (union_assignee_step env wf n t us Hvt (kcomponents_no_vars us Hus) Hst). exact (closed_fold_some _ us Hn). }
+    (* a union assignee, to a target that is no intersection: each component *)
+    assert (Hflip: forall us, kugfrag env (Union us) = true -> esize (Union us) <= esize a -> takes_unions t -> answers t (Union us)).
+    { intros us Hus Hsz Hst. apply (union_assignee_answers env wf t us Hvt (kcomponents_no_vars us Hus) Hst).
+      intros C Hc. pose proof (esize_in us C Hc).
+      exact (IH (esize t + esize C) ltac:(cbn [esize] in Hsz; lia) t C eq_refl Ht (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc))). }
     (* a union target, and an assignee that is a type of values: the first component that takes it *)
-    assert (Hsearch: forall us, kugfrag env (Union us) = true -> esize (Union us) <= esize t ->
-        match a with RootResolved _ _ _ | Nullable _ | Generic _ => True | _ => False end -> answers (Union us) a).
-    { intros us Hus Hsz Hsa. destruct (fuel_for_all (fun n C => is_assignable_to env n a C <> None) us) as [n Hn].
-      - intros n n' C Hle. exact (answers_mono env n n' a C Hle).
-      - intros C Hc. pose proof (esize_in us C Hc).
-        exact (IH (esize C + esize a) ltac:(cbn [esize] in Hsz; lia) C a eq_refl (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc)) Ha).
-      - exists (S n). rewrite (union_target_step env wf n us a (kcomponents_no_vars us Hus) Hva Hsa). exact (closed_first_some _ us Hn). }
+    assert (Hsearch: forall us, kugfrag env (Union us) = true -> esize (Union us) <= esize t -> searched_in_unions a -> answers (Union us) a).
+    { intros us Hus Hsz Hsa. apply (union_target_answers env wf us a (kcomponents_no_vars us Hus) Hva Hsa).
+      intros C Hc. pose proof (esize_in us C Hc).
+      exact (IH (esize C + esize a) ltac:(cbn [esize] in Hsz; lia) C a eq_refl (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc)) Ha). }
     (* ... and an intersection assignee: its components against the union, then the union's against it *)
     assert (Hinter: forall us cs, kugfrag env (Union us) = true -> esize (Union us) <= esize t ->
         gfrag env (Intersection cs) = true -> esize (Intersection cs) <= esize a -> answers (Union us) (Intersection cs)).
-    { intros us cs Hus Hsz Hcs Hsza. pose proof (kcomponents_no_vars us Hus) as Hvus. pose proof (gfrag_components_no_vars env cs Hcs) as Hvcs.
-      destruct (fuel_for_all (fun n C => is_assignable_to env n C (Union us) <> None) cs) as [n0 Hn0].
-      - intros n n' C Hle. exact (answers_mono env n n' C (Union us) Hle).
+    { intros us cs Hus Hsz Hcs Hsza.
+      apply (union_target_intersection_answers env wf us cs (kcomponents_no_vars us Hus) (gfrag_components_no_vars env cs Hcs)).
       - intros C Hc. pose proof (esize_in cs C Hc).
         exact (IH (esize (Union us) + esize C) ltac:(cbn [esize] in Hsza; lia) (Union us) C eq_refl Hus
             (gfrag_kugfrag env C (intersection_component_gfrag cs C Hcs Hc))).
-      - destruct (fuel_for_all (fun n C => is_assignable_to env n (Intersection cs) C <> None) us) as [n1 Hn1].
-        + intros n n' C Hle. exact (answers_mono env n n' (Intersection cs) C Hle).
-        + intros C Hc. pose proof (esize_in us C Hc).
-          exact (IH (esize C + esize (Intersection cs)) ltac:(cbn [esize] in Hsz; lia) C (Intersection cs) eq_refl
-              (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc)) (gfrag_kugfrag env _ Hcs)).
-        + exists (S (max n0 n1)). rewrite (union_intersection_step (max n0 n1) us cs Hvus Hvcs).
-          destruct (closed_first (fun C => is_assignable_to env (max n0 n1) C (Union us)) cs) as [[]|] eqn:F; [discriminate| |].
-          * apply closed_first_some. intros C Hc. apply (answers_mono env n1); [lia|exact (Hn1 C Hc)].
-          * exfalso. apply (closed_first_some (fun C => is_assignable_to env (max n0 n1) C (Union us)) cs); [|exact F].
-            intros C Hc. apply (answers_mono env n0); [lia|exact (Hn0 C Hc)]. }
+      - intros C Hc. pose proof (esize_in us C Hc).
+        exact (IH (esize C + esize (Intersection cs)) ltac:(cbn [esize] in Hsz; lia) C (Intersection cs) eq_refl
+            (gfrag_kugfrag env C (kcomponent_gfrag us C Hus Hc)) (gfrag_kugfrag env _ Hcs)). }
     destruct (kugfrag_cases env t Ht) as [Gt|[[ts [-> [_ Hts]]]|[ts [-> [_ Hts]]]]].
     - (* t of gfrag *)
       destruct (kugfrag_cases env a Ha) as [Ga|[[ys [-> [_ Hys]]]|[ys [-> [_ Hys]]]]].
@@ -1076,29 +849,25 @@ Proof.
         destruct (gfrag_cases env t Gt) as [[m [c [args Et]]]|[[t' [Et _]]|[[gm [nn [p [vs [Et _]]]]]|[cs Et]]]]; subst t;
             try (apply (Hflip ys Ha (le_n _)); exact I).
         (* an intersection target: each of its components *)
-        destruct (fuel_for_all (fun n C => is_assignable_to env n (Union ys) C <> None) cs) as [n Hn].
-        * intros n n' C Hle. exact (answers_mono env n n' (Union ys) C Hle).
-        * intros C Hc. pose proof (esize_in cs C Hc).
-          exact (IH (esize C + esize (Union ys)) ltac:(cbn [esize] in *; lia) C (Union ys) eq_refl (gfrag_kugfrag env C (intersection_component_gfrag cs C Gt Hc)) Ha).
-        * exists (S n). rewrite (intersection_target_step n cs (Union ys) (gfrag_components_no_vars env cs Gt) Hva I). exact (closed_fold_some _ cs Hn).
+        apply (intersection_target_answers env wf cs (Union ys) (gfrag_components_no_vars env cs Gt) Hva I).
+        intros C Hc. pose proof (esize_in cs C Hc).
+        exact (IH (esize C + esize (Union ys)) ltac:(cbn [esize]; lia) C (Union ys) eq_refl (gfrag_kugfrag env C (intersection_component_gfrag cs C Gt Hc)) Ha).
       + (* a nullable union assignee: rejected, or taken by what the target wraps *)
         destruct (gfrag_cases env t Gt) as [[m [c [args Et]]]|[[t' [Et [Hnn Gt']]]|[[gm [nn [p [vs [Et _]]]]]|[cs Et]]]]; subst t.
         * exists 1. discriminate.
-        * destruct (IH (esize t' + esize (Union ys)) ltac:(cbn [esize] in *; lia) t' (Union ys) eq_refl (gfrag_kugfrag env t' Gt') Ha) as [n Hn].
+        * destruct (IH (esize t' + esize (Union ys)) ltac:(cbn [esize]; lia) t' (Union ys) eq_refl (gfrag_kugfrag env t' Gt') Ha) as [n Hn].
           exists (S n). exact Hn.
         * exists 1. discriminate.
         * destruct (is_nullable env (Intersection cs)) eqn:En.
           2: { exists 1. unfold is_assignable_to, empty_unification. rewrite (step_inter_nullable env 0 cs _ [] En). discriminate. }
-          destruct (fuel_for_all (fun n C => is_assignable_to env n (Nullable (Union ys)) C <> None) cs) as [n Hn].
-          { intros n n' C Hle. exact (answers_mono env n n' _ C Hle). }
-          { intros C Hc. pose proof (intersection_component_shape cs C Gt Hc) as Hsh. pose proof (esize_in cs C Hc).
-            destruct C as [m c args|c'|g|me msg|v o c'|g|cs'|us]; try contradiction.
-            - exists 1. discriminate.
-            - destruct (IH (esize c' + esize (Union ys)) ltac:(cbn [esize] in *; lia) c' (Union ys) eq_refl
-                  (gfrag_kugfrag env c' (gfrag_nullable_inner env c' (intersection_component_gfrag cs _ Gt Hc))) Ha) as [n Hn].
-              exists (S n). exact Hn.
-            - destruct g. exists 1. discriminate. }
-          { exists (S n). rewrite (intersection_target_step n cs _ (gfrag_components_no_vars env cs Gt) Hva En). exact (closed_fold_some _ cs Hn). }
+          apply (intersection_target_answers env wf cs _ (gfrag_components_no_vars env cs Gt) Hva En).
+          intros C Hc. pose proof (intersection_component_shape cs C Gt Hc) as Hsh. pose proof (esize_in cs C Hc).
+          destruct C as [m c args|c'|g|me msg|v o c'|g|cs'|us]; try contradiction.
+          { exists 1. discriminate. }
+          { destruct (IH (esize c' + esize (Union ys)) ltac:(cbn [esize] in *; lia) c' (Union ys) eq_refl
+                (gfrag_kugfrag env c' (gfrag_nullable_inner env c' (intersection_component_gfrag cs _ Gt Hc))) Ha) as [n Hn].
+            exists (S n). exact Hn. }
+          { destruct g. exists 1. discriminate. }
     - (* t a union *)
       destruct (kugfrag_cases env a Ha) as [Ga|[[ys [-> [_ Hys]]]|[ys [-> [_ Hys]]]]].
       + destruct (gfrag_cases env a Ga) as [[m [c [args Ea]]]|[[a' [Ea _]]|[[gm [nn [p [vs [Ea _]]]]]|[cs Ea]]]]; subst a;
@@ -1108,12 +877,11 @@ Proof.
       + apply (Hsearch ts Ht (le_n _)). exact I.
     - (* t a nullable union: the union takes the assignee without null *)
       destruct (kugfrag_cases env a Ha) as [Ga|[[ys [-> [_ Hys]]]|[ys [-> [_ Hys]]]]].
-      + pose proof (esize_without_null a) as Hsz.
-        destruct (IH (esize (Union ts) + esize (without_null env a)) ltac:(cbn [esize] in *; lia) (Union ts) (without_null env a) eq_refl Ht
-            (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf a Ga))) as [n Hn].
-        exists (S n). rewrite (nullable_target_step n (Union ts) a Ga). exact Hn.
+      + pose proof (esize_without_null a) as Hsz. apply (nullable_target_answers env (Union ts) a Ga).
+        exact (IH (esize (Union ts) + esize (without_null env a)) ltac:(cbn [esize]; lia) (Union ts) (without_null env a) eq_refl Ht
+            (gfrag_kugfrag env _ (gfrag_without_null env wf declared declared_wf a Ga))).
       + apply (Hflip ys Ha (le_n _)). exact I.
-      + destruct (IH (esize (Union ts) + esize (Union ys)) ltac:(cbn [esize] in *; lia) (Union ts) (Union ys) eq_refl Ht Ha) as [n Hn].
+      + destruct (IH (esize (Union ts) + esize (Union ys)) ltac:(cbn [esize]; lia) (Union ts) (Union ys) eq_refl Ht Ha) as [n Hn].
         exists (S n). exact Hn.
 Qed.
 
