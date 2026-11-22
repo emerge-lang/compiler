@@ -522,4 +522,39 @@ How complicated? Running stuff is probably easy, deducting *what* to run is prob
 Also, the CTFE needs a strict timeout (maybe user-configurable?) so when it runs an infinite loop,
 it eventually continues.
 
+33. admit union types into the fragments of generic code in the type-system proofs (`coverage.md`, union types: the
+    row "unions among the types of generic code"). `Unions.v` covers unions of class types, and, at the top of the
+    fragment of type parameters and intersections (`Fragment.ugfrag`, `kugfrag`), what unify decides of a union and that
+    transitivity never fails; the theorems about substitution, calls and member access (`Substitution`,
+    `SubstitutionWide`, `GenericCode`, `GenericArguments`, `Inference`/`Constraints`, `MemberAccess`/`Composition`)
+    leave unions out of their fragments, so they say nothing about `fn f<T>(x: A | T)`, `Box<A | B>` instantiated, or
+    `p.foo()` with `p: X | Y`. In order:
+    1. `Substitution.sfrag`/`SubstitutionWide.wfrag`, `ktfrag`: unions as types and type arguments; `instantiate` on a
+       union is `union_instances`, whose instance is a plain union only where no component becomes a variant type
+       argument (`union_instances_plain`, the sibling of `intersect_instances_plain`), so the substitution lemma
+       (`substitution_wide`) takes bindings that are invariant for the parameters in unions first; the `out`-wrapped
+       instances (a component bound to `out A`, an `in` one becoming `read Any?`) are the second step. A type variable
+       with a mutability given to it, bound to a union, takes it by component in the frontend
+       (`GenericTypeReference.withGivenMutability`: `const T` of `A | mut B` is `const A | (own B & NonToken)`, found by
+       `MemberAccessPropertiesTests` over the grid); the model's `instantiate` and `Inference.ref_apply` still apply it
+       to the union as a whole (`with_mutability (intersect_mutability (mutability_of x) m) x`), which this step aligns.
+       With it, `Fragment.gfrag` itself can take unions in type arguments, which `ugfrag` keeps at the top.
+    2. `GenericCode.caller_type` admits them through `ktfrag`: `caller_of_union`, `caller_union_instances`, the cases of
+       `template_instances_caller` and `instances_caller`, so `member_call_in_generic_code_instantiated` covers calls
+       with union-typed parameters and arguments in generic code.
+    3. unions as the types of parameters in inference (`Inference.kqfrag`, `Constraints.param_components`): the first
+       component that takes the argument binds the variables (`union_body`), so the final values are those of that
+       component; `Inference.below_flat_components` gets its union sibling.
+    4. member access through a union reference: the frontend resolves the members of the closest common supertype of
+       the components; the model has no member rule for unions yet (`MemberAccess.member_type`), so it needs one that
+       reads them as that supertype, with every value of the union below it (`Unions.v`, `Transitivity`), and
+       `Composition.v` instantiated for the run-time bindings.
+    5. transitivity on `kugfrag`, unions with components that may be null as they are (`A | P` with `P : Any?`,
+       `A | (B? & P)`): `Unions.transitivity_never_fails_with_unions` takes non-null components (`ugfrag`), as the
+       proof puts a component `C` of a nullable union `(C | D)?` back under `Nullable` to use the induction hypothesis,
+       and `Nullable C` is of the fragment only where `C` is non-null. With such components it needs that narrowing
+       keeps assignability (`x` below `P` gives `x` without null below `P!`, through the bounds of references), or a
+       fragment that admits `P?` for a nullable `P`.
+    Each step is gated by `./rocq.sh` with the oracle, and updates the union row of `coverage.md`.
+
 [1]: https://openjdk.org/jeps/447
