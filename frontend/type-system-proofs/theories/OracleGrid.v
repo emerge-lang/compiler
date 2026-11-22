@@ -18,8 +18,8 @@ Local Open Scope string_scope.
 (*   as that (model := None), not as either answer. A disagreement makes the proof fail, and the     *)
 (*   error shows it: the names of the two types, as TypeGrid writes them, and both answers.          *)
 (* - conjectures_checked: the conjectures about intersect and closestCommonSupertypeWith of         *)
-(*   Conjectures.v, GenericCode.v, GenericArguments.v and Constraints.v, over every pair of the grid *)
-(*   in their fragments; the theorems after it state them, of the grid.                              *)
+(*   Conjectures.v (with unions), GenericCode.v, GenericArguments.v and Constraints.v, over every    *)
+(*   pair of the grid in their fragments; the theorems after it state them, of the grid.             *)
 (*                                                                                                *)
 (* The excuses are the known divergences, each owned by an item of coverage.md. One that explains   *)
 (* nothing fails the proof as well (the second component of each report), so that it is removed    *)
@@ -53,8 +53,9 @@ Definition unify_excuses: list Excuse := [
 Definition keeps_nullable_components (t: EType): bool :=
     match t with Intersection cs | Nullable (Intersection cs) => existsb (is_nullable env) cs | _ => false end.
 
-(* A type with a union in it, which the fragments of the conjectures leave out (coverage: union types): the
-   checks of the conjectures skip the pairs with one, unify_agrees covers them *)
+(* A type with a union in it, which the fragment of generic code (GenericCode.caller_type, through ktfrag) leaves
+   out (roadmap: union types in the fragments of generic code): the checks of the conjectures of generic code skip
+   the pairs with one; those of Conjectures.v cover them, over kugfrag *)
 Fixpoint has_union (t: EType): bool :=
     match t with
     | Union _ => true
@@ -67,10 +68,14 @@ Fixpoint has_union (t: EType): bool :=
 (* The grid has types of each fragment the conjectures are about: all of them but the unions of gfrag and of
    the generic code of Ctx (GenericCode.caller_type), more than ten class types without contravariance
    (Inference.afrag, without_contravariance), and class types with it, which closest_common_supertype_of_classes
-   leaves out (coverage #17), these intersections whose components keep their nullability, and union types *)
+   leaves out (coverage #17), these intersections whose components keep their nullability, and unions: with
+   non-null components (ugfrag), with components that keep their nullability (kugfrag), and in type arguments,
+   which neither admits yet (roadmap: union types in the fragments of generic code) *)
 Lemma grid_covers_the_fragments:
     forallb (fun t => has_union t || gfrag env t && ktfrag env t && mentions_only_b env caller_parameters t) (grid_types grid) = true
-    /\ existsb has_union (grid_types grid) = true
+    /\ existsb (fun t => has_union t && ugfrag env t) (grid_types grid) = true
+    /\ existsb (fun t => has_union t && kugfrag env t && negb (ugfrag env t)) (grid_types grid) = true
+    /\ existsb (fun t => has_union t && negb (kugfrag env t)) (grid_types grid) = true
     /\ Nat.ltb 10 (List.length (filter (fun t => afrag env t && closed t && without_contravariance t) (grid_types grid))) = true
     /\ existsb (fun t => afrag env t && closed t && negb (without_contravariance t)) (grid_types grid) = true
     /\ map fst (filter (fun x => keeps_nullable_components (snd x)) grid) = [

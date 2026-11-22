@@ -21,8 +21,8 @@ Import ListNotations.
 (* each conjecture is false of some environment; as an axiom over all environments, it would let     *)
 (* Rocq prove anything. They are claims about the one environment of the Kotlin implementation.     *)
 (*                                                                                                *)
-(* The types are those of Generics.v: of the fragment gfrag. A conjecture whose inputs are outside *)
-(* of it claims nothing about them.                                                               *)
+(* The types are those of Generics.v: of the fragment gfrag, and of it with the unions the frontend *)
+(* builds (kugfrag). A conjecture whose inputs are outside of it claims nothing about them.         *)
 (*                                                                                                *)
 (* One premise is about the model alone: that unify terminates on the environment at hand          *)
 (* (unify_terminates_on, below). It was a claim about every environment whose inheritance is tame, *)
@@ -38,9 +38,14 @@ Variable declared: TypeParameterId -> EType.
 Let in_gfrag (t: EType): Prop := gfrag env t = true /\ refs_wf env declared t.
 
 (* A reference to a type parameter of a nullable bound, as it is: neither narrowed nor `T?`; or an
-   intersection that keeps the nullability of its components, nullable as such references among them *)
-Definition bare_nullable (t: EType): bool :=
-    match t with Generic _ | Intersection _ => is_nullable env t | _ => false end.
+   intersection that keeps the nullability of its components, nullable as such references among them;
+   or a union with such a component, nullable or not (`A | P`, `(A | P)?`) *)
+Fixpoint bare_nullable (t: EType): bool :=
+    match t with
+    | Generic _ | Intersection _ => is_nullable env t
+    | Union us | Nullable (Union us) => existsb bare_nullable us
+    | _ => false
+    end.
 
 (* Whether ofComponents may make, of a and b, an intersection whose components keep their nullability
    (`A? & P` of `A?` and `P : Any?`, coverage #15): both may be null, and one is such a reference *)
@@ -86,6 +91,74 @@ Definition closest_common_supertype_is_above_both: Prop :=
     forall a b, in_gfrag a -> in_gfrag b ->
         (exists n, is_assignable_to env n a (closest_common_supertype_with env a b) = Some true)
         /\ (exists n, is_assignable_to env n b (closest_common_supertype_with env a b) = Some true).
+
+(* The same with unions: of the fragment with the unions the frontend builds (Fragment.kugfrag). What the
+   functions make of its types is of it, and of gfrag where both operands are, as neither makes a union of
+   types without one (of_fragment_of). These are what the oracle checks (OracleGrid.v); the conjectures above,
+   which the theorems take, follow from them (intersect_stays_in_fragment_without_unions and the like) *)
+Let in_kugfrag (t: EType): Prop := kugfrag env t = true /\ refs_wf env declared t.
+
+Definition of_fragment_of (a b z: EType): Prop := in_kugfrag z /\ (gfrag env a = true -> gfrag env b = true -> gfrag env z = true).
+
+Definition intersect_stays_in_fragment_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b -> keeps_nullability a b = false -> of_fragment_of a b (intersect env a b).
+
+Definition intersect_always_stays_in_fragment_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b -> of_fragment_of a b (intersect env a b).
+
+Definition intersect_makes_no_bare_nullable_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (intersect env a b) = false.
+
+Definition closest_common_supertype_makes_no_bare_nullable_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b -> bare_nullable a = false -> bare_nullable b = false ->
+        bare_nullable (closest_common_supertype_with env a b) = false.
+
+Definition closest_common_supertype_stays_in_fragment_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b -> of_fragment_of a b (closest_common_supertype_with env a b).
+
+Definition intersect_is_below_both_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b ->
+        (exists n, is_assignable_to env n (intersect env a b) a = Some true)
+        /\ (exists n, is_assignable_to env n (intersect env a b) b = Some true).
+
+Definition closest_common_supertype_is_above_both_with_unions: Prop :=
+    forall a b, in_kugfrag a -> in_kugfrag b ->
+        (exists n, is_assignable_to env n a (closest_common_supertype_with env a b) = Some true)
+        /\ (exists n, is_assignable_to env n b (closest_common_supertype_with env a b) = Some true).
+
+Lemma in_kugfrag_of_gfrag: forall t, in_gfrag t -> in_kugfrag t.
+Proof. intros t [H Hr]. exact (conj (gfrag_kugfrag env t H) Hr). Qed.
+
+Lemma of_fragment_of_gfrag: forall x y z, in_gfrag x -> in_gfrag y -> of_fragment_of x y z -> in_gfrag z.
+Proof. intros x y z Hx Hy [[_ Hr] Hg]. exact (conj (Hg (proj1 Hx) (proj1 Hy)) Hr). Qed.
+
+Lemma intersect_stays_in_fragment_without_unions: intersect_stays_in_fragment_with_unions -> intersect_stays_in_fragment.
+Proof.
+    intros H a b Ha Hb Hk. exact (of_fragment_of_gfrag a b _ Ha Hb (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb) Hk)).
+Qed.
+
+Lemma intersect_always_stays_in_fragment_without_unions:
+    intersect_always_stays_in_fragment_with_unions -> intersect_always_stays_in_fragment.
+Proof. intros H a b Ha Hb. exact (of_fragment_of_gfrag a b _ Ha Hb (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb))). Qed.
+
+Lemma intersect_makes_no_bare_nullable_without_unions: intersect_makes_no_bare_nullable_with_unions -> intersect_makes_no_bare_nullable.
+Proof. intros H a b Ha Hb. exact (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb)). Qed.
+
+Lemma closest_common_supertype_makes_no_bare_nullable_without_unions:
+    closest_common_supertype_makes_no_bare_nullable_with_unions -> closest_common_supertype_makes_no_bare_nullable.
+Proof. intros H a b Ha Hb. exact (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb)). Qed.
+
+Lemma closest_common_supertype_stays_in_fragment_without_unions:
+    closest_common_supertype_stays_in_fragment_with_unions -> closest_common_supertype_stays_in_fragment.
+Proof. intros H a b Ha Hb. exact (of_fragment_of_gfrag a b _ Ha Hb (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb))). Qed.
+
+Lemma intersect_is_below_both_without_unions: intersect_is_below_both_with_unions -> intersect_is_below_both.
+Proof. intros H a b Ha Hb. exact (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb)). Qed.
+
+Lemma closest_common_supertype_is_above_both_without_unions:
+    closest_common_supertype_is_above_both_with_unions -> closest_common_supertype_is_above_both.
+Proof. intros H a b Ha Hb. exact (H a b (in_kugfrag_of_gfrag a Ha) (in_kugfrag_of_gfrag b Hb)). Qed.
 
 End Conjectures.
 

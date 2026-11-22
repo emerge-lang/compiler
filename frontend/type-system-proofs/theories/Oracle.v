@@ -587,47 +587,58 @@ Proof. intros [] why H; [reflexivity|discriminate H]. Qed.
 
 Definition result_named (what: string) (t: EType): string := what ++ name_of t.
 
-(* Conjectures.intersect_stays_in_fragment *)
+(* What the functions make of operands of the fragment with unions is of it (Conjectures.of_fragment_of), and
+   of gfrag where both operands are *)
+Definition of_fragment_of_check (x y z: EType): option string :=
+    if kugfrag env z
+    then unless (negb (gfrag env x && gfrag env y) || gfrag env z) (result_named "a union, of types without one: " z)
+    else Some (result_named "not of kugfrag: " z).
+
+Lemma of_fragment_of_checked: forall x y z, of_fragment_of_check x y z = None -> of_fragment_of env declared x y z.
+Proof.
+    intros x y z H. unfold of_fragment_of_check in H. destruct (kugfrag env z) eqn:Ez; [|discriminate H].
+    apply unless_none in H. split; [exact (conj Ez I)|]. intros Hx Hy. rewrite Hx, Hy in H. exact H.
+Qed.
+
+(* Conjectures.intersect_stays_in_fragment_with_unions *)
 Definition intersect_in_fragment_check (x y z _: EType): option string :=
-    if gfrag env x && gfrag env y && negb (keeps_nullability env x y)
-    then unless (gfrag env z) (result_named "not of gfrag: " z)
-    else None.
+    if kugfrag env x && kugfrag env y && negb (keeps_nullability env x y) then of_fragment_of_check x y z else None.
 
 Definition intersect_in_fragment_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
-    keeps_nullability env x y = false -> gfrag env (intersect env x y) = true /\ refs_wf env declared (intersect env x y).
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
+    keeps_nullability env x y = false -> of_fragment_of env declared x y (intersect env x y).
 
 Lemma intersect_in_fragment_checked: forall x y,
     intersect_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None -> intersect_in_fragment_on x y.
 Proof.
     intros x y H [Ha _] [Hb _] Hk. unfold intersect_in_fragment_check in H. rewrite Ha, Hb, Hk in H. cbn in H.
-    split; [exact (unless_none _ _ H)|exact I].
+    exact (of_fragment_of_checked x y _ H).
 Qed.
 
-(* Conjectures.intersect_always_stays_in_fragment *)
+(* Conjectures.intersect_always_stays_in_fragment_with_unions *)
 Definition intersect_always_in_fragment_check (x y z _: EType): option string :=
-    if gfrag env x && gfrag env y then unless (gfrag env z) (result_named "not of gfrag: " z) else None.
+    if kugfrag env x && kugfrag env y then of_fragment_of_check x y z else None.
 
 Definition intersect_always_in_fragment_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
-    gfrag env (intersect env x y) = true /\ refs_wf env declared (intersect env x y).
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
+    of_fragment_of env declared x y (intersect env x y).
 
 Lemma intersect_always_in_fragment_checked: forall x y,
     intersect_always_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
     intersect_always_in_fragment_on x y.
 Proof.
     intros x y H [Ha _] [Hb _]. unfold intersect_always_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
-    split; [exact (unless_none _ _ H)|exact I].
+    exact (of_fragment_of_checked x y _ H).
 Qed.
 
-(* Conjectures.intersect_makes_no_bare_nullable *)
+(* Conjectures.intersect_makes_no_bare_nullable_with_unions *)
 Definition intersect_no_bare_nullable_check (x y z _: EType): option string :=
-    if gfrag env x && gfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
+    if kugfrag env x && kugfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
     then unless (negb (bare_nullable env z)) (result_named "bare nullable: " z)
     else None.
 
 Definition intersect_no_bare_nullable_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
     bare_nullable env x = false -> bare_nullable env y = false -> bare_nullable env (intersect env x y) = false.
 
 Lemma intersect_no_bare_nullable_checked: forall x y,
@@ -638,14 +649,14 @@ Proof.
     apply negb_true_iff. exact (unless_none _ _ H).
 Qed.
 
-(* Conjectures.closest_common_supertype_makes_no_bare_nullable *)
+(* Conjectures.closest_common_supertype_makes_no_bare_nullable_with_unions *)
 Definition supertype_no_bare_nullable_check (x y _ z: EType): option string :=
-    if gfrag env x && gfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
+    if kugfrag env x && kugfrag env y && negb (bare_nullable env x) && negb (bare_nullable env y)
     then unless (negb (bare_nullable env z)) (result_named "bare nullable: " z)
     else None.
 
 Definition supertype_no_bare_nullable_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
     bare_nullable env x = false -> bare_nullable env y = false -> bare_nullable env (closest_common_supertype_with env x y) = false.
 
 Lemma supertype_no_bare_nullable_checked: forall x y,
@@ -656,32 +667,32 @@ Proof.
     apply negb_true_iff. exact (unless_none _ _ H).
 Qed.
 
-(* Conjectures.closest_common_supertype_stays_in_fragment *)
+(* Conjectures.closest_common_supertype_stays_in_fragment_with_unions *)
 Definition supertype_in_fragment_check (x y _ z: EType): option string :=
-    if gfrag env x && gfrag env y then unless (gfrag env z) (result_named "not of gfrag: " z) else None.
+    if kugfrag env x && kugfrag env y then of_fragment_of_check x y z else None.
 
 Definition supertype_in_fragment_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
-    gfrag env (closest_common_supertype_with env x y) = true /\ refs_wf env declared (closest_common_supertype_with env x y).
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
+    of_fragment_of env declared x y (closest_common_supertype_with env x y).
 
 Lemma supertype_in_fragment_checked: forall x y,
     supertype_in_fragment_check x y (intersect env x y) (closest_common_supertype_with env x y) = None ->
     supertype_in_fragment_on x y.
 Proof.
     intros x y H [Ha _] [Hb _]. unfold supertype_in_fragment_check in H. rewrite Ha, Hb in H. cbn in H.
-    split; [exact (unless_none _ _ H)|exact I].
+    exact (of_fragment_of_checked x y _ H).
 Qed.
 
-(* Conjectures.intersect_is_below_both *)
+(* Conjectures.intersect_is_below_both_with_unions *)
 Definition intersect_below_check (x y z _: EType): option string :=
-    if gfrag env x && gfrag env y
+    if kugfrag env x && kugfrag env y
     then first_failure
         (why_not_below (result_named "not below the first: " z) z x)
         (why_not_below (result_named "not below the second: " z) z y)
     else None.
 
 Definition intersect_below_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
     (exists n, is_assignable_to env n (intersect env x y) x = Some true)
     /\ (exists n, is_assignable_to env n (intersect env x y) y = Some true).
 
@@ -692,16 +703,16 @@ Proof.
     destruct (first_failure_none _ _ H) as [H1 H2]. split; [exact (why_not_below_none _ _ _ H1)|exact (why_not_below_none _ _ _ H2)].
 Qed.
 
-(* Conjectures.closest_common_supertype_is_above_both *)
+(* Conjectures.closest_common_supertype_is_above_both_with_unions *)
 Definition supertype_above_check (x y _ z: EType): option string :=
-    if gfrag env x && gfrag env y
+    if kugfrag env x && kugfrag env y
     then first_failure
         (why_not_below (result_named "not above the first: " z) x z)
         (why_not_below (result_named "not above the second: " z) y z)
     else None.
 
 Definition supertype_above_on (x y: EType): Prop :=
-    gfrag env x = true /\ refs_wf env declared x -> gfrag env y = true /\ refs_wf env declared y ->
+    kugfrag env x = true /\ refs_wf env declared x -> kugfrag env y = true /\ refs_wf env declared y ->
     (exists n, is_assignable_to env n x (closest_common_supertype_with env x y) = Some true)
     /\ (exists n, is_assignable_to env n y (closest_common_supertype_with env x y) = Some true).
 
