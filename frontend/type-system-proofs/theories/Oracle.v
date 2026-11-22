@@ -165,6 +165,7 @@ Abbreviation N := Nullable (only parsing).
 Abbreviation G m nn p := (Generic (mkGenericRef m nn p nil)) (only parsing).
 Abbreviation A := TypeArgument (only parsing).
 Abbreviation I := Intersection (only parsing).
+Abbreviation U := Union (only parsing).
 Abbreviation K := some_class (only parsing).
 Abbreviation mu := (Some mutable) (only parsing).
 Abbreviation ro := (Some readonly) (only parsing).

@@ -53,12 +53,24 @@ Definition unify_excuses: list Excuse := [
 Definition keeps_nullable_components (t: EType): bool :=
     match t with Intersection cs | Nullable (Intersection cs) => existsb (is_nullable env) cs | _ => false end.
 
-(* The grid has types of each fragment the conjectures are about: all of them of gfrag and of the
-   generic code of Ctx (GenericCode.caller_type), more than ten class types without contravariance
+(* A type with a union in it, which the fragments of the conjectures leave out (coverage: union types): the
+   checks of the conjectures skip the pairs with one, unify_agrees covers them *)
+Fixpoint has_union (t: EType): bool :=
+    match t with
+    | Union _ => true
+    | Nullable n | TypeArgument _ _ n => has_union n
+    | RootResolved _ _ arguments => existsb has_union arguments
+    | Intersection cs => existsb has_union cs
+    | _ => false
+    end.
+
+(* The grid has types of each fragment the conjectures are about: all of them but the unions of gfrag and of
+   the generic code of Ctx (GenericCode.caller_type), more than ten class types without contravariance
    (Inference.afrag, without_contravariance), and class types with it, which closest_common_supertype_of_classes
-   leaves out (coverage #17), and these intersections whose components keep their nullability *)
+   leaves out (coverage #17), these intersections whose components keep their nullability, and union types *)
 Lemma grid_covers_the_fragments:
-    forallb (fun t => gfrag env t && ktfrag env t && mentions_only_b env caller_parameters t) (grid_types grid) = true
+    forallb (fun t => has_union t || gfrag env t && ktfrag env t && mentions_only_b env caller_parameters t) (grid_types grid) = true
+    /\ existsb has_union (grid_types grid) = true
     /\ Nat.ltb 10 (List.length (filter (fun t => afrag env t && closed t && without_contravariance t) (grid_types grid))) = true
     /\ existsb (fun t => afrag env t && closed t && negb (without_contravariance t)) (grid_types grid) = true
     /\ map fst (filter (fun x => keeps_nullable_components (snd x)) grid) = [

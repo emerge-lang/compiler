@@ -386,7 +386,11 @@ class BoundIntersectionTypeReference private constructor(
             val unionIndex = components.indexOfFirst { it.unionedComponents().size > 1 }
             if (unionIndex >= 0) {
                 val alternatives = components[unionIndex].unionedComponents().map { alternative ->
-                    ofComponents(context, null, components.toMutableList().also { it[unionIndex] = alternative }, simplify)
+                    // the alternative may be an intersection itself, nullable or not: its components, flat
+                    val withAlternative = components.toMutableList()
+                    withAlternative.removeAt(unionIndex)
+                    withAlternative.addAll(unionIndex, alternative.intersectedComponents())
+                    ofComponents(context, null, withAlternative, simplify)
                 }
                 return BoundUnionTypeReference.ofComponents(context, null, alternatives, simplify)
             }

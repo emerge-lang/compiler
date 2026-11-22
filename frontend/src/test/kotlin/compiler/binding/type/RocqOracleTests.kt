@@ -9,6 +9,7 @@ import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -103,6 +104,11 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
             commonSuperClasses.getOrPut(baseTypes.map(::classOf)) { classOf(BoundBaseType.closestCommonSupertypeOf(baseTypes)) }
             "I [${t.components.joinToString("; ") { encode(it, template) }}]"
         }
+        is BoundUnionTypeReference -> {
+            val baseTypes = t.components.map { it.baseTypeOfLowerBound }
+            commonSuperClasses.getOrPut(baseTypes.map(::classOf)) { classOf(BoundBaseType.closestCommonSupertypeOf(baseTypes)) }
+            "U [${t.components.joinToString("; ") { encode(it, template) }}]"
+        }
         else -> error("no encoding of ${t::class.simpleName} $t")
     }
 
@@ -133,6 +139,7 @@ internal class RocqGridEncoder(private val swCtx: SoftwareContext) {
         is NullableTypeReference -> mentioned(t.nested)
         is GenericTypeReference -> setOf(t.parameter)
         is BoundIntersectionTypeReference -> t.components.flatMap(::mentioned).toSet()
+        is BoundUnionTypeReference -> t.components.flatMap(::mentioned).toSet()
         is BoundTypeArgument -> mentioned(t.type)
         else -> emptySet()
     }

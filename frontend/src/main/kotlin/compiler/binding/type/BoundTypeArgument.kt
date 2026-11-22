@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.ast.type.AstSpecificTypeArgument
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.TypeMutability
@@ -12,6 +13,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
+import compiler.binding.type.BoundUnionTypeReference.Companion.unionedComponents
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.ownTypeArgument
@@ -64,8 +66,18 @@ class BoundTypeArgument(
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         forUsage.validateForTypeVariance(variance, diagnosis)
         // Nothing has no values that could be referenced twice; `own Nothing` is how the bottom type is written
-        val isNothing = type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
-        if (astNode is AstSpecificTypeArgument && astNode.type.isDeclaredOwn && !isNothing) {
+        fun isNothing(t: BoundTypeReference) = t.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).isNonNullableNothing
+        val declaredOwnWithValues = if (astNode is AstSpecificTypeArgument) {
+            val declared = astNode.type
+            val boundComponents = type.unionedComponents()
+            // of a union, by component: `A | own Nothing` is fine, `own A | B` is not
+            if (declared is AstUnionType && declared.components.size == boundComponents.size) {
+                declared.components.zip(boundComponents).any { (ast, bound) -> ast.isDeclaredOwn && !isNothing(bound) }
+            } else {
+                declared.isDeclaredOwn && !isNothing(type)
+            }
+        } else false
+        if (declaredOwnWithValues) {
             diagnosis.ownTypeArgument(this)
         }
         type.validate(forUsage.deriveIrrelevant(), diagnosis)

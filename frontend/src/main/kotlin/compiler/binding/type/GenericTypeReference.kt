@@ -1,10 +1,12 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.AstSpecificTypeArgument
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.type.BoundUnionTypeReference.Companion.unionedComponents
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -244,19 +246,41 @@ class GenericTypeReference private constructor(
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         var instantiated = context.getFinalTypeFor(this.parameter)
         if (givenMutability != null) {
-            // a value of type `m T` is a T of a mutability that fits m
-            val isNoToken = givenMutability == TypeMutability.IMMUTABLE || !instantiated.let { (it as? BoundTypeArgument)?.type ?: it }.mayBeToken
-            instantiated = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
-            if (isNoToken) {
-                // what is const is no token. `const T` of a `mut X` is an `own X`, and so is `mut T` of a `const X`;
-                // that doesn't say so anymore
-                instantiated = with(BoundIntersectionTypeReference) { instantiated.asNoToken() }
-            }
+            instantiated = withGivenMutability(instantiated, givenMutability)
         }
         if (isNarrowed) {
             instantiated = instantiated.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
         }
         return instantiated
+    }
+
+    /**
+     * What `m T` is for [instantiated] as `T`: a value of type `m T` is a T of a mutability that fits m. Of a union, by
+     * component: `const T` of `A | mut B` is `const A | (own B & NonToken)`, as it would be for `A` and `mut B` alone.
+     */
+    private fun withGivenMutability(instantiated: BoundTypeReference, givenMutability: TypeMutability): BoundTypeReference {
+        if (instantiated is BoundTypeArgument) {
+            // the argument stays one, of what its type becomes
+            val inner = withGivenMutability(instantiated.type, givenMutability)
+            if (inner == instantiated.type) {
+                return instantiated
+            }
+            return BoundTypeArgument(context, AstSpecificTypeArgument(instantiated.variance, inner.asAstReference()), instantiated.variance, inner)
+        }
+
+        val components = instantiated.unionedComponents()
+        if (components.size > 1) {
+            return BoundUnionTypeReference.ofComponents(context, null, components.map { withGivenMutability(it, givenMutability) })
+        }
+
+        val isNoToken = givenMutability == TypeMutability.IMMUTABLE || !instantiated.let { (it as? BoundTypeArgument)?.type ?: it }.mayBeToken
+        val withMutability = instantiated.withMutability(instantiated.mutability.intersect(givenMutability))
+        if (isNoToken) {
+            // what is const is no token. `const T` of a `mut X` is an `own X`, and so is `mut T` of a `const X`;
+            // that doesn't say so anymore
+            return with(BoundIntersectionTypeReference) { withMutability.asNoToken() }
+        }
+        return withMutability
     }
 
     override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {

@@ -76,8 +76,10 @@ class UnionTypeTests : FreeSpec({
             swCtx.parseType("A | B | A").shouldBeInstanceOf<BoundUnionTypeReference>().simplify().toString() shouldBe "read testmodule.B | read testmodule.A"
         }
 
-        "the kept component takes the mutability of the union" {
-            swCtx.parseType("mut A | read ConcreteA").shouldBeInstanceOf<BoundUnionTypeReference>().simplify().toString() shouldBe "read testmodule.A"
+        "components are compared as they are, mutability included" {
+            swCtx.parseType("mut A | mut ConcreteA").shouldBeInstanceOf<BoundUnionTypeReference>().simplify().toString() shouldBe "mut testmodule.A"
+            val mixed = swCtx.parseType("mut A | read ConcreteA").shouldBeInstanceOf<BoundUnionTypeReference>()
+            mixed.simplify() shouldBe mixed
         }
 
         "unrelated components stay" {

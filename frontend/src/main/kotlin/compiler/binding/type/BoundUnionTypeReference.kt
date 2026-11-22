@@ -23,9 +23,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUnionType
  * `A | B`: a value of it is a value of one of the [components]. What the type-system proofs model as `Model.Union`
  * (`Subtyping.unify_union` and friends), so the two have to agree.
  *
- * The components are no unions themselves (those are flattened), and not nullable: the union is nullable as a whole
- * where a component was (`A | B?` is `(A | B)?`), see [ofComponents]. The exception is a [TypeVariable], which cannot
- * be made non-null.
+ * The components are no unions themselves (those are flattened), and none is written nullable: the union is nullable
+ * as a whole where a component was (`A | B?` is `(A | B)?`), see [ofComponents]. A component that is nullable without
+ * being written so, a type parameter with a nullable bound (`A | P` with `P : Any?`), stays as it is: null is a value
+ * of the union exactly where it is one of the component, also once the parameter is instantiated.
  */
 class BoundUnionTypeReference private constructor(
     override val context: CTContext,
@@ -35,7 +36,7 @@ class BoundUnionTypeReference private constructor(
     init {
         check(components.size >= 2) { "a union has at least two components" }
         check(components.none { it.unionedComponents().size > 1 }) { "the components of a union are flattened in ${Companion::ofComponents.name}" }
-        check(components.none { it.isNullable && it !is TypeVariable }) { "the nullability of a union is decided in ${Companion::ofComponents.name}" }
+        check(components.none { it is NullableTypeReference }) { "the nullability of a union is decided in ${Companion::ofComponents.name}" }
     }
 
     override val span = astNode?.span ?: components.firstNotNullOfOrNull { it.span }
@@ -251,8 +252,8 @@ class BoundUnionTypeReference private constructor(
     }
 
     /**
-     * Removes the components that another one takes, both seen with the mutability of the union; the one kept takes
-     * that mutability then, so that the union keeps its own: `mut A | read B` with `B : A` is `read A`.
+     * Removes the components that another one takes, as they are: `read B | read A` with `B : A` is `read A`, and
+     * `mut A | read B` stays, as `read A` would also have the `read A` values that are neither `mut` nor a `B`.
      * @return null if nothing is to be removed
      */
     private fun simplifyComponents(): List<BoundTypeReference>? {
@@ -262,17 +263,12 @@ class BoundUnionTypeReference private constructor(
         subs@while (subIndex < newComponents.size) {
             val sub = newComponents[subIndex]
             if (!sub.mentionsTypeVariables) {
-                val subWithSelfMutability = sub.withMutability(mutability)
                 for (superIndex in newComponents.indices) {
                     val superComponent = newComponents[superIndex]
                     if (superIndex == subIndex || superComponent.mentionsTypeVariables) {
                         continue
                     }
-                    val superWithSelfMutability = superComponent.withMutability(mutability)
-                    if (subWithSelfMutability isAssignableTo superWithSelfMutability) {
-                        if (superComponent.mutability != superWithSelfMutability.mutability) {
-                            newComponents[superIndex] = superWithSelfMutability
-                        }
+                    if (sub isAssignableTo superComponent) {
                         newComponents.removeAt(subIndex)
                         anyRemoved = true
                         continue@subs
@@ -368,7 +364,7 @@ class BoundUnionTypeReference private constructor(
     companion object {
         /**
          * The union of [components]: the components flattened (`Subtyping.unioned_components`), the nullability pulled
-         * out (`Subtyping.of_union`); the component alone if there is only one.
+         * out where a component is written nullable (`Subtyping.of_union`); the component alone if there is only one.
          */
         fun ofComponents(
             context: CTContext,
@@ -380,7 +376,7 @@ class BoundUnionTypeReference private constructor(
             flatComponents.singleOrNull()?.let { return it }
             check(flatComponents.isNotEmpty()) { "a union has at least one component" }
 
-            val isNullable = flatComponents.any { it.isNullable }
+            val isNullable = flatComponents.any { it is NullableTypeReference }
             var union: BoundTypeReference = BoundUnionTypeReference(
                 context,
                 ref,

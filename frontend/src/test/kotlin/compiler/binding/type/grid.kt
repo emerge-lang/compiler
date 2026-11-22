@@ -109,6 +109,14 @@ internal object TypeGrid {
         "Dep<A, *>", "Dep<C, *>", "Dep<*, *>", "Dep<P, *>", "Dep<A, *>?", "mut Dep<A, *>", "Box<Dep<A, *>>",
         "Dep<A, IntSeq>", "Dep<A, Seq<A>>", "Dep<C, Seq<C>>", "Dep<A, out Seq<C>>", "Dep<P, Seq<P>>", "Dep<out A, *>",
         "Slf<*>", "Slf<N>", "mut Slf<N>", "Slf<out Ord<N>>", "Box<Slf<*>>",
+        // union types (coverage: union types): of classes and interfaces, nullable, of mutabilities, with intersections,
+        // of type parameters, of tokens and what is none, as type arguments, and among the other types
+        "A | B", "B | A", "mut A | B", "mut A | mut B", "const A | mut B", "A | B?", "A? | B?", "A | B | C", "C | B",
+        "N | M", "N | A", "A | N?", "mut N | M", "D | M", "Box<A> | Box<C>", "Box<out A> | Box<C>", "IntSeq | Seq<A>",
+        "A & B | C", "A & B | N", "A | P", "P | Q", "A | R", "Q | mut B", "A | own Nothing", "A | Any", "read Nothing | own Nothing",
+        "Tok | A", "Clk | Pl", "NonToken | Pl", "mut Tok | Shp", "A | F", "T | Q", "U | B",
+        "Box<A | B>", "Box<out A | B>", "Box<in A | B>", "Box<A | B?>", "Box<out N | M>", "Seq<A | B>", "Box<P | Q>", "Box<out A | P>",
+        "Box<A> | A", "A | Box<in A>",
     ).map { it to swCtx.parseTypeIn("Ctx", it) }
 
     /** the type parameters of Ctx, bound in ways that tell their mutability and nullability apart, each within its bound */
