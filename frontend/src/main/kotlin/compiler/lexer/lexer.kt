@@ -78,7 +78,7 @@ fun lex(sourceFile: LexerSourceFile, addTrailingNewline: Boolean = true): Array<
         val text = iterator.collectUntilOperatorOrWhitespace(sourceFile)
 
         // check against keywords
-        val keyword = Keyword.entries.firstOrNull { it.text.equals(text.first, true) }
+        val keyword = Keyword.entries.firstOrNull { it.text == text.first }
 
         if (keyword != null) {
             tokens.add(KeywordToken(keyword, text.first, text.second))

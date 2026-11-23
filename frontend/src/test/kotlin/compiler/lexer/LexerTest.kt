@@ -19,14 +19,7 @@
 package compiler.compiler.lexer
 
 import compiler.compiler.negative.lexCode
-import compiler.lexer.EndOfInputToken
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.NumericLiteralToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.StringLiteralContentToken
+import compiler.lexer.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.comparables.beGreaterThan
 import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
@@ -50,12 +43,14 @@ class LexerTest : FreeSpec() {init {
             result[1] should beInstanceOf<EndOfInputToken>()
         }
 
-        "should be case insensitive" {
-            val result = lexCode(" PaCkAGe ", false)
+        "should be case sensitive" {
+            val result = lexCode(" Set PaCkAGe ", false)
 
-            result.size should beGreaterThanOrEqualTo(1)
-            result[0] should beInstanceOf(KeywordToken::class)
-            (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
+            result.size should beGreaterThanOrEqualTo(2)
+            result[0] should beInstanceOf(IdentifierToken::class)
+            (result[0] as IdentifierToken).value shouldBe "Set"
+            result[1] should beInstanceOf(IdentifierToken::class)
+            (result[1] as IdentifierToken).value shouldBe "PaCkAGe"
         }
     }
 
