@@ -5,7 +5,7 @@ export interface Map<Key : const Equatable<Key>, Value> {
     export operator fn getAtIndex(self: mut _, borrow index: Key) -> Value?
     export operator fn remove(self: mut _, borrow key: Key) -> Value?
     export operator fn contains(self, borrow key: Key) -> Bool 
-    export fun asRange(self) -> SizedRange<out read MapEntry<Key, Value>>
+    export fn asRange(self) -> SizedRange<out read MapEntry<Key, Value>>
 }
 
 export class MapEntry<Key, Value> {

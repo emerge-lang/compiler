@@ -3,22 +3,22 @@ package emerge.std.collections
 import emerge.core.safemath.plusModulo
 
 export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
-    private var buckets: Array<mut ArrayList<mut MapEntry<Key, Value>>?> = Array::new(16, null)
+    private var buckets: Array<mut ArrayList<mut MapEntry<Key, Value>>?> = Array.new(16, null)
     private var hashAlgorithm: HashAlgorithm<UWord> = init
     private var maxBucketSize = 4
     private var version: UWord = 0
     private var _size: UWord = 0
 
     export operator fn setAtIndex(self: mut _, index: Key, value: Value) -> Value? {
-        return self.storeEntry(MapEntry(key, value), true)
+        return self.storeEntry(MapEntry(index, value), true)
     }
 
-    private fn storeEntry(entry: MapEntry<Key, Value>, grow: Bool) -> Value? {
+    private fn storeEntry(self: mut _, entry: MapEntry<Key, Value>, grow: Bool) -> Value? {
         hash = entry.key.hashWith(self.hashAlgorithm)
         bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
-            for bucketEntry in bucket {
+            foreach bucketEntry in bucket {
                 if bucketEntry.key.equals(bucket.key) {
                     if bucketEntry.isSameInstanceAs(entry) {
                         return bucketEntry.value
@@ -36,8 +36,8 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
                 return storeEntry(entry, false)
             }
         } else {
-            bucket = ArrayList()
-            self.buckets[bucketIndex] = bucket
+            set bucket = ArrayList()
+            set self.buckets[bucketIndex] = bucket
         }
 
         self.bumpVersion()
@@ -59,7 +59,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
         bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
-            for entry in bucket {
+            foreach entry in bucket {
                 if entry.key.equals(key) {
                     return entry
                 }
@@ -70,11 +70,11 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
     }
 
     export override fn remove(self: mut _, key: Key) -> Value? {
-        hash = entry.key.hashWith(self.hashAlgorithm)
+        hash = key.hashWith(self.hashAlgorithm)
         bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
-            for entryIndex in 0..<bucket.size {
+            foreach entryIndex in 0..<bucket.size {
                 entry = bucket[entryIndex]
                 if entry.key.equals(key) {
                     bucket.removeAtIndex(entryIndex)
@@ -87,19 +87,19 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
         return null
     }
 
-    export fun asRange(self) -> HashMapRange<Key, Value> = HashMapRange(self)
+    export fn asRange(self) -> HashMapRange<Key, Value> = HashMapRange(self)
 
     export get fn size(self) -> UWord = self._size
     
     private fn growAndRehash(self: mut _) {
         self.bumpVersion()
         var oldBuckets = self.buckets
-        self.buckets = Array::new(self.buckets.size * 2, null)
-        for bucket in oldBuckets  {
+        set self.buckets = Array.new(self.buckets.size * 2, null)
+        foreach bucket in oldBuckets  {
             if isNull(bucket) {
                 continue
             }
-            for entry in bucket {
+            foreach entry in bucket {
                 self.storeEntry(entry, false)
             }
         }
@@ -125,7 +125,7 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
     private nothrow constructor {}
 
     private fn checkNotModified(self) {
-        if map.version != atVersion {
+        if self.map.version != self.atVersion {
             throw ConcurrentModificationError()
         }
     }
@@ -163,7 +163,7 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
     export override get fn back(self) -> read MapEntry<Key, Value> {
         self.checkNotModified()
 
-        if self.backBucketIndexPlus1 == 0 || self.indexInBackBucketPlus1 == 0 {
+        if self.backBucketIndexPlus1 == 0 or self.indexInBackBucketPlus1 == 0 {
             throw EmptyRangeException()
         }
 
