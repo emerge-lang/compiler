@@ -3,7 +3,8 @@ package compiler.binding
 import compiler.ast.AstDoWhileLoop
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.context.LoopExecutionScopedCTContext
+import compiler.binding.context.LoopExitJoinExecutionScopedCTContext
 import compiler.binding.expression.IrConditionalBranchImpl
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -21,13 +22,15 @@ class BoundDoWhileLoop(
     override val context: ExecutionScopedCTContext,
     override val declaration: AstDoWhileLoop,
     val condition: BoundCondition,
+    private val loopContext: LoopExecutionScopedCTContext<*>,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstDoWhileLoop> {
 
-    override val modifiedContext = SingleBranchJoinExecutionScopedCTContext(
+    override val modifiedContext = LoopExitJoinExecutionScopedCTContext(
         context,
         // body context is included here, because condition is derived from body
         condition.modifiedContext,
+        loopContext,
     )
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

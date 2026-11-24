@@ -53,9 +53,18 @@ interface EphemeralStateClass<Subject : Any, State, Effect : SideEffect<Subject>
     fun endInvocation(beforeInvocation: State, afterArguments: State): State = afterArguments
 
     /**
+     * Given the state [beforeLoop] from right before a loop, and the state [atExit] where the code after the loop
+     * continues, returns the state after the loop. Like [endInvocation], for information that is only valid inside
+     * the loop.
+     */
+    fun exitLoop(beforeLoop: State, atExit: State): State = atExit
+
+    /**
      * If `true`, the contexts after branches (e.g. after an `if`) only consider the states at the end of the branches
-     * that can complete normally; a branch that is guaranteed to return, throw or terminate the program never reaches
-     * the code after. E.g. after `if isNull(v) { return }`, only the path where `isNull(v)` is false continues.
+     * that can complete normally; a branch that is guaranteed to return, throw, terminate the program, `break` or
+     * `continue` never reaches the code after. E.g. after `if isNull(v) { return }`, only the path where `isNull(v)` is
+     * false continues. The states at a `break` or `continue` reach the code after the loop instead, see
+     * [compiler.binding.context.LoopExitJoinExecutionScopedCTContext].
      *
      * Must be `false` for states about how code exits (e.g. [CallFrameExit]).
      */

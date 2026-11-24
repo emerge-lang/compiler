@@ -132,7 +132,7 @@ class SourceFileRootContext(
             override fun getDeferredCodeForUncatchableThrow(): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
-            override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {
+            override fun getDeferredCodeForBreakOrContinue(loop: BoundLoop<*>): Sequence<DeferrableExecutable> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
 
@@ -146,7 +146,6 @@ class SourceFileRootContext(
 
             override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
 
-            override val parentLoop = null
             override val innermostLoopContext = null
 
             override val parentScopeContext: ExecutionScopedCTContext? = null

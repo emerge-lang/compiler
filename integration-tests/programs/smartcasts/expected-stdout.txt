@@ -32,3 +32,6 @@ not: tadaaa
 while: sum = 42
 member: not a bar
 member: tadaaa
+continue: sum = 42
+break: sum = 20
+do-while break: iterations = 2

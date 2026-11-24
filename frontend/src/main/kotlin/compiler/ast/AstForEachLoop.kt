@@ -167,6 +167,7 @@ class AstForEachLoop(
             rangeHolderDeclaration,
             cursorInBodyDeclaration,
             advanceRange,
+            preBodyContext,
             boundBody,
         )
 

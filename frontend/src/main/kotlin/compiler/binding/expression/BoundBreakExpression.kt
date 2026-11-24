@@ -25,7 +25,9 @@ class BoundBreakExpression(
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        parentLoop = context.parentLoop
+        val loopContext = context.innermostLoopContext
+        parentLoop = loopContext?.loopNode
+        loopContext?.trackJump(context)
         if (parentLoop == null) {
             diagnosis.breakOutsideOfLoop(this)
         }

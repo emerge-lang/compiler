@@ -1,23 +1,29 @@
 package compiler.binding.context.effect
 
+import compiler.binding.context.effect.CallFrameExit.Occurrence
+
 /**
- * Whether code may have jumped to the start or end of a loop with `break` or `continue`. [CallFrameExit] doesn't model
- * these jumps, so code that is guaranteed to return by [CallFrameExit] may still leave through a `break` or `continue`.
+ * Whether code jumps to the start or end of a loop with `break` or `continue`. [CallFrameExit] doesn't model these
+ * jumps. The jumps in a loop don't concern the code after it, see [exitLoop].
  */
 object LoopJump : SingletonEphemeralStateClass<LoopJump.State, LoopJump.Effect>() {
-    override val initialState = State(mayHaveJumped = false)
+    override val initialState = State(Occurrence.NEVER)
 
-    override fun fold(state: State, effect: Effect): State = State(mayHaveJumped = true)
+    override fun fold(state: State, effect: Effect): State = State(Occurrence.GUARANTEED)
 
     override fun combineMaybe(state: State, advancedMaybe: State): State {
-        return State(state.mayHaveJumped || advancedMaybe.mayHaveJumped)
+        return State(state.jumps.combineSequentialExecution(advancedMaybe.jumps.maybe()))
     }
 
     override fun combineExclusiveBranches(stateOne: State, stateTwo: State): State {
-        return State(stateOne.mayHaveJumped || stateTwo.mayHaveJumped)
+        return State(stateOne.jumps.combineExclusiveBranch(stateTwo.jumps))
     }
 
-    data class State(val mayHaveJumped: Boolean)
+    override fun exitLoop(beforeLoop: State, atExit: State): State = beforeLoop
+
+    data class State(val jumps: Occurrence) {
+        val isGuaranteedToJump: Boolean get() = jumps == Occurrence.GUARANTEED
+    }
 
     /** a `break` or `continue` */
     data object Effect : SingletonEffect(LoopJump)

@@ -4,7 +4,8 @@ import compiler.ast.AstForEachLoop
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.context.LoopExecutionScopedCTContext
+import compiler.binding.context.LoopExitJoinExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrLoopImpl
@@ -23,6 +24,7 @@ class BoundForEachLoop(
     val rangeHolderDeclaration: BoundVariable,
     val cursorInBodyDeclaration: BoundVariable,
     val advanceRange: BoundExecutable<*>,
+    private val loopContext: LoopExecutionScopedCTContext<*>,
     val body: BoundCodeChunk,
 ) : BoundLoop<AstForEachLoop> {
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -86,9 +88,10 @@ class BoundForEachLoop(
         body.visitWritesBeyond(boundary, visitor)
     }
 
-    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(SingleBranchJoinExecutionScopedCTContext(
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(LoopExitJoinExecutionScopedCTContext(
         context,
         body.modifiedContext,
+        loopContext,
     ))
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 

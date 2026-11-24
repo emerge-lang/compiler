@@ -577,6 +577,105 @@ class SmartCastTests : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+
+        "in the rest of the loop body, after a branch that continues" {
+            validateModule("""
+                $declarations
+                fn test(items: Array<Bar?>) {
+                    foreach item in items {
+                        if isNull(item) {
+                            continue
+                        }
+                        takeBar(item)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in the rest of the loop body, after a branch that breaks" {
+            validateModule("""
+                $declarations
+                fn next() -> Bar? = null
+                fn test() {
+                    var w: Bar? = next()
+                    while cond() {
+                        if isNull(w) {
+                            break
+                        }
+                        takeBar(w)
+                        set w = next()
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not if the branch may also complete normally, besides continuing" {
+            validateModule("""
+                $declarations
+                fn test(items: Array<Bar?>) {
+                    foreach item in items {
+                        if isNull(item) {
+                            if cond() {
+                                continue
+                            }
+                        }
+                        takeBar(item)
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after the loop, where a break left it before the refinement" {
+            validateModule("""
+                $declarations
+                fn next() -> Bar? = null
+                fn test() {
+                    var w: Bar? = next()
+                    while cond() {
+                        if isNull(w) {
+                            break
+                        }
+                        takeBar(w)
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "after a branch that returns after a nested loop with a break" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Bar? = Bar("x")
+                    if isNull(w) {
+                        while cond() {
+                            if cond() {
+                                break
+                            }
+                        }
+                        return
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "a break as the first statement of a do-while body" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    do {
+                        break
+                    } while cond()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "a not-null assertion refines the variable in the code after it" - {

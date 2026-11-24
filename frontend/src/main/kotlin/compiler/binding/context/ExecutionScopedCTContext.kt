@@ -73,13 +73,8 @@ interface ExecutionScopedCTContext : CTContext {
     fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): Repetition
 
     /**
-     * the [LoopExecutionScopedCTContext.loopNode] from the [LoopExecutionScopedCTContext] that is the closest
-     * parent to `this` loop, or `null` if there is no enclosing loop context.
-     */
-    val parentLoop: BoundLoop<*>?
-
-    /**
      * `this` if it is a [LoopExecutionScopedCTContext], otherwise the closest parent that is; `null` if there is none.
+     * This is the loop that a `break` or `continue` in this context refers to.
      */
     val innermostLoopContext: LoopExecutionScopedCTContext<*>?
 
@@ -131,9 +126,10 @@ interface ExecutionScopedCTContext : CTContext {
     fun getDeferredCodeForUncatchableThrow(): Sequence<DeferrableExecutable>
 
     /**
-     * @param parentLoop the loop which is exited or continued; currently must be [parentLoop]
+     * @param loop the loop which is exited or continued; currently must be the [LoopExecutionScopedCTContext.loopNode]
+     * of [innermostLoopContext]
      */
-    fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable>
+    fun getDeferredCodeForBreakOrContinue(loop: BoundLoop<*>): Sequence<DeferrableExecutable>
 
     /**
      * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s up until
@@ -209,6 +205,7 @@ open class MutableExecutionScopedCTContext protected constructor(
             is MutableCTContext -> it.parentContext
             is SingleBranchJoinExecutionScopedCTContext -> it.beforeBranch
             is MultiBranchJoinExecutionScopedCTContext -> it.beforeBranch
+            is LoopExitJoinExecutionScopedCTContext -> it.beforeLoop
             is InvocationJoinExecutionScopedCTContext -> it.afterArguments
             else -> null
         }
@@ -269,7 +266,6 @@ open class MutableExecutionScopedCTContext protected constructor(
             .filterIsInstance<LoopExecutionScopedCTContext<*>>()
             .firstOrNull()
     }
-    override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
     override val innermostLoopContext: LoopExecutionScopedCTContext<*>? get() = parentLoopContext
 
     override val isTryContext = false
@@ -331,12 +327,12 @@ open class MutableExecutionScopedCTContext protected constructor(
             }
     }
 
-    override fun getDeferredCodeForBreakOrContinue(parentLoop: BoundLoop<*>): Sequence<DeferrableExecutable> {
-        val parentLoopContext = parentLoopContext
-        check(parentLoopContext != null)
-        check(parentLoopContext.loopNode === parentLoop)
+    override fun getDeferredCodeForBreakOrContinue(loop: BoundLoop<*>): Sequence<DeferrableExecutable> {
+        val loopContext = innermostLoopContext
+        check(loopContext != null)
+        check(loopContext.loopNode === loop)
 
-        return getDeferredCodeUpToIncluding(parentLoopContext)
+        return getDeferredCodeUpToIncluding(loopContext)
     }
 
     override fun getFunctionDeferredCode(): Sequence<DeferrableExecutable> {
@@ -613,15 +609,66 @@ class MultiBranchJoinExecutionScopedCTContext(
 
 /**
  * @receiver the context at the end of a branch
- * @return whether the code after the branch can be reached through it: `false` iff it is guaranteed to return, throw or
- * terminate the program, and doesn't `break` or `continue` (through which the code after an enclosing loop is reached)
+ * @return whether the code after the branch can be reached through it: `false` iff it is guaranteed to return, throw,
+ * terminate the program, or to `break` or `continue`. The states at a `break` or `continue` reach the code after the
+ * loop through [LoopExitJoinExecutionScopedCTContext] instead.
  */
 private fun ExecutionScopedCTContext.canCompleteNormally(beforeBranch: ExecutionScopedCTContext): Boolean {
-    if (!getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
-        return true
+    if (getEphemeralState(CallFrameExit).isGuaranteedToReturnThrowOrTerminate) {
+        return false
     }
 
-    return getEphemeralStateRelativeTo(beforeBranch, LoopJump.initialState, LoopJump, SingletonEphemeralStateClass.Subject).mayHaveJumped
+    return !getEphemeralStateRelativeTo(beforeBranch, LoopJump.initialState, LoopJump, SingletonEphemeralStateClass.Subject).isGuaranteedToJump
+}
+
+/**
+ * Models the context after a loop. The code after it is reached from [beforeLoop] (the body may not run at all; for a
+ * `do-while` loop, that is a simplification), from [atEndOfBody] (the end of the last iteration) and from each `break`
+ * and `continue` in [loopContext] (a `continue` leads to the check whether to run another iteration).
+ *
+ * For an [EphemeralStateClass.joinsOnlyBranchesThatCompleteNormally], the states at the `break`s and `continue`s are
+ * not part of the state at [atEndOfBody], so they are joined in here. For all other state classes they are.
+ */
+class LoopExitJoinExecutionScopedCTContext(
+    internal val beforeLoop: ExecutionScopedCTContext,
+    private val atEndOfBody: ExecutionScopedCTContext,
+    private val loopContext: LoopExecutionScopedCTContext<*>,
+) : ExecutionScopedCTContext by beforeLoop {
+    override fun <Subject : Any, State> getEphemeralState(
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        return join(beforeLoop.getEphemeralState(stateClass, subject), stateClass, subject)
+    }
+
+    override fun <Subject : Any, State> getEphemeralStateRelativeTo(
+        ancestor: CTContext,
+        stateInAncestor: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        if (this === ancestor) {
+            return stateInAncestor
+        }
+
+        return join(beforeLoop.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject), stateClass, subject)
+    }
+
+    private fun <Subject : Any, State> join(stateBeforeLoop: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        val exits = if (stateClass.joinsOnlyBranchesThatCompleteNormally) {
+            listOf(atEndOfBody).filter { it.canCompleteNormally(beforeLoop) } + loopContext.jumpOrigins
+        } else {
+            listOf(atEndOfBody)
+        }
+
+        val stateAtExit = exits
+            .map { it.getEphemeralStateRelativeTo(beforeLoop, stateBeforeLoop, stateClass, subject) }
+            .reduceOrNull(stateClass::combineExclusiveBranches)
+            ?.let { stateClass.combineMaybe(stateBeforeLoop, it) }
+            ?: stateBeforeLoop
+
+        return stateClass.exitLoop(stateBeforeLoop, stateAtExit)
+    }
 }
 
 /**
@@ -677,6 +724,32 @@ class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
     val loopNode: LoopNode by lazy(getBoundLoopNode)
 
     override val innermostLoopContext: LoopExecutionScopedCTContext<*> get() = this
+
+    private val _jumpOrigins = ArrayList<ExecutionScopedCTContext>()
+    private var jumpOriginsQueried = false
+
+    /**
+     * The contexts right before each `break` and `continue` of this loop. See [trackJump].
+     */
+    val jumpOrigins: List<ExecutionScopedCTContext>
+        get() {
+            jumpOriginsQueried = true
+            return _jumpOrigins
+        }
+
+    /**
+     * Tracks a `break` or `continue` of this loop, from the context [from] right before it; the code after the loop
+     * can be reached from there.
+     *
+     * Must be called before [jumpOrigins] is queried, so in [compiler.binding.SemanticallyAnalyzable.semanticAnalysisPhase1]:
+     * the body of a loop completes phase 1 before its phase 2 starts.
+     */
+    fun trackJump(from: ExecutionScopedCTContext) {
+        if (jumpOriginsQueried) {
+            throw InternalCompilerError("The jumps of this loop have already been queried, cannot track another one")
+        }
+        _jumpOrigins.add(from)
+    }
 
     /** the closest loop that encloses this one, if any */
     val outerLoopContext: LoopExecutionScopedCTContext<*>? get() = parentLoopContext

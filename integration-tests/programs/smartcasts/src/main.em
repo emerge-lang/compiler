@@ -149,6 +149,41 @@ fn afterStrictCastToS32(v: Any) -> S32 {
     return v + 1
 }
 
+// the refinement holds in the rest of the loop body after a branch that continues or breaks
+fn sumSkippingNulls(values: Array<S32?>) -> S32 {
+    var sum: S32 = 0
+    foreach v in values {
+        if isNull(v) {
+            continue
+        }
+        set sum = sum + v
+    }
+    return sum
+}
+
+fn sumUntilNull(values: Array<S32?>) -> S32 {
+    var sum: S32 = 0
+    foreach v in values {
+        if isNull(v) {
+            break
+        }
+        set sum = sum + v
+    }
+    return sum
+}
+
+// a break as the first statement of a do-while body leaves that loop, not the enclosing one
+fn doWhileBreak() -> S32 {
+    var iterations: S32 = 0
+    while iterations < 2 {
+        do {
+            break
+        } while true
+        set iterations = iterations + 1
+    }
+    return iterations
+}
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
 
@@ -210,4 +245,8 @@ fn main(world: mut World) {
     wrappers = Wrapper(produce(false), Wrapper(produce(false), Wrapper(produce(true), null)))
     stdout.println(wrapperContent(wrappers))
     stdout.println(wrapperContent(lastWrapper(wrappers)))
+    values: Array<S32?> = [20, null, 20, 2]
+    stdout.println("continue: sum = " + sumSkippingNulls(values).toString())
+    stdout.println("break: sum = " + sumUntilNull(values).toString())
+    stdout.println("do-while break: iterations = " + doWhileBreak().toString())
 }
