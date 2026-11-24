@@ -1,6 +1,7 @@
 package emerge.core.utf8
 
 import emerge.std.collections.ArrayList
+import emerge.core.range.{FiniteRange, EmptyRangeException}
 
 // decodes the codepoint in [data] at [index].
 // @return first: the codepoint, second: the index of the next codepoint, or null if the end of data has been reached
@@ -79,27 +80,28 @@ export class InvalidUtf8Exception : Throwable {
     }
 }
 
-export class StringCodepointsRange : FiniteRange<out UWord> {
+export class StringCodepointsRange : FiniteRange<U32> {
     private string: String = init
-    private var atIndex = 0
-    private var nextIndex = 0
+    private var cachedFront: U32 = 0
+    private var frontCached: Bool = false
+    private var atIndex: UWord = 0
 
-    export get fn front(self) -> UWord {
-        if self.atIndex >= self.string.utf8data.size {
+    export override get fn front(self) -> U32 {
+        if self.atIndex >= self.string.utf8Data.size {
             throw EmptyRangeException()
         }
 
-        result = getNextCodepointAt(self.string.utf8data, self.atIndex)
-
-        set self.nextIndex = result.second ?: self.string.utf8data.size
-        return result.first
-    }
-
-    export fn popFront(self: mut _) {
-        if self.atIndex == 0 and self.nextIndex == 0 {
-            self.front()
+        if self.frontCached {
+            return self.cachedFront
         }
 
-        set self.index = self.nextIndex
+        return getNextCodepointAt(self.string.utf8Data, self.atIndex).first
+    }
+
+    export override fn popFront(self: mut _) {
+        result = getNextCodepointAt(self.string.utf8Data, self.atIndex)
+        set self.atIndex = result.second ?: self.string.utf8Data.size
+        set self.cachedFront = result.first
+        set self.frontCached = true
     }
 }
