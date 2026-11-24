@@ -45,6 +45,13 @@ export class S8 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: S8) -> S8
     export intrinsic operator fn divideBy(self, borrow divisor: S8) -> S8
     export intrinsic nothrow fn rem(self, borrow divisor: S8) -> S8
+    export fn pow(self, power: UWord) -> S8 {
+        var result = 1 as S8
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> S8
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> S8
@@ -86,6 +93,13 @@ export class U8 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: U8) -> U8
     export intrinsic operator fn divideBy(self, borrow divisor: U8) -> U8
     export intrinsic nothrow fn rem(self, borrow divisor: U8) -> U8
+    export fn pow(self, power: UWord) -> U8 {
+        var result = 1 as U8
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> U8
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> U8
@@ -123,6 +137,13 @@ export class S16 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: S16) -> S16
     export intrinsic operator fn divideBy(self, borrow divisor: S16) -> S16
     export intrinsic nothrow fn rem(self, borrow divisor: S16) -> S16
+    export fn pow(self, power: UWord) -> S16 {
+        var result = 1 as S16
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> S16
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> S16
@@ -163,6 +184,13 @@ export class U16 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: U16) -> U16
     export intrinsic operator fn divideBy(self, borrow divisor: U16) -> U16
     export intrinsic nothrow fn rem(self, borrow divisor: U16) -> U16
+    export fn pow(self, power: UWord) -> U16 {
+        var result = 1 as U16
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> S16
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> S16
@@ -199,6 +227,13 @@ export class S32 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: S32) -> S32
     export intrinsic operator fn divideBy(self, borrow divisor: S32) -> S32
     export intrinsic nothrow fn rem(self, borrow divisor: S32) -> S32
+    export fn pow(self, power: UWord) -> S32 {
+        var result = 1 as S32
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> S32
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> S32
@@ -238,6 +273,13 @@ export class U32 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: U32) -> U32
     export intrinsic operator fn divideBy(self, borrow divisor: U32) -> U32
     export intrinsic nothrow fn rem(self, borrow divisor: U32) -> U32
+    export fn pow(self, power: UWord) -> U32 {
+        var result = 1 as U32
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> U32
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> U32
@@ -273,6 +315,13 @@ export class S64 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: S64) -> S64
     export intrinsic operator fn divideBy(self, borrow divisor: S64) -> S64
     export intrinsic nothrow fn rem(self, borrow divisor: S64) -> S64
+    export fn pow(self, power: UWord) -> S64 {
+        var result = 1 as S64
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> S64
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> S64
@@ -316,6 +365,13 @@ export class U64 : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: U64) -> U64
     export intrinsic operator fn divideBy(self, borrow divisor: U64) -> U64
     export intrinsic nothrow fn rem(self, borrow divisor: U64) -> U64
+    export fn pow(self, power: UWord) -> U64 {
+        var result = 1 as U64
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> U64
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> U64
@@ -382,6 +438,13 @@ export class SWord : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: SWord) -> SWord
     export intrinsic operator fn divideBy(self, borrow divisor: SWord) -> SWord
     export intrinsic nothrow fn rem(self, borrow divisor: SWord) -> SWord
+    export fn pow(self, power: UWord) -> SWord {
+        var result = 1 as SWord
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> SWord
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> SWord
@@ -421,6 +484,13 @@ export class UWord : const Any & Printable {
     export intrinsic operator fn times(self, borrow factor: UWord) -> UWord
     export intrinsic operator fn divideBy(self, borrow dividend: UWord) -> UWord
     export intrinsic nothrow fn rem(self, borrow divisor: UWord) -> UWord
+    export fn pow(self, power: UWord) -> UWord {
+        var result = 1 as UWord
+        foreach _ in 0..<power {
+            set result = result * self
+        }
+        return result
+    }
     
     export intrinsic nothrow fn bitShiftLeft(self, borrow amount: U8) -> UWord
     export intrinsic nothrow fn logicalBitShiftRight(self, borrow amount: U8) -> UWord
