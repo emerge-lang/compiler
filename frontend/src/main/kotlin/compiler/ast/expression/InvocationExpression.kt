@@ -23,7 +23,9 @@ import compiler.ast.Expression
 import compiler.ast.Expression.Companion.chain
 import compiler.ast.type.AstTypeArgument
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.lexer.Operator
 import compiler.lexer.Span
 
 class InvocationExpression(
@@ -46,8 +48,14 @@ class InvocationExpression(
     ): BoundInvocationExpression {
         val boundReceiver = (targetExpression as? MemberAccessExpression)?.valueExpression?.bindTo(context)
         val contextAfterReceiver = boundReceiver?.modifiedContext ?: context
-        val boundArguments = argumentExpressions.chain(contextAfterReceiver).toList()
-        val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: contextAfterReceiver
+        // with ?., the arguments are only evaluated if the receiver is not null
+        val nullSafeAccess = (targetExpression as? MemberAccessExpression)
+            ?.accessOperatorToken
+            ?.takeIf { it.operator == Operator.SAFEDOT }
+            ?.let { BoundInvocationExpression.NullSafeAccess(it, MutableExecutionScopedCTContext.deriveConditionalFrom(contextAfterReceiver)) }
+        val contextForArguments = nullSafeAccess?.contextWhenReceiverNotNull ?: contextAfterReceiver
+        val boundArguments = argumentExpressions.chain(contextForArguments).toList()
+        val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: contextForArguments
         val functionNameToken = when (targetExpression) {
             is MemberAccessExpression -> targetExpression.memberName
             is IdentifierExpression -> targetExpression.identifier
@@ -59,6 +67,7 @@ class InvocationExpression(
             context,
             this,
             boundReceiver,
+            nullSafeAccess,
             functionNameToken,
             boundArguments,
             candidateFilter,

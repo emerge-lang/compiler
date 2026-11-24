@@ -41,26 +41,11 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.diagnostic.AmbiguousInvocationDiagnostic
-import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.*
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingAttributeDiagnostic
-import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
-import compiler.diagnostic.ambiguousMemberVariableRead
-import compiler.diagnostic.superfluousSafeObjectTraversal
-import compiler.diagnostic.unresolvableMemberVariable
-import compiler.diagnostic.unsafeObjectTraversal
-import compiler.diagnostic.useOfUninitializedMember
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.*
 
 class BoundMemberVariableReadExpression(
     override val context: ExecutionScopedCTContext,
@@ -160,6 +145,11 @@ class BoundMemberVariableReadExpression(
             physicalMembers.forEach { it.semanticAnalysisPhase2(diagnosis) }
             diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->
+                    if (finding is SuperfluousSafeObjectTraversal) {
+                        // already reported by this class
+                        return@mapNotNull null
+                    }
+
                     if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {
                         availableGetters.addAll(finding.candidates)
                         return@mapNotNull null

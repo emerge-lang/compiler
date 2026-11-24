@@ -12,13 +12,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
-import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.*
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
-import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.CreateReferenceValueUsage
-import compiler.binding.expression.IrClassFieldAccessExpressionImpl
-import compiler.binding.expression.TransientValueUsage
-import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.Impurity
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.impurity.ReassignmentBeyondBoundary
@@ -28,25 +23,11 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.instantiateAllParametersForWriting
-import compiler.diagnostic.AmbiguousInvocationDiagnostic
-import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.*
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingAttributeDiagnostic
-import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
-import compiler.diagnostic.ambiguousMemberVariableWrite
-import compiler.diagnostic.illegalAssignment
-import compiler.diagnostic.superfluousSafeObjectTraversal
-import compiler.diagnostic.unresolvableMemberVariable
-import compiler.diagnostic.unsafeObjectTraversal
-import compiler.diagnostic.valueNotAssignable
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.*
 
 class BoundObjectMemberAssignmentStatement(
     context: ExecutionScopedCTContext,
@@ -121,6 +102,11 @@ class BoundObjectMemberAssignmentStatement(
             val availableSetters = mutableSetOf<BoundFunction>()
             diagnosis.doWithTransformedFindings(setterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->
+                    if (finding is SuperfluousSafeObjectTraversal) {
+                        // already reported by this class
+                        return@mapNotNull null
+                    }
+
                     if (finding is AmbiguousInvocationDiagnostic && finding.invocation === setterInvocation.declaration) {
                         availableSetters.addAll(finding.candidates)
                         return@mapNotNull null
