@@ -18,19 +18,11 @@
 
 package compiler.ast
 
-import compiler.ast.expression.AstAfterIndexExpression
-import compiler.ast.expression.AstIndexAccessExpression
-import compiler.ast.expression.AstIndexExpressionScope
-import compiler.ast.expression.AstSharedValueExpression
-import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.InvocationExpression
-import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundIllegalTargetAssignmentStatement
-import compiler.binding.BoundIndexAssignmentStatement
-import compiler.binding.BoundObjectMemberAssignmentStatement
-import compiler.binding.BoundStatement
-import compiler.binding.BoundVariableAssignmentStatement
+import compiler.ast.expression.*
+import compiler.binding.*
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
@@ -61,13 +53,16 @@ class AssignmentStatement<out Target : Expression>(
             }
             is MemberAccessExpression -> {
                 val boundTargetObject = targetExpression.valueExpression.bindTo(context)
-                val boundValue = valueExpression.bindTo(boundTargetObject.modifiedContext)
+                val nullSafeAccess = targetExpression.accessOperatorToken
+                    .takeIf { it.operator == Operator.SAFEDOT }
+                    ?.let { BoundInvocationExpression.NullSafeAccess(it, MutableExecutionScopedCTContext.deriveConditionalFrom(boundTargetObject.modifiedContext)) }
+                val boundValue = valueExpression.bindTo(nullSafeAccess?.contextWhenReceiverNotNull ?: boundTargetObject.modifiedContext)
                 @Suppress("UNCHECKED_CAST")
                 return BoundObjectMemberAssignmentStatement(
                     boundValue.modifiedContext,
                     this as AssignmentStatement<MemberAccessExpression>,
                     boundTargetObject,
-                    assignmentOperatorToken.operator == Operator.SAFEDOT,
+                    nullSafeAccess,
                     targetExpression.memberName.value,
                     considerSettersOnMemberVariableAssignment,
                     boundValue,

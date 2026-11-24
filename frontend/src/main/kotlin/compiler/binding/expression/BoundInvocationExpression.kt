@@ -18,70 +18,31 @@
 
 package compiler.binding.expression
 
-import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.expression.BoundExpression.ImplyingResult
-import compiler.diagnostic.UniqueClassConstructorInvocationDiagnostic
 import compiler.ast.AstAnnotationSet
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.AstWildcardTypeArgument
 import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
-import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundParameter
-import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SeanHelper
+import compiler.binding.*
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.InheritedBoundMemberFunction
-import compiler.binding.context.CTContext
-import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.InvocationJoinExecutionScopedCTContext
-import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.*
 import compiler.binding.context.effect.CallFrameExit
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.BoundExpression.ImplyingResult
 import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpurityVisitor
-import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
-import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
-import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
-import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.misc_ir.IrUnreachableStatementImpl
-import compiler.binding.type.BoundTypeArgument
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.ErroneousType
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.TypeUnification
-import compiler.binding.type.TypeUseSite
-import compiler.binding.type.nonDisjointPairs
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.InvocationCandidateNotApplicableDiagnostic
-import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.ambiguousInvocation
-import compiler.diagnostic.noMatchingFunctionOverload
-import compiler.diagnostic.nothrowViolatingInvocation
-import compiler.diagnostic.typeDeductionError
-import compiler.diagnostic.unresolvableConstructor
-import compiler.diagnostic.varianceOnInvocationTypeArgument
-import compiler.diagnostic.wildcardTypeArgumentOnInvocation
+import compiler.binding.misc_ir.*
+import compiler.binding.type.*
+import compiler.diagnostic.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
+import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.util.mapToBackendIrWithDebugLocations
-import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
-import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BoundInvocationExpression(
@@ -92,6 +53,8 @@ class BoundInvocationExpression(
     override val declaration: InvocationExpression,
     /** The receiver expression; is null if not specified in the source */
     val receiverExpression: BoundExpression<*>?,
+    /** non-null iff the function is invoked with the null-safe operator `?.`; implies [receiverExpression] != null */
+    val nullSafeAccess: NullSafeAccess?,
     val functionNameToken: IdentifierToken,
     val valueArguments: List<BoundExpression<*>>,
     val candidateFilter: CandidateFilter?,
@@ -107,9 +70,35 @@ class BoundInvocationExpression(
     val functionToInvoke: BoundFunction? get() = chosenOverload?.candidate
     private var chosenOverload: OverloadCandidateEvaluation? = null
 
-    override val type: BoundTypeReference? get() = chosenOverload?.returnType ?: chosenOverload?.candidate?.returnType
+    /** the type of the value returned by [functionToInvoke] */
+    private val returnTypeOfInvokedFunction: BoundTypeReference? get() = chosenOverload?.returnType ?: chosenOverload?.candidate?.returnType
+
+    override val type: BoundTypeReference? get() {
+        val returnType = returnTypeOfInvokedFunction ?: return null
+        return if (skipsInvocationOnNullReceiver) returnType.withCombinedNullability(TypeReference.Nullability.NULLABLE) else returnType
+    }
+
+    /**
+     * Whether the invocation is skipped (and this expression evaluates to `null`) if the receiver evaluates to `null`.
+     * True iff the invocation uses `?.` on a receiver of a nullable type.
+     */
+    private val skipsInvocationOnNullReceiver: Boolean
+        get() = nullSafeAccess != null && receiverExceptReferringType?.type?.isNullable == true
+
+    /**
+     * The type of the receiver to consider for selecting the function to invoke. With `?.`, the invocation only
+     * happens with a non-null receiver.
+     */
+    private val receiverTypeForDispatch: BoundTypeReference? get() {
+        val receiverType = receiverExpression?.type ?: return null
+        return if (nullSafeAccess != null) receiverType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE) else receiverType
+    }
 
     override val implications: List<BoundExpression.ResultImplication> get() {
+        if (skipsInvocationOnNullReceiver) {
+            // the result may also come from the receiver being null, the implications below don't hold
+            return emptyList()
+        }
         val fn = functionToInvoke ?: return emptyList()
         val arguments = listOfNotNull(receiverExpression) + valueArguments
         return when (fn.canonicalName) {
@@ -151,10 +140,22 @@ class BoundInvocationExpression(
     private val receiverExceptReferringType: BoundExpression<*>?
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
-    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(
-        InvocationJoinExecutionScopedCTContext(contextBeforeInvocation, context)
+    /** the context right after the invoked function returned; for [nullSafeAccess], only reached if the receiver is not null */
+    private val contextAfterInvocation = MutableExecutionScopedCTContext.deriveFrom(context)
+
+    /** for [nullSafeAccess]: where the receiver evaluated to null, so the arguments are not evaluated and the function is not invoked */
+    private val contextWhenReceiverNull = nullSafeAccess?.let { MutableExecutionScopedCTContext.deriveFrom(receiverExpression!!.modifiedContext) }
+
+    override val modifiedContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(
+        InvocationJoinExecutionScopedCTContext(
+            contextBeforeInvocation,
+            if (nullSafeAccess == null) contextAfterInvocation else SingleBranchJoinExecutionScopedCTContext(
+                receiverExpression!!.modifiedContext,
+                contextAfterInvocation,
+                contextWhenReceiverNull!!,
+            ),
+        )
     )
-    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) =
         seanHelper.phase1(diagnosis) {
@@ -183,6 +184,14 @@ class BoundInvocationExpression(
             valueArguments.forEach { it.markEvaluationResultUsed() }
 
             receiverExpression?.semanticAnalysisPhase2(diagnosis)
+            if (nullSafeAccess != null) {
+                if (receiverExpression!!.type?.isNullable == false) {
+                    diagnosis.superfluousSafeObjectTraversal(receiverExpression, nullSafeAccess.accessOperatorToken)
+                }
+                val receiverImplications = receiverExpression.implications
+                VariableTypeRefinement.trackImplications(receiverImplications, ImplyingResult.NON_NULL_VALUE, nullSafeAccess.contextWhenReceiverNotNull)
+                VariableTypeRefinement.trackImplications(receiverImplications, ImplyingResult.NULL_VALUE, contextWhenReceiverNull!!)
+            }
 
             val availableOverloads: AvailableOverloads? = if (receiverExpression == null || (receiverExpression.type != null && receiverExpression.type !is ErroneousType)) {
                 collectOverloadCandidates()
@@ -218,7 +227,7 @@ class BoundInvocationExpression(
                 ?.takeIf { it.classDef.isUnique && !declaration.span.generated }
                 ?.let { diagnosis.add(UniqueClassConstructorInvocationDiagnostic(it.classDef.simpleName, declaration.span)) }
 
-            _modifiedContext.trackSideEffect(CallFrameExit.Effect.InvokesFunction(chosenOverload!!.candidate.callFrameExitEffectOnInvocation))
+            contextAfterInvocation.trackSideEffect(CallFrameExit.Effect.InvokesFunction(chosenOverload!!.candidate.callFrameExitEffectOnInvocation))
 
             if (chosenOverload!!.returnType == null) {
                 handleCyclicInvocation(
@@ -286,7 +295,7 @@ class BoundInvocationExpression(
                 .takeUnless { it.isEmpty() }
         }
         val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value).distinct()
-        val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
+        val candidateMemberFunctions = receiverTypeForDispatch?.findMemberFunction(functionNameToken.value) ?: emptySet()
 
         val allCandidates = (candidateConstructors ?: emptySet()) + candidateTopLevelFunctions + candidateMemberFunctions
 
@@ -320,7 +329,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.noMatchingFunctionOverload(context, functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
+            diagnosis.noMatchingFunctionOverload(context, functionNameToken, receiverTypeForDispatch, valueArguments, false, emptyList())
             return null
         }
 
@@ -342,7 +351,7 @@ class BoundInvocationExpression(
                 diagnosis.noMatchingFunctionOverload(
                     context,
                     functionNameToken,
-                    receiverExpression?.type,
+                    receiverTypeForDispatch,
                     valueArguments,
                     anyTopLevelFunctions,
                     emptyList(),
@@ -381,7 +390,7 @@ class BoundInvocationExpression(
                     diagnosis.noMatchingFunctionOverload(
                         context,
                         functionNameToken,
-                        receiverExpression?.type,
+                        receiverTypeForDispatch,
                         valueArguments,
                         functionDeclaredAtAll = true,
                         inapplicableCandidates.map { it.inapplicableReason!! }
@@ -421,8 +430,9 @@ class BoundInvocationExpression(
         receiver: BoundExpression<*>?,
     ): Sequence<OverloadCandidateEvaluation> {
         check((receiver != null) xor (receiver?.type == null))
-        val receiverType = receiver?.type
+        val receiverType = if (receiver == null) null else receiverTypeForDispatch
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
+        val argumentTypesIncludingReceiver = listOfNotNull(receiverType) + valueArguments.map { it.type!! }
 
         return this
             // filter by (declared receiver)
@@ -460,9 +470,11 @@ class BoundInvocationExpression(
                     },
                 )
                 val unificationAfterParameters = argumentsIncludingReceiver
+                    .zip(argumentTypesIncludingReceiver)
                     .zip(rightSideTypes)
-                    .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
-                        val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
+                    .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argumentAndType, parameterType) ->
+                        val (argument, argumentType) = argumentAndType
+                        val unificationAfterParameter = parameterType.unify(argumentType, argument.declaration.span, carryUnification)
                         if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
                             indicesOfErroneousParameters.add(parameterIndex)
                         }
@@ -569,9 +581,9 @@ class BoundInvocationExpression(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
     ): IrInvocationExpression {
-        val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
+        val isCallOnAbstractType = receiverTypeForDispatch?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
-        val returnType = type!!.toBackendIr()
+        val returnType = returnTypeOfInvokedFunction!!.toBackendIr()
         val irResolvedTypeArgs = chosenOverload!!.unification.bindings
             .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
@@ -592,17 +604,67 @@ class BoundInvocationExpression(
             functionToInvoke!!.toBackendIr(),
             arguments,
             irResolvedTypeArgs,
-            type!!.toBackendIr(),
+            returnType,
             landingpad,
         )
     }
 
     override fun toBackendIrExpression(): IrExpression = toBackendIrExpression { emptyList() }
     fun toBackendIrExpression(buildAdditionalResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>): IrImplicitEvaluationExpression {
-        return buildGenericInvocationLikeIr(
+        if (!skipsInvocationOnNullReceiver) {
+            return buildInvocationIr(
+                listOfNotNull(receiverExceptReferringType).map { it.prepareAsArgument() },
+                buildAdditionalResultCleanup,
+            )
+        }
+
+        // receiver?.fn(args) evaluates to: if isNull(receiver) null else fn(receiver, args)
+        val nullSafeIr = buildNullSafeInvocationIr(buildAdditionalResultCleanup)
+        val irType = type!!.toBackendIr()
+        val nullTemporary = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(irType))
+        val resultTemporary = IrCreateTemporaryValueImpl(IrIfExpressionImpl(
+            nullSafeIr.receiverIsNull,
+            IrImplicitEvaluationExpressionImpl(
+                IrCodeChunkImpl(listOf(nullTemporary)),
+                IrTemporaryValueReferenceImpl(nullTemporary),
+            ),
+            nullSafeIr.invocation,
+            irType,
+        ))
+
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(nullSafeIr.evaluateReceiver + resultTemporary),
+            IrTemporaryValueReferenceImpl(resultTemporary),
+        )
+    }
+
+    override fun toBackendIrStatement(): IrExecutable {
+        val dropResult: (IrTemporaryValueReference) -> List<IrExecutable> = { listOf(IrDropStrongReferenceStatementImpl(it)) }
+        if (!skipsInvocationOnNullReceiver) {
+            return toBackendIrExpression(dropResult).code
+        }
+
+        // receiver?.fn(args) as a statement is: if not isNull(receiver) { fn(receiver, args) }
+        val nullSafeIr = buildNullSafeInvocationIr(dropResult)
+        return IrCodeChunkImpl(nullSafeIr.evaluateReceiver + IrConditionalBranchImpl(
+            nullSafeIr.receiverIsNull,
+            IrCodeChunkImpl(emptyList()),
+            nullSafeIr.invocation.code,
+        ))
+    }
+
+    /**
+     * @param preparedReceiver the receiver, if any. Must be prepared by the caller because the receiver might be
+     * evaluated before the code returned by this function, see [buildNullSafeInvocationIr].
+     */
+    private fun buildInvocationIr(
+        preparedReceiver: List<PreparedInvocationArgument>,
+        buildAdditionalResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>,
+    ): IrImplicitEvaluationExpression {
+        return buildGenericInvocationLikeIrWithPreparedArguments(
             context,
             declaration.span,
-            listOfNotNull(receiverExceptReferringType) + valueArguments,
+            preparedReceiver + valueArguments.map { it.prepareAsArgument() },
             ::buildBackendIrInvocation,
             buildResultCleanup = { resultTemporary ->
                 val unreachable = when {
@@ -621,13 +683,44 @@ class BoundInvocationExpression(
         )
     }
 
-    override fun toBackendIrStatement(): IrExecutable {
-        return toBackendIrExpression(
-            buildAdditionalResultCleanup = {
-                listOf(IrDropStrongReferenceStatementImpl(it))
-            }
-        ).code
+    private fun buildNullSafeInvocationIr(buildAdditionalResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>): NullSafeInvocationIr {
+        check(skipsInvocationOnNullReceiver)
+        val receiver = receiverExceptReferringType!!.prepareAsArgument()
+        val receiverIsNull = IrCreateTemporaryValueImpl(IrIsNullExpressionImpl(receiver.reference, context.swCtx))
+
+        // the receiver is evaluated before the null-check; only its cleanup is part of the invocation
+        val receiverInInvocation = PreparedInvocationArgument(
+            prepareCode = emptyList(),
+            // for value types, this unboxes the receiver
+            reference = IrTemporaryValueReferenceImpl(receiver.reference.declaration, receiverTypeForDispatch!!.toBackendIr()),
+            cleanupCode = receiver.cleanupCode,
+        )
+
+        return NullSafeInvocationIr(
+            receiver.prepareCode + receiverIsNull,
+            IrTemporaryValueReferenceImpl(receiverIsNull),
+            buildInvocationIr(listOf(receiverInInvocation), buildAdditionalResultCleanup),
+        )
     }
+
+    private class NullSafeInvocationIr(
+        /** evaluates the receiver and checks whether it is null */
+        val evaluateReceiver: List<IrExecutable>,
+        /** whether the receiver is null, is defined after [evaluateReceiver] */
+        val receiverIsNull: IrTemporaryValueReference,
+        /** the invocation itself, given that [receiverIsNull] is false */
+        val invocation: IrImplicitEvaluationExpression,
+    )
+
+    class NullSafeAccess(
+        /** the `?.` operator */
+        val accessOperatorToken: OperatorToken,
+        /**
+         * Derived conditionally from the [BoundExpression.modifiedContext] of the receiver: the arguments are evaluated
+         * and the function is invoked only if the receiver is not null.
+         */
+        val contextWhenReceiverNotNull: MutableExecutionScopedCTContext,
+    )
 
     /**
      * Used to filter the available functions before selecting one to invoke. The [Result.Inapplicable.reason]s
@@ -709,37 +802,50 @@ internal class IrDynamicDispatchFunctionInvocationImpl(
 ) : IrDynamicDispatchFunctionInvocationExpression
 
 /**
+ * An argument to an invocation, evaluated into a temporary.
+ */
+internal class PreparedInvocationArgument(
+    /** evaluates the argument; [reference] is defined after this code */
+    val prepareCode: List<IrExecutable>,
+    /** the argument value */
+    val reference: IrTemporaryValueReference,
+    /** to be executed after the invocation has returned */
+    val cleanupCode: List<IrExecutable>,
+)
+
+internal fun BoundExpression<*>.prepareAsArgument(): PreparedInvocationArgument {
+    val temporary = IrCreateTemporaryValueImpl(toBackendIrExpression())
+    val prepareCode = ArrayList<IrExecutable>(2)
+    val cleanupCode = ArrayList<IrExecutable>(1)
+    prepareCode.add(temporary)
+    if (!isEvaluationResultAnchored) {
+        if (!isEvaluationResultReferenceCounted) {
+            // refcount to keep alive during the evaluation of subsequent temporaries
+            prepareCode.add(IrCreateStrongReferenceStatementImpl(temporary))
+        }
+        if (isEvaluationResultReferenceCounted) {
+            // use of the temporary is over after the call, drop the reference
+            cleanupCode.add(IrDropStrongReferenceStatementImpl(temporary))
+        }
+    } // else: if anchored we don't need to refcount the temporary
+
+    return PreparedInvocationArgument(prepareCode, IrTemporaryValueReferenceImpl(temporary), cleanupCode)
+}
+
+/**
  * common base for [buildGenericInvocationLikeIr] and [buildNothrowInvocationLikeIr]
  */
 private fun buildInvocationLikeIrInternal(
-    boundArgumentExprs: List<BoundExpression<*>>,
+    arguments: List<PreparedInvocationArgument>,
     buildActualCall: (arguments: List<IrTemporaryValueReference>, argumentsCleanupCode: List<IrExecutable>) -> IrExpression,
     buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>,
 ): IrImplicitEvaluationExpression {
-    val prepareArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size * 2)
-    val argumentTemporaries = ArrayList<IrCreateTemporaryValue>(boundArgumentExprs.size)
-    val cleanUpArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size)
-
-    for (boundArgumentExpr in boundArgumentExprs) {
-        val irExpr = boundArgumentExpr.toBackendIrExpression()
-        val temporary = IrCreateTemporaryValueImpl(irExpr)
-        argumentTemporaries.add(temporary)
-        prepareArgumentsCode.add(temporary)
-        if (!boundArgumentExpr.isEvaluationResultAnchored) {
-            if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
-                // refcount to keep alive during the evaluation of subsequent temporaries
-                prepareArgumentsCode.add(IrCreateStrongReferenceStatementImpl(temporary))
-            }
-            if (boundArgumentExpr.isEvaluationResultReferenceCounted) {
-                // use of the temporary is over after the call, drop the reference
-                cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
-            }
-        } // else: if anchored we don't need to refcount the temporary
-    }
+    val prepareArgumentsCode = arguments.flatMap { it.prepareCode }
+    val cleanUpArgumentsCode = arguments.flatMap { it.cleanupCode }
 
     val returnValueTemporary = IrCreateTemporaryValueImpl(
         buildActualCall(
-            argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) },
+            arguments.map { it.reference },
             cleanUpArgumentsCode,
         )
     )
@@ -760,7 +866,7 @@ internal fun buildNothrowInvocationLikeIr(
     buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
 ): IrImplicitEvaluationExpression {
     return buildInvocationLikeIrInternal(
-        boundArgumentExprs,
+        boundArgumentExprs.map { it.prepareAsArgument() },
         { args, _ -> buildActualCall(args) },
         buildResultCleanup,
     )
@@ -781,8 +887,29 @@ internal fun buildGenericInvocationLikeIr(
     buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
     assumeNothrow: Boolean,
 ): IrImplicitEvaluationExpression {
+    return buildGenericInvocationLikeIrWithPreparedArguments(
+        context,
+        invocationLocation,
+        boundArgumentExprs.map { it.prepareAsArgument() },
+        buildActualCall,
+        buildResultCleanup,
+        assumeNothrow,
+    )
+}
+
+/**
+ * Like [buildGenericInvocationLikeIr], but the arguments have been [prepareAsArgument]ed by the caller.
+ */
+private fun buildGenericInvocationLikeIrWithPreparedArguments(
+    context: ExecutionScopedCTContext,
+    invocationLocation: Span,
+    arguments: List<PreparedInvocationArgument>,
+    buildActualCall: (arguments: List<IrTemporaryValueReference>, landingpad: IrInvocationExpression.Landingpad?) -> IrExpression,
+    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>,
+    assumeNothrow: Boolean,
+): IrImplicitEvaluationExpression {
     return buildInvocationLikeIrInternal(
-        boundArgumentExprs,
+        arguments,
         { args, argsCleanupCode ->
             val landingpad = if (assumeNothrow) null else {
                 val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().mapToBackendIrWithDebugLocations()

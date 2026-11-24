@@ -1,0 +1,12 @@
+statement, null:
+statement, not null:
+  evaluated argument
+  invoked on x!
+expression, null: null
+expression, not null: box x
+getter, null: null
+getter, not null: 42
+assignment, null:
+assignment, not null:
+  evaluated value
+  counter = 1

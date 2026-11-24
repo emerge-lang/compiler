@@ -6,53 +6,35 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
-import compiler.binding.expression.BoundExpression
+import compiler.binding.context.effect.VariableTypeRefinement
+import compiler.binding.expression.*
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
-import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.CreateReferenceValueUsage
-import compiler.binding.expression.IrClassFieldAccessExpressionImpl
-import compiler.binding.expression.TransientValueUsage
-import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.Impurity
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.impurity.ReassignmentBeyondBoundary
-import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
-import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
-import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.*
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.instantiateAllParametersForWriting
-import compiler.diagnostic.AmbiguousInvocationDiagnostic
-import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.*
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingAttributeDiagnostic
-import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
-import compiler.diagnostic.ambiguousMemberVariableWrite
-import compiler.diagnostic.illegalAssignment
-import compiler.diagnostic.superfluousSafeObjectTraversal
-import compiler.diagnostic.unresolvableMemberVariable
-import compiler.diagnostic.unsafeObjectTraversal
-import compiler.diagnostic.valueNotAssignable
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.*
 
 class BoundObjectMemberAssignmentStatement(
     context: ExecutionScopedCTContext,
     declaration: AssignmentStatement<MemberAccessExpression>,
     val targetObjectExpression: BoundExpression<*>,
-    val isNullSafeAccess: Boolean,
+    /** non-null iff the member is accessed with the null-safe operator `?.` */
+    val nullSafeAccess: BoundInvocationExpression.NullSafeAccess?,
     val memberName: String,
     val considerSetters: Boolean,
     toAssignExpression: BoundExpression<*>,
@@ -67,7 +49,22 @@ class BoundObjectMemberAssignmentStatement(
 
     // toAssignExpression is derived from targetObjectExpression
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
-    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
+
+    /** for [nullSafeAccess]: where the target object evaluated to null, so neither the value is evaluated nor the assignment happens */
+    private val contextWhenTargetObjectNull = nullSafeAccess?.let { MutableExecutionScopedCTContext.deriveFrom(targetObjectExpression.modifiedContext) }
+
+    override val modifiedContext: ExecutionScopedCTContext = if (nullSafeAccess == null) _modifiedContext else SingleBranchJoinExecutionScopedCTContext(
+        targetObjectExpression.modifiedContext,
+        _modifiedContext,
+        contextWhenTargetObjectNull!!,
+    )
+
+    /**
+     * Whether the assignment is skipped if the target object evaluates to `null`. True iff the member is accessed
+     * with `?.` on a target object of a nullable type.
+     */
+    private val skipsAssignmentOnNullTargetObject: Boolean
+        get() = nullSafeAccess != null && targetObjectExpression.type?.isNullable == true
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetObjectExpression.semanticAnalysisPhase1(diagnosis)
@@ -79,10 +76,15 @@ class BoundObjectMemberAssignmentStatement(
     override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetObjectExpression.semanticAnalysisPhase2(diagnosis)
         val baseType = targetObjectExpression.type ?: return
-        if (baseType.isNullable && !isNullSafeAccess) {
+        if (baseType.isNullable && nullSafeAccess == null) {
             diagnosis.unsafeObjectTraversal(targetObjectExpression, declaration.targetExpression.accessOperatorToken)
-        } else if (!baseType.isNullable && isNullSafeAccess) {
+        } else if (!baseType.isNullable && nullSafeAccess != null) {
             diagnosis.superfluousSafeObjectTraversal(targetObjectExpression, declaration.targetExpression.accessOperatorToken)
+        }
+        if (nullSafeAccess != null) {
+            val targetObjectImplications = targetObjectExpression.implications
+            VariableTypeRefinement.trackImplications(targetObjectImplications, BoundExpression.ImplyingResult.NON_NULL_VALUE, nullSafeAccess.contextWhenReceiverNotNull)
+            VariableTypeRefinement.trackImplications(targetObjectImplications, BoundExpression.ImplyingResult.NULL_VALUE, contextWhenTargetObjectNull!!)
         }
 
         physicalMembers = baseType.findMemberVariable(memberName)
@@ -121,6 +123,11 @@ class BoundObjectMemberAssignmentStatement(
             val availableSetters = mutableSetOf<BoundFunction>()
             diagnosis.doWithTransformedFindings(setterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->
+                    if (finding is SuperfluousSafeObjectTraversal) {
+                        // already reported by this class
+                        return@mapNotNull null
+                    }
+
                     if (finding is AmbiguousInvocationDiagnostic && finding.invocation === setterInvocation.declaration) {
                         availableSetters.addAll(finding.candidates)
                         return@mapNotNull null
@@ -244,6 +251,11 @@ class BoundObjectMemberAssignmentStatement(
         val member = physicalMembers.firstOrNull() ?: return setterInvocation.toBackendIrStatement()
 
         val baseTemporary = IrCreateTemporaryValueImpl(targetObjectExpression.toBackendIrExpression())
+        // for ?., the code using this reference only runs if the base is not null
+        val baseReference = IrTemporaryValueReferenceImpl(
+            baseTemporary,
+            targetObjectExpression.type!!.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE).toBackendIr(),
+        )
 
         val dropPreviousReferenceCode: IrCodeChunk?
         if (initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED) {
@@ -257,7 +269,7 @@ class BoundObjectMemberAssignmentStatement(
             }
             val previousTemporary = IrCreateTemporaryValueImpl(
                 IrClassFieldAccessExpressionImpl(
-                    IrTemporaryValueReferenceImpl(baseTemporary),
+                    baseReference,
                     member.field.toBackendIr(),
                     previousType,
                 ),
@@ -276,19 +288,36 @@ class BoundObjectMemberAssignmentStatement(
         val toAssignRefIncrement = IrCreateStrongReferenceStatementImpl(toAssignTemporary)
             .takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
 
-        return IrCodeChunkImpl(listOfNotNull(
-            baseTemporary,
-            baseTemporaryRefIncrement,
+        val assign = IrCodeChunkImpl(listOfNotNull(
             toAssignTemporary,
             toAssignRefIncrement,
             dropPreviousReferenceCode,
             IrAssignmentStatementImpl(
                 IrAssignmentStatementTargetClassFieldImpl(
                     member.field.toBackendIr(),
-                    IrTemporaryValueReferenceImpl(baseTemporary),
+                    baseReference,
                 ),
                 IrTemporaryValueReferenceImpl(toAssignTemporary),
             ),
+        ))
+
+        val assignIfBaseNotNull: IrExecutable = if (!skipsAssignmentOnNullTargetObject) assign else {
+            val baseIsNull = IrCreateTemporaryValueImpl(IrIsNullExpressionImpl(IrTemporaryValueReferenceImpl(baseTemporary), context.swCtx))
+            IrCodeChunkImpl(listOf(
+                baseIsNull,
+                IrConditionalBranchImpl(
+                    IrTemporaryValueReferenceImpl(baseIsNull),
+                    IrCodeChunkImpl(emptyList()),
+                    assign,
+                ),
+            ))
+        }
+
+        return IrCodeChunkImpl(listOfNotNull(
+            baseTemporary,
+            baseTemporaryRefIncrement,
+            assignIfBaseNotNull,
+            // the type of the base temporary is nullable, so this is null-safe
             IrDropStrongReferenceStatementImpl(baseTemporary)
                 .takeUnless { targetObjectExpression.isEvaluationResultAnchored },
         ))
