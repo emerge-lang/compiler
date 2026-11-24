@@ -1,7 +1,7 @@
 package emerge.std.collections
 
-export class MapSet<Element : const Equatable<Element>> : Set<Element> {
-    private map: mut Map<Element, Unit> = init
+export class MapSet<Element : const Equatable<Element>, MapT : Map<Element, Unit>> : Set<Element> {
+    private map: mut MapT = init
 
     export override operator fn contains(self, borrow element: Element) = self.map.contains(element)
 
@@ -13,5 +13,7 @@ export class MapSet<Element : const Equatable<Element>> : Set<Element> {
         return not isNull(self.map.remove(element))
     }
 
-    export fn newHashSet<E : const Hashable & Equatable<Element>>() -> MapSet<Element> = MapSet(HashMap())
+    export fn newHashSet<E : const Hashable & Equatable<E>>(algorithm: HashAlgorithm<UWord>) -> MapSet<E> {
+        return MapSet(HashMap::<E, Unit>(algorithm))
+    }
 }

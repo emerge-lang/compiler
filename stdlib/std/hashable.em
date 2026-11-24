@@ -18,11 +18,11 @@ export interface HashState<R> {
 }
 
 export interface Hashable {
-    export fn addTo(self, borrow hash: HashState)
+    export fn addTo(self, borrow hash: HashState<*>)
 }
 
-export interface HashAlgorithm<R> {
-    export fn newState(self) -> HashState<R>
+export interface HashAlgorithm<R> : NonToken {
+    export fn newState(self) -> own HashState<R>
 }
 
 export fn hashWith<R>(self: Hashable, algo: HashAlgorithm<R>) -> R {
@@ -49,13 +49,13 @@ export class JavaLikeHashState : HashState<UWord> {
     export override fn add(self: mut _, v: SWord)
     export override fn add(self: mut _, v: UWord)
     export override fn add(self: mut _, v: String) {
-        add(v.utf8data.size)
+        self.add(v.utf8Data.size)
         foreach codepoint in StringCodepointsRange(v) {
-            add(codepoint)
+            self.add(codepoint)
         }
     }
 
-    export get fn hashValue(self) -> UWord = self.value
+    export override get fn hashValue(self) -> UWord = self.value
 }
 
 export fn add(self: mut HashState<*>, borrow v: Hashable) {
