@@ -115,6 +115,8 @@ object CompileCommand : CliktCommand() {
             swCtx.doSemanticAnalysis(diagnosis)
             semanticCompleteAt = measureClock.instant()
 
+            echo("Errors: ${diagnosis.nErrors}, Warnings: ${diagnosis.nWarnings}")
+
             if (diagnosis.nErrors > 0uL) {
                 throw PrintMessage(
                     "The provided program is not valid",
@@ -191,6 +193,8 @@ private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit)
     private val errorsInGeneratedCode = HashSet<Diagnostic>()
     override var nErrors: ULong = 0uL
         private set
+    var nWarnings: ULong = 0uL
+        private set
 
     private var hasErrorInUserSuppliedCode = false
     private var closed = false
@@ -210,6 +214,10 @@ private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit)
             }
         } else {
             if (seen.add(finding)) {
+                if (finding.severity == Diagnostic.Severity.WARNING) {
+                    nWarnings++
+                }
+
                 process(finding)
             }
         }
