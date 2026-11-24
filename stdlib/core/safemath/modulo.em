@@ -29,3 +29,33 @@ export nothrow intrinsic fn plusModulo(borrow self: SWord, borrow summand: SWord
 
 // adds the two numbers, overflowing from MAX to 0.
 export nothrow intrinsic fn plusModulo(borrow self: UWord, borrow summand: UWord) -> UWord
+
+// subtracts the two numbers, overflowing from -(2^7) to 2^7-1
+export nothrow intrinsic fn minusModulo(borrow self: S8, borrow summand: S8) -> S8
+
+// subtracts the two numbers, overflowing from 0 to 2^8-1
+export nothrow intrinsic fn minusModulo(borrow self: U8, borrow summand: U8) -> U8
+
+// subtracts the two numbers, overflowing from -(2^16) to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: S16, borrow summand: S16) -> S16
+
+// subtracts the two numbers, overflowing from 0 to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: U16, borrow summand: U16) -> U16
+
+// subtracts the two numbers, overflowing from -(2^16) to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: S32, borrow summand: S32) -> S32
+
+// subtracts the two numbers, overflowing from 0 to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: U32, borrow summand: U32) -> U32
+
+// subtracts the two numbers, overflowing from -(2^16) to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: S64, borrow summand: S64) -> S64
+
+// subtracts the two numbers, overflowing from 0 to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: U64, borrow summand: U64) -> U64
+
+// subtracts the two numbers, overflowing from -(2^16) to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: SWord, borrow summand: SWord) -> SWord
+
+// subtracts the two numbers, overflowing from 0 to 2^16-1
+export nothrow intrinsic fn minusModulo(borrow self: UWord, borrow summand: UWord) -> UWord
