@@ -311,6 +311,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     The joins after branches can leave such branches out per `EphemeralStateClass` (`joinsOnlyBranchesThatCompleteNormally`,
     built for the smart casts). `VariableInitialization` (and maybe other classes) could opt in, too; it changes
     existing analyses, so it needs its own tests.
+33. Diagnostic clarity
+    1. superfluous warning: given `Class X { y: S32 = 0 }`, `x: X?`, then `z: S32 = x.y ?: 1` produces two diagnostics:
+       an error that `x` may be null: correct  
+       a warning that `.y` is never null and thus the `?: 1` would be superfluous  
+       In this case, the warning should be omitted, preferably by having `.y` report type `S32?` because the receiver is nullable
+    2. with only a getter defined for a virtual property, `set o.v` should report that `v` is readonly, not that "X does not have a member named v".  
 
 ## Future features
 
