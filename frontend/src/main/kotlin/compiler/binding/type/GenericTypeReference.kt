@@ -7,15 +7,13 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.handleCyclicInvocation
 import compiler.lexer.Span
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.independentToString
+import io.github.tmarsteel.emerge.backend.api.ir.*
 
 class GenericTypeReference private constructor(
     val parameter: BoundTypeParameter,
@@ -265,6 +263,14 @@ class GenericTypeReference private constructor(
         }
 
         return TypeVariable(withTypeVariableBound)
+    }
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {
+        handleCyclicInvocation(
+            context = this,
+            action = { parameter.bound.collectBaseTypes(into) },
+            onCycle = {}
+        )
     }
 
     override fun asAstReference(): NamedTypeReference = NamedTypeReference(

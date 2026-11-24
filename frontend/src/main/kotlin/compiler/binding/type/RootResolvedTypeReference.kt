@@ -1,28 +1,15 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.ast.type.AstSimpleTypeReference
-import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
+import compiler.ast.type.*
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
-import compiler.diagnostic.CyclicSubtypeCheckDiagnostic
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.constTokenReference
-import compiler.diagnostic.hiddenTypeExposed
+import compiler.diagnostic.*
 import compiler.lexer.Span
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.independentToString
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
@@ -396,6 +383,11 @@ class RootResolvedTypeReference private constructor(
             baseType,
             arguments?.map { it.instantiateAllParameters(context) },
         )
+    }
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {
+        into.add(baseType)
+        arguments?.forEach { it.collectBaseTypes(into) }
     }
 
     override fun asAstReference(): AstSimpleTypeReference {

@@ -1,14 +1,9 @@
 package compiler.binding.type
 
-import compiler.ast.type.AstSpecificTypeArgument
-import compiler.ast.type.AstTypeArgument
-import compiler.ast.type.AstWildcardTypeArgument
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.ast.type.isDeclaredOwn
+import compiler.ast.type.*
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
@@ -302,6 +297,10 @@ class BoundTypeArgument(
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return type.hasSameBaseTypeAs(other)
+    }
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {
+        type.collectBaseTypes(into)
     }
 
     override fun asAstReference(): TypeReference {

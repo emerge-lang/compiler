@@ -171,6 +171,8 @@ class ErroneousType(
         return true
     }
 
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {}
+
     override fun asAstReference(): TypeReference {
         return astNode
     }

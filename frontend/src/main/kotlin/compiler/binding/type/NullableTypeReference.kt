@@ -5,6 +5,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.diagnostic.Diagnosis
 import compiler.lexer.Span
@@ -116,6 +117,10 @@ class NullableTypeReference private constructor(
     }
 
     override val inherentTypeBindings get() = nested.inherentTypeBindings
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {
+        nested.collectBaseTypes(into)
+    }
 
     override fun asAstReference(): TypeReference {
         return nested.asAstReference().withNullability(TypeReference.Nullability.NULLABLE)

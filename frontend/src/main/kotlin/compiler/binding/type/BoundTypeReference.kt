@@ -33,7 +33,7 @@ import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
 import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import java.util.IdentityHashMap
+import java.util.*
 
 sealed interface BoundTypeReference {
     /** the context in which this reference exists / was bound */
@@ -310,6 +310,11 @@ sealed interface BoundTypeReference {
     val inherentTypeBindings: TypeUnification
 
     fun asAstReference(): TypeReference
+
+    /**
+     * Adds all [BoundBaseType]s mentioned in this type to [into].
+     */
+    fun collectBaseTypes(into: MutableSet<BoundBaseType>)
 
     fun toBackendIr(): IrType
 

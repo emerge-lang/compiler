@@ -5,6 +5,7 @@ import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -188,6 +189,8 @@ class TypeVariable private constructor(
     override fun asAstReference(): TypeReference {
         return asGeneric.asAstReference()
     }
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {}
 
     override fun toBackendIr(): IrType {
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")

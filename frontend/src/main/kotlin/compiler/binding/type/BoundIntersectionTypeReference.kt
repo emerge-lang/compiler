@@ -1,21 +1,12 @@
 package compiler.binding.type
 
-import compiler.ast.type.AstIntersectionType
-import compiler.ast.type.AstSpecificTypeArgument
-import compiler.ast.type.NamedTypeReference
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
+import compiler.ast.type.*
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.illegalIntersectionType
-import compiler.diagnostic.inconsistentTypeArgumentsOnDiamondInheritance
-import compiler.diagnostic.simplifiableIntersectionType
+import compiler.diagnostic.*
 import compiler.lexer.Operator
 import compiler.lexer.Span
 import compiler.util.twoElementPermutationsUnordered
@@ -242,6 +233,10 @@ class BoundIntersectionTypeReference private constructor(
 
     override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
         return components.flatMap { it.findMemberFunction(name) }
+    }
+
+    override fun collectBaseTypes(into: MutableSet<BoundBaseType>) {
+        components.forEach { it.collectBaseTypes(into) }
     }
 
     override fun asAstReference(): AstIntersectionType {
