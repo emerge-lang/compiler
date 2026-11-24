@@ -1,6 +1,7 @@
 package emerge.std.collections
 
 import emerge.core.safemath.plusModulo
+import emerge.core.range.{BidirectionalRange, EmptyRangeException}
 
 export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
     private var buckets: Array<mut ArrayList<mut MapEntry<Key, Value>>?> = Array.new(16, null)
@@ -26,7 +27,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
 
                     previousValue = bucketEntry.value
                     self.bumpVersion()
-                    set entry.value = value
+                    set bucketEntry.value = entry.value
                     return previousValue
                 }
             }
@@ -41,16 +42,16 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
         }
 
         self.bumpVersion()
-        bucket.add(MapEntry(key, value))
+        bucket.add(entry)
         set self._size = self._size + 1
         return null
     }
 
-    export override operator fn getAtIndex(self, borrow index: Key) -> Value? {
-        return getEntry(key)?.value
+    export override operator fn getAtIndex(self: mut _, borrow index: Key) -> Value? {
+        return getEntry(index)?.value
     }
 
-    export override operator fn contains(self, borrow index: Key) {
+    export override operator fn contains(self, borrow key: Key) {
         return not isNull(getEntry(key))
     }
 
