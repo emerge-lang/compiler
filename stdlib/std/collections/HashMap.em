@@ -1,30 +1,30 @@
 package emerge.std.collections
 
-import emerge.core.safemath.plusModulo
-import emerge.core.range.{BidirectionalRange, EmptyRangeException}
+import emerge.core.safemath.{plusModulo, minusModulo}
+import emerge.core.range.{SizedRange, BidirectionalRange, EmptyRangeException}
 
-export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
-    private var buckets: Array<mut ArrayList<mut MapEntry<Key, Value>>?> = Array.new(16, null)
+export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Value> {
+    private var buckets = Array.new::<mut ArrayList<mut MapEntry<Key, Value>>?>(16, null)
     private var hashAlgorithm: HashAlgorithm<UWord> = init
-    private var maxBucketSize = 4
+    private var maxBucketSize: UWord = 4
     private var version: UWord = 0
     private var _size: UWord = 0
 
-    export operator fn setAtIndex(self: mut _, index: Key, value: Value) -> Value? {
+    export override operator fn setAtIndex(self: mut _, index: Key, value: Value) -> Value? {
         return self.storeEntry(MapEntry(index, value), true)
     }
 
     private fn storeEntry(self: mut _, entry: MapEntry<Key, Value>, grow: Bool) -> Value? {
         hash = entry.key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach bucketEntry in bucket {
-                if bucketEntry.key.equals(bucket.key) {
-                    if bucketEntry.isSameInstanceAs(entry) {
-                        return bucketEntry.value
-                    }
+                if isNull(bucketEntry) {
+                    continue
+                }
 
+                if bucketEntry.key.equals(entry.key) {
                     previousValue = bucketEntry.value
                     self.bumpVersion()
                     set bucketEntry.value = entry.value
@@ -34,10 +34,10 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
 
             if grow and bucket.size > self.maxBucketSize {
                 self.growAndRehash()
-                return storeEntry(entry, false)
+                return self.storeEntry(entry, false)
             }
         } else {
-            set bucket = ArrayList()
+            set bucket = ArrayList::<mut MapEntry<Key, Value>>()
             set self.buckets[bucketIndex] = bucket
         }
 
@@ -48,16 +48,16 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
     }
 
     export override operator fn getAtIndex(self: mut _, borrow index: Key) -> Value? {
-        return getEntry(index)?.value
+        return self.getEntry(index)?.value
     }
 
     export override operator fn contains(self, borrow key: Key) {
-        return not isNull(getEntry(key))
+        return not isNull(self.getEntry(key))
     }
 
     private fn getEntry(self, borrow key: Key) -> MapEntry<Key, Value>? {
         hash = key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach entry in bucket {
@@ -72,14 +72,14 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
 
     export override fn remove(self: mut _, key: Key) -> Value? {
         hash = key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd(2.pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach entryIndex in 0..<bucket.size {
                 entry = bucket[entryIndex]
                 if entry.key.equals(key) {
                     bucket.removeAtIndex(entryIndex)
-                    set self.size = self.size - 1
+                    set self._size = self._size - 1
                     return entry.value
                 }
             }
@@ -88,14 +88,14 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
         return null
     }
 
-    export fn asRange(self) -> HashMapRange<Key, Value> = HashMapRange(self)
+    export override fn asRange(self) -> HashMapRange<Key, Value> = HashMapRange(self)
 
-    export get fn size(self) -> UWord = self._size
+    export override get fn size(self) -> UWord = self._size
     
     private fn growAndRehash(self: mut _) {
         self.bumpVersion()
         var oldBuckets = self.buckets
-        set self.buckets = Array.new(self.buckets.size * 2, null)
+        set self.buckets = Array.new::<mut ArrayList<mut MapEntry<Key, Value>>?>(self.buckets.size * 2, null)
         foreach bucket in oldBuckets  {
             if isNull(bucket) {
                 continue
@@ -107,23 +107,25 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> {
     }
 
     private fn bumpVersion(self: mut _) {
-        set self.version = self.version.plusModulo(1)
+        set self.version = self.version.plusModulo(1 as UWord)
     }
 }
 
-export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedRange<out read MapEntry<Key, Value>> & BidirectionalRange<out read MapEntry<Key, Value>> {
+export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedRange<read MapEntry<Key, Value>> & BidirectionalRange<read MapEntry<Key, Value>> {
     private map: HashMap<Key, Value> = init
     private atVersion: UWord = self.map.version
     private var frontBucketIndex: UWord = 0
     private var indexInFrontBucket: UWord = 0
-    private var backBucketIndexPlus1: UWord = self.map.buckets.size
-    private var indexInBackBucketPlus1: UWord = if self.map.buckets.size > 0 {
-        self.map.buckets[$ - 1].size
-    } else {
-        1
-    }
+    private var backBucketIndexPlus1: UWord
+    private var indexInBackBucketPlus1: UWord
 
-    private nothrow constructor {}
+    private nothrow constructor {
+        set self.backBucketIndexPlus1 = self.map.buckets.size
+        while self.backBucketIndexPlus1 > 0 and isNull(self.map.buckets.getOrPanic(self.backBucketIndexPlus1.minusModulo(1 as UWord))) {
+            set self.backBucketIndexPlus1 = self.backBucketIndexPlus1.minusModulo(1 as UWord)
+        }
+        set self.indexInBackBucketPlus1 = self.map.buckets.getOrPanic(self.backBucketIndexPlus1.minusModulo(1 as UWord))?.size ?: 0
+    }
 
     private fn checkNotModified(self) {
         if self.map.version != self.atVersion {
@@ -138,7 +140,7 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
             throw EmptyRangeException()
         }
 
-        bucket = self.map.buckets[self.frontBucketIndex]
+        bucket = self.map.buckets[self.frontBucketIndex]!!
         if self.indexInFrontBucket >= bucket.size {
             throw EmptyRangeException()
         }
@@ -151,14 +153,15 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
             return
         }
 
-        bucket = self.map.buckets[self.frontBucketIndex]
-        if self.indexInFrontBucket >= bucket.size {
-            set self.frontBucketIndex = self.frontBucketIndex + 1
-            set self.indexInFrontBucket = 0
-            return
-        }
-
         set self.indexInFrontBucket = self.indexInFrontBucket + 1
+
+        var bucket = self.map.buckets[self.frontBucketIndex]!!
+        if self.indexInFrontBucket >= bucket.size {
+            set self.indexInFrontBucket = 0
+            do {
+                set self.frontBucketIndex = self.frontBucketIndex + 1
+            } while self.frontBucketIndex < self.map.buckets.size and isNull(self.map.buckets[self.frontBucketIndex])
+        }
     }
 
     export override get fn back(self) -> read MapEntry<Key, Value> {
@@ -168,7 +171,7 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
             throw EmptyRangeException()
         }
 
-        bucket = self.map.buckets[self.backBucketIndexPlus1 - 1]
+        bucket = self.map.buckets[self.backBucketIndexPlus1 - 1]!!
         return bucket[self.indexInBackBucketPlus1 - 1]
     }
 
@@ -183,9 +186,12 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
         if self.backBucketIndexPlus1 == 1 {
             return // empty
         }
-        set self.backBucketIndexPlus1 = self.backBucketIndexPlus1 - 1
+
+        while self.backBucketIndexPlus1 > 1 and isNull(self.map.buckets[self.backBucketIndexPlus1 - 1]) {
+            set self.backBucketIndexPlus1 = self.backBucketIndexPlus1 - 1
+        }
         bucket = self.map.buckets[self.backBucketIndexPlus1 - 1]
-        set self.indexInBackBucketPlus1 = bucket.size
+        set self.indexInBackBucketPlus1 = bucket?.size ?: 0
     }
 
     export override get fn size(self) -> UWord {

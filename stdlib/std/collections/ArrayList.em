@@ -29,6 +29,20 @@ export class ArrayList<X : Any> : Iterable<X> {
 
         return self.storage[index]!!
     }
+
+    export fn removeAtIndex(self: mut _, index: UWord) -> X {
+        if index >= self._size {
+            throw ArrayIndexOutOfBoundsError(index)
+        }
+
+        value = self.storage[index]!!
+
+        Array.copy(self.storage, index + 1, self.storage, index, self.size - index - 1)
+        set self.storage[self.size] = null
+        set self._size = self.size - 1
+
+        return value
+    }
     
     export nothrow fn getOrPanic(self, index: UWord) -> X {
         if index >= self._size  {

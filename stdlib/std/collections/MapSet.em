@@ -13,7 +13,7 @@ export class MapSet<Element : const Equatable<Element>, MapT : Map<Element, Unit
         return not isNull(self.map.remove(element))
     }
 
-    export fn newHashSet<E : const Hashable & Equatable<E>>(algorithm: HashAlgorithm<UWord>) -> MapSet<E> {
+    export fn newHashSet<E : const Hashable & Equatable<E>>(algorithm: HashAlgorithm<UWord>) -> MapSet<E, HashMap<E, Unit>> {
         return MapSet(HashMap::<E, Unit>(algorithm))
     }
 }
