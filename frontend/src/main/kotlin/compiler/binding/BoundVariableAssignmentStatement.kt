@@ -44,6 +44,9 @@ class BoundVariableAssignmentStatement(
         if (targetVariable == null) {
             diagnosis.undefinedIdentifier(variableName)
         }
+
+        // the next iteration of a loop around this assignment may see the new value
+        targetVariable?.let { context.innermostLoopContext?.trackSideEffectInBody(VariableTypeRefinement.Effect.NewValueAssigned(it)) }
     }
 
     override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {

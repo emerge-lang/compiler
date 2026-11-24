@@ -147,6 +147,7 @@ class SourceFileRootContext(
             override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
 
             override val parentLoop = null
+            override val innermostLoopContext = null
 
             override val parentScopeContext: ExecutionScopedCTContext? = null
             override val irScope: IrVariableDeclaration.Scope

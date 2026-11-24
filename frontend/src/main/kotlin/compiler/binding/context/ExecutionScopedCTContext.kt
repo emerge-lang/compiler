@@ -79,6 +79,11 @@ interface ExecutionScopedCTContext : CTContext {
     val parentLoop: BoundLoop<*>?
 
     /**
+     * `this` if it is a [LoopExecutionScopedCTContext], otherwise the closest parent that is; `null` if there is none.
+     */
+    val innermostLoopContext: LoopExecutionScopedCTContext<*>?
+
+    /**
      * If [isScopeBoundary], `this`, otherwise the closest parent that [isScopeBoundary].
      */
     val parentScopeContext: ExecutionScopedCTContext?
@@ -259,12 +264,13 @@ open class MutableExecutionScopedCTContext protected constructor(
             .firstOrNull { it.isTryContext }
     }
 
-    private val parentLoopContext: LoopExecutionScopedCTContext<*>? by lazy {
+    protected val parentLoopContext: LoopExecutionScopedCTContext<*>? by lazy {
         hierarchy.drop(1)
             .filterIsInstance<LoopExecutionScopedCTContext<*>>()
             .firstOrNull()
     }
     override val parentLoop: BoundLoop<*>? get() = parentLoopContext?.loopNode
+    override val innermostLoopContext: LoopExecutionScopedCTContext<*>? get() = parentLoopContext
 
     override val isTryContext = false
     override val isInTryContext get() = closestTryContext != null
@@ -359,8 +365,19 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
-        return applySelfEffects(parentContext.getEphemeralState(stateClass, subject), stateClass, subject)
+        val stateOnEntry = stateOnEntry(parentContext.getEphemeralState(stateClass, subject), stateClass, subject)
+        return applySelfEffects(stateOnEntry, stateClass, subject)
     }
+
+    /**
+     * @param stateFromParent the state as of the end of the parent context
+     * @return the state when entering this context, before the [SideEffect]s tracked on this context
+     */
+    protected open fun <Subject : Any, State> stateOnEntry(
+        stateFromParent: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State = stateFromParent
 
     override fun <Subject : Any, State> getEphemeralStateRelativeTo(
         ancestor: CTContext,
@@ -373,7 +390,7 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
 
         val parentState = parentContext.getEphemeralStateRelativeTo(ancestor, stateInAncestor, stateClass, subject)
-        return applySelfEffects(parentState, stateClass, subject)
+        return applySelfEffects(stateOnEntry(parentState, stateClass, subject), stateClass, subject)
     }
 
     private fun <Subject : Any, State> applySelfEffects(parentState: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
@@ -658,6 +675,53 @@ class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
 ) {
     override val isTryContext = false
     val loopNode: LoopNode by lazy(getBoundLoopNode)
+
+    override val innermostLoopContext: LoopExecutionScopedCTContext<*> get() = this
+
+    /** the closest loop that encloses this one, if any */
+    val outerLoopContext: LoopExecutionScopedCTContext<*>? get() = parentLoopContext
+
+    private val sideEffectsInBodyBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, SequencedSet<SideEffect<*>>>> by lazy { IdentityHashMap() }
+    private val stateClassesQueriedOnEntry: MutableSet<EphemeralStateClass<*, *, *>> = HashSet()
+
+    /**
+     * Tracks a [SideEffect] that code in the body of this loop may have. Iterations can follow each other, so at the
+     * start of each iteration, the effect may already have happened in a previous one; see [stateOnEntry]. That is
+     * the back edge of the loop, which the [SideEffect]s tracked inside the body don't model.
+     *
+     * Must be called before the state of [SideEffect.stateClass] is queried on this context, so in
+     * [compiler.binding.SemanticallyAnalyzable.semanticAnalysisPhase1]: the body of a loop completes phase 1 before
+     * its phase 2 starts.
+     */
+    fun trackSideEffectInBody(effect: SideEffect<*>) {
+        if (effect.stateClass in stateClassesQueriedOnEntry) {
+            throw InternalCompilerError("${effect.stateClass} has already been queried on this loop context, cannot track $effect in the body anymore")
+        }
+
+        val byEffectClass = sideEffectsInBodyBySubjectAndClass.computeIfAbsent(effect.subject) { HashMap() }
+        byEffectClass.computeIfAbsent(effect.stateClass) { LinkedHashSet() }.add(effect)
+
+        // the body of the outer loop contains this one
+        outerLoopContext?.trackSideEffectInBody(effect)
+    }
+
+    override fun <Subject : Any, State> stateOnEntry(
+        stateFromParent: State,
+        stateClass: EphemeralStateClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        stateClassesQueriedOnEntry.add(stateClass)
+        val effectsInBody = sideEffectsInBodyBySubjectAndClass[subject]?.get(stateClass) ?: return stateFromParent
+
+        // trackSideEffectInBody is responsible for the type safety!
+        @Suppress("UNCHECKED_CAST")
+        effectsInBody as Iterable<SideEffect<Subject>>
+        @Suppress("UNCHECKED_CAST")
+        stateClass as EphemeralStateClass<Subject, State, in SideEffect<Subject>>
+
+        val stateAfterPreviousIteration = effectsInBody.fold(stateFromParent, stateClass::fold)
+        return stateClass.combineMaybe(stateFromParent, stateAfterPreviousIteration)
+    }
 }
 
 class TryBlockExecutionScopedCTContext(

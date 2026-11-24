@@ -134,6 +134,24 @@ class SmartCastTests : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic>()
         }
+
+        "in a nested loop, when an enclosing loop entered after the refinement assigns a new value" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        while cond() {
+                            while cond() {
+                                takeBar(w)
+                            }
+                            set w = produce()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
     }
 
     "the refinement holds" - {
@@ -145,6 +163,56 @@ class SmartCastTests : FreeSpec({
                         while cond() {
                             takeBar(v)
                         }
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a loop that doesn't assign a new value to the variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    if w is Bar {
+                        while cond() {
+                            takeBar(w)
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a foreach loop, when the variable is assigned outside the loop" {
+            validateModule("""
+                $declarations
+                fn test(items: read Array<S32>) {
+                    var w: Bar? = null
+                    if not isNull(w) {
+                        foreach item in items {
+                            takeBar(w)
+                        }
+                    } else {
+                        set w = Bar("x")
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "in a nested loop, when the enclosing loop assigns after re-establishing it" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w = produce()
+                    while cond() {
+                        if w is Bar {
+                            while cond() {
+                                takeBar(w)
+                            }
+                        }
+                        set w = produce()
                     }
                 }
             """.trimIndent())

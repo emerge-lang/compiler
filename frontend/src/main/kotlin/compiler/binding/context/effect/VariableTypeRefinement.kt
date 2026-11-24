@@ -2,11 +2,9 @@ package compiler.binding.context.effect
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.context.LoopExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
@@ -19,7 +17,8 @@ import compiler.binding.type.BoundTypeReference
  * beyond its declared type, e.g. after `if v is Foo` (smart casts). The backends rely on these refinements (they surface
  * in the IR, see [io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression.evaluatesTo]), so they must be
  * sound: a refinement only lasts as long as the variable isn't assigned a new value; the member variables on a
- * [Path] cannot change their value at all.
+ * [Path] cannot change their value at all. In loops, that includes assignments in a previous iteration, see
+ * [compiler.binding.context.LoopExecutionScopedCTContext.trackSideEffectInBody].
  *
  * Use [refinedType] to get the effective type.
  */
@@ -87,7 +86,7 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
 
         return refinements
             .asSequence()
-            .filter { it.path == path && it.isValidIn(context) }
+            .filter { it.path == path }
             .fold(unrefinedType) { carry, refinement -> carry.intersect(refinement.intersectWith) }
     }
 
@@ -186,19 +185,6 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
         val intersectWith: BoundTypeReference,
         val establishedIn: ExecutionScopedCTContext,
     ) {
-        fun isValidIn(context: ExecutionScopedCTContext): Boolean {
-            // the member variables on the path can't change, only the variable can
-            if (!path.root.isReAssignable) {
-                return true
-            }
-
-            // an assignment later in the body of a loop that started after the refinement was established
-            // changes the value for the next iteration; the side effect of that assignment is not visible
-            // from here, so the refinement cannot be trusted. establishedIn is not necessarily an ancestor of
-            // context (the refinement may come from a branch, e.g. `if isNull(v) { return }`), so compare the loops
-            return context.innermostLoop === establishedIn.innermostLoop
-        }
-
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Refinement) return false
@@ -209,9 +195,6 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
             return (System.identityHashCode(establishedIn) * 31 + path.hashCode()) * 31 + intersectWith.hashCode()
         }
     }
-
-    private val ExecutionScopedCTContext.innermostLoop: BoundLoop<*>?
-        get() = (this as? LoopExecutionScopedCTContext<*>)?.loopNode ?: parentLoop
 
     sealed class Effect(override val subject: BoundVariable) : SideEffect<BoundVariable> {
         override val stateClass get() = VariableTypeRefinement
