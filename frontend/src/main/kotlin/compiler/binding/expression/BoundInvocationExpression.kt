@@ -382,7 +382,7 @@ class BoundInvocationExpression(
 
                 val disjointParameterIndices = applicableInvalidCandidates.indicesOfDisjointlyTypedParameters().toSet()
                 val reducedEvaluations =
-                    applicableInvalidCandidates.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
+                    applicableInvalidCandidates.filter { it.indicesOfParametersWithMismatchingBaseType.none { it in disjointParameterIndices } }
                 if (reducedEvaluations.size == 1) {
                     val singleEval = reducedEvaluations.single()
                     singleEval.unification.diagnostics.forEach(diagnosis::add)
@@ -458,6 +458,7 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
+                val indicesOfParametersWithMismatchingBaseType = ArrayList<Int>(argumentsIncludingReceiver.size)
                 val unificationBeforeParameters = TypeUnification.fromExplicit(
                     candidateFn.allTypeParameters,
                     candidateFn.declaredTypeParameters,
@@ -478,6 +479,9 @@ class BoundInvocationExpression(
                         val unificationAfterParameter = parameterType.unify(argumentType, argument.declaration.span, carryUnification)
                         if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
                             indicesOfErroneousParameters.add(parameterIndex)
+                            if (!(argumentType.baseTypeOfLowerBound isSubtypeOf parameterType.baseTypeOfLowerBound)) {
+                                indicesOfParametersWithMismatchingBaseType.add(parameterIndex)
+                            }
                         }
                         unificationAfterParameter
                     }
@@ -507,6 +511,7 @@ class BoundInvocationExpression(
                     unification,
                     returnTypeWithVariables?.instantiateFreeVariables(unification),
                     indicesOfErroneousParameters,
+                    indicesOfParametersWithMismatchingBaseType,
                     inapplicableReason,
                     isLegalCandidate = unificationBeforeParameters.diagnostics.none { it.severity >= Diagnostic.Severity.ERROR }
                         && inapplicableReason == null
@@ -769,6 +774,10 @@ private data class OverloadCandidateEvaluation(
     val unification: TypeUnification,
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
+    /**
+     * Subset of [indicesOfErroneousParameters]
+     */
+    val indicesOfParametersWithMismatchingBaseType: Collection<Int>,
     val inapplicableReason: InvocationCandidateNotApplicableDiagnostic?,
     val isLegalCandidate: Boolean,
 )

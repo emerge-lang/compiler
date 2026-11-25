@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.TypeMutability
 import compiler.diagnostic.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forOne
@@ -141,6 +142,60 @@ class FunctionErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
+        }
+
+        "argument mismatching a disjointly typed parameter only in nullability or mutability" - {
+            // the top-level add and Box::add are disjoint on the receiver; with the receiver being a Box,
+            // Box::add is the intended candidate and its problems should be reported
+            val declarations = """
+                interface Sink {}
+                fn add(self: mut Sink, v: S32) {}
+                class Entry {
+                    var v: S32 = init
+                }
+                class Box<X : Any> {
+                    fn add(self: mut _, e: X) {}
+                }
+            """.trimIndent()
+
+            "nullable receiver" {
+                validateModule("""
+                    $declarations
+                    fn test(b: mut Box<mut Entry>?, e: mut Entry) {
+                        b.add(e)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.isNullable shouldBe true
+                        it.sourceType.baseTypeOfLowerBound.simpleName shouldBe "Box"
+                    }
+            }
+
+            "argument of insufficient mutability" {
+                validateModule("""
+                    $declarations
+                    fn test(b: mut Box<mut Entry>, e: read Entry) {
+                        b.add(e)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.mutability shouldBe TypeMutability.READONLY
+                        it.sourceType.baseTypeOfLowerBound.simpleName shouldBe "Entry"
+                    }
+            }
+
+            "nullable receiver and argument of insufficient mutability" {
+                validateModule("""
+                    $declarations
+                    fn test(b: mut Box<mut Entry>?, e: read Entry) {
+                        b.add(e)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.isNullable shouldBe true
+                        it.sourceType.baseTypeOfLowerBound.simpleName shouldBe "Box"
+                    }
+            }
         }
 
         "argument not assignable to non-disjointly typed parameter" {
