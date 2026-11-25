@@ -64,6 +64,7 @@ class BoundVariableAssignmentStatement(
         targetVariable?.also {
             _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(it))
             _modifiedContext.trackSideEffect(VariableTypeRefinement.Effect.NewValueAssigned(it))
+            VariableTypeRefinement.trackAssignedValue(it, toAssignExpression.type, _modifiedContext)
         }
     }
 

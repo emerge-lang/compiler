@@ -184,6 +184,25 @@ fn doWhileBreak() -> S32 {
     return iterations
 }
 
+// assigning a value refines the variable to the type of the value
+fn assignedToAny() -> S32 {
+    var v: Any = "not a number"
+    set v = 41
+    return v + 1
+}
+
+fn assignedToNullableS32() -> S32 {
+    var v: S32? = null
+    set v = 41
+    return v + 1
+}
+
+fn assignedToNullableFoo() -> String {
+    var v: Foo? = null
+    set v = Bar("tadaaa")
+    return "assigned: " + v.p
+}
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
 
@@ -249,4 +268,7 @@ fn main(world: mut World) {
     stdout.println("continue: sum = " + sumSkippingNulls(values).toString())
     stdout.println("break: sum = " + sumUntilNull(values).toString())
     stdout.println("do-while break: iterations = " + doWhileBreak().toString())
+    stdout.println("assigned to Any: " + assignedToAny().toString())
+    stdout.println("assigned to S32?: " + assignedToNullableS32().toString())
+    stdout.println(assignedToNullableFoo())
 }

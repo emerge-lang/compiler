@@ -341,6 +341,111 @@ class SmartCastTests : FreeSpec({
         }
     }
 
+    "assigning a value refines the variable to the type of the value" - {
+        "of a subtype" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = produce()
+                    set w = Bar("x")
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "to non-null" {
+            validateModule("""
+                $declarations
+                fn test(b: Bar?) -> String {
+                    var w: Bar? = b
+                    set w = Bar("x")
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "keeping the mutability of the variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: read Foo = produce()
+                    set w = Bar("x")
+                    takeMutBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not to Nothing when assigning null" {
+            validateModule("""
+                $declarations
+                fn test() -> String? {
+                    var w: Bar? = Bar("x")
+                    set w = null
+                    return w?.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "until a value of a less specific type is assigned" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = produce()
+                    set w = Bar("x")
+                    set w = produce()
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "in the rest of a loop body" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = produce()
+                    while cond() {
+                        set w = Bar("x")
+                        takeBar(w)
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not after a branch that may not have run" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = produce()
+                    if cond() {
+                        set w = Bar("x")
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not after a loop that may not have run" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = produce()
+                    while cond() {
+                        set w = Bar("x")
+                    }
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
     "isNull returning false refines the variable to non-null" - {
         "in the else branch" {
             validateModule("""

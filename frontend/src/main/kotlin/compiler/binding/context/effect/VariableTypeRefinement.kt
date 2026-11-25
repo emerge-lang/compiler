@@ -11,6 +11,7 @@ import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberVariableReadExpression
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.isAssignableTo
 
 /**
  * Tracks what is known about the type of the value of a variable, or of a member variable reached from it (see [Path]),
@@ -140,6 +141,31 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
         return listOf(BoundExpression.ResultImplication(
             BoundExpression.ImplyingResult.NON_NULL_VALUE,
             mapOf(path to type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)),
+        ))
+    }
+
+    /**
+     * Tracks that, after [variable] was assigned a value of type [assignedType], it holds a value of that type; which
+     * may be more specific than its declared type (e.g. not nullable, or a subtype).
+     *
+     * The refinement keeps the declared mutability of [variable]: the variable holds a reference to the value, so
+     * e.g. an `exclusive` value is no longer exclusive when read from it. Assigning `null` or a value of type
+     * `Nothing` doesn't refine: a variable of type `Nothing?` offers no members, which is less useful than its
+     * declared type.
+     */
+    fun trackAssignedValue(variable: BoundVariable, assignedType: BoundTypeReference?, context: MutableExecutionScopedCTContext) {
+        if (assignedType == null || !canBeRefined(variable)) {
+            return
+        }
+        val declaredType = variable.typeAtDeclarationTime ?: return
+        if (assignedType.baseTypeOfLowerBound == context.swCtx.nothing || !(assignedType isAssignableTo declaredType)) {
+            return
+        }
+
+        context.trackSideEffect(Effect.Refine(
+            Path(variable, emptyList()),
+            assignedType.withMutability(declaredType.mutability),
+            context,
         ))
     }
 

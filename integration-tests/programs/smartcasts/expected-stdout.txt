@@ -35,3 +35,6 @@ member: tadaaa
 continue: sum = 42
 break: sum = 20
 do-while break: iterations = 2
+assigned to Any: 42
+assigned to S32?: 42
+assigned: tadaaa
