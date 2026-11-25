@@ -49,11 +49,11 @@ fn nullableTests(stdout: mut PrintStream) {
     set h.data = null
     stdout.println(sizeOrZero(h.data).toString())
 
-    asAny: Any? = n
+    asAny: Any? = opaque::<Any?>(n)
     if isNull(asAny) {
         stdout.println("boxed null array is null")
     }
-    asAny2: Any? = given
+    asAny2: Any? = opaque::<Any?>(given)
     if asAny2 is Array<S32> {
         stdout.println("boxed non-null array is an array")
     }

@@ -36,6 +36,9 @@ class Wrapper<T> : Named {
     v: T = init
 }
 
+// returns v, hiding its type beyond T from the compiler: the type checks on the result happen at runtime
+fn opaque<T>(v: T) -> T = v
+
 fn show(stdout: mut PrintStream, what: String, result: Bool) {
     stdout.println(what + ": " + (if result "yes" else "no"))
 }
@@ -63,7 +66,7 @@ fn main(world: mut World) {
 
     // type arguments are checked
     strings: Array<String> = ["a", "b"]
-    stringsAny: Any = strings
+    stringsAny: Any = opaque::<Any>(strings)
     show(stdout, "Array<String> is Array<String>", stringsAny is Array<String>)
     show(stdout, "Array<String> is Array<S8>", stringsAny is Array<S8>)
     show(stdout, "Array<String> is Array<out Any>", stringsAny is Array<out Any>)
@@ -74,32 +77,32 @@ fn main(world: mut World) {
     noBytes: Array<S8>? = stringsAny as? Array<S8>
     show(stdout, "Array<String> as? Array<S8> is null", isNull(noBytes))
     bytes: Array<S8> = [1, 2, 3]
-    bytesAny: Any = bytes
+    bytesAny: Any = opaque::<Any>(bytes)
     stdout.println("Array<S8> as Array<S8>: " + (bytesAny as Array<S8>).size.toString() + " elements")
 
     // classes, variance, nested arguments
-    dogBox: Any = Box::<Dog>(Dog())
+    dogBox: Any = opaque::<mut Any>(Box::<Dog>(Dog()))
     show(stdout, "Box<Dog> is Box<Dog>", dogBox is Box<Dog>)
     show(stdout, "Box<Dog> is Box<Cat>", dogBox is Box<Cat>)
     show(stdout, "Box<Dog> is Box<Animal>", dogBox is Box<Animal>)
     show(stdout, "Box<Dog> is Box<out Animal>", dogBox is Box<out Animal>)
     show(stdout, "Box<Dog> is Box<in Dog>", dogBox is Box<in Dog>)
     show(stdout, "Box<Dog> is Box<in Animal>", dogBox is Box<in Animal>)
-    nested: Any = Box::<Box<Dog>>(Box::<Dog>(Dog()))
+    nested: Any = opaque::<mut Any>(Box::<Box<Dog>>(Box::<Dog>(Dog())))
     show(stdout, "Box<Box<Dog>> is Box<Box<Dog>>", nested is Box<Box<Dog>>)
     show(stdout, "Box<Box<Dog>> is Box<Box<Cat>>", nested is Box<Box<Cat>>)
     show(stdout, "Box<Box<Dog>> is Box<out Box<out Animal>>", nested is Box<out Box<out Animal>>)
     show(stdout, "Box<Box<Dog>> is Box<Box<out Animal>>", nested is Box<Box<out Animal>>)
 
     // the type arguments of supertypes
-    nest: Any = Nest::<Dog>(Dog())
+    nest: Any = opaque::<mut Any>(Nest::<Dog>(Dog()))
     show(stdout, "Nest<Dog> is Seq<Box<Dog>>", nest is Seq<Box<Dog>>)
     show(stdout, "Nest<Dog> is Seq<Box<Cat>>", nest is Seq<Box<Cat>>)
     show(stdout, "Nest<Dog> is Seq<Dog>", nest is Seq<Dog>)
     show(stdout, "Nest<Dog> is Seq<out Box<out Animal>>", nest is Seq<out Box<out Animal>>)
 
     // a wildcard is the bound of the type parameter, as the other type arguments make it: Comparator<String>, Comparator<S32>
-    sorted: Any = Sorted::<String, StringComparator>(StringComparator())
+    sorted: Any = opaque::<mut Any>(Sorted::<String, StringComparator>(StringComparator()))
     show(stdout, "Sorted<String, StringComparator> is Sorted<String, *>", sorted is Sorted<String, *>)
     show(stdout, "Sorted<String, StringComparator> is Sorted<S32, *>", sorted is Sorted<S32, *>)
     show(stdout, "Sorted<String, StringComparator> is Sorted<*, *>", sorted is Sorted<*, *>)
@@ -114,8 +117,8 @@ fn main(world: mut World) {
     show(stdout, "Box<Dog> is Box<out Dog?>", dogBox is Box<out Dog?>)
 
     // intersections
-    dog: Any = Dog()
-    cat: Any = Cat()
+    dog: Any = opaque::<mut Any>(Dog())
+    cat: Any = opaque::<mut Any>(Cat())
     show(stdout, "Dog is Animal & Named", dog is Animal & Named)
     show(stdout, "Cat is Animal & Named", cat is Animal & Named)
     show(stdout, "Box<Dog> is Box<Dog> & Animal", dogBox is Box<Dog> & Animal)
@@ -131,7 +134,7 @@ fn main(world: mut World) {
     show(stdout, "Box<Dog> is Box<T = Cat>", isBoxOf::<Cat>(dogBox))
 
     // mutability: objects know that of their type arguments
-    mutDogBox: Any = Box::<mut Dog>(Dog())
+    mutDogBox: Any = opaque::<mut Any>(Box::<mut Dog>(Dog()))
     show(stdout, "Box<mut Dog> is Box<mut Dog>", mutDogBox is Box<mut Dog>)
     show(stdout, "Box<mut Dog> is Box<Dog>", mutDogBox is Box<Dog>)
     show(stdout, "Box<mut Dog> is Box<const Dog>", mutDogBox is Box<const Dog>)
@@ -157,11 +160,11 @@ fn main(world: mut World) {
     show(stdout, "String through a read reference is T = String", isA::<String>("a string"))
 
     // tokens: a class is below NonToken unless it is a token class, and an object that holds a token is no NonToken
-    square: Any = Square()
-    channel: Any = Channel()
-    channelBox: Any = Box::<Channel>(Channel())
-    dogWrapper: Any = Wrapper::<Dog>(Dog())
-    channelWrapper: Any = Wrapper::<Channel>(Channel())
+    square: Any = opaque::<mut Any>(Square())
+    channel: Any = opaque::<mut Any>(Channel())
+    channelBox: Any = opaque::<mut Any>(Box::<Channel>(Channel()))
+    dogWrapper: Any = opaque::<mut Any>(Wrapper::<Dog>(Dog()))
+    channelWrapper: Any = opaque::<mut Any>(Wrapper::<Channel>(Channel()))
     show(stdout, "Dog is NonToken", dog is NonToken)
     show(stdout, "Square is Shape", square is Shape)
     show(stdout, "Channel is NonToken", channel is NonToken)

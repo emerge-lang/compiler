@@ -4,11 +4,14 @@ import emerge.platform.StandardOut
 import emerge.platform.World
 import emerge.std.io.PrintStream
 
+// returns v, hiding its type beyond T from the compiler: the type checks on the result happen at runtime
+fn opaque<T>(v: T) -> T = v
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
 
     strings: Array<String> = ["a", "b"]
-    stringsAny: Any = strings
+    stringsAny: Any = opaque::<Any>(strings)
 
     // a CastError is an Error, it is not caught, also when the cast is in the try block itself: the program ends here
     try {

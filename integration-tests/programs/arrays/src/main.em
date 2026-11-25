@@ -39,6 +39,9 @@ fn setIn(borrow arr: mut Array<in S8>) {
     set arr[0] = 65 as S8
 }
 
+// returns v, hiding its type beyond T from the compiler: the type checks on the result happen at runtime
+fn opaque<T>(v: T) -> T = v
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
     ints: Array<S32> = [1, 2, 3, 4]
@@ -62,7 +65,7 @@ fn main(world: mut World) {
     set nested[1] = buf
     stdout.println(sumS32(nested[1]).toString())
 
-    asAny: Any = ints
+    asAny: Any = opaque::<Any>(ints)
     if asAny is Array<S32> {
         stdout.println("is array")
     }

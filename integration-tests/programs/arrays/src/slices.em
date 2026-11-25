@@ -30,14 +30,14 @@ fn sliceTests(stdout: mut PrintStream) {
     stdout.println(sumS32(m).toString())
 
 
-    sAny: Any = s
+    sAny: Any = opaque::<Any>(s)
     if sAny is Array<S32> {
         stdout.println("slice is array")
     }
     if sAny is Iterable<S32> {
         stdout.println("slice is iterable")
     }
-    listAny: Any = ArrayList::<S32>()
+    listAny: Any = opaque::<mut Any>(ArrayList::<S32>())
     if listAny is Iterable<S32> {
         stdout.println("list is iterable")
     }
