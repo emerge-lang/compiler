@@ -33,7 +33,19 @@ val safemathFns: Map<String, Map<String, KotlinLlvmFunction<EmergeLlvmContext, *
         "U64" to buildModuloMinus("U64", LlvmU64Type),
         "SWord" to buildModuloMinus("SWord", EmergeSWordType),
         "UWord" to buildModuloMinus("UWord", EmergeUWordType),
-    )
+    ),
+    "timesModulo" to mapOf(
+        "S8" to buildModuloTimes("S8", LlvmS8Type),
+        "U8" to buildModuloTimes("U8", LlvmU8Type),
+        "S16" to buildModuloTimes("S16", LlvmS16Type),
+        "U16" to buildModuloTimes("U16", LlvmU16Type),
+        "S32" to buildModuloTimes("S32", LlvmS32Type),
+        "U32" to buildModuloTimes("U32", LlvmU32Type),
+        "S64" to buildModuloTimes("S64", LlvmS64Type),
+        "U64" to buildModuloTimes("U64", LlvmU64Type),
+        "SWord" to buildModuloTimes("SWord", EmergeSWordType),
+        "UWord" to buildModuloTimes("UWord", EmergeUWordType),
+    ),
 )
 
 private fun <T : LlvmIntegerType> buildModuloAdd(
@@ -67,5 +79,22 @@ private fun <T : LlvmIntegerType> buildModuloMinus(
 
     body {
         ret(sub(lhs, rhs))
+    }
+}
+
+private fun <T : LlvmIntegerType> buildModuloTimes(
+    typeSimpleName: String,
+    llvmType: T,
+) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.safemath.timesModulo_${typeSimpleName}",
+    llvmType,
+) {
+    val lhs by param(llvmType)
+    val rhs by param(llvmType)
+
+    instructionAliasAttributes()
+
+    body {
+        ret(mul(lhs, rhs))
     }
 }

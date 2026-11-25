@@ -1,6 +1,7 @@
 package emerge.std
 
-import emerge.core.utf8.StringCodepointsRange
+import emerge.core.utf8.codepoints
+import emerge.core.safemath.{plusModulo, timesModulo}
 
 export interface HashState<R> {
     export fn add(self: mut _, v: S8)
@@ -39,18 +40,27 @@ export class JavaLikeHashState : HashState<UWord> {
     private var value: UWord = 0
 
     export override fn add(self: mut _, v: S8) = self.add(v.toS64())
-    export override fn add(self: mut _, v: U8)
-    export override fn add(self: mut _, v: S16)
-    export override fn add(self: mut _, v: U16)
-    export override fn add(self: mut _, v: S32)
-    export override fn add(self: mut _, v: U32)
-    export override fn add(self: mut _, v: S64)
-    export override fn add(self: mut _, v: U64)
-    export override fn add(self: mut _, v: SWord)
-    export override fn add(self: mut _, v: UWord)
+    export override fn add(self: mut _, v: U8) = self.add(v.toU64())
+    export override fn add(self: mut _, v: S16) = self.add(v.toS64())
+    export override fn add(self: mut _, v: U16) = self.add(v.toU64())
+    export override fn add(self: mut _, v: S32) = self.add(v.toS64())
+    export override fn add(self: mut _, v: U32) = self.add(v.toU64())
+    export override fn add(self: mut _, v: S64) = self.add(v.asU64())
+    export override fn add(self: mut _, v: U64) {
+        if U64.max() == UWord.max().asU64() {
+            self.add(v.asUWord())
+        } else {
+            self.add(v.logicalBitShiftRight(32).asUWord())
+            self.add(v.asUWord())
+        }
+    }
+    export override fn add(self: mut _, v: SWord) = self.add(v.asUWord())
+    export override fn add(self: mut _, v: UWord) {
+        set self.value = self.value.timesModulo(31 as UWord).plusModulo(v)
+    }
     export override fn add(self: mut _, v: String) {
         self.add(v.utf8Data.size)
-        foreach codepoint in StringCodepointsRange(v) {
+        foreach codepoint in v.codepoints() {
             self.add(codepoint)
         }
     }
