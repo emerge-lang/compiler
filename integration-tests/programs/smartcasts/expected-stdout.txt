@@ -38,3 +38,7 @@ do-while break: iterations = 2
 assigned to Any: 42
 assigned to S32?: 42
 assigned: tadaaa
+joined S32?: 42, 1
+joined S32: 42, 2
+joined: field: tadaaa
+joined: not a bar

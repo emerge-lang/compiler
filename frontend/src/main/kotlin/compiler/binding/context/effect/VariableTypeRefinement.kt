@@ -30,25 +30,28 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
 
     override fun fold(state: State, effect: Effect): State {
         return when (effect) {
-            is Effect.Refine -> State(state.refinements + Refinement(effect.path, effect.intersectWith, effect.establishedIn))
+            is Effect.Refine -> State(state.refinements + Refinement(effect.path, effect.intersectWith, Refinement.Origin.EstablishedIn(effect.establishedIn)))
             // the member variables on the paths are reached through the variable, so their refinements end, too
             is Effect.NewValueAssigned -> State.UNREFINED
         }
     }
 
     override fun combineMaybe(state: State, advancedMaybe: State): State {
-        return commonRefinements(state, advancedMaybe)
+        return join(state, advancedMaybe)
     }
 
     override fun combineExclusiveBranches(stateOne: State, stateTwo: State): State {
-        return commonRefinements(stateOne, stateTwo)
+        return join(stateOne, stateTwo)
     }
 
     /**
-     * Keeps only the refinements that hold in both states; refinements are only ever added to the end of the list,
-     * so the result is a common prefix.
+     * Keeps what holds in both states:
+     * * the refinements both have in common. Refinements are only ever added to the end of the list, and the
+     *   refinements from before the states diverged are the same objects in both, so these are a common prefix.
+     * * for each [Path] that both refine after that prefix: that its value is of the closest common supertype of what
+     *   each of the states knows about it there.
      */
-    private fun commonRefinements(a: State, b: State): State {
+    private fun join(a: State, b: State): State {
         if (a.refinements.isEmpty()) {
             return a
         }
@@ -60,12 +63,34 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
             .takeWhile { (fromA, fromB) -> fromA == fromB }
             .map { it.first }
 
-        return when (common.size) {
-            a.refinements.size -> a
-            b.refinements.size -> b
-            else -> State(common)
+        if (common.size == a.refinements.size) {
+            return a
         }
+        if (common.size == b.refinements.size) {
+            return b
+        }
+
+        val onlyInA = a.refinements.subList(common.size, a.refinements.size)
+        val onlyInB = b.refinements.subList(common.size, b.refinements.size)
+        val joined = onlyInA
+            .map { it.path }
+            .distinct()
+            .mapNotNull { path ->
+                val fromA = onlyInA.filter { it.path == path }
+                val fromB = onlyInB.filter { it.path == path }.takeUnless { it.isEmpty() } ?: return@mapNotNull null
+                Refinement(
+                    path,
+                    fromA.intersectedType().closestCommonSupertypeWith(fromB.intersectedType()),
+                    Refinement.Origin.Joined(setOf(fromA, fromB)),
+                )
+            }
+
+        return State(common + joined)
     }
+
+    private fun List<Refinement>.intersectedType(): BoundTypeReference = asSequence()
+        .map { it.intersectWith }
+        .reduce { carry, type -> carry.intersect(type) }
 
     /**
      * @return the type of [variable] in [context], considering all refinements that are valid there
@@ -204,21 +229,36 @@ object VariableTypeRefinement : EphemeralStateClass<BoundVariable, VariableTypeR
     }
 
     /**
-     * @param establishedIn the context where the refinement starts to be valid
+     * @param origin tells apart refinements of the same [path] to the same type: only the very same refinement holds in
+     * two states that diverged after it was established.
      */
     class Refinement(
         val path: Path,
         val intersectWith: BoundTypeReference,
-        val establishedIn: ExecutionScopedCTContext,
+        val origin: Origin,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Refinement) return false
-            return establishedIn === other.establishedIn && path == other.path && intersectWith == other.intersectWith
+            return origin == other.origin && path == other.path && intersectWith == other.intersectWith
         }
 
         override fun hashCode(): Int {
-            return (System.identityHashCode(establishedIn) * 31 + path.hashCode()) * 31 + intersectWith.hashCode()
+            return (origin.hashCode() * 31 + path.hashCode()) * 31 + intersectWith.hashCode()
+        }
+
+        sealed interface Origin {
+            /** established by a [Effect.Refine] in [context], where it starts to be valid */
+            class EstablishedIn(val context: ExecutionScopedCTContext) : Origin {
+                override fun equals(other: Any?) = other is EstablishedIn && other.context === context
+                override fun hashCode() = System.identityHashCode(context)
+            }
+
+            /**
+             * by joining states, each with the refinements in [fromStates]. The same join can be computed more than
+             * once; the results are equal.
+             */
+            data class Joined(val fromStates: Set<List<Refinement>>) : Origin
         }
     }
 

@@ -518,7 +518,7 @@ open class MutableExecutionScopedCTContext protected constructor(
 
 /**
  * Models the context after a conditional branch, where the branch may or may not be taken at runtime.
- * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranch] are considered
+ * Information from [whenNotTaken] is definitely available and [SideEffect]s from [atEndOfBranch] are considered
  * using [EphemeralStateClass.combineMaybe].
  */
 class SingleBranchJoinExecutionScopedCTContext(
@@ -527,7 +527,6 @@ class SingleBranchJoinExecutionScopedCTContext(
     /**
      * The context of the path where the branch is not taken, e.g. after the condition of an `if` without `else` was
      * false. Must be [beforeBranch] or derived from it.
-     * @see EphemeralStateClass.joinsOnlyBranchesThatCompleteNormally
      */
     private val whenNotTaken: ExecutionScopedCTContext = beforeBranch,
 ) : ExecutionScopedCTContext by beforeBranch {
@@ -552,12 +551,13 @@ class SingleBranchJoinExecutionScopedCTContext(
     }
 
     private fun <Subject : Any, State> join(stateBeforeBranch: State, stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        val stateWhenNotTaken = whenNotTaken.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
         if (stateClass.joinsOnlyBranchesThatCompleteNormally && !atEndOfBranch.canCompleteNormally(beforeBranch)) {
-            return whenNotTaken.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
+            return stateWhenNotTaken
         }
 
         val stateAfterBranch = atEndOfBranch.getEphemeralStateRelativeTo(beforeBranch, stateBeforeBranch, stateClass, subject)
-        return stateClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
+        return stateClass.combineMaybe(stateWhenNotTaken, stateAfterBranch)
     }
 }
 

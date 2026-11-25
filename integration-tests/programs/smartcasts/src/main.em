@@ -203,6 +203,35 @@ fn assignedToNullableFoo() -> String {
     return "assigned: " + v.p
 }
 
+// after branches that all refine the variable, it has the closest common supertype of the refinements
+fn joinedNullableS32(v: S32?) -> S32 {
+    var w = v
+    if isNull(w) {
+        set w = 0
+    }
+    return w + 1
+}
+
+fn joinedS32(first: Bool) -> S32 {
+    var w: Any = "not a number"
+    if first {
+        set w = 41
+    } else {
+        set w = 1
+    }
+    return w + 1
+}
+
+fn joinedFoo(bar: Bool) -> String {
+    var w: Any = 3
+    if bar {
+        set w = Bar("tadaaa")
+    } else {
+        set w = Baz()
+    }
+    return "joined: " + fieldOrElse(w)
+}
+
 fn main(world: mut World) {
     stdout = StandardOut.take(world)!!
 
@@ -271,4 +300,8 @@ fn main(world: mut World) {
     stdout.println("assigned to Any: " + assignedToAny().toString())
     stdout.println("assigned to S32?: " + assignedToNullableS32().toString())
     stdout.println(assignedToNullableFoo())
+    stdout.println("joined S32?: " + joinedNullableS32(41).toString() + ", " + joinedNullableS32(null).toString())
+    stdout.println("joined S32: " + joinedS32(true).toString() + ", " + joinedS32(false).toString())
+    stdout.println(joinedFoo(true))
+    stdout.println(joinedFoo(false))
 }

@@ -446,6 +446,123 @@ class SmartCastTests : FreeSpec({
         }
     }
 
+    "after branches that all refine the variable, it has the closest common supertype of the refinements" - {
+        "isNull in one branch, assigning in the other" {
+            validateModule("""
+                $declarations
+                fn test(b: Bar?) -> String {
+                    var w = b
+                    if not isNull(w) {
+                        takeBar(w)
+                    } else {
+                        set w = Bar("x")
+                    }
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "assigning in the branch of an if without else, where the condition being false refines" {
+            validateModule("""
+                $declarations
+                fn test(b: Bar?) -> String {
+                    var w = b
+                    if isNull(w) {
+                        set w = Bar("x")
+                    }
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "the same refinement, established separately in each branch" {
+            validateModule("""
+                $declarations
+                fn test(v: Foo) {
+                    if cond() {
+                        v as Bar
+                    } else {
+                        v as Bar
+                    }
+                    takeBar(v)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "different subtypes" - {
+            val withBaz = """
+                $declarations
+                class Baz : Foo {}
+                fn takeFoo(v: Foo) {}
+            """.trimIndent()
+
+            "refine to their common supertype" {
+                validateModule("""
+                    $withBaz
+                    fn test() {
+                        var w: Any = 3
+                        if cond() {
+                            set w = Bar("x")
+                        } else {
+                            set w = Baz()
+                        }
+                        takeFoo(w)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "don't refine to either of them" {
+                validateModule("""
+                    $withBaz
+                    fn test() {
+                        var w: Any = 3
+                        if cond() {
+                            set w = Bar("x")
+                        } else {
+                            set w = Baz()
+                        }
+                        takeBar(w)
+                    }
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic>()
+            }
+        }
+
+        "not if one of the branches doesn't refine" {
+            validateModule("""
+                $declarations
+                fn test(b: Bar?) -> String {
+                    var w = b
+                    if cond() {
+                        set w = Bar("x")
+                    } else {
+                        takeBar(Bar("y"))
+                    }
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+
+        "not if the condition being true refines, for an if without else" {
+            validateModule("""
+                $declarations
+                fn test(b: Bar?) -> String {
+                    var w = b
+                    if not isNull(w) {
+                        set w = Bar("x")
+                    }
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldFind<UnsafeObjectTraversalDiagnostic>()
+        }
+    }
+
     "isNull returning false refines the variable to non-null" - {
         "in the else branch" {
             validateModule("""
