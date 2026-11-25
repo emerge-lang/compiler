@@ -203,6 +203,17 @@ fn assignedToNullableFoo() -> String {
     return "assigned: " + v.p
 }
 
+// the initializer refines a variable with a declared type to the type of the value
+fn initializedAny() -> S32 {
+    v: Any = 41
+    return v + 1
+}
+
+fn initializedNullableBar() -> String {
+    var v: Bar? = Bar("tadaaa")
+    return "initialized: " + v.p
+}
+
 // after branches that all refine the variable, it has the closest common supertype of the refinements
 fn joinedNullableS32(v: S32?) -> S32 {
     var w = v
@@ -304,4 +315,6 @@ fn main(world: mut World) {
     stdout.println("joined S32: " + joinedS32(true).toString() + ", " + joinedS32(false).toString())
     stdout.println(joinedFoo(true))
     stdout.println(joinedFoo(false))
+    stdout.println("initialized Any: " + initializedAny().toString())
+    stdout.println(initializedNullableBar())
 }

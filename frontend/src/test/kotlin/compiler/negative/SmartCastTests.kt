@@ -446,6 +446,78 @@ class SmartCastTests : FreeSpec({
         }
     }
 
+    "the initializer refines a variable with a declared type to the type of the value" - {
+        "re-assignable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: Foo = Bar("x")
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "not re-assignable, to non-null" {
+            validateModule("""
+                $declarations
+                fn test() -> String {
+                    w: Bar? = Bar("x")
+                    return w.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "keeping the mutability of the variable" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    w: read Foo = Bar("x")
+                    takeMutBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not to Nothing when initialized with null" {
+            validateModule("""
+                $declarations
+                fn test() -> String? {
+                    w: Bar? = null
+                    return w?.p
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "until a value of a less specific type is assigned" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: read Foo = Bar("x")
+                    set w = produce()
+                    takeBar(w)
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+
+        "not in a loop that may assign a value of a less specific type on an earlier iteration" {
+            validateModule("""
+                $declarations
+                fn test() {
+                    var w: read Foo = Bar("x")
+                    while cond() {
+                        takeBar(w)
+                        set w = produce()
+                    }
+                }
+            """.trimIndent())
+                .shouldFind<ValueNotAssignableDiagnostic>()
+        }
+    }
+
     "after branches that all refine the variable, it has the closest common supertype of the refinements" - {
         "isNull in one branch, assigning in the other" {
             validateModule("""

@@ -201,6 +201,11 @@ class BoundVariable(
                     declaration.declaredAt,
                     ownershipAtDeclarationTime,
                 ))
+
+                if (kind == Kind.LOCAL_VARIABLE && declaration.type != null) {
+                    // without a declared type, the variable is of the type of the initializer already
+                    VariableTypeRefinement.trackAssignedValue(this, initializerExpression.type, _modifiedContext)
+                }
             } else {
                 typeInferenceStage3 = typeInferenceStage2.doSean2WithoutInitializer(diagnosis)
             }
@@ -262,7 +267,8 @@ class BoundVariable(
         else -> false
     }
 
-    override val modifiedContext: ExecutionScopedCTContext by lazy {
+    override val modifiedContext: ExecutionScopedCTContext get() = _modifiedContext
+    private val _modifiedContext: MutableExecutionScopedCTContext by lazy {
         val contextAfterInitializer = initializerExpression?.modifiedContext ?: context
         val newCtx = MutableExecutionScopedCTContext.deriveFrom(contextAfterInitializer)
         newCtx.addVariable(this)

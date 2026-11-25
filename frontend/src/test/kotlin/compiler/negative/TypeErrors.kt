@@ -34,8 +34,7 @@ class TypeErrors : FreeSpec({
                     var prop: T = init
                 }
                 
-                fn foo() {
-                    var myX: X<out A> = X(B())
+                fn foo(myX: mut X<out A>) {
                     set myX.prop = B()
                 }
             """.trimIndent())
