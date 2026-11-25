@@ -49,6 +49,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         assigned to a variable first. The same concatenation of a member variable (`"hello, " + self.name`) doesn't
         leak
       * `stdout.println(lazy.value)` leaks the value of a `Lazy<String>` once, while `x = lazy.value` doesn't
+7. Autocopy / pass-by-value: passing a borrowed `UWord` into a capture slot isn't possible. A `.copy()` call is trivial
+   to resolve this; the compiler should automate this:
+   1. define a general `Copy` trait/interface
+   2. define an empty `Autocopy` on top of that
+   3. when a borrowed `Autocopy` is assigned to a `capture` slot, the compiler should insert `.copy()` automatically
+   4. make all core primitives (and string!) implement `Autocopy`
 7. documentation and presentation
    * from a user perspective. Github pages?
      * language syntax and semantics, maybe a good tutorial
@@ -318,7 +324,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        an error that `x` may be null: correct  
        a warning that `.y` is never null and thus the `?: 1` would be superfluous  
        In this case, the warning should be omitted, preferably by having `.y` report type `S32?` because the receiver is nullable
-    2. with only a getter defined for a virtual property, `set o.v` should report that `v` is readonly, not that "X does not have a member named v".  
+    2. with only a getter defined for a virtual property, `set o.v` should report that `v` is readonly, not that "X does not have a member named v".
+    3. suppress "does not override anything" if the function signature contains erroneous types
 
 ## Future features
 
