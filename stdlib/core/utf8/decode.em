@@ -1,7 +1,7 @@
 package emerge.core.utf8
 
 import emerge.std.collections.ArrayList
-import emerge.core.range.{FiniteRange, EmptyRangeException}
+import emerge.core.range.{Iterable, FiniteRange, EmptyRangeException}
 
 // decodes the codepoint in [data] at [index].
 // @return first: the codepoint, second: the index of the next codepoint, or null if the end of data has been reached
@@ -79,6 +79,14 @@ export class InvalidUtf8Exception : Throwable {
         mixin ThrowableTrait(self._message)
     }
 }
+
+export class StringCodepoints : Iterable<U32> {
+    private string: String = init
+
+    export override fn asRange(self) -> own StringCodepointsRange = StringCodepointsRange(self.string)
+}
+
+export fn codepoints(capture self: String) = StringCodepoints(self)
 
 export class StringCodepointsRange : FiniteRange<U32> {
     private string: String = init
