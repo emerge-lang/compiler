@@ -150,6 +150,11 @@ fn literalBoundedSum<T : Printable>(capture a: T, capture b: T) -> S32 {
 
 fn makeGeneric<T : Printable>(capture v: T) -> own Array<T> = Array.new::<T>(2, v)
 
+// values of type parameters bound by a value type are represented like the value type
+fn plusOneBounded<T : S32>(x: T) -> S32 = x + 1
+fn plusOneBoundedNullable<T : S32?>(x: T) -> S32 = x!! + 1
+fn identityBounded<T : S32>(x: T) -> T = x
+
 fn varianceTests(stdout: mut PrintStream) {
     stdout.println("-- variance")
     ints: Array<S32> = [11, 22, 33]
@@ -211,5 +216,10 @@ fn varianceTests(stdout: mut PrintStream) {
     stdout.println("-- generic creation probe")
     created = makeGeneric(1234 as S32)
     stdout.println(created[0].toString())
+
+    stdout.println("-- value type bound")
+    stdout.println(plusOneBounded(41).toString())
+    stdout.println(plusOneBoundedNullable::<S32?>(41).toString())
+    stdout.println((identityBounded(41) + 1).toString())
     stdout.println("-- variance end")
 }

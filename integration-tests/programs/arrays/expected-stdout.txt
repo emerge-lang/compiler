@@ -108,6 +108,10 @@ null
 Hi!
 -- generic creation probe
 1234
+-- value type bound
+42
+42
+42
 -- variance end
 -- reify
 1234

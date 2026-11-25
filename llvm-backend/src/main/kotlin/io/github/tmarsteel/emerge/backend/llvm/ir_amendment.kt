@@ -38,8 +38,8 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
 internal val IrType.autoboxer: Autoboxer? get() = when(this) {
     is IrParameterizedType -> simpleType.baseType.autoboxer
     is IrSimpleType -> baseType.autoboxer
-    // type parameters bound by an array are represented like arrays
-    is IrGenericTypeReference -> effectiveBound.autoboxer?.takeIf { it === Autoboxer.ArraySlice }
+    // type parameters are represented like their bound, see EmergeLlvmContext.getReferenceSiteType
+    is IrGenericTypeReference -> effectiveBound.autoboxer
     is IrIntersectionType -> representativeComponent?.autoboxer
 }
 
