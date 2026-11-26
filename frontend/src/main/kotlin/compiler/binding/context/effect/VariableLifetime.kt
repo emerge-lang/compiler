@@ -27,7 +27,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         return when (effect) {
             is Effect.ValueCaptured -> {
                 if (state is State.AliveOwn && !effect.asReadReference) {
-                    State.Dead(effect.subject, effect.capturedAt)
+                    State.Dead(effect.subject, effect.capturedAt, invocationPending = effect.byInvocationArgument)
                 } else {
                     state
                 }
@@ -56,8 +56,12 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             // before the invocation remain active, as they may belong to an enclosing invocation
             is State.AliveOwn,
             is State.AliveOwnWithActiveBorrow -> beforeInvocation as? State.AliveOwnWithActiveBorrow ?: State.AliveOwn
-            // captures by the arguments remain in effect
-            is State.Dead,
+            // captures by the arguments remain in effect; the ones made by this invocation take effect now
+            is State.Dead -> if (afterArguments.invocationPending && (beforeInvocation as? State.Dead)?.invocationPending != true) {
+                afterArguments.copy(invocationPending = false)
+            } else {
+                afterArguments
+            }
             is State.Untracked -> afterArguments
         }
     }
@@ -106,7 +110,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                 is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
                 is State.AliveOwn -> stateOne.maybe()
                 is State.AliveOwnWithActiveBorrow -> stateOne.maybe()
-                is State.Dead -> stateOne
+                is State.Dead -> stateOne.copy(invocationPending = stateOne.invocationPending && stateTwo.invocationPending)
             }
         }
     }
@@ -160,13 +164,17 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
         data object AliveOwn : State {
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
+                if (!usage.createsReference) {
+                    return null
+                }
+
                 return when (usage.usageOwnership) {
                     VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutabilityForAliasing, subject.span)
                     VariableOwnership.CAPTURED -> {
                         if (repetition.mayRepeat) {
                             diagnosis.lifetimeEndingCaptureInLoop(subject)
                         }
-                        Effect.ValueCaptured(subject.variable, usage.isUsedAsReadReference, subject.span)
+                        Effect.ValueCaptured(subject.variable, usage.isUsedAsReadReference, subject.span, usage.isInvocationArgument)
                     }
                 }
             }
@@ -180,6 +188,10 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             override fun maybe() = if (maybe) this else AliveOwnWithActiveBorrow(withMutability, borrowStartedAt, maybe = true)
 
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
+                if (!usage.createsReference) {
+                    return null
+                }
+
                 return when (usage.usageOwnership) {
                     VariableOwnership.CAPTURED -> {
                         diagnosis.borrowedVariableCaptured(subject.variable, subject.span)
@@ -199,10 +211,20 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             val variable: BoundVariable,
             val lifetimeEndedAt: Span,
             val maybe: Boolean = false,
+            /**
+             * The value was captured by an argument to an invocation whose arguments are still being evaluated. The
+             * invoked function takes the value over only once it is called, so until then, the value is still there to
+             * be read from; see [ValueUsage.createsReference].
+             */
+            val invocationPending: Boolean = false,
         ) : State {
-            override fun maybe() = if (maybe) this else Dead(variable, lifetimeEndedAt, true)
+            override fun maybe() = if (maybe) this else copy(maybe = true)
 
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
+                if (invocationPending && !usage.createsReference) {
+                    return null
+                }
+
                 when (usage.usageOwnership) {
                     VariableOwnership.BORROWED -> {
                         diagnosis.variableUsedAfterLifetime(subject, this)
@@ -230,6 +252,11 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
              */
             val asReadReference: Boolean,
             val capturedAt: Span,
+            /**
+             * whether the capture is by an argument to an invocation, see [ValueUsage.isInvocationArgument]. The
+             * capture then takes effect at the end of the invocation, see [endInvocation].
+             */
+            val byInvocationArgument: Boolean,
         ) : Effect
 
         data class NewValueAssigned(
