@@ -27,7 +27,3 @@ export class JavaLikeHashState : HashState<UWord> {
 
     export override get fn hashValue(self) -> UWord = self.value
 }
-
-export fn add(self: mut HashState<*>, borrow v: Hashable) {
-    v.hashInto(self)
-}
