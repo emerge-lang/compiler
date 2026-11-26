@@ -326,6 +326,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        In this case, the warning should be omitted, preferably by having `.y` report type `S32?` because the receiver is nullable
     2. with only a getter defined for a virtual property, `set o.v` should report that `v` is readonly, not that "X does not have a member named v".
     3. suppress "does not override anything" if the function signature contains erroneous types
+    4. suppress "intersection can be simplified" if any of the intersected types has or contains an erroneous type
 
 ## Future features
 
