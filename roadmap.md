@@ -248,17 +248,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     a type argument that mentions its own type parameters (`Array<T>`, `T?`) builds `NamedType`/`TypeArgument`
     objects on every call (`lowerReifiedType` in the LLVM backend). Cache them per call site, or intern
     structurally equal types
-28. a virtual function overriding an interface function whose return type is a type parameter (`fn make(self) -> R`)
-    with an array return type (`override fn make(self) -> Array<U>` for `Maker<Array<U>>`) crashes: the interface
-    returns a boxed reference, the override returns an `arrayslice` struct, so the LLVM signatures differ and the
-    override misreads its `self`. Needs a bridge like the ones `emerge.platform.ArrayBox` has, or the override has
-    to use the representation of the overridden function.
-    A primitive return type has the same problem: `override fn computeValue(self: const _) -> S32` for
-    `LazyInitializer<S32>` returns the raw `S32` where the caller expects a boxed reference, so `Lazy.value` takes
-    the number for a pointer and segfaults. A generic class (`class Constant<T> : LazyInitializer<T>`) works
-29. if interfaces ever get default method implementations, their type parameters need runtime type information
+28. if interfaces ever get default method implementations, their type parameters need runtime type information
     too: a per-class vtable entry mapping the interface's type parameters to the class's hidden fields
-30. the type system model picks other final values than the frontend where a type variable only has `own` values
+29. the type system model picks other final values than the frontend where a type variable only has `own` values
     (item 19): `Constraints.final_value` is the lower bound, `TypeUnification.getFinalValueFor` gives it the
     mutability the upper bound asks for, `mut` otherwise (`VariableState.mutabilityForOwnValues`), and it is an
     error where the upper bound asks for `own` (`VariableState.needsOwnValue`). The theorems on calls are about
@@ -271,7 +263,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * the proofs that unfold `final_value` (it is used ~140 times in 9 files)
     * the type the call is expected to return, as one more constraint before the final values are picked
       (`TypeUnification.plusExpectedTypeForOwnValues`)
-31. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
+30. remove owned and ref slots from the type system model. They are specified and proven there, but not implemented
     and not going to be: each member variable or element of a generic data structure would either own its object,
     making it part of the holder (`lines: owned mut List<owned mut Line>`), or refer to it
     (`customer: ref const Customer`). Internal mutability is what was wanted of it, and `emerge.core.Cell` gives
@@ -288,7 +280,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
     Mostly deletion, but in nearly every file, and a full check of the model takes a while; do it apart from
     item 36, which changes the same files
-32. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
+31. an `ArrayBox` passed through a generic constructor parameter and back out through a generic return value is
     freed twice (valgrind: invalid reads, writes and frees in the destructors):
     ```
     interface Source<T : const Any?> : const NonToken {
@@ -305,7 +297,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     ```
     The box held by `c.v` loses one reference too many; the same shape with a boxed `S32` has no invalid accesses
 
-33. the initialization of variables doesn't consider that a branch which is guaranteed to return or throw never reaches
+32. the initialization of variables doesn't consider that a branch which is guaranteed to return or throw never reaches
     the code after it:
     ```
     x: S32
@@ -319,7 +311,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     The joins after branches can leave such branches out per `EphemeralStateClass` (`joinsOnlyBranchesThatCompleteNormally`,
     built for the smart casts). `VariableInitialization` (and maybe other classes) could opt in, too; it changes
     existing analyses, so it needs its own tests.
-34. Diagnostic clarity
+33. Diagnostic clarity
     1. superfluous warning: given `Class X { y: S32 = 0 }`, `x: X?`, then `z: S32 = x.y ?: 1` produces two diagnostics:
        an error that `x` may be null: correct  
        a warning that `.y` is never null and thus the `?: 1` would be superfluous  
