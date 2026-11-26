@@ -403,7 +403,7 @@ export class U64 : const Any & Printable {
         }
 
         // 2^64-1 plus sign is at MOST 21 chars
-        var buf = Array.new::<S8>(21, SPACE_CODEPOINT)
+        var buf: own _ = Array.new::<S8>(21, SPACE_CODEPOINT)
         var insertionIndex: UWord = buf.size - 1
         var remainingNumber = self + 0
         while remainingNumber != 0 {

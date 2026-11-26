@@ -251,6 +251,7 @@ class BoundInvocationExpression(
                             ?.instantiateFreeVariables(chosenOverload!!.unification),
                         parameter.declaration.span,
                         parameter.ownershipAtDeclarationTime,
+                        isInvocationArgument = true,
                     ))
                 }
         }

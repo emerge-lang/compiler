@@ -43,6 +43,18 @@ interface ValueUsage {
     val usageOwnership: VariableOwnership
 
     /**
+     * Whether the using side creates a reference to the value. If not, the value is only read from, right when the
+     * usage happens (e.g. reading a member variable out of it), so it only needs to be alive at that moment.
+     */
+    val createsReference: Boolean get() = true
+
+    /**
+     * Whether the usage is an argument to an invocation: a [VariableOwnership.CAPTURED] usage then only takes the value
+     * over once the invoked function is called, which is after all the arguments have been evaluated.
+     */
+    val isInvocationArgument: Boolean get() = false
+
+    /**
      * Where the usage happens
      */
     val span: Span
@@ -77,6 +89,7 @@ data class CreateReferenceValueUsage(
     override val usedAsType: BoundTypeReference?,
     val referenceCreatedAt: Span,
     override val usageOwnership: VariableOwnership,
+    override val isInvocationArgument: Boolean = false,
 ) : ValueUsage {
     override val span = referenceCreatedAt
 
@@ -182,6 +195,7 @@ data class DeriveFromAndThenValueUsage(
     override val usageOwnership: VariableOwnership,
 ) : ValueUsage {
     override val span: Span = andThenUsage.span
+    override val isInvocationArgument get() = andThenUsage.isInvocationArgument
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
         if (usedAsType == null) {
             return this
@@ -207,6 +221,7 @@ data class TransientValueUsage(
     // to distinguish between the two different use cases of the two objects
     override val usedAsType: BoundTypeReference? = null
     override val usageOwnership = VariableOwnership.BORROWED
+    override val createsReference = false
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage = this
     override fun describeForDiagnostic(descriptionOfUsedValue: String) = "transient usage of $descriptionOfUsedValue"
 }

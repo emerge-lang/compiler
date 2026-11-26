@@ -127,6 +127,142 @@ class BorrowAndLifetimeErrors : FreeSpec({
             }
     }
 
+    "capture by an invocation argument takes effect when the function is invoked" - {
+        "reading a member in a later argument" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() {
+                    v: own _ = Test()
+                    captureValue(v, v.m)
+                }
+                fn captureValue(p: const Test, n: S32) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "reading a member in an argument, after capture by the receiver" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                    fn captureSelf(capture self: const _, n: S32) {}
+                }
+                fn test() {
+                    v: own _ = Test()
+                    v.captureSelf(v.m)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "reading a member in a nested invocation in a later argument" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() {
+                    v: own _ = Test()
+                    captureValue(v, v.m + 1)
+                }
+                fn captureValue(p: const Test, n: S32) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "reading a member in an earlier argument" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() {
+                    v: own _ = Test()
+                    captureValue(v.m, v)
+                }
+                fn captureValue(n: S32, p: const Test) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "reading a member in an earlier statement" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() {
+                    v: own _ = Test()
+                    n = v.m
+                    captureValue(v)
+                }
+                fn captureValue(p: const Test) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "capturing again in a later argument" {
+            validateModule("""
+                class Test {}
+                fn test() {
+                    v: own _ = Test()
+                    captureValue(v, v)
+                }
+                fn captureValue(p1: const Test, p2: const Test) {}
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                }
+        }
+
+        "borrowing in a later argument" {
+            validateModule("""
+                class Test {}
+                fn test() {
+                    v: own _ = Test()
+                    captureValue(v, v)
+                }
+                fn captureValue(p1: const Test, borrow p2: read Test) {}
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                }
+        }
+
+        "reading a member after a nested invocation captured" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() {
+                    v: own _ = Test()
+                    takeTwo(captureValue(v), v.m)
+                }
+                fn captureValue(p: const Test) -> S32 = 0
+                fn takeTwo(a: S32, b: S32) {}
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                }
+        }
+
+        "reading a member after the invocation" {
+            validateModule("""
+                class Test {
+                    m: S32 = 0
+                }
+                fn test() -> S32 {
+                    v: own _ = Test()
+                    captureValue(v, 1)
+                    return v.m
+                }
+                fn captureValue(p: const Test, n: S32) {}
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                    it.lifetimeEndedMaybe shouldBe false
+                }
+        }
+    }
+
     "branching" - {
         "lifetime ended in then-only if" {
             validateModule("""

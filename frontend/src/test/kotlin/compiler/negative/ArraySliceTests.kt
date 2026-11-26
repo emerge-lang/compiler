@@ -95,6 +95,16 @@ class ArraySliceTests : FreeSpec({
             }
     }
 
+    "slicing an own array up to its size" {
+        validateModule("""
+            fn test() -> mut Array<S32> {
+                a: own _ = Array.new::<S32>(5, 0)
+                return a.sliceOrPanic(1, a.size)
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
+
     "slicing a borrowed array is a capture" {
         validateModule("""
             fn test(borrow p: read Array<S32>) -> UWord {
