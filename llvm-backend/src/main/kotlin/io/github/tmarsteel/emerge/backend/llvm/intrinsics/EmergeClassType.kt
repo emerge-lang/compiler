@@ -4,7 +4,9 @@ import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.backend.llvm.*
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.autoBoxOrUnbox
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
+import io.github.tmarsteel.emerge.backend.llvm.codegen.convertOwnedReference
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.*
@@ -12,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.r
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.jna.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -94,7 +97,11 @@ internal class EmergeClassType private constructor(
                     .asSequence()
                     .flatMap { it.overloads }
                     .filter { it.overrides.isNotEmpty() && it.supportsDynamicDispatch }
-                    .flatMap { memberFn -> memberFn.signatureHashes.map { hash -> Pair(hash, memberFn.llvmRef!!) } }
+                    .flatMap { memberFn ->
+                        memberFn.rootFunctionsBySignatureHash.map { (hash, rootFn) ->
+                            Pair(hash, getVirtualFunctionImplementation(memberFn, rootFn, hash))
+                        }
+                    }
                     .associateErrorOnDuplicate()
             },
             arrayElementLayoutKind = context.arrayElementLayoutKindOf(reflectedBaseType),
@@ -384,6 +391,103 @@ private fun buildArrayBoxBridge(arrayFn: IrMemberFunction): KotlinLlvmFunction<E
                 (this as BasicBlockBuilder<EmergeLlvmContext, LlvmVoidType>).retVoid()
             } else {
                 ret(result)
+            }
+        }
+    }
+}
+
+/**
+ * @return what to put into the vtable slot [signatureHash] for [memberFn]: the function itself if it has the LLVM
+ * signature of [rootFn], a bridge otherwise (e.g. `override fn hashValue(self) -> UWord` for `fn hashValue(self) -> R`
+ * returns the raw `UWord` where the slot returns a box).
+ */
+private fun EmergeLlvmContext.getVirtualFunctionImplementation(
+    memberFn: IrMemberFunction,
+    rootFn: IrMemberFunction,
+    signatureHash: ULong,
+): LlvmFunction<*> {
+    val implementation = memberFn.llvmRef!!
+    registerFunction(rootFn)
+    if (rootFn.llvmFunctionType.getRawInContext(this) == memberFn.llvmFunctionType.getRawInContext(this)) {
+        return implementation
+    }
+
+    return registerIntrinsic(buildOverrideBridge(memberFn, rootFn, signatureHash))
+}
+
+private fun buildOverrideBridge(
+    overrideFn: IrMemberFunction,
+    rootFn: IrMemberFunction,
+    signatureHash: ULong,
+): KotlinLlvmFunction<EmergeLlvmContext, LlvmType> {
+    val rootFnType = rootFn.llvmFunctionType
+    @Suppress("UNCHECKED_CAST")
+    val target = overrideFn.llvmRef!! as LlvmFunction<LlvmType>
+    check(rootFn.hasNothrowAbi == overrideFn.hasNothrowAbi) {
+        "${overrideFn.canonicalName} and the function it overrides, ${rootFn.canonicalName}, differ in their exception ABI"
+    }
+    check(rootFnType.parameterTypes.size == target.type.parameterTypes.size) {
+        "${overrideFn.canonicalName} and the function it overrides, ${rootFn.canonicalName}, differ in their number of LLVM parameters"
+    }
+
+    return KotlinLlvmFunction.define(
+        "${overrideFn.llvmName}\$bridge\$$signatureHash",
+        rootFnType.returnType,
+    ) {
+        val bridgeParams = rootFnType.parameterTypes.map { param(it) }
+        body {
+            val arguments = bridgeParams.mapIndexed { index, bridgeParam ->
+                val value = bridgeParam.getValue(null, ::bridgeParameter)
+                if (index < rootFn.parameters.size) {
+                    autoBoxOrUnbox(value, rootFn.parameters[index].type, overrideFn.parameters[index].type)
+                } else {
+                    value
+                }
+            }
+
+            val result = call(target, arguments)
+            val overrideValue = if (overrideFn.hasNothrowAbi) result else {
+                @Suppress("UNCHECKED_CAST")
+                (result as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                    propagateOrPanic(exceptionPtr)
+                }
+            }
+
+            val rootReturnType = rootFnType.returnType
+            val rootValueType = when (rootReturnType) {
+                is EmergeFallibleCallResult.OfVoid -> LlvmVoidType
+                is EmergeFallibleCallResult.WithValue<*> -> rootReturnType.returnValue.type
+                else -> rootReturnType
+            }
+            if (rootValueType == LlvmVoidType) {
+                if (rootReturnType is EmergeFallibleCallResult.OfVoid) {
+                    @Suppress("UNCHECKED_CAST")
+                    ret(context.nullValue(PointerToAnyEmergeValue) as LlvmValue<LlvmType>)
+                } else {
+                    @Suppress("UNCHECKED_CAST")
+                    (this as BasicBlockBuilder<EmergeLlvmContext, LlvmVoidType>).retVoid()
+                }
+            } else {
+                val valueForRoot = if (overrideValue.type == LlvmVoidType) {
+                    context.pointerToUnitInstance
+                } else {
+                    convertOwnedReference(overrideValue, overrideFn.returnType, rootFn.returnType)
+                }
+
+                if (rootReturnType is EmergeFallibleCallResult.WithValue<*>) {
+                    @Suppress("UNCHECKED_CAST")
+                    rootReturnType as EmergeFallibleCallResult.WithValue<LlvmType>
+                    var compoundValue = rootReturnType.buildConstantIn(context) {
+                        setNull(rootReturnType.returnValue)
+                        setNull(rootReturnType.exceptionPtr)
+                    } as LlvmValue<EmergeFallibleCallResult.WithValue<LlvmType>>
+                    compoundValue = insertValue(compoundValue, valueForRoot) { returnValue }
+                    @Suppress("UNCHECKED_CAST")
+                    ret(compoundValue as LlvmValue<LlvmType>)
+                } else {
+                    @Suppress("UNCHECKED_CAST")
+                    ret(valueForRoot as LlvmValue<LlvmType>)
+                }
             }
         }
     }

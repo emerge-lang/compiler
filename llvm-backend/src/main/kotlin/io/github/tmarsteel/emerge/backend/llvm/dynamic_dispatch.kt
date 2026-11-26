@@ -90,6 +90,17 @@ internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
     }
 }
 
+/**
+ * For each of [signatureHashes], the function that defines it. A vtable slot has the LLVM signature of that function.
+ */
+internal val IrMemberFunction.rootFunctionsBySignatureHash: Map<ULong, IrMemberFunction> by tackLazyVal {
+    when {
+        this is IrFullyInheritedMemberFunction -> superFunction.rootFunctionsBySignatureHash
+        overrides.isEmpty() -> mapOf(rootSignatureHash to this)
+        else -> overrides.flatMap { it.rootFunctionsBySignatureHash.entries }.associate { it.key to it.value }
+    }
+}
+
 private fun IrBaseType.toStringForSignature(): String = canonicalName.toString().lengthEncode()
 /**
  * @param insideBound whether this is (part of) the bound of a type parameter; references to type parameters in there

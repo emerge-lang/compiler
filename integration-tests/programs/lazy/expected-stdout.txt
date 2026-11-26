@@ -7,5 +7,7 @@ was null again
 caught: initializer failed
 caught: initializer failed
 7
+43
+42
 hello, holder
 hello, holder

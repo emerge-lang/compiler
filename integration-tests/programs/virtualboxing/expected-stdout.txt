@@ -1,0 +1,9 @@
+42
+8
+true
+3
+5
+null
+42
+caught: make failed
+42

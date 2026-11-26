@@ -15,6 +15,10 @@ class Constant<T : const Any?> : LazyInitializer<T> {
     override fn computeValue(self: const _) -> T = self.v
 }
 
+class Answer : LazyInitializer<S32> {
+    override fn computeValue(self: const _) -> S32 = 42
+}
+
 class Failing : LazyInitializer<String> {
     override fn computeValue(self: const _) -> String {
         throw LazyFailed()
@@ -64,6 +68,10 @@ fn main(world: mut World) {
     tryFailing(stdout, f)
 
     stdout.println(globalLazy.value.toString())
+
+    answer = Lazy(Answer())
+    stdout.println((answer.value + 1).toString())
+    stdout.println(answer.value.toString())
 
     var i: S32 = 0
     while i < ITERATIONS {

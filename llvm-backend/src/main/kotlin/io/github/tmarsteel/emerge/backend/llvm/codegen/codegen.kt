@@ -19,6 +19,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpressionSideEffectsStatement
@@ -149,7 +150,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.memberVariable
 import io.github.tmarsteel.emerge.backend.llvm.receivesReifiedTypeArguments
 import io.github.tmarsteel.emerge.backend.llvm.representativeComponent
-import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
+import io.github.tmarsteel.emerge.backend.llvm.rootFunctionsBySignatureHash
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -600,6 +601,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 return prepared
             }
 
+            var calledFunction: IrFunction = expression.function
             val callInstruction = when (expression) {
                 is IrStaticDispatchFunctionInvocationExpression -> {
                     var overridenCallInstruction: LlvmValue<*>? = null
@@ -678,7 +680,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 }
 
                 is IrDynamicDispatchFunctionInvocationExpression -> {
-                    val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
+                    val (signatureHash, rootFn) = expression.function.rootFunctionsBySignatureHash.entries.first()
+                    calledFunction = rootFn
+                    val argumentsForInvocation = expression.arguments.zip(rootFn.parameters)
                         .map { (argument, parameter) -> prepareArgument(argument, parameter.type) }
 
                     val dispatchOn = if (expression.dispatchOn.declaration === expression.arguments.first().declaration) {
@@ -689,10 +693,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     val targetAddr = callIntrinsic(
                         getDynamicCallAddress, listOf(
                             dispatchOn,
-                            context.uWord(expression.function.signatureHashes.first()),
+                            context.uWord(signatureHash),
                         )
                     )
-                    call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation + hiddenArguments())
+                    context.registerFunction(rootFn)
+                    call(targetAddr, rootFn.llvmFunctionType, argumentsForInvocation + hiddenArguments())
                 }
             }
 
@@ -741,7 +746,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 rawNonThrowableReturnValue
             }
 
-            val autoboxedReturnValue = convertOwnedReference(returnValueOrUnit, expression.function.returnType, expression.evaluatesTo)
+            val autoboxedReturnValue = convertOwnedReference(returnValueOrUnit, calledFunction.returnType, expression.evaluatesTo)
 
             return ExpressionResult.Value(autoboxedReturnValue)
         }
