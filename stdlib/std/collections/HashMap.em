@@ -17,7 +17,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
 
     private fn storeEntry(self: mut _, entry: mut MapEntry<Key, Value>, grow: Bool) -> Value? {
         hash = entry.key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd(self.buckets.size - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach bucketEntry in bucket {
@@ -58,7 +58,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
 
     private fn getEntry(self, borrow key: Key) -> MapEntry<Key, Value>? {
         hash = key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd(self.buckets.size - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach entry in bucket {
@@ -73,7 +73,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
 
     export override fn remove(self: mut _, borrow key: Key) -> Value? {
         hash = key.hashWith(self.hashAlgorithm)
-        bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
+        bucketIndex = hash.bitwiseAnd(self.buckets.size - 1)
         var bucket = self.buckets[bucketIndex]
         if not isNull(bucket) {
             foreach entryIndex in 0..<bucket.size {
@@ -97,6 +97,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         self.bumpVersion()
         var oldBuckets = self.buckets
         set self.buckets = Array.new::<mut ArrayList<mut MapEntry<Key, Value>>?>(self.buckets.size * 2, null)
+        set self._size = 0
         foreach bucket in oldBuckets  {
             if isNull(bucket) {
                 continue

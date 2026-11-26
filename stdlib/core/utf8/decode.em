@@ -107,9 +107,12 @@ export class StringCodepointsRange : FiniteRange<U32> {
     }
 
     export override fn popFront(self: mut _) {
-        result = getNextCodepointAt(self.utf8Data, self.atIndex)
-        set self.atIndex = result.second ?: self.utf8Data.size
-        set self.cachedFront = result.first
-        set self.frontCached = true
+        set self.atIndex = getNextCodepointAt(self.utf8Data, self.atIndex).second ?: self.utf8Data.size
+        if self.atIndex < self.utf8Data.size {
+            set self.cachedFront = getNextCodepointAt(self.utf8Data, self.atIndex).first
+            set self.frontCached = true
+        } else {
+            set self.frontCached = false
+        }
     }
 }
