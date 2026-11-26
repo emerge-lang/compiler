@@ -81,6 +81,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
                 if entry.key.equals(key) {
                     bucket.removeAtIndex(entryIndex)
                     set self._size = self._size - 1
+                    self.bumpVersion()
                     return entry.value
                 }
             }
@@ -89,7 +90,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return null
     }
 
-    export override fn asRange(capture self) -> HashMapRange<Key, Value> = HashMapRange(self)
+    export override fn asRange(capture self) -> own HashMapRange<Key, Value> = HashMapRange(self)
 
     export override get fn size(self) -> UWord = self._size
     
@@ -111,22 +112,56 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
     private fn bumpVersion(self: mut _) {
         set self.version = self.version.plusModulo(1 as UWord)
     }
+
+    // @return the number of entries in the bucket at [index]; 0 if there is no such bucket
+    private nothrow fn bucketSizeOrZero(self, index: UWord) -> UWord {
+        if index >= self.buckets.size {
+            return 0
+        }
+
+        return self.buckets.getOrPanic(index)?.size ?: 0
+    }
+
+    // @return the index of the first bucket at or after [index] that has entries; buckets.size if there is none
+    private nothrow fn nextNonEmptyBucket(self, index: UWord) -> UWord {
+        var candidate = index
+        while candidate < self.buckets.size {
+            if self.bucketSizeOrZero(candidate) > 0 {
+                return candidate
+            }
+            set candidate = candidate.plusModulo(1 as UWord)
+        }
+
+        return self.buckets.size
+    }
+
+    // @return 1 + the index of the last bucket before [indexPlus1] that has entries; 0 if there is none
+    private nothrow fn previousNonEmptyBucketPlus1(self, indexPlus1: UWord) -> UWord {
+        var candidatePlus1 = indexPlus1
+        while candidatePlus1 > 0 {
+            if self.bucketSizeOrZero(candidatePlus1.minusModulo(1 as UWord)) > 0 {
+                return candidatePlus1
+            }
+            set candidatePlus1 = candidatePlus1.minusModulo(1 as UWord)
+        }
+
+        return 0
+    }
 }
 
 export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedRange<read MapEntry<Key, Value>> & BidirectionalRange<read MapEntry<Key, Value>> {
     private map: HashMap<Key, Value> = init
     private atVersion: UWord = self.map.version
+    private var remaining: UWord = self.map._size
     private var frontBucketIndex: UWord = 0
     private var indexInFrontBucket: UWord = 0
-    private var backBucketIndexPlus1: UWord
-    private var indexInBackBucketPlus1: UWord
+    private var backBucketIndexPlus1: UWord = 0
+    private var indexInBackBucketPlus1: UWord = 0
 
     private nothrow constructor {
-        set self.backBucketIndexPlus1 = self.map.buckets.size
-        while self.backBucketIndexPlus1 > 0 and isNull(self.map.buckets.getOrPanic(self.backBucketIndexPlus1.minusModulo(1 as UWord))) {
-            set self.backBucketIndexPlus1 = self.backBucketIndexPlus1.minusModulo(1 as UWord)
-        }
-        set self.indexInBackBucketPlus1 = self.map.buckets.getOrPanic(self.backBucketIndexPlus1.minusModulo(1 as UWord))?.size ?: 0
+        set self.frontBucketIndex = self.map.nextNonEmptyBucket(0)
+        set self.backBucketIndexPlus1 = self.map.previousNonEmptyBucketPlus1(self.map.buckets.size)
+        set self.indexInBackBucketPlus1 = self.map.bucketSizeOrZero(self.backBucketIndexPlus1.minusModulo(1 as UWord))
     }
 
     private fn checkNotModified(self) {
@@ -138,38 +173,33 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
     export override get fn front(self) -> read MapEntry<Key, Value> {
         self.checkNotModified()
 
-        if self.frontBucketIndex >= self.map.buckets.size {
+        if self.remaining == 0 {
             throw EmptyRangeException()
         }
 
         bucket = self.map.buckets[self.frontBucketIndex]!!
-        if self.indexInFrontBucket >= bucket.size {
-            throw EmptyRangeException()
-        }
-
         return bucket[self.indexInFrontBucket]
     }
 
     export override fn popFront(self: mut _) {
-        if self.frontBucketIndex >= self.map.buckets.size {
+        self.checkNotModified()
+
+        if self.remaining == 0 {
             return
         }
 
+        set self.remaining = self.remaining - 1
         set self.indexInFrontBucket = self.indexInFrontBucket + 1
-
-        var bucket = self.map.buckets[self.frontBucketIndex]!!
-        if self.indexInFrontBucket >= bucket.size {
+        if self.indexInFrontBucket >= self.map.bucketSizeOrZero(self.frontBucketIndex) {
+            set self.frontBucketIndex = self.map.nextNonEmptyBucket(self.frontBucketIndex + 1)
             set self.indexInFrontBucket = 0
-            do {
-                set self.frontBucketIndex = self.frontBucketIndex + 1
-            } while self.frontBucketIndex < self.map.buckets.size and isNull(self.map.buckets[self.frontBucketIndex])
         }
     }
 
     export override get fn back(self) -> read MapEntry<Key, Value> {
         self.checkNotModified()
 
-        if self.backBucketIndexPlus1 == 0 or self.indexInBackBucketPlus1 == 0 {
+        if self.remaining == 0 {
             throw EmptyRangeException()
         }
 
@@ -180,25 +210,23 @@ export class HashMapRange<Key : const Hashable & Equatable<Key>, Value> : SizedR
     export override fn popBack(self: mut _) {
         self.checkNotModified()
 
-        if self.indexInBackBucketPlus1 > 1 {
-            set self.indexInBackBucketPlus1 = self.indexInBackBucketPlus1 - 1 
+        if self.remaining == 0 {
             return
         }
 
-        if self.backBucketIndexPlus1 == 1 {
-            return // empty
+        set self.remaining = self.remaining - 1
+        if self.indexInBackBucketPlus1 > 1 {
+            set self.indexInBackBucketPlus1 = self.indexInBackBucketPlus1 - 1
+            return
         }
 
-        while self.backBucketIndexPlus1 > 1 and isNull(self.map.buckets[self.backBucketIndexPlus1 - 1]) {
-            set self.backBucketIndexPlus1 = self.backBucketIndexPlus1 - 1
-        }
-        bucket = self.map.buckets[self.backBucketIndexPlus1 - 1]
-        set self.indexInBackBucketPlus1 = bucket?.size ?: 0
+        set self.backBucketIndexPlus1 = self.map.previousNonEmptyBucketPlus1(self.backBucketIndexPlus1 - 1)
+        set self.indexInBackBucketPlus1 = self.map.bucketSizeOrZero(self.backBucketIndexPlus1.minusModulo(1 as UWord))
     }
 
     export override get fn size(self) -> UWord {
         self.checkNotModified()
 
-        return self.map.size
+        return self.remaining
     }
 }

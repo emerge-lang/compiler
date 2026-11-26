@@ -1,19 +1,19 @@
 package emerge.std.collections
 
-import emerge.core.range.SizedRange
+import emerge.core.range.{SizedRange, Iterable}
 
-export interface Map<Key : const Equatable<Key>, Value> {
+export interface Map<Key : const Equatable<Key>, Value> : Iterable<read MapEntry<Key, Value>> {
     export operator fn setAtIndex(self: mut _, index: Key, value: Value) -> Value?
     export operator fn getAtIndex(self, borrow index: Key) -> Value?
     export operator fn remove(self: mut _, borrow key: Key) -> Value?
     export operator fn contains(self, borrow key: Key) -> Bool 
-    export fn asRange(capture self) -> SizedRange<out read MapEntry<Key, Value>>
+    export override fn asRange(capture self) -> own SizedRange<read MapEntry<Key, Value>>
     export get fn size(self) -> UWord
 }
 
 export class MapEntry<Key, Value> {
-    key: Key = init
-    var value: Value = init
+    export key: Key = init
+    export var value: Value = init
 }
 
 export interface Set<Element : const Equatable<Element>> {

@@ -18,3 +18,14 @@ false
 228
 8364
 128512
+0
+front: No more elements
+back: No more elements
+0
+b=2
+90
+90
+4905
+true
+90
+4905
