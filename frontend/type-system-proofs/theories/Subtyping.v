@@ -65,6 +65,8 @@ Fixpoint has_base_type (c: Class) (other: EType): bool :=
     | RootResolved _ c' _ => class_eqb c c'
     | Nullable n => has_base_type c n
     | TypeArgument _ _ n => has_base_type c n
+    (* a union has a base type where every component has it *)
+    | Union us => match us with [] => false | _ => forallb (has_base_type c) us end
     | _ => false
     end.
 
@@ -73,6 +75,7 @@ Fixpoint is_generic_of (p: TypeParameterId) (other: EType): bool :=
     match other with
     | Generic (mkGenericRef _ _ p' _) => param_eqb p p'
     | Nullable n => is_generic_of p n
+    | Union us => match us with [] => false | _ => forallb (is_generic_of p) us end
     | _ => false
     end.
 
@@ -88,6 +91,8 @@ Fixpoint has_same_base_type_as (t other: EType): bool :=
     | TypeVariable (mkGenericRef _ _ p _) =>
         match other with TypeVariable (mkGenericRef _ _ p' _) => param_eqb p p' | _ => false end
     | Intersection components => existsb (fun c => has_same_base_type_as c other) components
+    (* every value of a union is of the base type where every component is *)
+    | Union us => match us with [] => false | _ => forallb (fun c => has_same_base_type_as c other) us end
     end.
 
 (* whether `f` holds for any two distinct elements of `l`, like twoElementPermutationsUnordered().any(f) *)
@@ -131,6 +136,7 @@ Fixpoint with_type_variables_in (vs: list TypeParameterId) (t: EType): EType :=
     | Error _ _ => t
     | TypeArgument v o n => TypeArgument v o (with_type_variables_in vs n)
     | Intersection components => Intersection (map (with_type_variables_in vs) components)
+    | Union us => Union (map (with_type_variables_in vs) us)
     end.
 
 Definition with_type_variables (vs: list TypeParameterId) (t: EType): EType :=
@@ -170,6 +176,8 @@ Fixpoint top_const_h (t: EType): bool :=
     | Generic g | TypeVariable g => h_top_const H g
     | Error _ _ => false
     | Intersection cs => existsb top_const_h cs
+    (* the values of a union are objects of const classes where those of every component are *)
+    | Union us => forallb top_const_h us
     end.
 
 Fixpoint mutability_of_h (t: EType): Mutability :=
@@ -182,6 +190,9 @@ Fixpoint mutability_of_h (t: EType): Mutability :=
     | Intersection components =>
         if existsb top_const_h components then immutable
         else fold_left intersect_mutability (map mutability_of_h components) readonly
+    (* a value of a union is a value of one of the components, so a reference to it may do only what
+       every component allows: the union of their mutabilities (own is its neutral element) *)
+    | Union us => fold_left union (map mutability_of_h us) own
     end.
 
 Fixpoint assignment_mutability_h (t: EType): Mutability :=
@@ -192,6 +203,7 @@ Fixpoint assignment_mutability_h (t: EType): Mutability :=
     | Error m _ => or_readonly m
     | TypeArgument _ _ n => assignment_mutability_h n
     | Intersection components => fold_left intersect_mutability (map assignment_mutability_h components) readonly
+    | Union us => fold_left union (map assignment_mutability_h us) own
     end.
 
 Fixpoint is_nullable_h (t: EType): bool :=
@@ -202,6 +214,8 @@ Fixpoint is_nullable_h (t: EType): bool :=
     | Error _ _ => false
     | TypeArgument _ _ n => is_nullable_h n
     | Intersection components => forallb is_nullable_h components
+    (* null is a value of a union where it is one of a component *)
+    | Union us => existsb is_nullable_h us
     end.
 
 Fixpoint base_type_of_lower_bound_h (t: EType): Class :=
@@ -212,6 +226,7 @@ Fixpoint base_type_of_lower_bound_h (t: EType): Class :=
     | Error _ _ => nothing
     | TypeArgument _ _ n => base_type_of_lower_bound_h n
     | Intersection components => closest_common_super_class env (map base_type_of_lower_bound_h components)
+    | Union us => closest_common_super_class env (map base_type_of_lower_bound_h us)
     end.
 
 Definition is_effectively_bottom_type_h (components: list EType): bool :=
@@ -228,6 +243,8 @@ Fixpoint is_non_nullable_nothing_h (t: EType): bool :=
     | TypeArgument _ _ n => is_non_nullable_nothing_h n
     | Intersection components =>
         existsb is_non_nullable_nothing_h components || is_effectively_bottom_type_h components
+    (* a union has no values where no component has any *)
+    | Union us => forallb is_non_nullable_nothing_h us
     end.
 
 Fixpoint without_null_h (t: EType): EType :=
@@ -237,6 +254,8 @@ Fixpoint without_null_h (t: EType): EType :=
     | TypeArgument v o n => TypeArgument v o (without_null_h n)
     | Intersection components =>
         if forallb is_nullable_h components then Intersection (map without_null_h components) else t
+    (* null is taken from every component it is a value of *)
+    | Union us => Union (map without_null_h us)
     | _ => t
     end.
 
@@ -252,6 +271,7 @@ Fixpoint with_mutability_h (m: Mutability) (t: EType): EType :=
     | Intersection components =>
         let common := fold_left intersect_mutability (map (fun c => assignment_mutability_h (with_mutability_h m c)) components) readonly in
         Intersection (map (with_mutability_h common) components)
+    | Union us => Union (map (with_mutability_h m) us)
     end.
 
 Definition effective_bound_h (g: GenericRef): EType :=
@@ -308,6 +328,7 @@ Fixpoint top_const (t: EType): bool :=
     | Generic g | TypeVariable g => ref_top_const g
     | Error _ _ => false
     | Intersection cs => existsb top_const cs
+    | Union us => forallb top_const us
     end.
 
 (* BoundTypeReference.mutability *)
@@ -325,6 +346,8 @@ Fixpoint mutability_of (t: EType): Mutability :=
     | Intersection components =>
         if existsb top_const components then immutable
         else fold_left intersect_mutability (map mutability_of components) readonly
+    (* a reference to a union may do what every component allows *)
+    | Union us => fold_left union (map mutability_of us) own
     end.
 
 (* BoundTypeReference.assignmentMutability: the mutability a value of the type is assigned as. That
@@ -340,6 +363,7 @@ Fixpoint assignment_mutability (t: EType): Mutability :=
     | Error m _ => or_readonly m
     | TypeArgument _ _ n => assignment_mutability n
     | Intersection components => fold_left intersect_mutability (map assignment_mutability components) readonly
+    | Union us => fold_left union (map assignment_mutability us) own
     end.
 
 (* BoundTypeReference.isNullable *)
@@ -351,6 +375,7 @@ Fixpoint is_nullable (t: EType): bool :=
     | Error _ _ => false
     | TypeArgument _ _ n => is_nullable n
     | Intersection components => forallb is_nullable components
+    | Union us => existsb is_nullable us
     end.
 
 (* BoundTypeReference.baseTypeOfLowerBound *)
@@ -362,6 +387,7 @@ Fixpoint base_type_of_lower_bound (t: EType): Class :=
     | Error _ _ => nothing
     | TypeArgument _ _ n => base_type_of_lower_bound n
     | Intersection components => closest_common_super_class env (map base_type_of_lower_bound components)
+    | Union us => closest_common_super_class env (map base_type_of_lower_bound us)
     end.
 
 (* BoundIntersectionTypeReference.simplifyIsEffectivelyBottomType: two unrelated classes have no
@@ -381,6 +407,7 @@ Fixpoint is_non_nullable_nothing (t: EType): bool :=
     | TypeArgument _ _ n => is_non_nullable_nothing n
     | Intersection components =>
         existsb is_non_nullable_nothing components || is_effectively_bottom_type components
+    | Union us => forallb is_non_nullable_nothing us
     end.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -397,6 +424,7 @@ Fixpoint without_null (t: EType): EType :=
     | TypeArgument v o n => TypeArgument v o (without_null n)
     | Intersection components =>
         if forallb is_nullable components then Intersection (map without_null components) else t
+    | Union us => Union (map without_null us)
     | _ => t
     end.
 
@@ -417,6 +445,8 @@ Fixpoint with_mutability (m: Mutability) (t: EType): EType :=
     | Intersection components =>
         let common := fold_left intersect_mutability (map (fun c => assignment_mutability (with_mutability m c)) components) readonly in
         Intersection (map (with_mutability common) components)
+    (* the components of a union keep mutabilities of their own: each takes the given one *)
+    | Union us => Union (map (with_mutability m) us)
     end.
 
 (* What the type parameters are bound to: the type arguments of a reference, a TypeUnification's
@@ -464,6 +494,7 @@ Fixpoint mentions_loosely_bound (bindings: Bindings) (t: EType): bool :=
     | Error _ _ => false
     | TypeArgument _ _ n => mentions_loosely_bound bindings n
     | Intersection components => existsb (mentions_loosely_bound bindings) components
+    | Union us => existsb (mentions_loosely_bound bindings) us
     end.
 
 (* The same, in the type arguments of the type, rather than as the type itself *)
@@ -472,6 +503,7 @@ Fixpoint mentions_loosely_bound_in_arguments (bindings: Bindings) (t: EType): bo
     | RootResolved _ _ arguments => existsb (mentions_loosely_bound bindings) arguments
     | Nullable n => mentions_loosely_bound_in_arguments bindings n
     | Intersection components => existsb (mentions_loosely_bound_in_arguments bindings) components
+    | Union us => existsb (mentions_loosely_bound_in_arguments bindings) us
     | _ => false
     end.
 
@@ -541,6 +573,41 @@ Definition intersect_instances (instances: list EType): EType :=
 
 Definition not_argument (t: EType): bool := match t with TypeArgument _ _ _ => false | _ => true end.
 
+(* The components of the union a type is, each nullable iff the type is; the type alone otherwise.
+   The counterpart of intersected_components *)
+Definition unioned_components (t: EType): list EType :=
+    match t with
+    | Union us => us
+    | Nullable (Union us) => map Nullable us
+    | _ => [t]
+    end.
+
+(* The union of components, without simplifying: the counterpart of of_components. Null is a value
+   of a union where it is one of a component: where a component is made nullable, `A?`, the union of
+   the components without null is, `(A | B)?`. A component that may be null only as its instance may,
+   a type parameter of a nullable bound, stays as it is: `A | P` is null where P's instance is. *)
+Definition of_union (components: list EType): EType :=
+    match components with
+    | [component] => component
+    | _ =>
+        if existsb is_nullable_type components
+        then Nullable (Union (map without_null components))
+        else Union components
+    end.
+
+(* The union of the instances of the components. Where one of them is a type argument, a type
+   parameter bound to one, the union is one: of what each of them takes where all are invariant;
+   out-variant otherwise, as a value of an out-variant one may be any of its subtypes, and one of an
+   in-variant one is known no closer than `read Any?`, which it becomes. The counterpart of
+   intersect_instances *)
+Definition union_instances (instances: list EType): EType :=
+    if existsb (fun t => match t with TypeArgument _ _ _ => true | _ => false end) instances then
+        let v := if forallb (fun t => not_argument t || is_argument_of invariant t) instances then invariant else output in
+        let types := map (fun t => match t with TypeArgument input _ _ => top_type | TypeArgument _ _ x => x | _ => t end) instances in
+        let type := of_union (flat_map unioned_components types) in
+        match v with invariant => type | _ => TypeArgument v any_ownership type end
+    else of_union (flat_map unioned_components instances).
+
 Lemma intersect_instances_plain: forall xs, (forall t, In t xs -> not_argument t = true) ->
     intersect_instances xs = of_components (flat_map intersected_components xs).
 Proof.
@@ -559,7 +626,7 @@ Proof.
     - generalize (if existsb (is_argument_of output) xs then output else if existsb (is_argument_of input) xs then input else invariant).
       intros v. exists (map unwrap_argument (filter (fun t => negb (Variance_beq v output && is_argument_of input t)) xs)). split.
       + intros t Ht. apply in_map_iff in Ht. destruct Ht as [u [<- Hu]]. apply filter_In in Hu. destruct Hu as [Hu _].
-        destruct u as [| | | |w o x| |]; try (left; exact Hu). right. exists w, o. exact Hu.
+        destruct u as [| | | |w o x| | |]; try (left; exact Hu). right. exists w, o. exact Hu.
       + destruct v; [left; reflexivity|right; eexists; reflexivity|right; eexists; reflexivity].
     - exists xs. split; [intros t Ht; left; exact Ht|left; reflexivity].
 Qed.
@@ -575,6 +642,26 @@ Proof.
     intros Q xs Hof Hint Harg Hl. destruct (intersect_instances_cases xs) as [l' [Hl' [E|[v E]]]]; rewrite E;
         [|rewrite Harg]; apply Hof; intros C Hc; apply in_flat_map in Hc; destruct Hc as [i [Hi Hc]];
         refine (Hint i _ C Hc); (destruct (Hl' i Hi) as [Hi'|[v' [o' Hi']]]; [exact (Hl i Hi')|rewrite <- (Harg v' o'); exact (Hl _ Hi')]).
+Qed.
+
+(* What holds of the instances holds of their union, where it holds of the union of components, of
+   type arguments as of their types, and of the top type, which an in-variant one becomes *)
+Lemma union_instances_keeps: forall (Q: EType -> bool) xs,
+    (forall us, (forall C, In C us -> Q C = true) -> Q (of_union us) = true) ->
+    (forall t, Q t = true -> forall C, In C (unioned_components t) -> Q C = true) ->
+    (forall v o x, Q (TypeArgument v o x) = Q x) ->
+    Q top_type = true ->
+    (forall t, In t xs -> Q t = true) -> Q (union_instances xs) = true.
+Proof.
+    intros Q xs Hof Hun Harg Htop Hl.
+    assert (Hflat: forall ys, (forall t, In t ys -> Q t = true) -> Q (of_union (flat_map unioned_components ys)) = true).
+    { intros ys Hys. apply Hof. intros C Hc. apply in_flat_map in Hc. destruct Hc as [i [Hi Hc]]. exact (Hun i (Hys i Hi) C Hc). }
+    unfold union_instances. destruct (existsb _ xs); [|exact (Hflat xs Hl)].
+    assert (Hmapped: forall t, In t (map (fun t => match t with TypeArgument input _ _ => top_type | TypeArgument _ _ x => x | _ => t end) xs) -> Q t = true).
+    { intros t Ht. apply in_map_iff in Ht. destruct Ht as [u [<- Hu]]. specialize (Hl u Hu).
+      destruct u as [| | | |[| |] o x| | |]; try exact Hl; try exact Htop;
+          first [rewrite <- (Harg invariant o x); exact Hl|rewrite <- (Harg output o x); exact Hl]. }
+    destruct (forallb _ xs); cbn zeta iota beta; [exact (Hflat _ Hmapped)|rewrite Harg; exact (Hflat _ Hmapped)].
 Qed.
 
 (* instantiate, taking what a reference to a type parameter without a binding becomes from unbound *)
@@ -636,6 +723,7 @@ Fixpoint instantiate_h (bindings: Bindings) (t: EType): EType :=
         | None => t
         end
     | Intersection components => intersect_instances (map (instantiate_h bindings) components)
+    | Union us => union_instances (map (instantiate_h bindings) us)
     end.
 
 End InstantiateWith.
@@ -767,6 +855,8 @@ Fixpoint instantiate (bindings: Bindings) (t: EType): EType :=
         | None => t
         end
     | Intersection components => intersect_instances (map (instantiate bindings) components)
+    (* the union of the instances of the components *)
+    | Union us => union_instances (map (instantiate bindings) us)
     end.
 
 (* instantiate_ownership, where a type parameter without a binding keeps its ownership: one of the
@@ -796,6 +886,7 @@ Fixpoint mentions_bound (bindings: Bindings) (t: EType): bool :=
         end || mentions_bound bindings n
     | TypeVariable (mkGenericRef _ _ p _) => match lookup_binding bindings p with Some _ => true | None => false end
     | Intersection components => existsb (mentions_bound bindings) components
+    | Union us => existsb (mentions_bound bindings) us
     end.
 
 (*
@@ -854,10 +945,14 @@ Fixpoint instantiate_free (bindings: Bindings) (t: EType): EType :=
         if existsb (mentions_bound bindings) components then
             intersect_instances (map (instantiate_free bindings) components)
         else t
+    | Union us =>
+        if existsb (mentions_bound bindings) us then
+            union_instances (map (instantiate_free bindings) us)
+        else t
     end.
 
-(* No references to type parameters, only type variables, and no intersections; the type parameters
-   of the ownerships bound in b *)
+(* No references to type parameters, only type variables, and no intersections or unions; the type
+   parameters of the ownerships bound in b *)
 Fixpoint variables_only (b: Bindings) (t: EType): Prop :=
     match t with
     | RootResolved _ _ arguments => fold_right (fun a acc => variables_only b a /\ acc) True arguments
@@ -865,14 +960,14 @@ Fixpoint variables_only (b: Bindings) (t: EType): Prop :=
     | Generic _ => False
     | Error _ _ | TypeVariable _ => True
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> exists a, lookup_binding b q = Some a) /\ variables_only b n
-    | Intersection _ => False
+    | Intersection _ | Union _ => False
     end.
 
 (* Of a type without references to type parameters, instantiating the free variables is
    instantiating all of them *)
 Lemma instantiate_free_variables_only: forall b t, variables_only b t -> instantiate_free b t = instantiate b t.
 Proof.
-    intros b. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs] H; cbn [variables_only] in H; try contradiction.
+    intros b. fix IH 1. intros [m c args|n|g|me msg|v o n|[gm nn p vs]|cs|uns] H; cbn [variables_only] in H; try contradiction.
     - cbn [instantiate_free instantiate]. f_equal.
       induction args as [|a args IHa]; [reflexivity|]. cbn [fold_right] in H. destruct H as [Ha Has].
       cbn [map]. rewrite (IH a Ha). f_equal. exact (IHa Has).
@@ -943,6 +1038,7 @@ Fixpoint no_vars (t: EType): bool :=
     | TypeArgument _ _ n => no_vars n
     | TypeVariable _ => false
     | Intersection components => forallb no_vars components
+    | Union us => forallb no_vars us
     end.
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -965,6 +1061,8 @@ Fixpoint may_be_token_h (of_reference: GenericRef -> bool) (t: EType): bool :=
     | Error _ _ => false
     | TypeArgument v _ n => match v with input => true | _ => may_be_token_h of_reference n end
     | Intersection components => forallb (may_be_token_h of_reference) components
+    (* a value of a union may be a token where a value of one of the components may *)
+    | Union us => existsb (may_be_token_h of_reference) us
     end.
 
 (* GenericTypeReference.mayBeTokenUnless: that of the effective bound. Kotlin stops where it comes
@@ -1181,6 +1279,11 @@ Definition intersection_flipped_unify (unify: UnifyFn) (target: EType) (componen
     | None => Some Failed
     end.
 
+(* The flippedUnify of a union (to be): the union is the assignee; every component must be assignable
+   to target, as a value of the union may be a value of any of them *)
+Definition union_flipped_unify (unify: UnifyFn) (target: EType) (components: list EType) (states: VariableStates): option Unification :=
+    fold_unify (fun inner component => unify target component inner) components (Ongoing states).
+
 (* fold_left, for a function that may not give an answer *)
 
 Definition unify_arguments (unify: UnifyFn) (targets assignees: list EType) (states: VariableStates): option Unification :=
@@ -1216,6 +1319,7 @@ Definition unify_root_resolved (unify: UnifyFn) (self: EType) (base_type: Class)
     (* a possibly null value to a non-null reference *)
     | Nullable _ => Some Failed
     | Intersection components => intersection_flipped_unify unify self components states
+    | Union components => union_flipped_unify unify self components states
     end.
 
 (* NullableTypeReference.unify *)
@@ -1227,6 +1331,8 @@ Definition unify_nullable (unify: UnifyFn) (self nested assignee: EType) (states
        subtype of nested *)
     | Generic _ | Intersection _ => unify nested (without_null assignee) (Ongoing states)
     | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
+    (* each component, null or not, to self *)
+    | Union components => union_flipped_unify unify self components states
     | _ => unify nested assignee (Ongoing states)
     end.
 
@@ -1249,6 +1355,7 @@ Definition unify_generic (unify: UnifyFn) (self: EType) (parameter: TypeParamete
              then Some (Ongoing states) else Some Failed
         else unify self (effective_bound g) (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
+    | Union components => union_flipped_unify unify self components states
     end.
 
 (* ErroneousType.unify: acts like Any *)
@@ -1306,6 +1413,7 @@ Definition unify_type_argument (unify: UnifyFn) (self: EType) (variance: Varianc
         end
     | Generic _ => unify type assignee (Ongoing states)
     | Intersection components => intersection_flipped_unify unify self components states
+    | Union components => union_flipped_unify unify self components states
     | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
     | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
     end.
@@ -1327,6 +1435,7 @@ Definition unify_type_variable (unify: UnifyFn) (self: EType) (parameter: TypePa
     | RootResolved _ _ _
     | Generic _
     | Intersection _
+    | Union _
     | TypeArgument _ _ _ =>
         (* nor a possibly null value to a non-nullable reference (T!) *)
         if given_mutability_fits self assignee && (negb (is_nullable assignee) || is_nullable self)
@@ -1391,6 +1500,37 @@ Definition unify_intersection (unify: UnifyFn) (self: EType) (components: list E
     | _ => intersection_body unify components assignee states
     end.
 
+(*
+ * The unify of a union (to be): the union is the target, and the assignee must be assignable to one
+ * of the components. The first that takes it wins, like the components of an intersection assignee
+ * (intersection_flipped_unify); those that are type variables come last, as a type variable takes
+ * anything, and would be narrowed where another component takes the assignee as it is.
+ *)
+Definition union_body (unify: UnifyFn) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
+    let ordered := filter (fun c => negb (is_type_variable c)) components ++ filter is_type_variable components in
+    let* first := find_first (fun component => unify component assignee (Ongoing states)) ordered in
+    match first with
+    | Some (_, success) => Some (Ongoing success)
+    | None => Some Failed
+    end.
+
+Definition unify_union (unify: UnifyFn) (self: EType) (components: list EType) (assignee: EType) (states: VariableStates): option Unification :=
+    match assignee with
+    (* every value of the assignee is a value of self *)
+    | Union assignee_components => union_flipped_unify unify self assignee_components states
+    | TypeVariable (mkGenericRef _ _ p _) => type_variable_flipped_unify unify self p states
+    | Error m _ => unify self (as_nothing (or_readonly m)) (Ongoing states)
+    (* an intersection assignee: a component of it below the union, as every value of the intersection
+       is one of the component (`(A | B) & C` is below `A | B`); where none is, a component of the
+       union that takes the intersection *)
+    | Intersection assignee_components =>
+        match intersection_flipped_unify unify self assignee_components states with
+        | Some Failed => union_body unify components assignee states
+        | r => r
+        end
+    | _ => union_body unify components assignee states
+    end.
+
 (* BoundTypeReference.unify, dispatching on the class of the target *)
 Definition unify_step (unify: UnifyFn) (target assignee: EType) (states: VariableStates): option Unification :=
     match target with
@@ -1401,6 +1541,7 @@ Definition unify_step (unify: UnifyFn) (target assignee: EType) (states: Variabl
     | TypeArgument variance ownership type => unify_type_argument unify target variance ownership type assignee states
     | TypeVariable (mkGenericRef _ _ parameter _) => unify_type_variable unify target parameter assignee states
     | Intersection components => unify_intersection unify target components assignee states
+    | Union components => unify_union unify target components assignee states
     end.
 
 (*
@@ -1614,7 +1755,7 @@ Section StepRefines.
         plus_binding_check uf0 st p binding u = Some u' -> plus_binding_check uf1 st p binding u = Some u'.
     Proof.
         intros * H. unfold plus_binding_check in *.
-        destruct binding as [| | | |[] o t| |]; try exact H. exact (plus_static_check_refines _ _ _ _ _ H).
+        destruct binding as [| | | |[] o t| | |]; try exact H. exact (plus_static_check_refines _ _ _ _ _ H).
     Qed.
 
     Lemma plus_exact_binding_refines: forall states p binding u,
@@ -1634,6 +1775,14 @@ Section StepRefines.
         intersection_flipped_unify uf0 target components states = Some u -> intersection_flipped_unify uf1 target components states = Some u.
     Proof. intros * H. unfold intersection_flipped_unify in *. solve_refines Hfg H. Qed.
 
+    Lemma union_flipped_unify_refines: forall target components states u,
+        union_flipped_unify uf0 target components states = Some u -> union_flipped_unify uf1 target components states = Some u.
+    Proof. intros * H. unfold union_flipped_unify in *. solve_refines Hfg H. Qed.
+
+    Lemma union_body_refines: forall components assignee states u,
+        union_body uf0 components assignee states = Some u -> union_body uf1 components assignee states = Some u.
+    Proof. intros * H. unfold union_body in *. solve_refines Hfg H. Qed.
+
     Lemma unify_arguments_refines: forall targets assignees states u,
         unify_arguments uf0 targets assignees states = Some u -> unify_arguments uf1 targets assignees states = Some u.
     Proof. intros * H. unfold unify_arguments in *. solve_refines Hfg H. Qed.
@@ -1646,6 +1795,8 @@ Section StepRefines.
         | plus_supertype_constraint uf0 ?s ?p ?t = Some _ => exact (plus_supertype_constraint_refines _ _ _ _ H)
         | type_variable_flipped_unify uf0 ?t ?p ?s = Some _ => exact (plus_subtype_constraint_refines _ _ _ _ H)
         | intersection_flipped_unify uf0 ?t ?cs ?s = Some _ => exact (intersection_flipped_unify_refines _ _ _ _ H)
+        | union_flipped_unify uf0 ?t ?cs ?s = Some _ => exact (union_flipped_unify_refines _ _ _ _ H)
+        | union_body uf0 ?cs ?a ?s = Some _ => exact (union_body_refines _ _ _ _ H)
         | plus_exact_binding uf0 ?s ?p ?t = Some _ => exact (plus_exact_binding_refines _ _ _ _ H)
         | unify_arguments uf0 ?ts ?xs ?s = Some _ => exact (unify_arguments_refines _ _ _ _ H)
         end.
@@ -1654,7 +1805,7 @@ Section StepRefines.
         unify_step uf0 target assignee states = Some u -> unify_step uf1 target assignee states = Some u.
     Proof.
         intros target assignee states u H. unfold unify_step in *.
-        destruct target as [| |[]| | |[]|]; cbn beta iota zeta in H |- *.
+        destruct target as [| |[]| | |[]| |]; cbn beta iota zeta in H |- *.
         - unfold unify_root_resolved in *. solve_step H.
         - unfold unify_nullable in *. solve_step H.
         - unfold unify_generic in *. solve_step H.
@@ -1662,6 +1813,12 @@ Section StepRefines.
         - unfold unify_type_argument in *. solve_step H.
         - unfold unify_type_variable in *. solve_step H.
         - unfold unify_intersection, intersection_body in *. solve_step H.
+        - unfold unify_union in *. destruct assignee as [| | | | | |acs|]; try solve_step H.
+          match type of H with context [intersection_flipped_unify uf0 ?t ?l ?s] =>
+              destruct (intersection_flipped_unify uf0 t l s) as [[s0|]|] eqn:E end; cbn iota in H;
+              [rewrite (intersection_flipped_unify_refines _ _ _ _ E); exact H
+              |rewrite (intersection_flipped_unify_refines _ _ _ _ E); cbn iota; exact (union_body_refines _ _ _ _ H)
+              |discriminate H].
     Qed.
 End StepRefines.
 
@@ -1783,6 +1940,7 @@ Fixpoint ranked_below (k: nat) (t: EType): bool :=
     | Generic g | TypeVariable g => Nat.ltb (rank_of g) k
     | Error _ _ => true
     | Intersection components => forallb (ranked_below k) components
+    | Union us => forallb (ranked_below k) us
     end.
 
 (* All the references to type parameters in t, also in type arguments, are to ones of a rank below
@@ -1794,6 +1952,7 @@ Fixpoint deep_ranked (p: TypeParameterId) (k: nat) (t: EType): bool :=
     | Generic g | TypeVariable g => Nat.ltb (rank_of g) k || param_eqb (param_of g) p
     | Error _ _ => true
     | Intersection components => forallb (deep_ranked p k) components
+    | Union us => forallb (deep_ranked p k) us
     end.
 
 (* A bound mentions only type parameters declared before, and in type arguments the parameter itself *)
@@ -1804,13 +1963,15 @@ Definition bounds_ranked: Prop := forall p, ranked_below (parameter_rank env p) 
 
 Lemma ranked_below_mono: forall k k', k <= k' -> forall t, ranked_below k t = true -> ranked_below k' t = true.
 Proof.
-    intros k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try exact H.
+    intros k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try exact H.
     - exact (IH n H).
     - apply Nat.ltb_lt in H. apply Nat.ltb_lt. lia.
     - exact (IH n H).
     - apply Nat.ltb_lt in H. apply Nat.ltb_lt. lia.
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 (* Two handlers that give the same for the type parameters of rank below k *)
@@ -1841,36 +2002,44 @@ Hypothesis Ha: agree k H1 H2.
 
 Lemma top_const_h_agree: forall t, ranked_below k t = true -> top_const_h H1 t = top_const_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj1 (Ha g (ref_ranked k g H))).
-    induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma mutability_of_h_agree: forall t, ranked_below k t = true -> mutability_of_h H1 t = mutability_of_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj1 (proj2 (Ha g (ref_ranked k g H)))).
-    pose proof (top_const_h_agree (Intersection cs) H) as E. simpl in E. rewrite E.
-    destruct (existsb (top_const_h H2) cs); [reflexivity|]. f_equal. clear E.
-    induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - pose proof (top_const_h_agree (Intersection cs) H) as E. simpl in E. rewrite E.
+      destruct (existsb (top_const_h H2) cs); [reflexivity|]. f_equal. clear E.
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma assignment_mutability_h_agree: forall t, ranked_below k t = true -> assignment_mutability_h H1 t = assignment_mutability_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj1 (proj2 (proj2 (Ha g (ref_ranked k g H))))).
-    f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma is_nullable_h_agree: forall t, ranked_below k t = true -> is_nullable_h H1 t = is_nullable_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj1 (proj2 (proj2 (proj2 (Ha g (ref_ranked k g H)))))).
-    induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma forallb_is_nullable_h_agree: forall cs, forallb (ranked_below k) cs = true ->
@@ -1882,37 +2051,43 @@ Qed.
 
 Lemma base_type_of_lower_bound_h_agree: forall t, ranked_below k t = true -> base_type_of_lower_bound_h H1 t = base_type_of_lower_bound_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj1 (proj2 (proj2 (proj2 (proj2 (Ha g (ref_ranked k g H))))))).
-    f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma is_non_nullable_nothing_h_agree: forall t, ranked_below k t = true -> is_non_nullable_nothing_h H1 t = is_non_nullable_nothing_h H2 t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try exact (IH n H);
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try exact (IH n H);
         try exact (proj2 (proj2 (proj2 (proj2 (proj2 (Ha g (ref_ranked k g H))))))).
-    f_equal.
-    - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-      rewrite (IH c Hc), (IHc Hcs). reflexivity.
-    - unfold is_effectively_bottom_type_h. f_equal. clear IH.
-      induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
-      rewrite (is_nullable_h_agree c Hc), (base_type_of_lower_bound_h_agree c Hc), (IHc Hcs). reflexivity.
+    - f_equal.
+      + induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+        rewrite (IH c Hc), (IHc Hcs). reflexivity.
+      + unfold is_effectively_bottom_type_h. f_equal. clear IH.
+        induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
+        rewrite (is_nullable_h_agree c Hc), (base_type_of_lower_bound_h_agree c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma with_mutability_h_ranked: forall H m t, ranked_below k t = true -> ranked_below k (with_mutability_h H m t) = true.
 Proof.
-    intros H. fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try exact Ht.
+    intros H. fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns] Ht; simpl in Ht |- *; try exact Ht.
     - pose proof (IH m n Ht) as Hn. destruct (with_mutability_h H m n); exact Hn.
     - exact (IH m n Ht).
     - generalize (fold_left intersect_mutability (map (fun c => assignment_mutability_h H (with_mutability_h H m c)) cs) readonly).
       intros m'. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH m' c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH m u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma with_mutability_h_agree: forall m t, ranked_below k t = true -> with_mutability_h H1 m t = with_mutability_h H2 m t.
 Proof.
-    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try reflexivity.
+    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns] Ht; simpl in Ht |- *; try reflexivity.
     - rewrite (IH m n Ht). reflexivity.
     - rewrite (IH m n Ht). reflexivity.
     - assert (Hcm: map (fun c => assignment_mutability_h H1 (with_mutability_h H1 m c)) cs
@@ -1922,26 +2097,32 @@ Proof.
       rewrite Hcm. generalize (fold_left intersect_mutability (map (fun c => assignment_mutability_h H2 (with_mutability_h H2 m c)) cs) readonly).
       intros m'. f_equal. clear Hcm. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH m' c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH m u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma without_null_h_ranked: forall H t, ranked_below k t = true -> ranked_below k (without_null_h H t) = true.
 Proof.
-    intros H. fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try exact Ht;
+    intros H. fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns] Ht; simpl in Ht |- *; try exact Ht;
         try exact (IH n Ht).
-    destruct (forallb (is_nullable_h H) cs); [|exact Ht]. simpl.
-    induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
-    rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - destruct (forallb (is_nullable_h H) cs); [|exact Ht]. simpl.
+      induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
+      rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma without_null_h_agree: forall t, ranked_below k t = true -> without_null_h H1 t = without_null_h H2 t.
 Proof.
-    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Ht; simpl in Ht |- *; try reflexivity.
+    fix IH 1. intros [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns] Ht; simpl in Ht |- *; try reflexivity.
     - exact (IH n Ht).
     - rewrite (proj1 (proj2 (proj2 (proj2 (Ha _ (ref_ranked k _ Ht)))))). reflexivity.
     - rewrite (IH n Ht). reflexivity.
     - rewrite (forallb_is_nullable_h_agree cs Ht). destruct (forallb (is_nullable_h H2) cs); [|reflexivity].
       f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 End Agree.
@@ -1949,12 +2130,14 @@ End Agree.
 Lemma with_type_variables_ranked: forall k vs t, ranked_below k t = true -> ranked_below k (with_type_variables vs t) = true.
 Proof.
     intros k [|v vs] t H; [exact H|]. unfold with_type_variables. revert t H. generalize (v :: vs) as ws. intros ws.
-    fix IH 1. intros [mt c args|n|[gm nn p us]|me msg|w o n|[gm nn p us]|cs] Ht; simpl in Ht |- *; try exact Ht.
+    fix IH 1. intros [mt c args|n|[gm nn p us]|me msg|w o n|[gm nn p us]|cs|uns] Ht; simpl in Ht |- *; try exact Ht.
     - exact (IH n Ht).
     - destruct (existsb (param_eqb p) ws); exact Ht.
     - exact (IH n Ht).
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Section Ranked.
@@ -2183,16 +2366,17 @@ Qed.
 
 Lemma instantiate_top: forall bindings t, instantiate bindings t = instantiate_h (instantiate_unbound bindings) bindings t.
 Proof.
-    intros bindings. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; simpl; try reflexivity.
+    intros bindings. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns]; simpl; try reflexivity.
     - f_equal. induction args as [|a args IHa]; [reflexivity|]. simpl. rewrite (IH a), IHa. reflexivity.
     - rewrite (IH n). reflexivity.
     - rewrite (IH n). reflexivity.
     - f_equal. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl. rewrite (IH u), IHu. reflexivity.
 Qed.
 
 Lemma deep_ranked_mono: forall p k k', k <= k' -> forall t, deep_ranked p k t = true -> deep_ranked p k' t = true.
 Proof.
-    intros p k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try exact H.
+    intros p k k' Hk. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try exact H.
     - induction args as [|a args IHa]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Ha Hargs].
       rewrite (IH a Ha), (IHa Hargs). reflexivity.
     - exact (IH n H).
@@ -2201,11 +2385,13 @@ Proof.
     - apply orb_true_iff in H. apply orb_true_iff. destruct H as [H|H]; [left; apply Nat.ltb_lt in H; apply Nat.ltb_lt; lia|right; exact H].
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply andb_true_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma deep_ranked_exists: forall p t, exists k, deep_ranked p k t = true.
 Proof.
-    intros p. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs].
+    intros p. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns].
     - induction args as [|a args IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
       exists (ka + kr). pose proof (deep_ranked_mono p kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
       rewrite (deep_ranked_mono p ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
@@ -2217,13 +2403,16 @@ Proof.
     - induction cs as [|a cs IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
       exists (ka + kr). pose proof (deep_ranked_mono p kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
       rewrite (deep_ranked_mono p ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
+    - induction uns as [|a uns IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
+      exists (ka + kr). pose proof (deep_ranked_mono p kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
+      rewrite (deep_ranked_mono p ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
 Qed.
 
 (* Every type mentions type parameters of ranks below some k, so facts can be proven by induction on
    that k: for a reference, the facts about the types of lower ranks, its effective bound among them *)
 Lemma ranked_exists: forall t, exists k, ranked_below k t = true.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs].
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns].
     - exists 0. reflexivity.
     - exact (IH n).
     - exists (S (rank_of g)). simpl. apply Nat.ltb_lt. lia.
@@ -2231,6 +2420,9 @@ Proof.
     - exact (IH n).
     - exists (S (rank_of g)). simpl. apply Nat.ltb_lt. lia.
     - induction cs as [|a cs IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
+      exists (ka + kr). pose proof (ranked_below_mono kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
+      rewrite (ranked_below_mono ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
+    - induction uns as [|a uns IHa]; [exists 0; reflexivity|]. destruct (IH a) as [ka Ha]. destruct IHa as [kr Hr].
       exists (ka + kr). pose proof (ranked_below_mono kr (ka + kr) ltac:(lia) _ Hr) as Hr'. simpl in Hr' |- *.
       rewrite (ranked_below_mono ka (ka + kr) ltac:(lia) a Ha). exact Hr'.
 Qed.
@@ -2274,7 +2466,7 @@ Proof.
       change (adjusted_bound (mkGenericRef gm nn p ws)) with (adjusted_bound (mkGenericRef gm nn p us)).
       rewrite !E. split; reflexivity. }
     intros [|v vs] t Ht; [reflexivity|]. unfold with_type_variables. revert t Ht. generalize (v :: vs) as ws. intros ws.
-    fix IH 1. intros [m c args|n|[gm nn p us]|me msg|w o n|[gm nn p us]|cs] Ht; simpl in Ht.
+    fix IH 1. intros [m c args|n|[gm nn p us]|me msg|w o n|[gm nn p us]|cs|uns] Ht; simpl in Ht.
     - reflexivity.
     - pose proof (IH n Ht) as E. unfold plain_properties in E |- *. simpl. injection E as E1 E2 E3 E4. rewrite E1, E2, E4. reflexivity.
     - cbn [with_type_variables_in]. pose proof (Href (mkGenericRef gm nn p us) (us ++ ws) (ref_ranked k _ Ht)) as [E1 E2].
@@ -2300,6 +2492,23 @@ Proof.
       { clear -Hall. induction cs as [|c cs IHc]; [reflexivity|]. simpl. pose proof (Hall c (or_introl eq_refl)) as E.
         unfold plain_properties in E. injection E as _ _ E _. rewrite E, IHc; [reflexivity|]. intros c' Hc'. apply Hall. right. exact Hc'. }
       rewrite Etc, Em, Ea, En. reflexivity.
+    - assert (Hall: forall u, In u uns -> plain_properties (with_type_variables_in ws u) = plain_properties u).
+      { clear -IH Ht. induction uns as [|u uns IHu]; intros u' Hin; [destruct Hin|]. simpl in Ht. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+        destruct Hin as [<-|Hin]; [exact (IH u Hu)|exact (IHu Huns u' Hin)]. }
+      unfold plain_properties. cbn [with_type_variables_in mutability_of assignment_mutability is_nullable top_const].
+      assert (Etc: forallb top_const (map (with_type_variables_in ws) uns) = forallb top_const uns).
+      { clear -Hall. induction uns as [|u uns IHu]; [reflexivity|]. simpl. pose proof (Hall u (or_introl eq_refl)) as E.
+        unfold plain_properties in E. injection E as _ _ _ E. rewrite E, IHu; [reflexivity|]. intros u' Hu'. apply Hall. right. exact Hu'. }
+      assert (Em: map mutability_of (map (with_type_variables_in ws) uns) = map mutability_of uns).
+      { clear -Hall. induction uns as [|u uns IHu]; [reflexivity|]. simpl. pose proof (Hall u (or_introl eq_refl)) as E.
+        unfold plain_properties in E. injection E as E _ _ _. rewrite E, IHu; [reflexivity|]. intros u' Hu'. apply Hall. right. exact Hu'. }
+      assert (Ea: map assignment_mutability (map (with_type_variables_in ws) uns) = map assignment_mutability uns).
+      { clear -Hall. induction uns as [|u uns IHu]; [reflexivity|]. simpl. pose proof (Hall u (or_introl eq_refl)) as E.
+        unfold plain_properties in E. injection E as _ E _ _. rewrite E, IHu; [reflexivity|]. intros u' Hu'. apply Hall. right. exact Hu'. }
+      assert (En: existsb is_nullable (map (with_type_variables_in ws) uns) = existsb is_nullable uns).
+      { clear -Hall. induction uns as [|u uns IHu]; [reflexivity|]. simpl. pose proof (Hall u (or_introl eq_refl)) as E.
+        unfold plain_properties in E. injection E as _ _ E _. rewrite E, IHu; [reflexivity|]. intros u' Hu'. apply Hall. right. exact Hu'. }
+      rewrite Etc, Em, Ea, En. reflexivity.
 Qed.
 
 (* A reference as written, `T`, without type variables: the bound of the parameter *)
@@ -2309,16 +2518,18 @@ Proof. intros p. rewrite effective_bound_eq. reflexivity. Qed.
 (* `!` leaves a type that isn't nullable as it is, and applied twice, it is applied once *)
 Lemma without_null_unchanged: forall t, is_nullable t = false -> without_null t = t.
 Proof.
-    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity.
     - discriminate H.
     - rewrite H, orb_false_r. reflexivity.
     - rewrite (IH n H). reflexivity.
     - rewrite H. reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl in H |- *. apply orb_false_iff in H. destruct H as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma without_null_twice_any: forall t, without_null (without_null t) = without_null t.
 Proof.
-    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs]; simpl; try reflexivity.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns]; simpl; try reflexivity.
     - exact (IH n).
     - destruct nn; [reflexivity|]. cbn [orb]. destruct (ref_nullable (mkGenericRef gm false p vs)) eqn:E; [reflexivity|].
       rewrite E. reflexivity.
@@ -2327,6 +2538,7 @@ Proof.
       assert (Em: map without_null (map without_null cs) = map without_null cs).
       { clear E. induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity. }
       destruct (forallb is_nullable (map without_null cs)); [rewrite Em|]; reflexivity.
+    - f_equal. induction uns as [|u uns IHu]; [reflexivity|]. simpl. rewrite (IH u), IHu. reflexivity.
 Qed.
 
 (* `T!` has the bound of T without null, where T has no type variables *)
@@ -2350,7 +2562,7 @@ Proof. intros vs t. pose proof (with_type_variables_keeps vs t) as E. unfold pla
 Lemma top_const_without_null: forall t, top_const (without_null t) = top_const t.
 Proof.
     intros t. destruct (ranked_exists t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] Hk; try reflexivity.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns] Hk; try reflexivity.
     - exact (IH n Hk).
     - cbn [without_null]. rewrite !top_const_generic, !effective_bound_adjusted, !with_type_variables_top_const.
       unfold adjusted_bound. cbn [given_mutability is_narrowed param_of].
@@ -2360,6 +2572,8 @@ Proof.
     - cbn [without_null]. destruct (forallb is_nullable cs); [|reflexivity]. cbn [top_const].
       clear IHk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk |- *. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - cbn [without_null top_const]. clear IHk. induction uns as [|u uns IHu]; [reflexivity|]. simpl in Hk |- *.
+      apply andb_true_iff in Hk. destruct Hk as [Hu Huns]. rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 (* Applying a mutability keeps whether a type is const, and whether it is nullable, with `!` or not *)
@@ -2387,11 +2601,11 @@ Proof.
       split; [rewrite Ht1, Ht2; reflexivity|]. split; [rewrite Hn1, Hn2; reflexivity|].
       intros nn'. rewrite !top_const_generic, !effective_bound_adjusted, !with_type_variables_top_const. cbn [variables_of].
       rewrite !Ht1. reflexivity. }
-    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs] Hk.
+    fix IH 2. intros m [mt c args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns] Hk.
     - repeat split.
     - destruct (IH m n Hk) as [Ht [Hn Hwn]]. cbn [with_mutability].
       assert (Hr: forall x, top_const (rewrap_nullable x) = top_const x /\ is_nullable (rewrap_nullable x) = true
-          /\ without_null (rewrap_nullable x) = without_null x) by (intros [| | | | | |]; repeat split).
+          /\ without_null (rewrap_nullable x) = without_null x) by (intros [| | | | | | |]; repeat split).
       destruct (Hr (with_mutability m n)) as [Hr1 [Hr2 Hr3]]. rewrite Hr1, Hr2, Hr3. repeat split; [exact Ht|exact Hwn].
     - pose proof (ref_ranked k _ Hk) as Hg. destruct (Href (Some m) gm nn p vs Hg) as [Ht [Hn _]].
       cbn [with_mutability without_null]. split; [exact Ht|]. split; [exact Hn|].
@@ -2422,6 +2636,13 @@ Proof.
       destruct Hl as [E1 [E2 E3]]. cbn [top_const is_nullable without_null]. rewrite E1, E2.
       split; [reflexivity|]. split; [reflexivity|].
       destruct (forallb is_nullable cs) eqn:Eb; cbn [is_nullable]; [exact E3|rewrite E2, Eb; reflexivity].
+    - cbn [with_mutability]. simpl in Hk. clear -IH Hk.
+      assert (Hl: forallb top_const (map (with_mutability m) uns) = forallb top_const uns
+          /\ existsb is_nullable (map (with_mutability m) uns) = existsb is_nullable uns
+          /\ existsb is_nullable (map without_null (map (with_mutability m) uns)) = existsb is_nullable (map without_null uns)).
+      { induction uns as [|u uns IHu]; [repeat split|]. simpl in Hk |- *. apply andb_true_iff in Hk. destruct Hk as [Hu Huns].
+        destruct (IH m u Hu) as [E1 [E2 E3]]. destruct (IHu Huns) as [F1 [F2 F3]]. rewrite E1, E2, E3, F1, F2, F3. repeat split. }
+      destruct Hl as [E1 [E2 E3]]. cbn [top_const is_nullable without_null]. rewrite E1, E2, E3. repeat split.
 Qed.
 
 End Equations.

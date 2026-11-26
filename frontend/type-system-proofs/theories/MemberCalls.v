@@ -138,7 +138,7 @@ Proof.
     destruct (wf_supertypes_are_templates env wf sub c Hne Hn Hb) as [_ Ht].
     rewrite parameterized_supertype_arguments_eq in Hz. apply in_map_iff in Hz. destruct Hz as [y [<- Hr]].
     assert (Hfxs: forall x, In x xs -> argument_in_fragment env x = true).
-    { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o nx| |]; try discriminate E.
+    { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o nx| | |]; try discriminate E.
       simpl in E |- *. apply andb_true_iff in E. apply E. }
     assert (Hta: forall x, In x xs -> is_type_argument x = true)
         by (intros x Hx; apply (argument_in_fragment_is_type_argument env), Hfxs, Hx).
@@ -148,7 +148,7 @@ Proof.
     - pose proof (Hex _ Hr) as Hexr. simpl in Hexr. destruct v; try discriminate Hexr.
       rewrite (instantiate_template_argument env _ Model.invariant o n Ho (template_shape env sub n Hn')).
       assert (Hnl: forall x, In x xs -> is_loose x = false).
-      { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o' nx| |]; try discriminate E.
+      { intros x Hx. pose proof (Hxs x Hx) as E. destruct x as [| | | |[] o' nx| | |]; try discriminate E.
         destruct o'; try discriminate E; reflexivity. }
       rewrite (proj1 (template_not_loose sub xs Hl Hnl (depth n)) n (le_n _) Hn').
       simpl. destruct o; try discriminate Ho; try discriminate Hexr;
@@ -200,6 +200,7 @@ Fixpoint refs_within (vars: list (TypeParameterId * EType)) (t: EType): Prop :=
     | Generic _ | TypeVariable _ => False
     | TypeArgument _ o n => (forall q, o = parameter_ownership q -> In q (map fst vars)) /\ refs_within vars n
     | Intersection components => fold_right (fun a acc => refs_within vars a /\ acc) True components
+    | Union us => fold_right (fun a acc => refs_within vars a /\ acc) True us
     | _ => True
     end.
 
@@ -219,7 +220,7 @@ Proof.
           destruct gm, nn; exact Hc. }
     assert (Ht: top_bound_in env b d [] (mkGenericRef gm nn p []) = true).
     { rewrite (top_bound_in_eq env wf b d []), Heff. clear -Hca. revert Hca. generalize (bound_apply env gm nn (parameter_bound env p)) as t.
-      fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] H; simpl in H |- *; try reflexivity; try discriminate H;
+      fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] H; simpl in H |- *; try reflexivity; try discriminate H;
           [exact (IH n H)|apply andb_true_iff in H; exact (IH n (proj2 H))]. }
     change (bound_in env b d [] (Generic (mkGenericRef gm nn p [])))
         with (binds_ref env b d [] (mkGenericRef gm nn p []) && no_type_variables (mkGenericRef gm nn p [])
@@ -247,7 +248,7 @@ Proof.
         apply (IH (esize (RootResolved m c args))); [simpl; lia|reflexivity|left; exact Ht'|exact H|exact Hp|exact Hr|exact Ho].
       + simpl in H. destruct H as [H [Hfb' Hcb]]. change (bound_in env b d [] (Generic (mkGenericRef None false p [])) = true).
         rewrite (binds_ref_closed env wf b d [] p Hfb' Hcb). exact (Hp p _ H).
-    - destruct t as [| | | |v o n| |]; try discriminate Hf. simpl in Hf, H |- *. destruct H as [Hq Hn]. apply andb_true_iff. split.
+    - destruct t as [| | | |v o n| | |]; try discriminate Hf. simpl in Hf, H |- *. destruct H as [Hq Hn]. apply andb_true_iff. split.
       + destruct o as [| | |q]; try reflexivity. exact (Ho q (Hq q eq_refl)).
       + change (nfrag env n = true) in Hf. destruct (nfrag_cases env n Hf) as [Hf'|[gm [nn [q [Eq Hsq]]]]].
         * apply (IH (esize n)); [simpl; lia|reflexivity|left; exact Hf'|exact Hn|exact Hp|exact Hr|exact Ho].
@@ -291,7 +292,7 @@ Qed.
 Lemma binds_ref_fuel: forall b d d' g, d <= d' -> binds_ref env b d [] g = true -> binds_ref env b d' [] g = true.
 Proof.
     intros b d d' g Hle Hb. unfold binds_ref, respects in Hb |- *.
-    destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| |]|]; try discriminate Hb.
+    destruct (lookup_binding b (param_of g)) as [[| | | |[] o x| | |]|]; try discriminate Hb.
     apply andb_true_iff in Hb. destruct Hb as [Hox Hb]. rewrite Hox.
     destruct (unify env d _ _ (Ongoing [])) as [[w|]|] eqn:E; try discriminate Hb.
     rewrite (unify_fuel_monotone env d d' _ _ _ _ Hle E). reflexivity.
@@ -466,7 +467,7 @@ Proof.
       exists bound. exact Hin. }
     (* the type arguments of the object as c, assignable to those of the receiver as c *)
     assert (Hfzs: forall z, In z zs -> argument_in_fragment env z = true).
-    { intros z Hz. pose proof (Hzx z Hz) as E. destruct z as [| | | |[] o nz| |]; try discriminate E.
+    { intros z Hz. pose proof (Hzx z Hz) as E. destruct z as [| | | |[] o nz| | |]; try discriminate E.
       simpl in E |- *. apply andb_true_iff in E. apply E. }
     assert (HfD: in_fragment env (RootResolved mr c ys') = true).
     { change (Nat.eqb (length ys') (length (parameter_ids env c)) && forallb (argument_in_fragment env) ys' = true).
@@ -722,7 +723,7 @@ Proof.
       split; [exact (in_fragment_xfrag _ Hfx)|]. exists (mkVariableState bound y y true true).
       split; [exact (Hkeep p _ (Hcap i p bound y Hi Hy) eq_refl)|].
       pose proof (Hys y (nth_error_In _ _ Hy)) as Hfy2.
-      destruct y as [| | | |vb ob X| |]; try discriminate Hfy2.
+      destruct y as [| | | |vb ob X| | |]; try discriminate Hfy2.
       unfold fits, Constraints.fits. cbn [is_exact upper_bound lower_bound]. exists vb, ob, X, n3. split; [reflexivity|]. split; [reflexivity|].
       split; [exact Hfy2|]. split; [exact Hfx|]. apply (unify_fuel_monotone env n3); [lia|].
       exact (Forall2_nth_error _ zs ys' i _ _ Hp Hz Hy).
@@ -766,7 +767,7 @@ Proof.
     assert (Hfo: in_fragment env (RootResolved mo c xs) = true).
     { change (Nat.eqb (length xs) (length (parameter_ids env c)) && forallb (argument_in_fragment env) xs = true).
       rewrite Hlx, Nat.eqb_refl. apply forallb_forall. intros x Hx. pose proof (Hxs x Hx) as E.
-      destruct x as [| | | |[] o nx| |]; try discriminate E. simpl in E |- *. apply andb_true_iff in E. apply E. }
+      destruct x as [| | | |[] o nx| | |]; try discriminate E. simpl in E |- *. apply andb_true_iff in E. apply E. }
     exact (member_call_through_subtypes_sound n0 mr c cvars ovars ma c ys s' mo c xs xs n1 Ps As n2 s Hc Hc Hc Hids Hnd Hbounds
         Hfy Hrec Hfo Hobj ltac:(rewrite class_eqb_refl; reflexivity) Hxs Hxb HPs HAs Hfold Hfinal Hclass b Hbdef).
 Qed.
@@ -823,7 +824,7 @@ Lemma capture_step_checked: forall n p bound s y s',
     same_states s' (set_state s p (mkVariableState bound y y true true)).
 Proof.
     intros n p bound s y s' Hl Hy Hchk H. destruct (A_shape y Hy) as [Hta [_ Hk]].
-    destruct y as [| | | |vy oy x| |]; try discriminate Hta.
+    destruct y as [| | | |vy oy x| | |]; try discriminate Hta.
     destruct n as [|n]; [discriminate H|].
     rewrite unify_step_once in H. unfold unify_step, unify_type_argument, receiver_leaf in H. cbn beta iota zeta in H.
     replace (ownership_is_assignable_to oy any_ownership) with true in H by (destruct oy; reflexivity).
@@ -1008,7 +1009,7 @@ Proof.
       exists bound. exact Hin. }
     (* the type arguments of the object as c, assignable to those of the receiver as c *)
     assert (Hfzs: forall z, In z zs -> argument_in_fragment env z = true).
-    { intros z Hz. pose proof (Hzx z Hz) as E. destruct z as [| | | |[] o nz| |]; try discriminate E.
+    { intros z Hz. pose proof (Hzx z Hz) as E. destruct z as [| | | |[] o nz| | |]; try discriminate E.
       simpl in E |- *. apply andb_true_iff in E. apply E. }
     assert (HfD: in_fragment env (RootResolved mr c ys') = true).
     { change (Nat.eqb (length ys') (length (parameter_ids env c)) && forallb (argument_in_fragment env) ys' = true).

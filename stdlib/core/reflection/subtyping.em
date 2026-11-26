@@ -36,36 +36,88 @@ nothrow fn isSubtypeAtDepth(subtype: const Type, supertype: const Type, depth: U
         return true
     }
 
-    if subtype is IntersectionType {
-        components = subtype.asIntersectionType().components
-        if hasDisjointClasses(components) {
-            // no object is of two classes, so the intersection has no values but null, if it is nullable: it is
-            // Nothing by another name, and below every type that takes its null
-            // (`BoundIntersectionTypeReference.isEffectivelyBottom` in the compiler)
-            return supertype.asNamedType().nullable or not subtype.isNullable()
+    if supertype is UnionType {
+        superComponents = supertype.asUnionType().components
+        if subtype is UnionType {
+            // each alternative of the subtype is a value of the supertype (`Subtyping.union_flipped_unify` in the proofs)
+            subComponents = subtype.asUnionType().components
+            var subIndex: UWord = 0
+            while subIndex < subComponents.size {
+                if not isSubtypeAtDepth(subComponents.getOrPanic(subIndex), supertype, depth) {
+                    return false
+                }
+                set subIndex = subIndex.plusModulo(1 as UWord)
+            }
+            return true
         }
 
-        // Where the intersection cannot be a token as a whole (`own Animal & NonToken`), the value may freeze,
-        // though a component alone (`own Animal`) doesn't say so. So such a component is also tried as the const
-        // it can become.
-        componentsMayFreeze = not subtype.mayBeToken()
-        var index: UWord = 0
-        while index < components.size {
-            component = components.getOrPanic(index)
-            if isSubtypeAtDepth(component, supertype, depth) {
+        if subtype is IntersectionType {
+            // every value of the intersection is one of each component, so one below the union suffices:
+            // `(A | B) & C` is below `A | B`. Where none is, a component of the union may take the whole intersection
+            if intersectionIsSubtype(subtype.asIntersectionType(), supertype, depth) {
                 return true
             }
-            if componentsMayFreeze and component.assignmentMutability() == MUTABILITY_OWN and component.mayBeToken() {
-                if isSubtypeAtDepth(component.withMutability(MUTABILITY_CONST), supertype, depth) {
-                    return true
-                }
+        }
+
+        // the first component that takes the value takes it for the union (`Subtyping.union_body` in the proofs)
+        var superIndex: UWord = 0
+        while superIndex < superComponents.size {
+            if isSubtypeAtDepth(subtype, superComponents.getOrPanic(superIndex), depth) {
+                return true
             }
-            set index = index.plusModulo(1 as UWord)
+            set superIndex = superIndex.plusModulo(1 as UWord)
         }
         return false
     }
 
+    if subtype is UnionType {
+        // a value of the union is one of any component, so each has to fit
+        components = subtype.asUnionType().components
+        var index: UWord = 0
+        while index < components.size {
+            if not isSubtypeAtDepth(components.getOrPanic(index), supertype, depth) {
+                return false
+            }
+            set index = index.plusModulo(1 as UWord)
+        }
+        return true
+    }
+
+    if subtype is IntersectionType {
+        return intersectionIsSubtype(subtype.asIntersectionType(), supertype, depth)
+    }
+
     return isNamedSubtype(subtype.asNamedType(), supertype.asNamedType(), depth)
+}
+
+// whether every value of the intersection [subtype] is a value of [supertype], a named type or a union
+nothrow fn intersectionIsSubtype(subtype: const IntersectionType, supertype: const Type, depth: UWord) -> Bool {
+    components = subtype.components
+    if hasDisjointClasses(components) {
+        // no object is of two classes, so the intersection has no values but null, if it is nullable: it is
+        // Nothing by another name, and below every type that takes its null
+        // (`BoundIntersectionTypeReference.isEffectivelyBottom` in the compiler)
+        return supertype.isNullable() or not subtype.isNullable()
+    }
+
+    // Where the intersection cannot be a token as a whole (`own Animal & NonToken`), the value may freeze,
+    // though a component alone (`own Animal`) doesn't say so. So such a component is also tried as the const
+    // it can become.
+    componentsMayFreeze = not subtype.mayBeToken()
+    var index: UWord = 0
+    while index < components.size {
+        component = components.getOrPanic(index)
+        if isSubtypeAtDepth(component, supertype, depth) {
+            return true
+        }
+        if componentsMayFreeze and component.assignmentMutability() == MUTABILITY_OWN and component.mayBeToken() {
+            if isSubtypeAtDepth(component.withMutability(MUTABILITY_CONST), supertype, depth) {
+                return true
+            }
+        }
+        set index = index.plusModulo(1 as UWord)
+    }
+    return false
 }
 
 // whether two of [components] are of different classes
@@ -128,11 +180,24 @@ nothrow fn isNamedSubtype(subtype: const NamedType, supertype: const NamedType, 
 
 // Whether a value of this type may be a token, or hold one. It cannot where the type is const, as a token is
 // never frozen; nor where its base type is no token (ReflectionBaseType.isNonToken) and none of its type
-// arguments may be one. One component of an intersection that cannot be a token decides it for the intersection.
+// arguments may be one. One component of an intersection that cannot be a token decides it for the intersection;
+// one component of a union that may be one decides it for the union.
 // `BoundTypeReference.mayBeToken` in the compiler.
 export nothrow fn mayBeToken(capture self: const Type) -> Bool {
     if self is NamedType {
         return namedTypeMayBeToken(self.asNamedType())
+    }
+
+    if self is UnionType {
+        unionComponents = self.asUnionType().components
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            if unionComponents.getOrPanic(unionIndex).mayBeToken() {
+                return true
+            }
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return false
     }
 
     components = self.asIntersectionType().components
@@ -176,6 +241,18 @@ nothrow fn asNoToken(capture self: const Type) -> const Type {
         return self
     }
 
+    if self is UnionType {
+        // by alternative: `(A | B) & NonToken` is `(A & NonToken) | (B & NonToken)`
+        unionComponents = self.asUnionType().components
+        newUnionComponents: own Array<const Type> = Array.new::<const Type>(unionComponents.size, unionComponents.getOrPanic(0))
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            newUnionComponents.setOrPanic(unionIndex, unionComponents.getOrPanic(unionIndex).asNoToken())
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return unionOf(newUnionComponents)
+    }
+
     mutability = assignmentMutabilityOfAll(self)
     nonToken = typeOf::<NonToken>().firstComponent().withNullability(self.isNullable()).withMutability(mutability)
     count = self.componentCount()
@@ -195,10 +272,21 @@ nothrow fn asNoToken(capture self: const Type) -> const Type {
 }
 
 // @return the mutability that the components of [type] have in common when intersected: that which asks for
-// all that any of them asks for
+// all that any of them asks for. Of a union, the mutability that each alternative fits.
 nothrow fn assignmentMutabilityOfAll(type: const Type) -> U8 {
     if type is NamedType {
         return type.asNamedType().assignmentMutability()
+    }
+
+    if type is UnionType {
+        unionComponents = type.asUnionType().components
+        var joined = MUTABILITY_OWN
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            set joined = unionMutability(joined, assignmentMutabilityOfAll(unionComponents.getOrPanic(unionIndex)))
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return joined
     }
 
     components = type.asIntersectionType().components
@@ -239,6 +327,17 @@ nothrow fn assignmentMutability(self: const NamedType) -> U8 {
 nothrow fn mutabilityOfReference(type: const Type) -> U8 {
     if type is NamedType {
         return type.asNamedType().mutability
+    }
+
+    if type is UnionType {
+        unionComponents = type.asUnionType().components
+        var joined = MUTABILITY_OWN
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            set joined = unionMutability(joined, mutabilityOfReference(unionComponents.getOrPanic(unionIndex)))
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return joined
     }
 
     components = type.asIntersectionType().components
@@ -317,11 +416,22 @@ nothrow fn instantiate(capture template: const Type, arguments: const Array<Type
         return intersectionOf(instantiated)
     }
 
+    if template is UnionTemplate {
+        unionComponents = template.asUnionTemplate().components
+        instantiatedUnion: own Array<const Type> = Array.new::<const Type>(unionComponents.size, unionComponents.getOrPanic(0))
+        var unionIndex: UWord = 0
+        while unionIndex < unionComponents.size {
+            instantiatedUnion.setOrPanic(unionIndex, instantiate(unionComponents.getOrPanic(unionIndex), arguments))
+            set unionIndex = unionIndex.plusModulo(1 as UWord)
+        }
+        return unionOf(instantiatedUnion)
+    }
+
     if template is NamedType {
         return instantiateNamed(template.asNamedType(), arguments)
     }
 
-    // an intersection that mentions no type parameter
+    // an intersection or union that mentions no type parameter
     return template
 }
 

@@ -682,7 +682,8 @@ class TokenErrors : FreeSpec({
     }
 
     "common supertype" - {
-        "of a token and a value that is none is Any" {
+        "of a token and a value that is none may be a token" {
+            // an if-expression is typed as the union of its branches; the token among them decides
             validateModule("""
                 token class Clock {}
                 class Plain {}
@@ -693,7 +694,7 @@ class TokenErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.reason shouldBe "Any is not a subtype of NonToken"
+                    it.reason shouldBe "the component read testmodule.Clock of read testmodule.Clock | read testmodule.Plain is not a subtype of read NonToken: Clock is not a subtype of NonToken"
                 }
         }
 

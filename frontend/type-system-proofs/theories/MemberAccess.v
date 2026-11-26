@@ -133,7 +133,7 @@ Lemma exact_argument_facts: forall x, is_exact_argument x = true ->
     exists o y, x = TypeArgument Model.invariant o y /\ in_fragment env y = true
         /\ argument_in_fragment env x = true /\ is_loose x = false.
 Proof.
-    intros [| | | |[] o y| |] H; simpl in H; try discriminate H.
+    intros [| | | |[] o y| | |] H; simpl in H; try discriminate H.
     exists o, y. destruct o; try discriminate H. all: repeat split; first [reflexivity|exact H].
 Qed.
 
@@ -207,7 +207,7 @@ Proof.
     destruct (nth_error_same_length _ ys i p (eq_sym Hly) Hi) as [y Ey].
     destruct (exact_argument_facts x (Hxs x (nth_error_In _ _ Ex))) as [o [z [-> [HX _]]]].
     pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
-    destruct y as [| | | |v oy y0| |]; simpl in Hy; try discriminate Hy.
+    destruct y as [| | | |v oy y0| | |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
     rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
@@ -349,7 +349,7 @@ Proof.
 Qed.
 
 Lemma rewrap_is_nullable: forall t, is_nullable env (rewrap_nullable t) = true.
-Proof. intros [| | | | | |]; reflexivity. Qed.
+Proof. intros [| | | | | | |]; reflexivity. Qed.
 
 (* Where Y is above X, so is Y? above X? *)
 Lemma rewrap_mono: forall n x y s, in_fragment env x = true -> in_fragment env y = true ->
@@ -397,14 +397,14 @@ Lemma read_member_faithful: forall b V t fuel s, in_fragment env t = true ->
     exists fuel', unify env fuel' t (read_member b V) (Ongoing s) = Some (Ongoing s).
 Proof.
     intros b V t fuel s HD H. unfold read_member.
-    destruct (instantiate env b V) as [| [| | | |v o x| |] | | |v o x| |]; try (exists fuel; exact H).
+    destruct (instantiate env b V) as [| [| | | |v o x| | |] | | |v o x| | |]; try (exists fuel; exact H).
     - (* T? *)
       destruct fuel as [|fuel]; [discriminate H|].
       destruct (fragment_cases env t HD) as [[md [cd [dargs ->]]]|[md [cd [dargs [-> _]]]]];
           [rewrite unify_class_nullable in H; discriminate H|].
       rewrite unify_nullable_nullable in H. destruct fuel as [|fuel]; [discriminate H|].
       rewrite unify_step_once in H. unfold unify_step, unify_root_resolved in H.
-      destruct (read_type v x) as [| | | | | |] eqn:Er; cbn [rewrap_nullable];
+      destruct (read_type v x) as [| | | | | | |] eqn:Er; cbn [rewrap_nullable];
           try (exists (S (S fuel)); rewrite unify_nullable_nullable; apply (unify_fuel_monotone env fuel); [lia|exact H]).
       destruct fuel as [|fuel]; [discriminate H|]. rewrite unify_class_nullable in H. discriminate H.
     - (* T *)
@@ -429,7 +429,7 @@ Lemma member_cases: forall c t, member_template c t = true ->
     (exists m c' arguments, t = RootResolved m c' arguments) \/
     (exists m c' arguments, t = Nullable (RootResolved m c' arguments) /\ member_template c (RootResolved m c' arguments) = true).
 Proof.
-    intros c [m c' arguments|[m c' arguments| | | | | |]| | | | |] H; simpl in H; try discriminate H.
+    intros c [m c' arguments|[m c' arguments| | | | | | |]| | | | | |] H; simpl in H; try discriminate H.
     - left. eauto.
     - right. eauto.
 Qed.
@@ -451,7 +451,7 @@ Lemma member_argument_kind: forall c a, member_argument c a = true ->
         ((exists p, leaf_parameter x = Some p /\ existsb (param_eqb p) (parameter_ids env c) = true /\ own_ownership o p = true)
          \/ (leaf_parameter x = None /\ is_parameter_ownership o = false /\ member_template c x = true)).
 Proof.
-    intros c [| | | |v o x| |] H; unfold member_argument in H; try discriminate H. exists v, o, x. split; [reflexivity|].
+    intros c [| | | |v o x| | |] H; unfold member_argument in H; try discriminate H. exists v, o, x. split; [reflexivity|].
     destruct (leaf_parameter x) as [p|] eqn:E; apply andb_true_iff in H; destruct H as [H1 H2].
     - left. exists p. auto.
     - right. split; [reflexivity|]. split; [|exact H2]. destruct o; auto; discriminate H1.
@@ -462,7 +462,7 @@ Definition wrap_leaf (nullable: bool) (n: EType): EType := if nullable then Null
 
 Lemma leaf_cases: forall x p, leaf_parameter x = Some p -> exists g nl, x = wrap_leaf nl (Generic g) /\ param_of g = p.
 Proof.
-    intros [|[| |[gm nn q bq]| | | |]|[gm nn q bq]| | | |] p H; simpl in H; try discriminate H; injection H as <-.
+    intros [|[| |[gm nn q bq]| | | | |]|[gm nn q bq]| | | | |] p H; simpl in H; try discriminate H; injection H as <-.
     - exists (mkGenericRef gm nn q bq), true. split; reflexivity.
     - exists (mkGenericRef gm nn q bq), false. split; reflexivity.
 Qed.
@@ -526,7 +526,7 @@ Proof.
     destruct (exact_argument_facts x Hex) as [ox [X [-> [HX [_ _]]]]].
     assert (Hox: ox = owned \/ ox = ref) by (simpl in Hex; destruct ox; auto; discriminate Hex).
     pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
-    destruct y as [| | | |vy oy Y| |]; simpl in Hy; try discriminate Hy.
+    destruct y as [| | | |vy oy Y| | |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
     rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).
@@ -756,7 +756,7 @@ Proof.
     intros n' s c xs ys C Hlx Hly Hxs Hys H HC.
     assert (Hna: forall t, in_fragment env t = true -> not_argument t = true)
         by (intros t Ht; destruct (fragment_cases env t Ht) as [[? [? [? ->]]]|[? [? [? [-> _]]]]]; reflexivity).
-    destruct C as [m d args|C'|g|me msg|v0 o0 n0|g|cs]; cbn [member_component] in HC;
+    destruct C as [m d args|C'|g|me msg|v0 o0 n0|g|cs|uns]; cbn [member_component] in HC;
         try (destruct (proj1 (member_instances n' s c xs ys Hlx Hly Hxs Hys H (depth _)) _ (le_n _) HC)
                 as [[Hfx [Hfy [Hup Hdown]]] _];
              split; [exact Hfx|]; split; [exact (Hna _ Hfx)|]; left;
@@ -770,7 +770,7 @@ Proof.
     pose proof (Hxs x (nth_error_In _ _ Ex)) as Hex.
     destruct (exact_argument_facts x Hex) as [ox [X [-> [HX [_ Hlx']]]]].
     pose proof (Hys y (nth_error_In _ _ Ey)) as Hy.
-    destruct y as [| | | |vy oy z| |]; simpl in Hy; try discriminate Hy.
+    destruct y as [| | | |vy oy z| | |]; simpl in Hy; try discriminate Hy.
     pose proof (Forall2_nth_error _ xs ys i _ _ H Ex Ey) as E.
     destruct n' as [|n'']; [discriminate E|].
     rewrite unify_type_arguments in E by (apply (fragment_not_variable env); exact Hy).

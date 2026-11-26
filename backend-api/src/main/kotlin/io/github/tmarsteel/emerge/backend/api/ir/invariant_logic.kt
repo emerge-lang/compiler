@@ -53,6 +53,9 @@ private fun IrType.independentEquals(other: IrType, insideBound: Boolean): Boole
         is IrIntersectionType -> other is IrIntersectionType && this.components.size == other.components.size && this.components.asSequence().sortedWith(IrTypeComparator)
             .zip(other.components.asSequence().sortedWith(IrTypeComparator))
             .all { (a, b) -> a.independentEquals(b, insideBound) }
+        is IrUnionType -> other is IrUnionType && this.components.size == other.components.size && this.components.asSequence().sortedWith(IrTypeComparator)
+            .zip(other.components.asSequence().sortedWith(IrTypeComparator))
+            .all { (a, b) -> a.independentEquals(b, insideBound) }
     }
 }
 
@@ -84,6 +87,7 @@ private fun IrType.independentToString(insideBound: Boolean): String {
             "${this.parameter.name} : ${this.effectiveBound.independentToString(insideBound = true)}"
         }
         is IrIntersectionType -> components.joinToString(separator = " & ")
+        is IrUnionType -> components.joinToString(separator = " | ") { if (it is IrIntersectionType) "(${it.independentToString(insideBound)})" else it.independentToString(insideBound) }
     }
 }
 
@@ -111,6 +115,7 @@ private object IrTypeComparator : Comparator<IrType> {
         IrGenericTypeReference::class,
         IrParameterizedType::class,
         IrIntersectionType::class,
+        IrUnionType::class,
     )
 
     private val typeByClassComparator: Comparator<IrType> = compareBy { irType ->
@@ -162,6 +167,16 @@ private object IrTypeComparator : Comparator<IrType> {
                     .firstOrNull()
                     ?.let { return it }
                     ?: o1.components.size.compareTo(o2.components.size) // at this point, the type with more components is more specific
+            }
+            is IrUnionType -> {
+                check(o2 is IrUnionType)
+                o1.components.asSequence().sortedWith(this)
+                    .zip(o2.components.asSequence().sortedWith(this))
+                    .map { (o1c, o2c) -> compare(o1c, o2c) }
+                    .filter { it != 0 }
+                    .firstOrNull()
+                    ?.let { return it }
+                    ?: o1.components.size.compareTo(o2.components.size)
             }
         }
     }

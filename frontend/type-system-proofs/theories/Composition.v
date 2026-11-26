@@ -86,7 +86,7 @@ Lemma good_rewrap: forall z, good z -> good (rewrap_nullable z).
 Proof.
     intros z [H0 [H1 [H2 H3]]].
     assert (Hn: forall t, nests_argument t = false -> nests_argument (rewrap_nullable t) = false).
-    { intros [| [] | | | | |] E; first [reflexivity|discriminate E]. }
+    { intros [| [] | | | | | |] E; first [reflexivity|discriminate E]. }
     split; [exact (Hn z H0)|]. rewrite sig_rewrap. split; [|split; [|exact (Hn _ H3)]].
     - destruct z; first [exact H1|exact H1].
     - destruct z; exact H2.
@@ -97,7 +97,7 @@ Lemma sig_argument: forall v o x, is_parameter_ownership o = false -> good x ->
 Proof.
     intros v o x Ho [_ [_ [Hin Hn]]]. cbn [instantiate]. rewrite Hin.
     assert (Eo: instantiate_ownership sigma o = o) by (destruct o; first [reflexivity|discriminate Ho]). rewrite Eo.
-    destruct (instantiate env sigma x) as [| [] | | | | |]; try discriminate Hn; reflexivity.
+    destruct (instantiate env sigma x) as [| [] | | | | | |]; try discriminate Hn; reflexivity.
 Qed.
 
 Lemma sig_top: instantiate env sigma top_type = top_type.
@@ -146,7 +146,7 @@ Proof. reflexivity. Qed.
 Lemma arg_of_plain: forall v o x loose, nests_argument x = false ->
     arg_of v o x loose = if loose then match v with input => TypeArgument input o bottom_type | _ => TypeArgument output o x end
         else TypeArgument v o x.
-Proof. intros v o x loose H. destruct x as [| [] | | | | |]; try discriminate H; destruct loose, v; reflexivity. Qed.
+Proof. intros v o x loose H. destruct x as [| [] | | | | | |]; try discriminate H; destruct loose, v; reflexivity. Qed.
 
 (* The instance of the type of a type argument: one sigma takes as it is, or a type argument of one,
    made nullable or not; of Pr, which holds of top and bottom and is kept by making types nullable *)
@@ -289,7 +289,7 @@ Qed.
 Lemma loose_same: forall t, mentions_loosely_bound (bindings_of env c (map (instantiate env sigma) ys)) t
     = mentions_loosely_bound (bindings_of env c ys) t.
 Proof.
-    fix IH 1. intros [m d args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs]; cbn [mentions_loosely_bound].
+    fix IH 1. intros [m d args|n|[gm nn p vs]|me msg|v o n|[gm nn p vs]|cs|uns]; cbn [mentions_loosely_bound].
     - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb]. rewrite (IH a), IHa. reflexivity.
     - exact (IH n).
     - exact (loose_lookup p).
@@ -297,15 +297,17 @@ Proof.
     - exact (IH n).
     - exact (loose_lookup p).
     - induction cs as [|c' cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (IH c'), IHc. reflexivity.
+    - induction uns as [|u' uns IHu]; [reflexivity|]. cbn [existsb]. rewrite (IH u'), IHu. reflexivity.
 Qed.
 
 Lemma in_args_same: forall t, mentions_loosely_bound_in_arguments (bindings_of env c (map (instantiate env sigma) ys)) t
     = mentions_loosely_bound_in_arguments (bindings_of env c ys) t.
 Proof.
-    fix IH 1. intros [m d args|n|g|me msg|v o n|g|cs]; cbn [mentions_loosely_bound_in_arguments]; try reflexivity.
+    fix IH 1. intros [m d args|n|g|me msg|v o n|g|cs|uns]; cbn [mentions_loosely_bound_in_arguments]; try reflexivity.
     - induction args as [|a args IHa]; [reflexivity|]. cbn [existsb]. rewrite (loose_same a), IHa. reflexivity.
     - exact (IH n).
     - induction cs as [|c' cs IHc]; [reflexivity|]. cbn [existsb]. rewrite (IH c'), IHc. reflexivity.
+    - induction uns as [|u' uns IHu]; [reflexivity|]. cbn [existsb]. rewrite (IH u'), IHu. reflexivity.
 Qed.
 
 Let Pr_rewrap := caller_rewrap env declared ps.
@@ -454,10 +456,10 @@ Definition read_inst (t: EType): EType :=
     end.
 
 Lemma read_member_inst: forall b V, read_member env b V = read_inst (instantiate env b V).
-Proof. intros b V. unfold read_member, read_inst. destruct (instantiate env b V) as [| [] | | | | |]; reflexivity. Qed.
+Proof. intros b V. unfold read_member, read_inst. destruct (instantiate env b V) as [| [] | | | | | |]; reflexivity. Qed.
 
 Lemma read_inst_plain: forall t, nests_argument t = false -> read_inst t = t.
-Proof. intros [| [] | | | | |] H; first [reflexivity|discriminate H]. Qed.
+Proof. intros [| [] | | | | | |] H; first [reflexivity|discriminate H]. Qed.
 
 (* What is read through C<ys>, instantiated, is what is read through C<sigma ys> *)
 Lemma compose_read: forall V, member_type env c V = true ->

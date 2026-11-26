@@ -90,6 +90,8 @@ class NullableTypeReference private constructor(
             is GenericTypeReference,
             is BoundIntersectionTypeReference -> nested.unify(assigneeType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE), assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
+            // each component, null or not, to this
+            is BoundUnionTypeReference -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             else -> nested.unify(assigneeType, assignmentLocation, carry)
         }
     }
@@ -125,6 +127,7 @@ class NullableTypeReference private constructor(
 
     override fun toString(): String = when (nested) {
         is BoundIntersectionTypeReference -> nested.toString(nullableComponents = true)
+        is BoundUnionTypeReference -> "($nested)?"
         else -> "$nested?"
     }
 

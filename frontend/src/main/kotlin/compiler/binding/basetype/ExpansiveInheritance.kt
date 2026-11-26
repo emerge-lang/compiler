@@ -1,6 +1,7 @@
 package compiler.binding.basetype
 
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -66,6 +67,7 @@ private fun forEachConstructedType(type: BoundTypeReference, action: (RootResolv
         is BoundTypeArgument -> forEachConstructedType(type.type, action)
         is NullableTypeReference -> forEachConstructedType(type.nested, action)
         is BoundIntersectionTypeReference -> type.components.forEach { forEachConstructedType(it, action) }
+        is BoundUnionTypeReference -> type.components.forEach { forEachConstructedType(it, action) }
         else -> {}
     }
 }
@@ -77,6 +79,7 @@ private fun forEachTypeParameterIn(type: BoundTypeReference, nested: Boolean, ac
         is BoundTypeArgument -> forEachTypeParameterIn(type.type, nested, action)
         is NullableTypeReference -> forEachTypeParameterIn(type.nested, nested, action)
         is BoundIntersectionTypeReference -> type.components.forEach { forEachTypeParameterIn(it, nested, action) }
+        is BoundUnionTypeReference -> type.components.forEach { forEachTypeParameterIn(it, nested, action) }
         else -> {}
     }
 }

@@ -3,6 +3,7 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstSharedValueExpression
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
@@ -111,6 +112,7 @@ class SourceFileRootContext(
                 when (ref) {
                     is AstSimpleTypeReference -> ref
                     is AstIntersectionType -> ref.components.first()
+                    is AstUnionType -> ref.components.first().let { if (it is AstIntersectionType) it.components.first() else it as AstSimpleTypeReference }
                 },
                 (ref as? NamedTypeReference)?.arguments?.map { resolveTypeArgument(it) },
                 emptyList(),

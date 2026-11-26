@@ -49,7 +49,7 @@ sealed interface TypeReference {
 
     fun withSpan(span: Span): TypeReference
 
-    fun intersect(other: TypeReference, span: Span = (this.span ?: Span.UNKNOWN) .. (other.span ?: Span.UNKNOWN)): AstIntersectionType
+    fun intersect(other: TypeReference, span: Span = (this.span ?: Span.UNKNOWN) .. (other.span ?: Span.UNKNOWN)): TypeReference
 
     enum class Nullability {
         UNSPECIFIED,
@@ -108,9 +108,10 @@ data class NamedTypeReference(
         return copy(nullability = nullability)
     }
 
-    override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
+    override fun intersect(other: TypeReference, span: Span): TypeReference = when(other) {
         is AstSimpleTypeReference -> AstIntersectionType(listOf(this, other), span)
         is AstIntersectionType -> AstIntersectionType(listOf(this) + other.components, span)
+        is AstUnionType -> other.intersect(this, span)
     }
 
     override fun withSpan(span: Span): TypeReference {
@@ -237,9 +238,10 @@ class AstIntersectionType(
         )
     }
 
-    override fun intersect(other: TypeReference, span: Span): AstIntersectionType = when(other) {
+    override fun intersect(other: TypeReference, span: Span): TypeReference = when(other) {
         is AstSimpleTypeReference -> AstIntersectionType(components + listOf(other), span)
         is AstIntersectionType -> AstIntersectionType(components + other.components, span)
+        is AstUnionType -> other.intersect(this, span)
     }
 
     override fun withSpan(span: Span) = AstIntersectionType(components, span)
@@ -260,6 +262,84 @@ class AstIntersectionType(
 
     override fun toString() = components.joinToString(
         separator = " ${Operator.AMPERSAND.text} ",
+    )
+}
+
+/**
+ * `A | B`: a value of it is a value of one of the [components]. An intersection binds tighter than a union, so the
+ * components are named types or intersections, never unions.
+ */
+class AstUnionType(
+    val components: List<TypeReference>,
+    override val span: Span,
+) : TypeReference {
+    init {
+        require(components.size > 1) {
+            "union types with less than 2 components are nonsensical"
+        }
+        require(components.none { it is AstUnionType }) {
+            "the components of a union type are named types or intersections"
+        }
+    }
+
+    /** nullable if any component is: the null of one component is a value of the union */
+    override val nullability: TypeReference.Nullability by lazy {
+        when {
+            components.any { it.nullability == TypeReference.Nullability.NULLABLE } -> TypeReference.Nullability.NULLABLE
+            components.all { it.nullability == TypeReference.Nullability.NOT_NULLABLE } -> TypeReference.Nullability.NOT_NULLABLE
+            else -> TypeReference.Nullability.UNSPECIFIED
+        }
+    }
+
+    /** what the components have in common: `mut A | const B` is referred to as `read` */
+    override val mutability: TypeMutability? by lazy {
+        components.asSequence()
+            .map { it.mutability ?: TypeMutability.READONLY }
+            .reduce(TypeMutability::union)
+    }
+
+    override fun withMutability(mutability: TypeMutability): AstUnionType {
+        return AstUnionType(
+            components.map { it.withMutability(mutability) },
+            span,
+        )
+    }
+
+    override fun withNullability(nullability: TypeReference.Nullability): TypeReference {
+        if (this.nullability == nullability) {
+            return this
+        }
+
+        return AstUnionType(
+            components.map { it.withNullability(nullability) },
+            span,
+        )
+    }
+
+    /** distributes: `(A | B) & C` is `(A & C) | (B & C)` */
+    override fun intersect(other: TypeReference, span: Span): TypeReference = when (other) {
+        is AstUnionType -> AstUnionType(components.flatMap { component -> other.components.map { component.intersect(it, span) } }, span)
+        else -> AstUnionType(components.map { it.intersect(other, span) }, span)
+    }
+
+    override fun withSpan(span: Span) = AstUnionType(components, span)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is AstUnionType) return false
+
+        return components == other.components
+    }
+
+    override fun hashCode(): Int {
+        var result = javaClass.hashCode()
+        result = 31 * result + components.hashCode()
+
+        return result
+    }
+
+    override fun toString() = components.joinToString(
+        separator = " ${Operator.PIPE.text} ",
     )
 }
 
@@ -292,10 +372,11 @@ data class AstAbsoluteTypeReference(
         return copy(span = span)
     }
 
-    override fun intersect(other: TypeReference, span: Span): AstIntersectionType {
+    override fun intersect(other: TypeReference, span: Span): TypeReference {
         return when (other) {
             is AstIntersectionType -> AstIntersectionType(listOf(this) + other.components, span)
             is AstSimpleTypeReference -> return AstIntersectionType(listOf(this, other), span)
+            is AstUnionType -> other.intersect(this, span)
         }
     }
 }
@@ -305,4 +386,5 @@ data class AstAbsoluteTypeReference(
 val TypeReference.isDeclaredOwn: Boolean get() = when (this) {
     is AstSimpleTypeReference -> mutability == TypeMutability.OWN
     is AstIntersectionType -> components.any { it.isDeclaredOwn }
+    is AstUnionType -> components.any { it.isDeclaredOwn }
 }

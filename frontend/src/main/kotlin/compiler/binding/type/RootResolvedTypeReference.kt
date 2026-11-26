@@ -276,6 +276,7 @@ class RootResolvedTypeReference private constructor(
             is GenericTypeReference,
             is ErroneousType,
             is BoundIntersectionTypeReference,
+            is BoundUnionTypeReference,
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
@@ -373,6 +374,7 @@ class RootResolvedTypeReference private constructor(
                     reason = { "no component of ($assigneeType) is a subtype of $this" },
                 )
             }
+            is BoundUnionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
     }
 

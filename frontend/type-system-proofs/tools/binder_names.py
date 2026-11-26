@@ -20,7 +20,7 @@ SCHEME = {
     'n': {'nat'}, 'd': {'nat'}, 'k': {'nat'}, 'i': {'nat'}, 'j': {'nat'},
     't': {'EType'}, 'a': {'EType'}, 'x': {'EType'}, 'y': {'EType'}, 'z': {'EType'},
     'C': {'EType'}, 'P': {'EType'}, 'A': {'EType'}, 'B': {'EType'}, 'V': {'EType'},
-    'xs': {'listEType'}, 'ys': {'listEType'}, 'zs': {'listEType'}, 'cs': {'listEType'},
+    'xs': {'listEType'}, 'ys': {'listEType'}, 'zs': {'listEType'}, 'cs': {'listEType'}, 'us': {'listEType'},
     'Ps': {'listEType'}, 'As': {'listEType'},
     'ps': {'listTypeParameterId'}, 'vs': {'listTypeParameterId'},
     'c': {'Class'}, 'sub': {'Class'},

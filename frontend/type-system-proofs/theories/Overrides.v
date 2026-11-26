@@ -72,20 +72,20 @@ Fixpoint composable (b: Bindings) (t: EType): Prop :=
 Lemma composable_transfer: forall b b', (forall p a, lookup_binding b p = Some a -> exists a', lookup_binding b' p = Some a') ->
     forall t, composable b t -> composable b' t.
 Proof.
-    intros b b' Hb. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [composable] in H |- *; try exact H; try contradiction.
+    intros b b' Hb. fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns] H; cbn [composable] in H |- *; try exact H; try contradiction.
     - induction args as [|a args IHa]; [exact I|]. cbn [fold_right] in H |- *. destruct H as [Ha Has]. split; [|exact (IHa Has)].
-      destruct a as [| | | |v o n| |]; try contradiction. destruct Ha as [Ho Hn]. split; [|exact (IH n Hn)].
+      destruct a as [| | | |v o n| | |]; try contradiction. destruct Ha as [Ho Hn]. split; [|exact (IH n Hn)].
       intros q Eq. destruct (Ho q Eq) as [a Ha]. exact (Hb q a Ha).
     - destruct H as [Hn Hs]. split; [exact (IH n Hn)|exact Hs].
     - destruct gm as [m|], nn; simpl in H |- *; try contradiction. destruct H as [a Ha]. exact (Hb p a Ha).
 Qed.
 
 Lemma rewrap_idem: forall t, rewrap_nullable (rewrap_nullable t) = rewrap_nullable t.
-Proof. intros [| | | | | |]; reflexivity. Qed.
+Proof. intros [| | | | | | |]; reflexivity. Qed.
 
 Lemma instantiate_rewrap: forall b t, instantiate env b (rewrap_nullable t) = rewrap_nullable (instantiate env b t).
 Proof.
-    intros b [m c args|n|g|me msg|v o n|g|cs]; try reflexivity.
+    intros b [m c args|n|g|me msg|v o n|g|cs|uns]; try reflexivity.
     cbn [rewrap_nullable instantiate]. rewrite rewrap_idem. reflexivity.
 Qed.
 
@@ -100,13 +100,13 @@ Proof.
     { intros p a Ha. destruct (Hb p a Ha) as [Hl [o [y [-> Hy]]]]. split.
       - cbn [instantiate]. rewrite Ha. unfold final_argument. rewrite Hl, Hy. exact Hy.
       - intros vs. cbn [instantiate]. rewrite Ha. reflexivity. }
-    intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [composable] in H; try contradiction.
+    intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns] H; cbn [composable] in H; try contradiction.
     - reflexivity.
-    - destruct H as [Hn Hs]. destruct n as [m c args|n'|[gm nn p vs]|me msg|v o n'|g|cs]; try contradiction; [reflexivity|].
+    - destruct H as [Hn Hs]. destruct n as [m c args|n'|[gm nn p vs]|me msg|v o n'|g|cs|uns]; try contradiction; [reflexivity|].
       destruct gm as [m|], nn; simpl in Hn; try contradiction. destruct Hn as [a Ha].
       destruct (Hval p a Ha) as [Hy Hvs].
       change (nests_argument (rewrap_nullable (instantiate env b (Generic (mkGenericRef None false p vs)))) = false).
-      rewrite Hvs. destruct (instantiate env b (Generic (mkGenericRef None false p []))) as [| y'| | | | |];
+      rewrite Hvs. destruct (instantiate env b (Generic (mkGenericRef None false p []))) as [| y'| | | | | |];
           try reflexivity; try discriminate Hy. exact Hy.
     - destruct gm as [m|], nn; simpl in H; try contradiction. destruct H as [a Ha].
       destruct (Hval p a Ha) as [Hy Hvs]. rewrite Hvs. exact Hy.
@@ -118,7 +118,7 @@ Lemma argument_plain: forall b v o y, exact_values b -> composable b y ->
 Proof.
     intros b v o y Hb Hn. pose proof (instance_not_nested b Hb y Hn) as E.
     apply (instantiate_unloose_argument env b v o y (exact_not_loose b Hb)).
-    - destruct (instantiate env b y) as [| | | | | |]; try reflexivity; discriminate E.
+    - destruct (instantiate env b y) as [| | | | | | |]; try reflexivity; discriminate E.
     - intros x Ex. rewrite Ex in E. destruct x; try reflexivity; discriminate E.
 Qed.
 
@@ -142,16 +142,16 @@ Proof.
       cbn [instantiate_ownership]. rewrite Ha, HLq. reflexivity. }
     assert (Htr: forall t, composable bsuper t -> composable bcomposed t).
     { apply composable_transfer. intros p a Ha. destruct (Hc p a Ha) as [o [y [_ HLp]]]. eexists. exact HLp. }
-    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs] H; cbn [composable] in H; try contradiction.
+    fix IH 1. intros [m c args|n|[gm nn p vs]|me msg|v o n|g|cs|uns] H; cbn [composable] in H; try contradiction.
     - cbn [instantiate]. f_equal. rewrite map_map. induction args as [|a args IHa]; [reflexivity|].
       cbn [fold_right] in H. destruct H as [Ha Has]. cbn [map]. f_equal; [|exact (IHa Has)].
-      destruct a as [| | | |v o n| |]; try contradiction. destruct Ha as [Ho Hn].
+      destruct a as [| | | |v o n| | |]; try contradiction. destruct Ha as [Ho Hn].
       rewrite (argument_plain bsuper v o n HS Hn).
       assert (En: instantiate env bobject (instantiate env bsuper n) = instantiate env bcomposed n) by exact (IH n Hn).
       pose proof (instance_not_nested bcomposed HL n (Htr n Hn)) as Enn. rewrite <- En in Enn.
       rewrite (instantiate_unloose_argument env bobject v _ _ (exact_not_loose bobject Hx)).
       + rewrite En, (argument_plain bcomposed v o n HL (Htr n Hn)), (Hown o Ho). reflexivity.
-      + destruct (instantiate env bobject (instantiate env bsuper n)) as [| | | | | |]; try reflexivity; discriminate Enn.
+      + destruct (instantiate env bobject (instantiate env bsuper n)) as [| | | | | | |]; try reflexivity; discriminate Enn.
       + intros x Ex. rewrite Ex in Enn. destruct x; try reflexivity; discriminate Enn.
     - destruct H as [Hn _]. cbn [instantiate]. rewrite instantiate_rewrap, (IH n Hn). reflexivity.
     - destruct gm as [m|], nn; simpl in H; try contradiction. destruct H as [a Ha].
@@ -193,7 +193,7 @@ Definition object_as_super: Bindings := bindings_of env c (parameterized_superty
 Lemma object_exact: exact_values object_bindings.
 Proof.
     intros p a Ha. pose proof (Hxs a (lookup_combine_in _ _ _ _ Ha)) as Ex.
-    destruct a as [| | | |v o x| |]; try discriminate Ex. destruct v; try discriminate Ex.
+    destruct a as [| | | |v o x| | |]; try discriminate Ex. destruct v; try discriminate Ex.
     cbn [exact_argument] in Ex. apply andb_true_iff in Ex. destruct Ex as [Ho Hx]. split.
     - destruct o; try discriminate Ho; reflexivity.
     - exists o, x. split; [reflexivity|].
@@ -212,19 +212,19 @@ Qed.
 (* A type in the type arguments of a supertype of e, in terms of the type parameters of e *)
 Lemma template_composable: forall y, template_type env sub y = true -> composable object_bindings y.
 Proof.
-    fix IH 1. intros [m c' args|n|g|me msg|v o n|g|cs] H; cbn [template_type] in H; try discriminate H.
+    fix IH 1. intros [m c' args|n|g|me msg|v o n|g|cs|uns] H; cbn [template_type] in H; try discriminate H.
     - apply andb_true_iff in H. destruct H as [_ H]. cbn [composable].
       induction args as [|a args IHa]; [exact I|]. cbn [forallb] in H. apply andb_true_iff in H. destruct H as [Ha Has].
       cbn [fold_right]. split; [|exact (IHa Has)].
       destruct (template_parameter a) as [q|] eqn:Etp.
-      + destruct a as [| | | |v o n| |]; try discriminate Etp. destruct v; try discriminate Etp.
-        destruct o as [| | |q0]; try discriminate Etp. destruct n as [| |[gm nn q' vs]| | | |]; try discriminate Etp.
+      + destruct a as [| | | |v o n| | |]; try discriminate Etp. destruct v; try discriminate Etp.
+        destruct o as [| | |q0]; try discriminate Etp. destruct n as [| |[gm nn q' vs]| | | | |]; try discriminate Etp.
         destruct gm; try discriminate Etp. destruct nn; try discriminate Etp.
         cbn [template_parameter] in Etp. destruct (param_eqb q0 q') eqn:Eq; [|discriminate Etp].
         injection Etp as ->. apply param_eqb_eq in Eq. subst q'. split.
         * intros q' Eq. injection Eq as <-. exact (object_binds q Ha).
         * exact (object_binds q Ha).
-      + destruct a as [| | | |v o n| |]; try discriminate Ha. apply andb_true_iff in Ha. destruct Ha as [Ho Hn].
+      + destruct a as [| | | |v o n| | |]; try discriminate Ha. apply andb_true_iff in Ha. destruct Ha as [Ho Hn].
         split; [intros q Eq; subst o; discriminate Ho|exact (IH n Hn)].
     - apply andb_true_iff in H. destruct H as [Hc Hn]. cbn [composable]. split; [exact (IH n Hn)|].
       destruct n; try discriminate Hc; exact I.
@@ -238,9 +238,9 @@ Proof.
     intros p a Ha. pose proof (lookup_combine_in _ _ _ _ Ha) as Hin.
     pose proof (wf_supertypes_are_exact env wf sub c a Hin) as Hex.
     destruct (wf_supertypes_are_templates env wf sub c Hec He Hsub) as [_ Htpl]. pose proof (Htpl a Hin) as Ht.
-    destruct a as [| | | |v o y| |]; try discriminate Hex. destruct v; try discriminate Hex.
+    destruct a as [| | | |v o y| | |]; try discriminate Hex. destruct v; try discriminate Hex.
     unfold template_argument in Ht. destruct (template_parameter (TypeArgument invariant o y)) as [q|] eqn:Etp.
-    - destruct o as [| | |q0]; try discriminate Etp. destruct y as [| |[gm nn q' vs]| | | |]; try discriminate Etp.
+    - destruct o as [| | |q0]; try discriminate Etp. destruct y as [| |[gm nn q' vs]| | | | |]; try discriminate Etp.
       destruct gm; try discriminate Etp. destruct nn; try discriminate Etp.
       cbn [template_parameter] in Etp. destruct (param_eqb q0 q') eqn:Eq; [|discriminate Etp].
       injection Etp as ->. apply param_eqb_eq in Eq. subst q'.
@@ -250,7 +250,7 @@ Proof.
       + exact (object_binds q Ht).
     - apply andb_true_iff in Ht. destruct Ht as [Ho Hy]. split; [destruct o; try discriminate Hex; reflexivity|].
       exists o, y. split; [reflexivity|]. split.
-      + destruct y as [| [| | | | | |] | | | | |]; try reflexivity; cbn [template_type is_class] in Hy; try discriminate Hy;
+      + destruct y as [| [| | | | | | |] | | | | | |]; try reflexivity; cbn [template_type is_class] in Hy; try discriminate Hy;
             apply andb_true_iff in Hy; destruct Hy as [Hy _]; discriminate Hy.
       + split; [intros q Eq; subst o; discriminate Ho|exact (template_composable y Hy)].
 Qed.
@@ -349,7 +349,7 @@ Lemma object_in_fragment_type: forall mo, in_fragment env (RootResolved mo sub x
 Proof.
     intros mo. change (Nat.eqb (length xs) (length (parameter_ids env sub)) && forallb (argument_in_fragment env) xs = true).
     rewrite Hlx, Nat.eqb_refl. apply forallb_forall. intros x Hx. pose proof (Hxs x Hx) as Ex.
-    destruct x as [| | | |v o n| |]; try discriminate Ex. destruct v; try discriminate Ex.
+    destruct x as [| | | |v o n| | |]; try discriminate Ex. destruct v; try discriminate Ex.
     cbn [exact_argument] in Ex. apply andb_true_iff in Ex. exact (proj2 Ex).
 Qed.
 

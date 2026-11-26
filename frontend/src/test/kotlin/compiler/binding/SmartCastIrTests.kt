@@ -196,6 +196,7 @@ private val IrType.simpleName: String get() = when (this) {
     is io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType -> simpleType.simpleName
     is io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference -> parameter.name
     is IrIntersectionType -> components.joinToString(" & ") { it.simpleName }
+    is io.github.tmarsteel.emerge.backend.api.ir.IrUnionType -> components.joinToString(" | ") { it.simpleName }
 }
 
 /**

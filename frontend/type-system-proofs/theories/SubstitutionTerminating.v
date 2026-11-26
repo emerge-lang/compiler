@@ -96,7 +96,7 @@ Proof.
           (intersection_not_nullable env ys y Hin ltac:(destruct y; try discriminate Hy; reflexivity))).
       destruct f as [|f]; [discriminate|].
       apply (flipped_never_fails env f _ ys s y Hin).
-      destruct y as [my cy argsy| | | | | |]; try discriminate Hy.
+      destruct y as [my cy argsy| | | | | | |]; try discriminate Hy.
       pose proof (H (S f) s) as H'. rewrite unify_nullable_class in H'. exact H'.
 Qed.
 
@@ -139,7 +139,7 @@ Qed.
 Lemma nullable_takes_component: forall n t0 x s u, is_component_shape env x = true -> sfrag env x = true ->
     unify env n t0 x (Ongoing s) = u -> unify env (S n) (Nullable t0) x (Ongoing s) = u.
 Proof.
-    intros n t0 x s u Hsh Hc H. destruct x as [m d args| |g| | | |]; try discriminate Hsh.
+    intros n t0 x s u Hsh Hc H. destruct x as [m d args| |g| | | | |]; try discriminate Hsh.
     - rewrite unify_nullable_class. exact H.
     - rewrite unify_nullable_generic_step. apply (sfrag_generic_iff env wf) in Hc.
       pose proof (component_non_null env _ Hsh) as Hn. rewrite (nullable_generic env wf) in Hn.

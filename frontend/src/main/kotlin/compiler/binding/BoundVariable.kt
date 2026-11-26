@@ -22,12 +22,14 @@ import compiler.binding.context.effect.VariableTypeRefinement
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.diagnostic.MutableGlobalVariableDiagnostic
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -258,6 +260,7 @@ class BoundVariable(
         is BoundTypeArgument -> type.isDeeplyImmutable(true)
         is NullableTypeReference -> nested.isDeeplyImmutable(isTypeArgument)
         is BoundIntersectionTypeReference -> components.all { it.isDeeplyImmutable(isTypeArgument) }
+        is BoundUnionTypeReference -> components.all { it.isDeeplyImmutable(isTypeArgument) }
         is ErroneousType -> true
         else -> false
     }
@@ -598,8 +601,8 @@ class BoundVariable(
                             } else {
                                 val finalNullability = declaredType.nullability
                                 val implicitMutability = implicitMutabilityFor(if (shouldInferBaseType) initializerExpression.type else typeAfterSean1)
-                                // an intersection type has no mutability of its own to declare, its components do
-                                val declaredMutability = declaredType.mutability.takeUnless { declaredType is AstIntersectionType }
+                                // a compound type has no mutability of its own to declare, its components do
+                                val declaredMutability = declaredType.mutability.takeUnless { declaredType is AstIntersectionType || declaredType is AstUnionType }
                                 val finalMutability = declaredMutability
                                     ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
 

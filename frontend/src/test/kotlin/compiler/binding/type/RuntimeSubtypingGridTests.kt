@@ -91,9 +91,11 @@ private fun renderProgram(typeNames: List<String>, expectations: List<List<Boole
     appendLine(typeNames.joinToString(",\n") { "    typeOf::<$it>()" })
     appendLine("]")
     appendLine()
-    appendLine("// for each of gridTypes(), whether the compiler takes it to be below each of gridTypes()")
-    appendLine("fn gridExpectations() -> Array<Array<Bool>> = [")
-    appendLine(expectations.joinToString(",\n") { row -> "    [" + row.joinToString(", ") + "]" })
+    appendLine("// for each of gridTypes(), whether the compiler takes it to be below each of gridTypes(): 1 where it does.")
+    appendLine("// A string per row, not an array literal of Bools: LLVM's code generator takes minutes on a function of tens")
+    appendLine("// of thousands of element stores, a string literal is a constant")
+    appendLine("fn gridExpectations() -> Array<String> = [")
+    appendLine(expectations.joinToString(",\n") { row -> "    \"" + row.joinToString("") { if (it) "1" else "0" } + "\"" })
     appendLine("]")
     appendLine()
     appendLine("""
@@ -105,7 +107,7 @@ private fun renderProgram(typeNames: List<String>, expectations: List<List<Boole
                 foreach supertypeIndex in 0..<types.size {
                     subtype = types[subtypeIndex]
                     supertype = types[supertypeIndex]
-                    expected = expectations[subtypeIndex][supertypeIndex]
+                    expected = expectations[subtypeIndex].utf8Data[supertypeIndex] == (49 as S8)
                     if subtype.isSubtypeOf(supertype) != expected {
                         verdict = if expected "is" else "is not"
                         stdout.println(subtype.toString() + " " + verdict + " a subtype of " + supertype.toString() + " for the compiler, the runtime disagrees")

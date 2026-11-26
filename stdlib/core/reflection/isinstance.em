@@ -44,6 +44,11 @@ nothrow fn isNullable(capture self: const Type) -> Bool {
         return self.asNamedType().nullable
     }
 
+    if self is UnionType {
+        // the components of a union are nullable iff the union is
+        return self.asUnionType().components.getOrPanic(0).isNullable()
+    }
+
     components = self.asIntersectionType().components
     var index: UWord = 0
     while index < components.size {

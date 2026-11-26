@@ -87,7 +87,7 @@ Proof.
 Qed.
 
 Lemma not_nullable_rewrap: forall t, (forall x, t <> Nullable x) -> rewrap_nullable t = Nullable t.
-Proof. intros [| x | | | | |] H; try reflexivity. exfalso. exact (H x eq_refl). Qed.
+Proof. intros [| x | | | | | |] H; try reflexivity. exfalso. exact (H x eq_refl). Qed.
 
 (* Of class types none of which is nullable: their intersection, of the fragment, not nullable,
    below each of them *)
@@ -260,7 +260,7 @@ Lemma unwrap_readable: forall xs, (forall t v o x, In t xs -> t = TypeArgument v
     forall y, In y (map unwrap_argument xs) -> readable xs y.
 Proof.
     intros xs H y Hk. apply in_map_iff in Hk. destruct Hk as [t [<- Ht]]. exists t. split; [exact Ht|].
-    destruct t as [| | | |v o x| |]; try (left; split; reflexivity).
+    destruct t as [| | | |v o x| | |]; try (left; split; reflexivity).
     right. exists v, o. split; [reflexivity|exact (H _ v o x Ht eq_refl)].
 Qed.
 
@@ -285,10 +285,10 @@ Proof.
     - right. left. eexists. split; [reflexivity|]. split.
       + apply existsb_exists in Eo. destruct Eo as [t [Ht Et]].
         assert (Hin: In t (filter (fun t => negb (Variance_beq output output && is_argument_of input t)) xs)).
-        { apply filter_In. split; [exact Ht|]. destruct t as [| | | |[] o x| |]; try discriminate Et; reflexivity. }
+        { apply filter_In. split; [exact Ht|]. destruct t as [| | | |[] o x| | |]; try discriminate Et; reflexivity. }
         intros E. apply (in_map unwrap_argument) in Hin. rewrite E in Hin. exact Hin.
       + intros y Hk. apply in_map_iff in Hk. destruct Hk as [t [<- Ht]]. apply filter_In in Ht. destruct Ht as [Ht Ef].
-        exists t. split; [exact Ht|]. destruct t as [| | | |v o x| |]; try (left; split; reflexivity).
+        exists t. split; [exact Ht|]. destruct t as [| | | |v o x| | |]; try (left; split; reflexivity).
         right. exists v, o. split; [reflexivity|]. cbn [Variance_beq andb negb] in Ef.
         apply argument_of_variance with (o := o) (x := x). destruct (is_argument_of input _); [discriminate Ef|reflexivity].
     - pose proof (no_argument_of output xs Eo) as Hno.
@@ -307,7 +307,7 @@ Definition read_of (t: EType): EType :=
     end.
 
 Lemma read_member_of: forall b V, read_member env b V = read_of (instantiate env b V).
-Proof. intros b V. unfold read_member, read_of. destruct (instantiate env b V) as [| [] | | | | |]; reflexivity. Qed.
+Proof. intros b V. unfold read_member, read_of. destruct (instantiate env b V) as [| [] | | | | | |]; reflexivity. Qed.
 
 Lemma read_of_gfrag: forall t, gfrag env t = true -> read_of t = t.
 Proof.

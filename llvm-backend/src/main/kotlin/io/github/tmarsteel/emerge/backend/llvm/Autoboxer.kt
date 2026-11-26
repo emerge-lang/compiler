@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -122,7 +123,7 @@ internal sealed interface Autoboxer {
         }
 
         override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
-            if (type.isNullable) {
+            if (type.isNullable || type is IrUnionType) {
                 return true
             }
 
@@ -223,7 +224,7 @@ internal sealed interface Autoboxer {
         }
 
         override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
-            if (type.isNullable) {
+            if (type.isNullable || type is IrUnionType) {
                 return true
             }
 
@@ -555,6 +556,7 @@ internal fun IrType.boundBaseTypeOrNull(): IrBaseType? = when (this) {
     is IrParameterizedType -> simpleType.baseType
     is IrGenericTypeReference -> effectiveBound.boundBaseTypeOrNull()
     is IrIntersectionType -> representativeComponent?.boundBaseTypeOrNull()
+    is IrUnionType -> null
 }
 
 private val boxDestructor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(

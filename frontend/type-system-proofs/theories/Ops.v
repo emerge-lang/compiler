@@ -672,6 +672,8 @@ Fixpoint can_refer_to_object_h (through_ref: GenericRef -> bool) (t: EType): boo
     | Generic g => through_ref g
     | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
     | Intersection components => forallb (can_refer_to_object_h through_ref) components
+    (* a union of types of objects; one with a component that is Nothing, or erroneous, is left out *)
+    | Union us => forallb (can_refer_to_object_h through_ref) us
     end.
 
 (* Through the effective bound of a reference to a type parameter (Subtyping.through) *)
@@ -684,22 +686,26 @@ Fixpoint can_refer_to_object (t: EType): bool :=
     | Generic g => can_refer_through g
     | Error _ _ | TypeArgument _ _ _ | TypeVariable _ => false
     | Intersection components => forallb can_refer_to_object components
+    | Union us => forallb can_refer_to_object us
     end.
 
 Lemma can_refer_to_object_h_agree: forall k Q1 Q2, (forall g, rank_of env g < k -> Q1 g = Q2 g) ->
     forall t, ranked_below env k t = true -> can_refer_to_object_h Q1 t = can_refer_to_object_h Q2 t.
 Proof.
-    intros k Q1 Q2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs] Ht; simpl in Ht |- *; try reflexivity.
+    intros k Q1 Q2 HU. fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns] Ht; simpl in Ht |- *; try reflexivity.
     - exact (IH n Ht).
     - exact (HU g (ref_ranked env k g Ht)).
     - induction cs as [|c cs IHc]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hc Hcs].
       rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl in Ht |- *. apply andb_true_iff in Ht. destruct Ht as [Hu Huns].
+      rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma can_refer_top: forall t, can_refer_to_object t = can_refer_to_object_h can_refer_through t.
 Proof.
-    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs]; simpl; try reflexivity; try exact (IH n).
-    induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+    fix IH 1. intros [m c args|n|g|me msg|v o n|g|cs|uns]; simpl; try reflexivity; try exact (IH n).
+    - induction cs as [|c cs IHc]; [reflexivity|]. simpl. rewrite (IH c), IHc. reflexivity.
+    - induction uns as [|u uns IHu]; [reflexivity|]. simpl. rewrite (IH u), IHu. reflexivity.
 Qed.
 
 Lemma can_refer_generic: forall g, can_refer_to_object (Generic g) = can_refer_to_object (effective_bound env g).
@@ -713,7 +719,7 @@ Lemma can_refer_without_null: forall vs t,
     can_refer_to_object (with_type_variables vs (without_null env t)) = can_refer_to_object (with_type_variables vs t).
 Proof.
     intros vs t. destruct (ranked_exists env t) as [k Hk]. revert vs t Hk. induction k as [k IHk] using lt_wf_ind.
-    intros vs. fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|[gm nn p us]|cs] Hk; try reflexivity.
+    intros vs. fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|[gm nn p us]|cs|uns] Hk; try reflexivity.
     - cbn [without_null]. pose proof (IH n Hk) as E. clear IH. destruct vs as [|w ws]; [exact E|].
       cbn [with_type_variables with_type_variables_in can_refer_to_object] in E |- *. exact E.
     - clear IH. pose proof (ref_ranked env k _ Hk) as Hg. cbn [without_null].
@@ -734,6 +740,12 @@ Proof.
       cbn [without_null]. destruct (forallb (is_nullable env) cs); [|reflexivity].
       rewrite !Hl. simpl in Hk. clear IHk Hl. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk.
       apply andb_true_iff in Hk. destruct Hk as [Hc Hcs]. cbn [map forallb]. rewrite (IH c Hc), (IHc Hcs). reflexivity.
+    - assert (Hl: forall xs, can_refer_to_object (with_type_variables vs (Union xs))
+          = forallb (fun u => can_refer_to_object (with_type_variables vs u)) xs).
+      { clear. intros xs. destruct vs as [|w ws]; [reflexivity|]. cbn [with_type_variables with_type_variables_in can_refer_to_object].
+        induction xs as [|x xs IHx]; [reflexivity|]. cbn [map forallb]. rewrite IHx. reflexivity. }
+      cbn [without_null]. rewrite !Hl. simpl in Hk. clear IHk Hl. induction uns as [|u uns IHu]; [reflexivity|]. simpl in Hk.
+      apply andb_true_iff in Hk. destruct Hk as [Hu Huns]. cbn [map forallb]. rewrite (IH u Hu), (IHu Huns). reflexivity.
 Qed.
 
 Lemma without_null_keeps: forall t,
@@ -741,7 +753,7 @@ Lemma without_null_keeps: forall t,
 Proof.
     intros t. split; [|exact (can_refer_without_null [] t)].
     destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs|uns] Hk; try reflexivity.
     - exact (IH n Hk).
     - cbn [without_null]. rewrite !(mutability_of_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
       pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
@@ -760,13 +772,16 @@ Proof.
       { clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
         cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)]. }
       rewrite Ht, Hm. reflexivity.
+    - cbn [without_null mutability_of]. f_equal. simpl in Hk. clear IHk.
+      induction uns as [|u uns IHu]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hu Huns].
+      cbn [map]. f_equal; [exact (IH u Hu)|exact (IHu Huns)].
 Qed.
 
 Lemma without_null_keeps_assignment_mutability: forall t,
     assignment_mutability env (without_null env t) = assignment_mutability env t.
 Proof.
     intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs] Hk; try reflexivity.
+    fix IH 1. intros [m c a|n|[gm nn p us]|m msg|v o n|g|cs|uns] Hk; try reflexivity.
     - exact (IH n Hk).
     - cbn [without_null]. rewrite !(assignment_mutability_generic env ranked), !(effective_bound_adjusted env ranked). cbn [variables_of].
       pose proof (with_type_variables_keeps env ranked us) as Hk'. unfold plain_properties in Hk'.
@@ -781,6 +796,9 @@ Proof.
       simpl in Hk. clear IHk. cbn [assignment_mutability]. f_equal.
       clear -IH Hk. induction cs as [|c cs IHc]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hc Hcs].
       cbn [map]. f_equal; [exact (IH c Hc)|exact (IHc Hcs)].
+    - cbn [without_null assignment_mutability]. f_equal. simpl in Hk. clear IHk.
+      induction uns as [|u uns IHu]; [reflexivity|]. simpl in Hk. apply andb_true_iff in Hk. destruct Hk as [Hu Huns].
+      cbn [map]. f_equal; [exact (IH u Hu)|exact (IHu Huns)].
 Qed.
 
 Lemma generic_mutability_below_bound: forall g,
@@ -812,6 +830,48 @@ Proof.
     intros z Hz. apply Hl. right. exact Hz.
 Qed.
 
+(* The union of mutabilities is their join *)
+Lemma union_least: forall m0 m1 m, is_subtype_of m0 m = true -> is_subtype_of m1 m = true -> is_subtype_of (union m0 m1) m = true.
+Proof. intros [] [] [] H0 H1; first [reflexivity|discriminate H0|discriminate H1]. Qed.
+
+Lemma union_above_left: forall m0 m1, is_subtype_of m0 (union m0 m1) = true.
+Proof. intros [] []; reflexivity. Qed.
+
+Lemma union_above_right: forall m0 m1, is_subtype_of m1 (union m0 m1) = true.
+Proof. intros [] []; reflexivity. Qed.
+
+Lemma fold_union_least: forall ms m0 m, is_subtype_of m0 m = true -> (forall m1, In m1 ms -> is_subtype_of m1 m = true) ->
+    is_subtype_of (fold_left union ms m0) m = true.
+Proof.
+    induction ms as [|m2 rest IH]; intros m0 m Hacc Hl; simpl; [exact Hacc|].
+    apply IH; [apply union_least; [exact Hacc|apply Hl; left; reflexivity]|]. intros z Hz. apply Hl. right. exact Hz.
+Qed.
+
+Lemma fold_union_above_acc: forall ms m, is_subtype_of m (fold_left union ms m) = true.
+Proof.
+    induction ms as [|x rest IH]; intros m; simpl; [apply mutability_is_subtype_of_refl|].
+    eapply mutability_subtype_trans; [apply union_above_left|apply IH].
+Qed.
+
+Lemma fold_union_above_element: forall ms m0 m1, In m1 ms -> is_subtype_of m1 (fold_left union ms m0) = true.
+Proof.
+    induction ms as [|y rest IH]; intros m0 m1 Hx; simpl; [contradiction|].
+    destruct Hx as [<-|Hx]; [|apply IH, Hx]. eapply mutability_subtype_trans; [apply union_above_right|apply fold_union_above_acc].
+Qed.
+
+(* A union is assigned as the join of what its components are assigned as: above each of them, and
+   below what all of them are below *)
+Lemma union_assignment_mutability_above_component: forall us x,
+    In x us -> is_subtype_of (assignment_mutability env x) (assignment_mutability env (Union us)) = true.
+Proof. intros us x Hc. cbn [assignment_mutability]. apply fold_union_above_element, in_map, Hc. Qed.
+
+Lemma union_assignment_mutability_below: forall us m, (forall x, In x us -> is_subtype_of (assignment_mutability env x) m = true) ->
+    is_subtype_of (assignment_mutability env (Union us)) m = true.
+Proof.
+    intros us m H. cbn [assignment_mutability]. apply fold_union_least; [reflexivity|].
+    intros m1 Hm. apply in_map_iff in Hm. destruct Hm as [x [<- Hx]]. exact (H x Hx).
+Qed.
+
 Lemma intersection_assignment_mutability: forall components,
     assignment_mutability env (Intersection components) = fold_left intersect_mutability (map (assignment_mutability env) components) readonly.
 Proof. reflexivity. Qed.
@@ -827,7 +887,7 @@ Qed.
 Lemma top_const_assigned_own: forall t, top_const env t = true -> assignment_mutability env t = own.
 Proof.
     intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk H.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs|uns] Hk H.
     - simpl in H |- *. rewrite H. reflexivity.
     - exact (IH n Hk H).
     - rewrite (top_const_generic env ranked) in H. rewrite (assignment_mutability_generic env ranked).
@@ -842,6 +902,11 @@ Proof.
       + rewrite (IH c Hc E). apply mutability_subtype_of_own.
         eapply mutability_subtype_trans; [apply fold_intersect_below_acc|apply intersect_mutability_right].
       + exact (IHl _ H Hrest).
+    - simpl in H, Hk |- *.
+      assert (Hall: map (assignment_mutability env) uns = map (fun _ => own) uns).
+      { induction uns as [|u rest IHl]; [reflexivity|]. simpl in H, Hk |- *. apply andb_true_iff in H. destruct H as [Hu Hrest].
+        apply andb_true_iff in Hk. destruct Hk as [Hku Hkrest]. rewrite (IH u Hku Hu), (IHl Hkrest Hrest). reflexivity. }
+      rewrite Hall. clear. induction uns as [|u rest IHl]; [reflexivity|]. exact IHl.
 Qed.
 
 (* A value is assigned as no more than its mutability: as own, where it is an object of a const
@@ -849,7 +914,7 @@ Qed.
 Lemma assignment_mutability_below: forall t, is_subtype_of (assignment_mutability env t) (mutability_of env t) = true.
 Proof.
     intros t. destruct (ranked_exists env t) as [k Hk]. revert t Hk. induction k as [k IHk] using lt_wf_ind.
-    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs] Hk.
+    fix IH 1. intros [m c a|n|g|m msg|v o n|g|cs|uns] Hk.
     - simpl. destruct (is_const (declaration_of env c)); [reflexivity|apply mutability_is_subtype_of_refl].
     - exact (IH n Hk).
     - rewrite (assignment_mutability_generic env ranked), (mutability_of_generic env ranked).
@@ -874,6 +939,19 @@ Proof.
           | x :: rest => fun Hl =>
               F rest _ _ (Hmono _ _ _ _ H (IH x (proj1 (proj1 (andb_true_iff _ _) Hl)))) (proj2 (proj1 (andb_true_iff _ _) Hl))
           end) cs readonly readonly eq_refl Hk).
+    - simpl.
+      assert (Hmono: forall a a' b b', is_subtype_of a a' = true -> is_subtype_of b b' = true ->
+          is_subtype_of (union a b) (union a' b') = true).
+      { intros [] [] [] [] Hx Hy; first [reflexivity|discriminate Hx|discriminate Hy]. }
+      exact ((fix F (l: list EType) (acc acc': Mutability) (H: is_subtype_of acc acc' = true) {struct l}:
+          forallb (ranked_below env k) l = true ->
+          is_subtype_of (fold_left union (map (assignment_mutability env) l) acc)
+              (fold_left union (map (mutability_of env) l) acc') = true :=
+          match l with
+          | [] => fun _ => H
+          | x :: rest => fun Hl =>
+              F rest _ _ (Hmono _ _ _ _ H (IH x (proj1 (proj1 (andb_true_iff _ _) Hl)))) (proj2 (proj1 (andb_true_iff _ _) Hl))
+          end) uns own own eq_refl Hk).
 Qed.
 
 Lemma find_first_found: forall attempt candidates y states,
@@ -900,6 +978,32 @@ Lemma fold_unify_stays_failed: forall fuel assignee xs,
     fold_unify (fun inner x => unify env fuel x assignee inner) xs Failed = Some Failed.
 Proof. intros fuel assignee xs. induction xs; simpl; [reflexivity|]. rewrite unify_keeps_failure. assumption. Qed.
 
+Lemma fold_unify_stays_failed_assignee: forall fuel target xs,
+    fold_unify (fun inner x => unify env fuel target x inner) xs Failed = Some Failed.
+Proof. intros fuel target xs. induction xs; simpl; [reflexivity|]. rewrite unify_keeps_failure. assumption. Qed.
+
+(* Each component of a union assignee was unified with the target (union_flipped_unify) *)
+Lemma fold_unify_each_assignee: forall fuel target xs states s'',
+    fold_unify (fun inner y => unify env fuel target y inner) xs (Ongoing states) = Some (Ongoing s'') ->
+    forall y, In y xs -> exists s s', unify env fuel target y (Ongoing s) = Some (Ongoing s').
+Proof.
+    intros fuel target xs. induction xs as [|x rest IH]; intros states s'' H y Hc; simpl in H, Hc; [contradiction|].
+    destruct (unify env fuel target x (Ongoing states)) as [[s'|]|] eqn:E; try discriminate H.
+    - destruct Hc as [<-|Hc]; [exists states, s'; exact E|]. eapply IH; eassumption.
+    - rewrite fold_unify_stays_failed_assignee in H. discriminate H.
+Qed.
+
+(* A union target took the assignee with one of its components (union_body) *)
+Lemma union_body_found: forall fuel components assignee states s',
+    union_body (unify env fuel) components assignee states = Some (Ongoing s') ->
+    exists x, In x components /\ unify env fuel x assignee (Ongoing states) = Some (Ongoing s').
+Proof.
+    intros fuel components assignee states s' H. unfold union_body in H. cbn zeta in H.
+    destruct (find_first _ _) as [[[x s]|]|] eqn:E; try discriminate H.
+    injection H as <-. apply find_first_found in E. destruct E as [Hin E]. exists x. split; [|exact E].
+    apply in_app_or in Hin. destruct Hin as [Hin|Hin]; apply filter_In in Hin; exact (proj1 Hin).
+Qed.
+
 Lemma fold_unify_each: forall fuel assignee xs states s'',
     fold_unify (fun inner y => unify env fuel y assignee inner) xs (Ongoing states) = Some (Ongoing s'') ->
     forall y, In y xs -> exists s s', unify env fuel y assignee (Ongoing s) = Some (Ongoing s').
@@ -916,7 +1020,7 @@ Lemma no_type_variables: forall components,
 Proof.
     induction components as [|x rest IH]; intros H; simpl in *; [split; reflexivity|].
     apply andb_true_iff in H. destruct H as [Hc H]. destruct (IH H) as [IH1 IH2].
-    destruct x as [| |[]| | | |]; simpl in Hc; try discriminate Hc; simpl; rewrite IH1, IH2; split; reflexivity.
+    destruct x as [| |[]| | | | |]; simpl in Hc; try discriminate Hc; simpl; rewrite IH1, IH2; split; reflexivity.
 Qed.
 
 (*
@@ -933,11 +1037,11 @@ Proof.
     induction fuel as [|fuel IH]; intros target assignee states s H Ht Ha; [discriminate H|].
     change (unify env (S fuel) target assignee (Ongoing states))
         with (unify_step env (unify env fuel) target assignee states) in H.
-    destruct target as [tm tc targs|tn|[tg tnn tp tb]|tm tmsg|tv to tt|[tg tnn tp tb]|tcs]; simpl in Ht; try discriminate Ht;
+    destruct target as [tm tc targs|tn|[tg tnn tp tb]|tm tmsg|tv to tt|[tg tnn tp tb]|tcs|tus]; simpl in Ht; try discriminate Ht;
         cbv beta iota delta [unify_step] in H.
     - (* RootResolved *)
       cbv beta iota delta [unify_root_resolved] in H.
-      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs|aus]; simpl in Ha; try discriminate Ha.
       + destruct (negb (base_type_is_subtype_of env ac tc)); [discriminate H|].
         match type of H with context [negb (is_subtype_of ?x ?y)] => destruct (is_subtype_of x y) eqn:E end;
             [reflexivity|discriminate H].
@@ -947,10 +1051,13 @@ Proof.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
+      + apply union_assignment_mutability_below. intros c Hc.
+        destruct (fold_unify_each_assignee _ _ _ _ _ H c Hc) as [s1 [s1' Hu]].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Nullable *)
       cbv beta iota delta [unify_nullable] in H.
       change (assignment_mutability env (Nullable tn)) with (assignment_mutability env tn).
-      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs|aus]; simpl in Ha; try discriminate Ha.
       + eapply IH; eassumption.
       + change (assignment_mutability env (Nullable an)) with (assignment_mutability env an). eapply IH; eassumption.
       + (* depending on the nested type, the assignee is unified with it, or its bound with this *)
@@ -964,14 +1071,18 @@ Proof.
         { intros Hu. rewrite (assignment_mutability_generic env ranked).
           change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
           eapply IH; [exact Hu|exact Ht|]. rewrite <- can_refer_generic. exact Ha. }
-        destruct tn as [| |[]| | | |]; first [exact (Hnested H) | exact (Hself H)].
+        destruct tn as [| |[]| | | | |]; first [exact (Hnested H) | exact (Hself H)].
       + (* the assignee without null, unified with the nested type *)
         destruct (without_null_keeps (Intersection acs)) as [_ Hc].
         rewrite <- (without_null_keeps_assignment_mutability (Intersection acs)).
         eapply IH; [exact H|exact Ht|rewrite Hc; exact Ha].
+      + change (assignment_mutability env tn) with (assignment_mutability env (Nullable tn)).
+        apply union_assignment_mutability_below. intros c Hc.
+        destruct (fold_unify_each_assignee _ _ _ _ _ H c Hc) as [s1 [s1' Hu]].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Generic *)
       cbv beta iota delta [unify_generic] in H.
-      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs|aus]; simpl in Ha; try discriminate Ha.
       + simpl in H. apply negb_true_iff in Ha. rewrite Ha in H. discriminate H.
       + discriminate H.
       + destruct (param_eqb ap tp).
@@ -979,6 +1090,9 @@ Proof.
         * rewrite (assignment_mutability_generic env ranked). eapply IH; [exact H|exact Ht|]. rewrite <- can_refer_generic. exact Ha.
       + destruct (intersection_flipped_unify_found _ _ _ _ _ H) as [c [Hc Hu]].
         eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
+      + apply union_assignment_mutability_below. intros c Hc.
+        destruct (fold_unify_each_assignee _ _ _ _ _ H c Hc) as [s1 [s1' Hu]].
         eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
     - (* Intersection *)
       cbv beta iota zeta delta [unify_intersection intersection_body] in H.
@@ -990,12 +1104,30 @@ Proof.
         intros y Hy. apply in_map_iff in Hy. destruct Hy as [c [<- Hc]].
         destruct (fold_unify_each _ _ _ _ _ Hfold c Hc) as [s1 [s1' Hu]].
         eapply IH; [exact Hu| |exact Ha]. rewrite forallb_forall in Ht. apply Ht, Hc. }
-      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs]; simpl in Ha; try discriminate Ha;
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs|aus]; simpl in Ha; try discriminate Ha;
           try (simpl in H; discriminate H);
           try (destruct (negb (is_nullable env (Intersection tcs))); [discriminate H|]);
           rewrite Hnonvar in H;
           (destruct (fold_unify _ tcs (Ongoing states)) as [[s2|]|] eqn:Efold; try discriminate H);
           eapply Hcomponents; reflexivity.
+    - (* Union: the assignee is taken by a component, which is assigned as no more than the union;
+         a union assignee by each of its components *)
+      cbv beta iota delta [unify_union] in H.
+      destruct assignee as [am ac aargs|an|[ag ann ap ab]|am amsg|av ao aty|[ag ann ap ab]|acs|aus]; simpl in Ha; try discriminate Ha;
+          try (destruct (union_body_found _ _ _ _ _ H) as [c [Hc Hu]];
+               eapply mutability_subtype_trans; [|apply union_assignment_mutability_above_component, Hc];
+               eapply IH; [exact Hu| |exact Ha]; rewrite forallb_forall in Ht; apply Ht, Hc).
+      + (* an intersection: a component of it is below the union, or a component of the union takes it *)
+        destruct (intersection_flipped_unify (unify env fuel) (Union tus) acs states) as [[w|]|] eqn:E; cbn iota in H; try discriminate H.
+        * injection H as <-. destruct (intersection_flipped_unify_found _ _ _ _ _ E) as [c [Hc Hu]].
+          eapply mutability_subtype_trans; [apply intersection_assignment_mutability_below_component, Hc|].
+          eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
+        * destruct (union_body_found _ _ _ _ _ H) as [c [Hc Hu]].
+          eapply mutability_subtype_trans; [|apply union_assignment_mutability_above_component, Hc].
+          eapply IH; [exact Hu| |exact Ha]; rewrite forallb_forall in Ht; apply Ht, Hc.
+      + apply union_assignment_mutability_below. intros c Hc.
+        destruct (fold_unify_each_assignee _ _ _ _ _ H c Hc) as [s1 [s1' Hu]].
+        eapply IH; [exact Hu|exact Ht|]. rewrite forallb_forall in Ha. apply Ha, Hc.
 Qed.
 
 (* The same, in terms of is_assignable_to: a value can only ever be aliased by references that

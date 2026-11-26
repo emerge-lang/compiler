@@ -23,6 +23,7 @@ import compiler.ast.AstImportDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.type.AstAbsoluteTypeReference
 import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.AstSimpleTypeReference
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
@@ -33,6 +34,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.ErroneousType
@@ -171,6 +173,7 @@ open class MutableCTContext(
     override fun resolveType(ref: TypeReference): BoundTypeReference {
         return when (ref) {
             is AstIntersectionType -> BoundIntersectionTypeReference.ofComponents(this, ref, ref.components.map(this::resolveType))
+            is AstUnionType -> BoundUnionTypeReference.ofComponents(this, ref, ref.components.map(this::resolveType))
             is AstSimpleTypeReference -> resolveNamedTypeExceptNullability(ref).withCombinedNullability(ref.nullability)
         }
     }
