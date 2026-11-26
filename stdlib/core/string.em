@@ -2,16 +2,17 @@ package emerge.core
 
 import emerge.core.safemath.plusModulo
 import emerge.platform.panic
-import emerge.core.utf8.rejectInvalidUtf8
+import emerge.core.utf8.{rejectInvalidUtf8, codepoints}
+import emerge.core.hash.{Hashable, HashState}
 
-export class String : const NonToken {
-    export utf8Data: Array<S8> = init
+export class String : const NonToken & Hashable & Equatable<String> {
+    export utf8Data: const Array<S8> = init
 
     private nothrow constructor {}
 
     // @return a String of the given bytes
     // @throws InvalidUtf8Exception if the bytes are not valid UTF-8
-    export fn fromUtf8(capture utf8Data: Array<S8>) -> own String {
+    export fn fromUtf8(capture utf8Data: const Array<S8>) -> own String {
         rejectInvalidUtf8(utf8Data)
         return String(utf8Data)
     }
@@ -30,7 +31,7 @@ export class String : const NonToken {
         return String(newData)
     }
 
-    export nothrow operator fn equals(self, borrow other: read String) -> Bool {
+    export override nothrow operator fn equals(self, borrow other: read String) -> Bool {
         // TODO: horribly inefficient. Needs Array::equals.
         if self.utf8Data.size != other.utf8Data.size {
             return false
@@ -56,5 +57,14 @@ export class String : const NonToken {
         }
 
         return true
+    }
+
+    export override fn hashInto(self, borrow state: mut HashState<*>) {
+        var nCodepoints = 0 as UWord
+        foreach codepoint in self.codepoints() {
+            state.addRaw(codepoint.toUWord())
+            set nCodepoints = nCodepoints + 1
+        }
+        state.addRaw(nCodepoints)
     }
 }

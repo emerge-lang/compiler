@@ -1,5 +1,7 @@
 package emerge.std.collections
 
+import emerge.core.hash.{Hashable, HashAlgorithm}
+
 export class MapSet<Element : const Equatable<Element>, MapT : Map<Element, Unit>> : Set<Element> {
     private map: mut MapT = init
 

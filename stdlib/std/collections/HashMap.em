@@ -2,6 +2,7 @@ package emerge.std.collections
 
 import emerge.core.safemath.{plusModulo, minusModulo}
 import emerge.core.range.{SizedRange, BidirectionalRange, EmptyRangeException}
+import emerge.core.hash.{Hashable, HashAlgorithm, hashWith}
 
 export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Value> {
     private var buckets = Array.new::<mut ArrayList<mut MapEntry<Key, Value>>?>(16, null)
@@ -14,7 +15,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return self.storeEntry(MapEntry(index, value), true)
     }
 
-    private fn storeEntry(self: mut _, entry: MapEntry<Key, Value>, grow: Bool) -> Value? {
+    private fn storeEntry(self: mut _, entry: mut MapEntry<Key, Value>, grow: Bool) -> Value? {
         hash = entry.key.hashWith(self.hashAlgorithm)
         bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
@@ -51,7 +52,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return self.getEntry(index)?.value
     }
 
-    export override operator fn contains(self, borrow key: Key) {
+    export override operator fn contains(self, borrow key: Key) -> Bool {
         return not isNull(self.getEntry(key))
     }
 
@@ -70,7 +71,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return null
     }
 
-    export override fn remove(self: mut _, key: Key) -> Value? {
+    export override fn remove(self: mut _, borrow key: Key) -> Value? {
         hash = key.hashWith(self.hashAlgorithm)
         bucketIndex = hash.bitwiseAnd((2 as UWord).pow(self.buckets.size) - 1)
         var bucket = self.buckets[bucketIndex]
@@ -88,7 +89,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return null
     }
 
-    export override fn asRange(self) -> HashMapRange<Key, Value> = HashMapRange(self)
+    export override fn asRange(capture self) -> HashMapRange<Key, Value> = HashMapRange(self)
 
     export override get fn size(self) -> UWord = self._size
     

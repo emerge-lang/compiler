@@ -3,9 +3,8 @@ package emerge.core
 import emerge.platform.panic
 import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
-import emerge.core.range.ArrayRange
-import emerge.core.range.Iterable
-import emerge.core.range.UWordRange
+import emerge.core.range.{ArrayRange, Iterable, UWordRange}
+import emerge.core.hash.{Hashable, HashState}
 import emerge.core.safemath.plusModulo
 
 export class Unit : const Any {
@@ -355,7 +354,7 @@ export class S64 : const Any & Printable {
     export nothrow fn max() -> S64 = 9223372036854775807
 }
 
-export class U64 : const Any & Printable {
+export class U64 : const Any & Printable & Hashable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn bitwiseNot(self) -> U64
@@ -420,14 +419,23 @@ export class U64 : const Any & Printable {
             set insertionIndex = insertionIndex - 1
         }
 
-        return String.fromUtf8(buf.sliceOrPanic(insertionIndex + 1, buf.size))
+        return String.fromUtf8(buf.sliceOrPanic::<const Array<S8>>(insertionIndex + 1, buf.size))
+    }
+
+    export override fn hashInto(self, borrow state: mut HashState<*>) {
+        if U64.max() == UWord.max().asU64() {
+            state.addRaw(self.asUWord())
+        } else {
+            state.addRaw(self.logicalBitShiftRight(32).asUWord())
+            state.addRaw(self.asUWord())
+        }
     }
 
     export nothrow fn min() -> U64 = 0
     export nothrow fn max() -> U64 = 18446744073709551615
 }
 
-export class SWord : const Any & Printable {
+export class SWord : const Any & Printable & Hashable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> SWord
@@ -468,13 +476,17 @@ export class SWord : const Any & Printable {
         self.asS64().printTo(stream)
     }
 
+    export override fn hashInto(self, borrow state: mut HashState<*>) {
+        state.addRaw(self.asUWord())
+    }
+
     export intrinsic nothrow fn copy(self) -> SWord
 
     export intrinsic nothrow fn min() -> SWord
     export intrinsic nothrow fn max() -> SWord
 }
 
-export class UWord : const Any & Printable {
+export class UWord : const Any & Printable & Hashable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn bitwiseNot(self) -> UWord
@@ -513,11 +525,15 @@ export class UWord : const Any & Printable {
         self.asU64().printTo(stream)
     }
 
+    export override fn hashInto(self, borrow state: mut HashState<*>) {
+        state.addRaw(self)
+    }
+
     export nothrow fn min() -> UWord = 0
     export intrinsic nothrow fn max() -> UWord
 }
 
-export class Bool : const Any {
+export class Bool : const Any & Hashable {
     private nothrow constructor {}
 
     export intrinsic nothrow operator fn bitwiseNot(self) -> Bool
@@ -526,6 +542,10 @@ export class Bool : const Any {
     export intrinsic nothrow operator fn bitwiseOr(self, borrow other: Bool) -> Bool
     export intrinsic nothrow operator fn `xor`(self, borrow other: Bool) -> Bool
     export intrinsic nothrow operator fn equals(self, borrow other: Bool) -> Bool
+
+    export override fn hashInto(self, borrow state: mut HashState<*>) {
+        state.addRaw(if self 1 else 0)
+    }
 
     export nothrow fn toString(self) = if self "true" else "false"
 }
@@ -574,6 +594,8 @@ export class Array<Element> : Iterable<Element> {
     // fn Array<T>.equals(self, borrow other: Array<T>, equals: (T, T) -> Bool) -> Bool
     // and could be invoked like so:
     // str1.utf8Bytes.equals(str2.utf8Bytes, U8::equals)
+    // and, since there is emerge.core.Equatable, there could also be:
+    // fn Array<T : Equatable<T>>.equals(self, borrow other: Array<out T>) -> Bool
 }
 
 export class ArrayIndexOutOfBoundsError : Error {

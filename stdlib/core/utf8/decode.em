@@ -67,7 +67,7 @@ export fn getNextCodepointAt(borrow data: Array<S8>, index: UWord) -> Pair<out U
 
 export fn rejectInvalidUtf8(borrow bytes: Array<S8>) {
     var index = 0 as UWord
-    while true {
+    while index < bytes.size {
         codepointAndNextIndex = getNextCodepointAt(bytes, index)
         set index = codepointAndNextIndex.second ?: break
     }
@@ -81,21 +81,21 @@ export class InvalidUtf8Exception : Throwable {
 }
 
 export class StringCodepoints : Iterable<U32> {
-    private string: String = init
+    private utf8Data: const Array<S8> = init
 
-    export override fn asRange(self) -> own StringCodepointsRange = StringCodepointsRange(self.string)
+    export override fn asRange(self) -> own StringCodepointsRange = StringCodepointsRange(self.utf8Data)
 }
 
-export fn codepoints(capture self: String) = StringCodepoints(self)
+export fn codepoints(self: String) = StringCodepoints(self.utf8Data)
 
 export class StringCodepointsRange : FiniteRange<U32> {
-    private string: String = init
+    private utf8Data: const Array<S8> = init
     private var cachedFront: U32 = 0
     private var frontCached: Bool = false
     private var atIndex: UWord = 0
 
     export override get fn front(self) -> U32 {
-        if self.atIndex >= self.string.utf8Data.size {
+        if self.atIndex >= self.utf8Data.size {
             throw EmptyRangeException()
         }
 
@@ -103,12 +103,12 @@ export class StringCodepointsRange : FiniteRange<U32> {
             return self.cachedFront
         }
 
-        return getNextCodepointAt(self.string.utf8Data, self.atIndex).first
+        return getNextCodepointAt(self.utf8Data, self.atIndex).first
     }
 
     export override fn popFront(self: mut _) {
-        result = getNextCodepointAt(self.string.utf8Data, self.atIndex)
-        set self.atIndex = result.second ?: self.string.utf8Data.size
+        result = getNextCodepointAt(self.utf8Data, self.atIndex)
+        set self.atIndex = result.second ?: self.utf8Data.size
         set self.cachedFront = result.first
         set self.frontCached = true
     }
