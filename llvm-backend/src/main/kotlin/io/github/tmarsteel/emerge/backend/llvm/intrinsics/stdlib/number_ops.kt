@@ -786,19 +786,19 @@ private fun <T : LlvmIntegerType> buildShiftLeftFn(typeSimpleName: String, llvmT
     }
 }
 
-private val shiftLeft_u8 = buildShiftLeftFn("U8", LlvmS8Type)
-private val shiftLeft_s8 = buildShiftLeftFn("S8", LlvmU8Type)
-private val shiftLeft_u16 = buildShiftLeftFn("U16", LlvmS16Type)
-private val shiftLeft_s16 = buildShiftLeftFn("S16", LlvmU16Type)
-private val shiftLeft_u32 = buildShiftLeftFn("U32", LlvmS32Type)
-private val shiftLeft_s32 = buildShiftLeftFn("S32", LlvmU32Type)
-private val shiftLeft_u64 = buildShiftLeftFn("U64", LlvmS64Type)
-private val shiftLeft_s64 = buildShiftLeftFn("S64", LlvmU64Type)
+private val shiftLeft_u8 = buildShiftLeftFn("U8", LlvmU8Type)
+private val shiftLeft_s8 = buildShiftLeftFn("S8", LlvmS8Type)
+private val shiftLeft_u16 = buildShiftLeftFn("U16", LlvmU16Type)
+private val shiftLeft_s16 = buildShiftLeftFn("S16", LlvmS16Type)
+private val shiftLeft_u32 = buildShiftLeftFn("U32", LlvmU32Type)
+private val shiftLeft_s32 = buildShiftLeftFn("S32", LlvmS32Type)
+private val shiftLeft_u64 = buildShiftLeftFn("U64", LlvmU64Type)
+private val shiftLeft_s64 = buildShiftLeftFn("S64", LlvmS64Type)
 private val shiftLeft_uWord = buildShiftLeftFn("UWord", EmergeSWordType)
 private val shiftLeft_sWord = buildShiftLeftFn("SWord", EmergeUWordType)
 
 private fun <T : LlvmIntegerType> buildLogicalBitShiftRightFn(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
-    "emerge.platform.$typeSimpleName::logicalBitShiftRight",
+    "emerge.core.$typeSimpleName::logicalBitShiftRight",
     llvmType,
 ) {
     instructionAliasAttributes()
@@ -811,19 +811,19 @@ private fun <T : LlvmIntegerType> buildLogicalBitShiftRightFn(typeSimpleName: St
     }
 }
 
-private val logicalShiftRight_u8 = buildLogicalBitShiftRightFn("U8", LlvmS8Type)
-private val logicalShiftRight_s8 = buildLogicalBitShiftRightFn("S8", LlvmU8Type)
-private val logicalShiftRight_u16 = buildLogicalBitShiftRightFn("U16", LlvmS16Type)
-private val logicalShiftRight_s16 = buildLogicalBitShiftRightFn("S16", LlvmU16Type)
-private val logicalShiftRight_u32 = buildLogicalBitShiftRightFn("U32", LlvmS32Type)
-private val logicalShiftRight_s32 = buildLogicalBitShiftRightFn("S32", LlvmU32Type)
-private val logicalShiftRight_u64 = buildLogicalBitShiftRightFn("U64", LlvmS64Type)
-private val logicalShiftRight_s64 = buildLogicalBitShiftRightFn("S64", LlvmU64Type)
+private val logicalShiftRight_u8 = buildLogicalBitShiftRightFn("U8", LlvmU8Type)
+private val logicalShiftRight_s8 = buildLogicalBitShiftRightFn("S8", LlvmS8Type)
+private val logicalShiftRight_u16 = buildLogicalBitShiftRightFn("U16", LlvmU16Type)
+private val logicalShiftRight_s16 = buildLogicalBitShiftRightFn("S16", LlvmS16Type)
+private val logicalShiftRight_u32 = buildLogicalBitShiftRightFn("U32", LlvmU32Type)
+private val logicalShiftRight_s32 = buildLogicalBitShiftRightFn("S32", LlvmS32Type)
+private val logicalShiftRight_u64 = buildLogicalBitShiftRightFn("U64", LlvmU64Type)
+private val logicalShiftRight_s64 = buildLogicalBitShiftRightFn("S64", LlvmS64Type)
 private val logicalShiftRight_uWord = buildLogicalBitShiftRightFn("UWord", EmergeSWordType)
 private val logicalShiftRight_sWord = buildLogicalBitShiftRightFn("SWord", EmergeUWordType)
 
 private fun <T : LlvmIntegerType> buildArithmeticBitShiftRightFn(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
-    "emerge.platform.$typeSimpleName::arithmeticBitShiftRight",
+    "emerge.core.$typeSimpleName::arithmeticBitShiftRight",
     llvmType,
 ) {
     instructionAliasAttributes()
