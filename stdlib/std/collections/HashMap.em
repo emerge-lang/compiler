@@ -48,7 +48,7 @@ export class HashMap<Key : const Hashable & Equatable<Key>, Value> : Map<Key, Va
         return null
     }
 
-    export override operator fn getAtIndex(self: mut _, borrow index: Key) -> Value? {
+    export override operator fn getAtIndex(self, borrow index: Key) -> Value? {
         return self.getEntry(index)?.value
     }
 
